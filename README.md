@@ -52,138 +52,89 @@ bun run typecheck    # TypeScript en modo estricto
 
 ```bash
 bun run dev:tauri            # abre la ventana nativa
-bun run build:windows        # genera el .exe y el instalador en dist/
 ```
 
-### Compilar para Windows desde Linux (Docker)
+Para ejecutarla ya compilada, ver [Ejecutarlo en tu ordenador](#ejecutarlo-en-tu-ordenador).
+
+### Volver a compilar el ejecutable
+
+Solo hace falta si tocas el codigo. Los ejecutables de `dist/` ya estan
+compilados.
 
 ```bash
-bun run build:windows:docker
+bun run build:windows:docker   # .exe + instalador, desde Linux
+bun run build:linux:docker     # AppImage + .deb, desde Linux
+bun run build:macos            # .dmg + .app, solo en un Mac
 ```
 
-Usa `cargo-xwin` para compilar el binario Rust contra el SDK de Windows desde
-un contenedor Linux.
+### Detalles de la compilacion en Linux
 
-Qué funciona y qué no desde Linux:
+Compilar el `.exe` de Windows desde Linux tiene tres trampas que cuestan una
+hora cada una. estan aqui para que nadie las repita:
 
-| Artefacto | Desde Linux | Notas |
+- **No existe `tauri xwin build`**, ni `cargo xwin tauri build`.
+  `cargo-xwin` solo expone subcomandos de cargo. La via que funciona es
+  `cargo xwin env > env.sh`, cargar ese fichero y dejar que `tauri build`
+  herede las variables.
+- **`clang-cl`, `llvm-rc` y `llvm-lib` necesitan alias sin numero de version**
+  en el `PATH`. En Debian bookworm vienen como `clang-cl-18`, `llvm-rc-18` y
+  `llvm-lib-18`, y `clang-cl` esta en `clang-tools-18`, no en `clang-18`.
+  `lib.exe` es `llvm-lib` renombrado.
+- **El instalador NSIS necesita `wine32:i386`.** `makensis.exe` es un PE de 32
+  bits; con solo `wine64` arranca en modo wow64, revienta y **devuelve 0 sin
+  hacer nada**, asi que Tauri cree que ha ido bien y falla despues al copiar un
+  instalador que nunca se creo.
+
+En Linux no hace falta nada de esto: el contenedor ya es Linux y el
+webview (WebKitGTK) se instala con `apt`.
+
+---
+
+
+## Ejecutarlo en tu ordenador
+
+Esto no se va a publicar en ningún sitio: es una aplicación para ti. En `dist/`
+están los ejecutables y ya está. No hay ni que instalar ni que registrarse en
+nada.
+
+| Sistema | Fichero | Cómo se ejecuta |
 |---|---|---|
-| `steam-keys.exe` | Sí | Cross-compilación pura, sin emulación |
-| Instalador **NSIS** (`setup.exe`) | Sí | `makensis.exe` oficial ejecutado bajo `wine` |
-| Instalador **MSI** | No | WiX necesita Windows de verdad; compílalo en Windows |
+| **Windows** | `steam-keys.exe` | Doble clic. |
+| **Linux** | `Steam Keys_1.0.0_amd64.AppImage` | Doble clic, o `./Steam Keys_1.0.0_amd64.AppImage` |
 
-Detalles que no son evidentes y que cuestan una hora cada una:
+El **AppImage** es autocontenido: lleva dentro el WebKitGTK que necesita, así
+que funciona en cualquier Linux de x86_64 (Ubuntu, Fedora, Arch, Debian…)
+sin instalar nada. Pesa 98 MB por eso. La primera vez quizá te pida permiso
+para ejecutarlo: botón derecho → *Propiedades* → *Permitir ejecutar*.
 
-- **No existe `tauri xwin build`.** `cargo-xwin` solo expone subcomandos de
-  cargo, y el CLI de Tauri no tiene un `xwin`. La vía que funciona es
-  `cargo xwin env > env.sh`, cargar ese fichero y dejar que `tauri build` herede
-  las variables.
-- **`frontendDist` se resuelve desde el directorio de trabajo**, no desde
-  `src-tauri/`. Dentro del contenedor eso significa `"../../../build"`.
-- **`clang-cl`, `llvm-rc` y `llvm-lib` necesitan alias sin número de versión** en
-  el `PATH`. En Debian bookworm vienen como `clang-cl-18`, `llvm-rc-18` y
-  `llvm-lib-18`, y el driver `clang-cl` está en `clang-tools-18`, no en
-  `clang-18`.
-- **`lib.exe` es `llvm-lib` renombrado**: el enlazado de MSVC lo busca por ese
-  nombre.
-- **El `.exe` se compila con `--no-bundle` en una capa aparte**, antes que el
-  instalador. Así un fallo de NSIS no tira abajo el ejecutable, que es lo que de
-  verdad importa.
-- **NSIS solo se puede generar en Linux con `wine32:i386`.** `makensis.exe` es
-  un PE de 32 bits; con solo `wine64` arranca en modo wow64, revienta con
-  `load_wow64_ntdll ... error c0000135` y **devuelve 0 sin hacer nada**. Tauri se
-  cree que ha ido bien y falla después con un engañoso
-  `No such file or directory` al copiar el instalador que nunca se creó. En los
-  logs, el aviso delata el problema: `wine32 is missing`.
-- **`socketcall` está bloqueado por el perfil seccomp de Docker.** Un PE de 32
-  bits hace sus llamadas de red por `socketcall` (la versión multiplexada de
-  i386), y el perfil por defecto de Docker solo admite `socket`, la directa de
-  x86_64. wine contesta `socket : Function not implemented` y Tauri falla con un
-  `Failed to bundle app with makensis` que no menciona sockets. Se arregla con
-  `seccomp:unconfined` en el compose, y como **el perfil del build de la imagen
-  no se puede cambiar**, el empaquetado tiene que vivir en el `CMD` del
-  Dockerfile, no en una capa.
-- **En NSIS, `/` es prefijo de opción igual que `-`.** Tauri pasa el script
-  como ruta absoluta de Unix (`/workspace/.../installer.nsi`) y `makensis` se la
-  come como si fueran opciones: no encuentra el script e imprime su ayuda. Por
-  eso el envoltorio traduce cada argumento que empiece por `/` con
-  `winepath -w`.
-- **Tauri escribe rutas de Unix donde `makensis` busca rutas de Windows.** El
-  síntoma es un `could not find` sobre ficheros que están ahí mismo. Lo único
-  que funciona es `Z:\ruta\con\barras` (`Z:` es la raíz en wine), y se traduce
-  con [nsis-rutas-windows.awk](tools/scripts/nsis-rutas-windows.awk), que
-  documenta las tres alternativas que ya se probaron y no van: rutas relativas
-  con `..`, `Z:` con barras normales y enlazar el proyecto dentro del prefix.
+`dist/Steam Keys_1.0.0_x64-setup.exe` es el instalador de Windows, por si en
+algún momento lo quieres. También funciona sin instalarlo, pero no hace falta.
 
-Los artefactos se copian a `dist/` al **arrancar** el contenedor, no durante el
-build: el volumen que monta `dist/` sobre `/out` oculta lo que la imagen traiga
-ahí. Por eso hay que ejecutar el build y luego `docker compose up --no-build`.
+### macOS
 
-### Compilar para Linux (Docker)
-
-```bash
-docker compose -f tools/docker/docker-compose.linux.yml up --build
-```
-
-Genera el `.deb` (Debian/Ubuntu) y el `.AppImage` (cualquier distro). Aquí no hay
-cross-compile: el contenedor ya es Linux.
-
-- **WebKitGTK, no Chromium.** En Linux el webview de Tauri es WebKitGTK, y hace
-  falta `libwebkit2gtk-4.1-dev` (la 4.1 es la que pide Tauri 2.3+).
-- **`patchelf` es obligatorio**, no opcional: Tauri reescribe el RPATH del
-  binario con él. Sin `patchelf` el `.deb` compila pero no arranca.
-- **No se genera `.rpm`.** Necesita `rpmbuild`, que no está en los repos de
-  Ubuntu.
-
-### Compilar para macOS
-
-**No se puede desde Linux.** Un `.app` y un `.dmg` exigen Xcode y el SDK de
-macOS; no es una limitación de este proyecto sino de Apple. Y compilar el
-binario Rust para macOS no sirve de nada: aunque se pudiera, el `.app` no se
-empaqueta sin sus SDK.
-
-Las dos vías reales, en orden de coste:
-
-| Vía | Cuándo | Coste |
-|---|---|---|
-| **Un Mac** (tu Mac, el de un amigo, uno prestado) | Cuando quieras | 0 |
-| **Servicios de Mac en la nube** (MacStadium, AWS EC2 Mac) | Cuando quieras | ~8–25 €/día |
-| GitHub Actions | — | No se usa: el repo es privado |
-
-En un Mac es un comando:
+Necesita un Mac. No es capricho del proyecto: el `.app` lo firma y empaqueta
+Xcode, y no hay forma de hacerlo desde Linux ni de generar un `.dmg` fuera
+de un Mac. Cuando tengas uno:
 
 ```bash
 bun install
-bun run build:macos        # genera el .dmg y el .app en dist/
+bun run build:macos
 ```
 
----
+### Qué necesita cada sistema
 
-## Distribución para las tres plataformas
+| | Requisito |
+|---|---|
+| Windows | WebView2. Ya viene en Windows 10 y 11. |
+| Linux | Nada. El AppImage lo lleva dentro. |
+| macOS | macOS 10.15 Catalina o superior. |
 
-| Plataforma | Runner | Formatos | Cómo se compila aquí |
-|---|---|---|---|
-| **Windows** | Docker en WSL2 | `.exe` + instalador NSIS | `bun run build:windows:docker` |
-| **Linux** | Docker en WSL2 | `.deb` + `.AppImage` | `docker compose -f tools/docker/docker-compose.linux.yml up --build` |
-| **macOS** | Un Mac | `.dmg` + `.app` | `bun run build:macos` |
-
-Windows y Linux salen los dos de este repositorio, en Docker, sin pagar nada.
-**macOS necesita un Mac en algún momento**: es la única pieza que no se puede
-hacer desde aquí.
-
-Los tres instaladores van **sin firmar**. Windows SmartScreen y la Gatekeeper de
-macOS mostrarán su aviso de "aplicación no reconocida": hay que ir a *Más
+Windows SmartScreen y la Gatekeeper de macOS mostraran su aviso de "aplicacion
+no reconocida", porque los ejecutables van sin firmar. Se pasa con *Más
 información* → *Ejecutar de todos modos*. En Linux no hay nada que hacer.
 
-### Qué hace falta para que la aplicación funcione en cada sitio
-
-| | Necesario |
-|---|---|
-| Windows | WebView2 (ya viene en Windows 10/11). El instalador lo descarga si falta. |
-| Linux | `libwebkit2gtk-4.1` y `libgtk-3`. El `.deb` los declara como dependencias. |
-| macOS | macOS 10.15 Catalina o superior |
-
 ---
+
 
 ## Traer las claves del TXT
 
@@ -214,8 +165,8 @@ Todos están en el `package.json` de la raíz.
 | `bun run dev` | Front en el navegador, contra la BD real |
 | `bun run dev:tauri` | App de escritorio nativa |
 | `bun run build` | Compila el front a `build/` |
-| `bun run build:windows:docker` | `.exe` + instalador NSIS (desde Linux) |
-| `bun run build:linux:docker` | `.deb` + `.AppImage` (desde Linux) |
+| `bun run build:windows:docker` | `steam-keys.exe` (desde Linux) |
+| `bun run build:linux:docker` | AppImage autocontenido (desde Linux) |
 | `bun run build:macos` | `.dmg` + `.app` (solo en un Mac) |
 | `bun test` | Tests (parser, export, round-trip, puente) |
 | `bun run typecheck` | TypeScript estricto |
