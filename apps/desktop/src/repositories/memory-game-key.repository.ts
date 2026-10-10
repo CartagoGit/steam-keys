@@ -104,6 +104,44 @@ export class MemoryGameKeyRepository implements IGameKeyRepository {
     persist(this.keys);
   }
 
+  async setStatusMany(ids: readonly number[], status: KeyStatus): Promise<void> {
+    if (ids.length === 0) return;
+
+    const objetivo = new Set(ids);
+    const ahora = nowSqliteTimestamp();
+
+    this.keys = this.keys.map((key) =>
+      objetivo.has(key.id) ? { ...key, status, updatedAt: ahora } : key,
+    );
+    persist(this.keys);
+  }
+
+  async giftMany(entries: readonly { id: number; giftedTo: string }[]): Promise<void> {
+    if (entries.length === 0) return;
+
+    const porId = new Map(entries.map((entry) => [entry.id, entry.giftedTo]));
+    const ahora = nowSqliteTimestamp();
+
+    this.keys = this.keys.map((key) =>
+      porId.has(key.id)
+        ? { ...key, status: KeyStatus.Gifted, giftedTo: porId.get(key.id) ?? null, updatedAt: ahora }
+        : key,
+    );
+    persist(this.keys);
+  }
+
+  async setTagsMany(ids: readonly number[], tags: readonly string[]): Promise<void> {
+    if (ids.length === 0) return;
+
+    const objetivo = new Set(ids);
+    const ahora = nowSqliteTimestamp();
+
+    this.keys = this.keys.map((key) =>
+      objetivo.has(key.id) ? { ...key, tags: [...tags], updatedAt: ahora } : key,
+    );
+    persist(this.keys);
+  }
+
   async markUsed(id: number, usedAt?: string): Promise<void> {
     const stamp = usedAt ?? nowSqliteTimestamp();
     this.keys = this.keys.map((key) =>

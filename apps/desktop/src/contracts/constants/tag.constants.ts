@@ -31,7 +31,8 @@ export const ORIGIN_TAGS: readonly string[] = Object.freeze([
   'gift',
   'bundle',
   'review',
-  '试玩',
+  'humo',
+  'pack',
 ]);
 
 /**

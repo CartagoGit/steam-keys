@@ -31,6 +31,10 @@ export interface IGameKeyRepository {
   remove(id: number): Promise<void>;
   removeMany(ids: readonly number[]): Promise<void>;
   setStatus(id: number, status: KeyStatus): Promise<void>;
+  /** Cambia el estado de varias claves a la vez, en una sola operacion. */
+  setStatusMany(ids: readonly number[], status: KeyStatus): Promise<void>;
+  /** Cambia las etiquetas de varias claves a la vez, en una sola operacion. */
+  setTagsMany(ids: readonly number[], tags: readonly string[]): Promise<void>;
   markUsed(id: number, usedAt?: string): Promise<void>;
   findByKey(keyValue: string): Promise<IGameKey | null>;
   countAll(): Promise<number>;

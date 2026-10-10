@@ -16,10 +16,12 @@ function claveFalsa(id: number, title: string, keyValue: string): IGameKey {
     giftedTo: null,
     parentTitle: null,
     note: null,
-    tags: '',
+    tags: [],
     addedOn: null,
     lastUsedAt: null,
-  } as IGameKey;
+    createdAt: '2026-01-01 00:00:00',
+    updatedAt: '2026-01-01 00:00:00',
+  };
 }
 
 describe('exportar las claves para regalar', () => {

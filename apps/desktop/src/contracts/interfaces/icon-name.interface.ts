@@ -30,6 +30,9 @@ export type IconName =
   | 'package'
   | 'calendar'
   | 'tag'
+  | 'settings'
+  | 'globe'
+  | 'palette'
   | 'refresh'
   | 'external'
   | 'info';

@@ -56,6 +56,12 @@ export const gameKeyService = {
     await repository.setStatusMany(ids, status);
   },
 
+  /** Cambia las etiquetas de varias claves a la vez, en una sola operacion. */
+  async setTagsMany(ids: readonly number[], tags: readonly string[]): Promise<void> {
+    const repository = await getRepository();
+    await repository.setTagsMany(ids, tags);
+  },
+
   /**
    * Marca varias claves como regaladas, guardando para quien fue cada una.
    *

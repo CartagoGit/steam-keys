@@ -84,7 +84,7 @@ export async function getRepository(): Promise<IGameKeyRepository> {
       const repositorio = new SqliteGameKeyRepository(tauriDatabaseClient);
       await tauriDatabaseClient.migrate();
       instancia = repositorio;
-      return instancia;
+      return repositorio;
     }
 
     case StorageMode.DevBridge: {
@@ -96,8 +96,9 @@ export async function getRepository(): Promise<IGameKeyRepository> {
       const cliente: IDatabaseClient = devBridgeDatabaseClient;
       await cliente.migrate();
 
-      instancia = new SqliteGameKeyRepository(cliente);
-      return instancia;
+      const repositorio = new SqliteGameKeyRepository(cliente);
+      instancia = repositorio;
+      return repositorio;
     }
 
     case StorageMode.Memory:

@@ -95,8 +95,13 @@ function bindToString(value: unknown): string {
 
 /** Borra los ajustes guardados. Solo para tests. */
 export function clearMemorySettings(): void {
-  ajustes = {};
-  persist({});
+  if (typeof localStorage === 'undefined') return;
+
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // Nada que hacer: si no se puede escribir, tampoco se puede borrar.
+  }
 }
 
 /** Tipo auxiliar para quien necesite leer el almacen sin el cliente. */

@@ -185,6 +185,25 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
     );
   }
 
+  /**
+   * Cambia las etiquetas de varias claves en un unico `UPDATE`.
+   *
+   * Las etiquetas se guardan como texto separado por comas, asi que aqui se
+   * reconstruye el string entero. Se hace en una sola sentencia y no en un
+   * bucle porque pueden ser cientos las claves que se cambian de golpe y cada
+   * viaje de ida y vuelta cuesta.
+   */
+  async setTagsMany(ids: readonly number[], tags: readonly string[]): Promise<void> {
+    if (ids.length === 0) return;
+
+    const placeholders = ids.map((_, index) => `$${index + 2}`).join(', ');
+
+    await this.db.execute(
+      `UPDATE game_keys SET tags = $1, updated_at = $2 WHERE id IN (${placeholders})`,
+      [tags.join(', '), touchTimestamp(), ...ids],
+    );
+  }
+
   async findByKey(keyValue: string): Promise<IGameKey | null> {
     const rows = await this.db.select<IGameKeyRow>(
       `SELECT ${GAME_KEY_COLUMNS} FROM game_keys WHERE key_value = $1`,
