@@ -5,7 +5,6 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
-const projectRoot = resolve(currentDir, '..', '..');
 
 /**
  * `build/` y `dist/` viven en la raiz del proyecto, no dentro del app.

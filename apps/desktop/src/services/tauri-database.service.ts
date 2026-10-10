@@ -20,7 +20,7 @@ export const tauriDatabaseClient: IDatabaseClient = {
     return result.rowsAffected;
   },
 
-  async select<T>(sql, bind = []) {
+  async select<T>(sql: string, bind: readonly unknown[] = []) {
     const db = await getConnection();
     return db.select<T>(sql, bind as unknown[]);
   },
