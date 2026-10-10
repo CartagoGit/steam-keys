@@ -102,8 +102,13 @@ Todos están en el `package.json` de la raíz.
 | `bun run db:path` | Dónde está la base de datos y cuántas claves tiene |
 | `bun run db:reset -- --force` | Borra la base de datos |
 | `bun run mask` | Copia del TXT **sin claves**, segura para compartir |
+| `bun run audit` | Busca claves reales en el índice **y en el historial** de git |
 | `bun run inspect:format` | Mapa del formato del TXT original |
 | `bun run clean` | Vacía `build/` y `dist/` |
+
+> `audit` es la red de seguridad: léelo antes de cada `git push`. Si alguna vez
+> salta, dice qué fichero y qué commit, y los pasos exactos para limpiarlo
+> (`git filter-repo`). Ojo: `filter-repo` revierte los cambios sin commitear.
 
 ---
 
