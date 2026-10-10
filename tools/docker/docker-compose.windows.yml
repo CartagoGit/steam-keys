@@ -18,10 +18,28 @@ services:
         # Solo NSIS: el MSI lo firma WiX, que necesita Windows de verdad.
         TAURI_BUNDLES: nsis
     image: steam-keys-windows-build
+    security_opt:
+      # `makensis.exe` es un PE de 32 bits y por eso llama a `socketcall`, que
+      # en i386 es la syscall de red multiplexada. El perfil seccomp por
+      # defecto de Docker solo permite `socket` (la directa de x86_64), y
+      # `socketcall` queda para contenedores con `CAP_NET_RAW`. Sin esto, wine
+      # contesta `socket : Function not implemented`, `makensis` aborta y el
+      # error que ves es un `Failed to bundle app with makensis` que no dice
+      # absolutamente nada de sockets.
+      #
+      # Se aplica en el arranque y no durante el build de la imagen porque el
+      # perfil del build no es configurable; por eso el empaquetado vive en el
+      # `CMD` del Dockerfile y no en una capa.
+      - seccomp:unconfined
     volumes:
       # Los artefactos salen directamente en dist/ del proyecto. Va en modo
       # escritura a proposito: si el montaje fuera de solo lectura, taparia el
-      # /out de la imagen (que ya lleva el .exe) por un directorio vacio.
+      # /out de la imagen por un directorio vacio.
       - ../../dist:/out
     environment:
       CARGO_TERM_COLOR: always
+      # La version va aqui, y no se saca de `tauri.conf.json` dentro del
+      # contenedor, porque el script de empaquetado la necesita para renombrar
+      # el instalador a `Steam Keys_<version>_x64-setup.exe`, que es como lo ve
+      # el usuario. Si se queda vacia, el nombre sale a medias.
+      TAURI_VERSION: "1.0.0"

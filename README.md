@@ -95,10 +95,93 @@ Detalles que no son evidentes y que cuestan una hora cada una:
   cree que ha ido bien y falla después con un engañoso
   `No such file or directory` al copiar el instalador que nunca se creó. En los
   logs, el aviso delata el problema: `wine32 is missing`.
+- **`socketcall` está bloqueado por el perfil seccomp de Docker.** Un PE de 32
+  bits hace sus llamadas de red por `socketcall` (la versión multiplexada de
+  i386), y el perfil por defecto de Docker solo admite `socket`, la directa de
+  x86_64. wine contesta `socket : Function not implemented` y Tauri falla con un
+  `Failed to bundle app with makensis` que no menciona sockets. Se arregla con
+  `seccomp:unconfined` en el compose, y como **el perfil del build de la imagen
+  no se puede cambiar**, el empaquetado tiene que vivir en el `CMD` del
+  Dockerfile, no en una capa.
+- **En NSIS, `/` es prefijo de opción igual que `-`.** Tauri pasa el script
+  como ruta absoluta de Unix (`/workspace/.../installer.nsi`) y `makensis` se la
+  come como si fueran opciones: no encuentra el script e imprime su ayuda. Por
+  eso el envoltorio traduce cada argumento que empiece por `/` con
+  `winepath -w`.
+- **Tauri escribe rutas de Unix donde `makensis` busca rutas de Windows.** El
+  síntoma es un `could not find` sobre ficheros que están ahí mismo. Lo único
+  que funciona es `Z:\ruta\con\barras` (`Z:` es la raíz en wine), y se traduce
+  con [nsis-rutas-windows.awk](tools/scripts/nsis-rutas-windows.awk), que
+  documenta las tres alternativas que ya se probaron y no van: rutas relativas
+  con `..`, `Z:` con barras normales y enlazar el proyecto dentro del prefix.
 
 Los artefactos se copian a `dist/` al **arrancar** el contenedor, no durante el
 build: el volumen que monta `dist/` sobre `/out` oculta lo que la imagen traiga
 ahí. Por eso hay que ejecutar el build y luego `docker compose up --no-build`.
+
+### Compilar para Linux (Docker)
+
+```bash
+docker compose -f tools/docker/docker-compose.linux.yml up --build
+```
+
+Genera el `.deb` (Debian/Ubuntu) y el `.AppImage` (cualquier distro). Aquí no hay
+cross-compile: el contenedor ya es Linux.
+
+- **WebKitGTK, no Chromium.** En Linux el webview de Tauri es WebKitGTK, y hace
+  falta `libwebkit2gtk-4.1-dev` (la 4.1 es la que pide Tauri 2.3+).
+- **`patchelf` es obligatorio**, no opcional: Tauri reescribe el RPATH del
+  binario con él. Sin `patchelf` el `.deb` compila pero no arranca.
+- **No se genera `.rpm`.** Necesita `rpmbuild`, que no está en los repos de
+  Ubuntu.
+
+### Compilar para macOS
+
+**No se puede desde Linux.** Un `.app` y un `.dmg` exigen Xcode y el SDK de
+macOS; no es una limitación de este proyecto sino de Apple. Y compilar el
+binario Rust para macOS no sirve de nada: aunque se pudiera, el `.app` no se
+empaqueta sin sus SDK.
+
+Las dos vías reales, en orden de coste:
+
+| Vía | Cuándo | Coste |
+|---|---|---|
+| **Un Mac** (tu Mac, el de un amigo, uno prestado) | Cuando quieras | 0 |
+| **Servicios de Mac en la nube** (MacStadium, AWS EC2 Mac) | Cuando quieras | ~8–25 €/día |
+| GitHub Actions | — | No se usa: el repo es privado |
+
+En un Mac es un comando:
+
+```bash
+bun install
+bun run build:macos        # genera el .dmg y el .app en dist/
+```
+
+---
+
+## Distribución para las tres plataformas
+
+| Plataforma | Runner | Formatos | Cómo se compila aquí |
+|---|---|---|---|
+| **Windows** | Docker en WSL2 | `.exe` + instalador NSIS | `bun run build:windows:docker` |
+| **Linux** | Docker en WSL2 | `.deb` + `.AppImage` | `docker compose -f tools/docker/docker-compose.linux.yml up --build` |
+| **macOS** | Un Mac | `.dmg` + `.app` | `bun run build:macos` |
+
+Windows y Linux salen los dos de este repositorio, en Docker, sin pagar nada.
+**macOS necesita un Mac en algún momento**: es la única pieza que no se puede
+hacer desde aquí.
+
+Los tres instaladores van **sin firmar**. Windows SmartScreen y la Gatekeeper de
+macOS mostrarán su aviso de "aplicación no reconocida": hay que ir a *Más
+información* → *Ejecutar de todos modos*. En Linux no hay nada que hacer.
+
+### Qué hace falta para que la aplicación funcione en cada sitio
+
+| | Necesario |
+|---|---|
+| Windows | WebView2 (ya viene en Windows 10/11). El instalador lo descarga si falta. |
+| Linux | `libwebkit2gtk-4.1` y `libgtk-3`. El `.deb` los declara como dependencias. |
+| macOS | macOS 10.15 Catalina o superior |
 
 ---
 
@@ -131,8 +214,9 @@ Todos están en el `package.json` de la raíz.
 | `bun run dev` | Front en el navegador, contra la BD real |
 | `bun run dev:tauri` | App de escritorio nativa |
 | `bun run build` | Compila el front a `build/` |
-| `bun run build:windows` | `.exe` + instalador en `dist/` |
-| `bun run build:windows:docker` | Lo mismo, pero desde Linux |
+| `bun run build:windows:docker` | `.exe` + instalador NSIS (desde Linux) |
+| `bun run build:linux:docker` | `.deb` + `.AppImage` (desde Linux) |
+| `bun run build:macos` | `.dmg` + `.app` (solo en un Mac) |
 | `bun test` | Tests (parser, export, round-trip, puente) |
 | `bun run typecheck` | TypeScript estricto |
 | `bun run import` | Importa el TXT (simula por defecto) |

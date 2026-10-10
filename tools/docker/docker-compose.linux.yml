@@ -1,0 +1,62 @@
+# ==============================================================================
+#  Imagen para compilar el instalador de Linux (.deb y .AppImage).
+#
+#    docker compose -f tools/docker/docker-compose.linux.yml up --build
+#
+#  Aqui no hace falta ningun truco de cross-compile: el contenedor ES Linux, y
+#  tanto el binario Rust como el empaquetador son los nativos. La complicacion
+#  esta en las dependencias de sistema, que son las de WebKitGTK.
+# ==============================================================================
+name: steam-keys
+
+services:
+  linux-build:
+    build:
+      context: ../..
+      dockerfile: tools/docker/Dockerfile.linux-build
+      args:
+        TAURI_TARGET: x86_64-unknown-linux-gnu
+        TAURI_BUNDLES: deb,appimage
+    image: steam-keys-linux-build
+    volumes:
+      - ../../dist:/out
+    environment:
+      CARGO_TERM_COLOR: always
+      TAURI_TARGET: x86_64-unknown-linux-gnu
+      TAURI_BUNDLES: deb,appimage
+
+    # ------------------------------------------------------------- webkit ---
+    # Tauri 2 en Linux usa WebKitGTK, no Chromium. La version 4.1 es la que
+    # pide `tauri` 2.3 en adelante; las anteriores ya no estan en Ubuntu 22.04.
+    #
+    # `patchelf` lo necesita Tauri para reescribir el RPATH del binario y que
+    # encuentre las librerias en tiempo de ejecucion. Sin el, el `.deb` compila
+    # pero no arranca.
+    #
+    # AppImage hace falta porque es el unico formato que no depende de la
+    # distro; ademas, en WSL2 el `.deb` no siempre se puede instalar.
+    #
+    # `rpm` NO se genera: `rpmbuild` no esta en los repos de Ubuntu y el
+    # `.rpm` solo lo usarian Fedora, RHEL y openSUSE.
+    # Los formatos van literales, no por variable. `command` no es el sitio donde
+    # de las variables: compose expande `${VAR}` al leer el YAML, y en ese
+    # momento las variables del propio servicio todavia no existen. Con `$VAR`
+    # a secas lo expande el shell del contenedor, pero si la variable no llega
+    # al entorno, Tauri se queixa de que `--bundles` no tiene valor y no dice
+    # nada de la variable que falta. Ponerlo literal quita el problema de raiz.
+    command: >
+      sh -c "
+        set -eu
+        cd /workspace
+        bun install --frozen-lockfile
+        bun run build:front
+        tauri build --target x86_64-unknown-linux-gnu --bundles deb,appimage --ci
+        mkdir -p /out
+        # Ojo: con `--target`, Tauri deja los bundles en
+        # `target/<triple>/release/bundle/`, NO en `dist/bundle/`. Esos dos
+        # sitios solo se parecen en los builds sin target.
+        find /workspace -name '*.deb' -exec cp -t /out {} +
+        find /workspace -name '*.AppImage' -exec cp -t /out {} +
+        echo '=== dist/ ==='
+        ls -la /out/
+      "

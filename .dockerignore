@@ -12,6 +12,18 @@ build/
 node_modules/
 **/node_modules/
 
+# El Dockerfile se pasa aparte (docker build -f), asi que no hace falta que
+# viaje en el contexto. Y excluirlo evita lo contrario de lo que parece:
+# `COPY tools ./tools` se traeria el propio Dockerfile, de modo que tocar una
+# linea suya invalidaria la cache y obligaria a recompilar Rust entero.
+tools/docker/
+
+# Excepcion: el script de empaquetado si se copia al contenedor. Va aparte
+# precisamente para no estar encadenado al Dockerfile: si se generase con un
+# `printf` dentro, cualquier cambio suyo reventaria la cache de todas las capas
+# de compilacion, que es justo lo que se queria evitar.
+!tools/docker/empaquetar-windows.sh
+
 apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/gen/
 

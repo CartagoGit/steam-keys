@@ -194,6 +194,13 @@ RUN mkdir -p /out \
 #   2. Aunque tuviera permisos, el kernel de Linux no puede ejecutar un PE.
 #      Hace falta wine, que es lo que se instalo en la capa de sistema.
 #
+# En NSIS el caracter `/` es prefijo de opcion igual que `-` (`/WX`, `/V1`...).
+# Tauri, al cruzar desde Linux, pasa el script como una ruta absoluta de Unix
+# (`/workspace/.../installer.nsi`), y makensis se la come como una ristra de
+# opciones, no encuentra el script y se limita a imprimir su ayuda. De ahi que
+# aqui cada argumento que empiece por `/` se reescriba como ruta de Windows
+# con la unidad `Z:`, que en wine es el raiz del sistema de ficheros.
+#
 # La solucion es un envoltorio de shell con nombre `makensis.exe`: para el
 # kernel sigue siendo un script por el shebang, y para Tauri es el fichero que
 # estaba buscando. El nombre sin sufijo tambien se enlaza, por si algun script
@@ -208,9 +215,25 @@ RUN NSIS_VERSION=3.10 \
     && printf '%s\n' \
          '#!/bin/sh' \
          '# Tauri pide `makensis.exe` (target Windows) sobre un contenedor Linux:' \
-         '# este envoltorio traduce esa llamada a wine.' \
+         '# este envoltorio traduce esa llamada a wine y sus rutas a Windows.' \
          'export WINEDEBUG="${WINEDEBUG:--all}"' \
          'export WINEPREFIX="${WINEPREFIX:-/root/.wine}"' \
+         '' \
+         '# `makensis` toma `/` como prefijo de opcion igual que `-` (`/WX`, ...),' \
+         '# asi que una ruta absoluta de Unix se leeria como una ristra de' \
+         '# opciones: no encuentra el script y se limita a imprimir su ayuda.' \
+         '# `winepath -w` la traduce a ruta de Windows, que es lo que entiende.' \
+         'restos="$#"' \
+         'while [ "$restos" -gt 0 ]; do' \
+         '  argumento="$1"' \
+         '  shift' \
+         '  case "$argumento" in' \
+         '    /*) argumento=$(winepath -w "$argumento") ;;' \
+         '  esac' \
+         '  set -- "$@" "$argumento"' \
+         '  restos=$((restos - 1))' \
+         'done' \
+         '' \
          'exec wine /opt/nsis/Bin/makensis.exe "$@"' \
          > /usr/local/bin/makensis.exe \
     && chmod +x /usr/local/bin/makensis.exe \
@@ -218,34 +241,49 @@ RUN NSIS_VERSION=3.10 \
     && test -f /opt/nsis/Bin/makensis.exe \
     && test -x /usr/local/bin/makensis.exe
 
-# El instalador NSIS, que es la cereza. Va en su propia capa para que un fallo
-# aqui no invalide el `.exe` de la anterior.
-#
-# Repite el `cargo xwin env`: sin esas variables, `cc-rs` no encuentra el
-# compilador ni los includes del CRT y el linkeo de `libsqlite3-sys` falla.
-#
 # El primer arranque de wine crea el prefix y tarda; se hace aqui para que el
 # fallo, si lo hay, aparezca en los logs y no se confunda con un problema de
 # Tauri. Y es `|| true` a proposito: que wine no funcione en este contenedor no
 # debe tirar abajo la imagen entera.
 RUN wineboot --init 2>/dev/null || true
-RUN set -eu; \
-    cargo xwin env --target "${TAURI_TARGET}" > /tmp/xwin-env.sh; \
-    . /tmp/xwin-env.sh; \
-    tauri build \
-      --target "${TAURI_TARGET}" \
-      --bundles nsis \
-      --ci \
-    || echo "AVISO: el instalador NSIS no se pudo generar en Linux." \
-    && cp -r /workspace/apps/desktop/src-tauri/target/"${TAURI_TARGET}"/release/bundle/. /out/ 2>/dev/null \
-    || echo "AVISO: sin carpeta bundle; solo queda el .exe en /out."
 
-# El ejecutable se copia a /out en el arranque, no durante el build: el volumen
-# que monta `dist/` del proyecto sobre `/out` oculta lo que la imagen traiga
-# ahi, asi que si se copiase en una capa se perderia justo al contenedor.
+# El empaquetado final, al ARRANCAR y no durante el build.
 #
-# `TAURI_TARGET` se repite como `ENV` porque es un `ARG`: los `ARG` solo valen
-# durante el build, y el `CMD` de abajo corre cuando ya no estan.
-ENV TAURI_TARGET=${TAURI_TARGET}
+# El motivo de que sea al arrancar es el que mas cuesta encontrar de todo este
+# camino. `makensis.exe` es un PE de 32 bits, y un PE de 32 bits hace sus
+# llamadas de red por `socketcall`, que en i386 es la syscall multiplexada. El
+# perfil seccomp por defecto de Docker permite `socket` (la directa de x86_64)
+# pero **no** `socketcall`, salvo que el contenedor tenga `CAP_NET_RAW`. wine
+# responde `socket : Function not implemented` y `makensis` aborta con un codigo
+# de error que no dice nada de sockets. Durante el build de la imagen el perfil
+# seccomp no se puede cambiar, asi que el paso tiene que ir en el arranque, que
+# si lo gobierna el `security_opt` del compose (`seccomp:unconfined`).
+#
+# Va en un script y no en el `CMD` porque tiene demasiados niveles de comillas
+# (`sed`, comillas dobles y rutas con espacios) y en un `CMD` en JSON eso es
+# imposible de leer.
+#
+# Lo que hace, en orden:
+#   1. Deja que Tauri genere el `installer.nsi`. Es su trabajo: conoce las
+#      plantillas, el icono y los metadatos. Se espera que falle al invocar a
+#      `makensis`; si no falla, el paso 3 ya no hace nada.
+#   2. Arregla dos cosas del script que Tauri da por buenas solo en Windows:
+#      el `!include` del fichero de idioma va con ruta absoluta de Unix, que
+#      `makensis` resuelve contra la unidad de Windows actual y no encuentra;
+#      y el fichero de idioma no esta, porque Tauri lo saca del directorio de
+#      NSIS y no puede deducir cual es (`makensis` aqui es un envoltorio).
+#   3. Ejecuta `makensis` a mano, que es lo que Tauri iba a hacer.
+#   4. Copia los artefactos a `/out`. Aqui y no en una capa porque el volumen
+#      que monta `dist/` del proyecto sobre `/out` oculta lo que la imagen
+#      traiga ahi: si se copiase al construir, se perderia al arrancar.
+# El script viene como fichero del repo, no como `printf` aqui dentro: en un
+# `printf` cada barra de continuacion de linea hay que escaparla, y una sola
+# que se cuele rompe el Dockerfile entero con un error que no senala la causa.
+COPY tools/docker/empaquetar-windows.sh /usr/local/bin/empaquetar.sh
+RUN chmod +x /usr/local/bin/empaquetar.sh \
+    && sh -n /usr/local/bin/empaquetar.sh
 
-CMD ["sh", "-c", "cp /workspace/apps/desktop/src-tauri/target/$TAURI_TARGET/release/steam-keys.exe /out/ && ls -la /out/"]
+# `TAURI_TARGET` se repite como `ENV` porque es un `ARG`: los `ARG` solo valen
+# durante el build, y el script corre cuando ya no estan.
+ENV TAURI_TARGET=${TAURI_TARGET}
+CMD ["/usr/local/bin/empaquetar.sh"]
