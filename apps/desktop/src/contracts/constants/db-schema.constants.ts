@@ -37,6 +37,19 @@ export const SCHEMA_STATEMENTS: readonly string[] = [
 
   `CREATE INDEX IF NOT EXISTS idx_game_keys_title
      ON game_keys (title);`,
+
+  /**
+   * Ajustes de la aplicacion, en pares clave/valor.
+   *
+   * Se guardan asi a proposito, y no como columnas: anadir un ajuste nuevo
+   * (el idioma, un tema, la clave de la API de Steam) debe consistir en un
+   * `INSERT` mas y no en un `ALTER TABLE` que obliga a migrar a quien ya tiene
+   * la base de datos creada.
+   */
+  `CREATE TABLE IF NOT EXISTS app_settings (
+     key   TEXT PRIMARY KEY,
+     value TEXT NOT NULL DEFAULT ''
+   );`,
 ];
 
 /** Indices que se consultan para buscar rapido. */

@@ -9,6 +9,56 @@ import type {
 
 let instancia: IGameKeyRepository | null = null;
 let modoDetectado: StorageMode | null = null;
+let clienteInstancia: IDatabaseClient | null = null;
+
+/**
+ * Cliente de base de datos del entorno actual.
+ *
+ * Lo expone el mismo factory que el repositorio a proposito: los ajustes y el
+ * repositorio de claves tienen que hablar **con la misma conexion** contra la
+ * misma base de datos. Si cada uno resolviera su cliente por su cuenta, en el
+ * navegador de desarrollo uno acabaria en SQLite y el otro en `localStorage`,
+ * y los ajustes se perderian al recargar.
+ *
+ * En modo memoria se devuelve un cliente en memoria nuevo cada vez, porque no
+ * hay conexion que compartir: los ajustes se guardan alli tambien, para que la
+ * app siga siendo usable en el navegador sin Tauri.
+ */
+export async function getDatabaseClient(): Promise<IDatabaseClient> {
+  const modo = getStorageMode();
+
+  if (clienteInstancia && modoDetectado === modo && modo !== StorageMode.Memory) {
+    return clienteInstancia;
+  }
+
+  switch (modo) {
+    case StorageMode.Tauri: {
+      clienteInstancia = tauriDatabaseClient;
+      await tauriDatabaseClient.migrate();
+      return clienteInstancia;
+    }
+
+    case StorageMode.DevBridge: {
+      const { devBridgeDatabaseClient } = await import(
+        '@/services/dev-bridge-database.service'
+      );
+
+      clienteInstancia = devBridgeDatabaseClient;
+      await devBridgeDatabaseClient.migrate();
+      return clienteInstancia;
+    }
+
+    case StorageMode.Memory:
+    default: {
+      const { memoryDatabaseClient } = await import(
+        '@/repositories/memory-database.client'
+      );
+
+      clienteInstancia = memoryDatabaseClient();
+      return clienteInstancia;
+    }
+  }
+}
 
 /**
  * Devuelve el repositorio adecuado al entorno.
