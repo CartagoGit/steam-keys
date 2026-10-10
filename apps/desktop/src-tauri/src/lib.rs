@@ -113,14 +113,31 @@ fn timestamp_label(secs: i64) -> String {
 }
 
 /// Deja solo `[a-z0-9-]` en un texto, para usarlo dentro de un nombre de fichero.
+///
+/// Los separadores (espacios, barras, puntos) se convierten en guion en lugar
+/// de desaparecer: `"antes de importar"` produce `antes-de-importar` y no
+/// `antesdeimportar`, que es mucho mas legible en un listado de copias.
 fn sanitize(text: &str) -> String {
     let limpio: String = text
         .to_lowercase()
         .chars()
-        .filter(|c| c.is_ascii_alphanumeric() || *c == '-')
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' {
+                c
+            } else {
+                '-'
+            }
+        })
         .collect();
 
-    let recortado: String = limpio.chars().take(24).collect();
+    // Colapsar guiones seguidos y recortar los sobrantes de los extremos.
+    let colapsado: String = limpio
+        .split('-')
+        .filter(|trozo| !trozo.is_empty())
+        .collect::<Vec<_>>()
+        .join("-");
+
+    let recortado: String = colapsado.chars().take(24).collect();
 
     if recortado.is_empty() {
         "manual".to_string()
@@ -450,22 +467,43 @@ mod tests {
 
     #[test]
     fn la_marca_de_tiempo_usa_formato_compacto() {
-        assert_eq!(timestamp_label(1_789_566_867), "20261010-153427");
+        // Los valores esperados se sacaron de `date -u -d @<epoch>`.
+        assert_eq!(timestamp_label(1_789_566_867), "20260916-135427");
+        assert_eq!(timestamp_label(0), "19700101-000000");
     }
 
     #[test]
     fn las_fechas_civiles_son_correctas() {
         assert_eq!(civil_from_epoch(0), (1970, 1, 1, 0, 0, 0));
-        assert_eq!(civil_from_epoch(1_789_566_867), (2026, 10, 10, 15, 34, 27));
-        // Cruce de ano.
-        assert_eq!(civil_from_epoch(1_735_689_600), (2024, 12, 31, 0, 0, 0));
+        assert_eq!(civil_from_epoch(1_789_566_867), (2026, 9, 16, 13, 54, 27));
+
+        // Cruce de ano, en las dos direcciones.
+        assert_eq!(civil_from_epoch(1_735_689_600), (2025, 1, 1, 0, 0, 0));
+        assert_eq!(civil_from_epoch(1_735_689_599), (2024, 12, 31, 23, 59, 59));
+
+        // 2000 es bisiesto: el 29 de febrero tiene que existir.
+        assert_eq!(civil_from_epoch(951_782_400), (2000, 2, 29, 0, 0, 0));
+
+        // Epoch negativo, para que el algoritmo no falle antes de 1970.
+        assert_eq!(civil_from_epoch(-1), (1969, 12, 31, 23, 59, 59));
     }
 
     #[test]
     fn el_sufijo_se_sanea() {
+        // Los separadores se convierten en guion, no desaparecen.
         assert_eq!(sanitize("Antes de importar"), "antes-de-importar");
-        assert_eq!(sanitize("con/caracteres:raros"), "concaracteresraros");
+        assert_eq!(sanitize("con/caracteres:raros"), "con-caracteres-raros");
+
+        // Ni espacios repetidos ni guiones de sobra.
+        assert_eq!(sanitize("  doble  espacio  "), "doble-espacio");
+        assert_eq!(sanitize("a---b"), "a-b");
+
+        // Recorte a 24 caracteres.
+        assert_eq!(sanitize("abcdefghijklmnopqrstuvwxyz012345").len(), 24);
+
+        // Sin nada aprovechable.
         assert_eq!(sanitize(""), "manual");
         assert_eq!(sanitize("!!!"), "manual");
+        assert_eq!(sanitize("///"), "manual");
     }
 }

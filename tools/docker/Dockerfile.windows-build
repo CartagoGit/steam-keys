@@ -56,6 +56,18 @@ RUN curl -fsSL https://bun.sh/install | bash \
     && ln -s /root/.bun/bin/bun /usr/local/bin/bun \
     && ln -s /root/.bun/bin/bunx /usr/local/bin/bunx
 
+# `tauri-cli` se instala **sin** nodejs: la variante con `rustls` no lo
+# necesita, y meterlo obligaria a una cadena de node en el contenedor.
+#
+# `cargo install tauri-cli` deja el ejecutable como `cargo-tauri`, que es un
+# plugin de cargo (se invoca como `cargo tauri ...`), no como binario `tauri` en
+# el PATH. El enlace de abajo es para poder llamar a `tauri xwin build`
+# directamente, que es lo que permite encadenar el cross-compile de
+# `cargo-xwin`.
+RUN cargo install tauri-cli --version '^2' --locked \
+      --no-default-features --features rustls \
+    && ln -sf /usr/local/cargo/bin/cargo-tauri /usr/local/bin/tauri
+
 # Toolchain de Windows y compilador cruzado.
 RUN rustup target add "${TAURI_TARGET}"
 RUN cargo install cargo-xwin --locked
@@ -74,8 +86,11 @@ COPY tools ./tools
 # Tauri volveria a lanzarlo si falta, pero aqui ya esta.
 COPY --from=frontend /workspace/build ./build
 
-# `cargo xwin` expone el SDK de Windows y el enlazador MSVC como `cc`.
-RUN cargo xwin tauri build \
+# `tauri xwin build` envuelve el cross-compile de `cargo-xwin`: expone el SDK de
+# Windows y el enlazador MSVC como `cc`, pero lo invoca como `cargo build`, que
+# es lo unico que `cargo-xwin` sabe hacer. La alternativa seria
+# `cargo xwin tauri build`, que no existe como subcomando.
+RUN tauri xwin build \
       --target "${TAURI_TARGET}" \
       --bundles "${TAURI_BUNDLES}" \
       --ci
