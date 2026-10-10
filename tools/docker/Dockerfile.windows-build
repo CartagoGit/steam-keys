@@ -40,15 +40,73 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV CARGO_TERM_COLOR=always
 
 # Dependencias del sistema que pide Tauri y `cargo-xwin`.
-RUN apt-get update && apt-get install -y --no-install-recommends \
+#
+# `clang-cl` es imprescindible: `cargo-xwin` lo usa como `CC`/`CXX` para
+# compilar el binding de SQLite (libsqlite3-sys), y sin el en el PATH el crate
+# falla con `failed to find tool "clang-cl"`.
+#
+# Ni `clang` ni el driver vienen en los repos de Debian bookworm
+# (`E: Unable to locate package clang`), asi que se instala desde apt.llvm.org,
+# que es lo que recomienda la propia documentacion de `cargo-xwin`. Se usa la
+# suite 18 porque apt.llvm.org ya no publica `llvm-toolchain-bookworm-14`
+# (devuelve 404 en su Release).
+#
+# El driver lo aporta `clang-tools-18`, **no** `clang-18`: este ultimo instala
+# solo `clang`, `clang++` y `clang-cpp`, y el driver vive en
+# `/usr/bin/clang-cl-18`, ya con el target `x86_64-pc-windows-msvc` puesto.
+#
+# `llvm-rc` (el compilador de recursos de Windows) lo necesita `tauri-winres`
+# para generar el `.rc` del ejecutable; sin el, el crate falla con
+# `NotAttempted("llvm-rc")` al final del build. `llvm-lib` (el archivador) lo
+# piden `cc-rs` al compilar el binding de SQLite y el propio enlazado de
+# `webview2-com-sys`, y falla con `failed to find tool "llvm-lib"` o
+# `failed to find tool "lib.exe"`.
+#
+# Los tres vienen con el numero de version en el nombre (`clang-cl-18`,
+# `llvm-rc-18`, `llvm-lib-18`) y sin alias sin sufijo, asi que se enlazan a mano
+# con el nombre que espera el resto de la imagen. `lib.exe` es el mismo
+# archivador con el nombre que busca el enlazado de MSVC.
+# `makensis.exe` de NSIS es un PE de **32 bits**, y con solo `wine64` no
+# arranca: wine intenta cargarlo en modo wow64 y revienta con
+# `err:module:load_wow64_ntdll failed ... error c0000135`, tirando un
+# `stack overflow` y devolviendo 0. Como devuelve 0 pero no genera nada,
+# Tauri no se entera y falla despues con un `No such file or directory` al
+# intentar copiar el instalador que nunca existio. De ahi el multiarch i386.
+#
+# Lo que si sale de ese 0 es un aviso en la salida: si se ve
+# `wine32 is missing`, el instalador NSIS no se va a generar.
+RUN dpkg --add-architecture i386 \
+    && apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates \
+      clang \
       curl \
       file \
-      llvm \
+      gnupg \
+      lsb-release \
       lld \
       pkg-config \
       wget \
       unzip \
+      wine \
+      wine32:i386 \
+      wine64 \
+    && curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key \
+         | gpg --dearmor -o /usr/share/keyrings/llvm.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/llvm.gpg] http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-18 main" \
+         > /etc/apt/sources.list.d/llvm18.list \
+    && apt-get update && apt-get install -y --no-install-recommends \
+      clang-18 \
+      clang-tools-18 \
+      llvm-18 \
+    && ln -sf /usr/bin/clang-cl-18 /usr/local/bin/clang-cl \
+    && ln -sf /usr/bin/llvm-rc-18 /usr/local/bin/llvm-rc \
+    && ln -sf /usr/bin/llvm-lib-18 /usr/local/bin/llvm-lib \
+    && ln -sf /usr/bin/llvm-lib-18 /usr/local/bin/lib.exe \
+    && clang-cl --version \
+    && test -x /usr/local/bin/llvm-rc \
+    && test -x /usr/local/bin/llvm-lib \
+    && test -x /usr/local/bin/lib.exe \
+    && dpkg -l wine32:i386 | tail -1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Bun, para lanzar los scripts del proyecto.
@@ -82,20 +140,112 @@ RUN bun install --frozen-lockfile
 COPY apps ./apps
 COPY tools ./tools
 
-# El front ya viene compilado de la etapa anterior: `beforeBuildCommand` de
-# Tauri volveria a lanzarlo si falta, pero aqui ya esta.
+# El front ya viene compilado de la etapa anterior. Ojo con la ruta: Tauri
+# resuelve `frontendDist` **desde el directorio de trabajo** (`/workspace`), no
+# desde `src-tauri/`, asi que "../../../build" acaba en `/build` del contenedor
+# y este COPY lo deja en `/workspace/build`.
 COPY --from=frontend /workspace/build ./build
 
-# `tauri xwin build` envuelve el cross-compile de `cargo-xwin`: expone el SDK de
-# Windows y el enlazador MSVC como `cc`, pero lo invoca como `cargo build`, que
-# es lo unico que `cargo-xwin` sabe hacer. La alternativa seria
-# `cargo xwin tauri build`, que no existe como subcomando.
-RUN tauri xwin build \
+# Cross-compilacion real a Windows.
+#
+# Ni `cargo xwin tauri build` ni `tauri xwin build` existen: `cargo-xwin` solo
+# expone subcomandos de cargo (build, check, test...) y el CLI de Tauri no tiene
+# un `xwin`. La via que si funciona es la que explica `cargo xwin env`: imprimir
+# las variables de entorno que hacen falta para cross-compilar, cargarlas en el
+# shell y dejar que `tauri build` las herede. A partir de ahi, Tauri compila
+# contra el SDK de Windows y el enlazador MSVC en un cargo build normal.
+#
+# El bundle va en un paso aparte y con `--no-bundle`: si el empaquetado falla,
+# no debe tirar abajo el ejecutable, que ya esta compilado y es lo que de
+# verdad importa. El instalador se intenta despues, y si tampoco sale, el
+# `.exe` esta.
+#
+# El NSIS va en su propia capa, del todo despues, porque necesita wine y es lo
+# unico que puede fallar sin arrastrar al ejecutable.
+RUN set -eu; \
+    cargo xwin env --target "${TAURI_TARGET}" > /tmp/xwin-env.sh; \
+    . /tmp/xwin-env.sh; \
+    tauri build \
       --target "${TAURI_TARGET}" \
-      --bundles "${TAURI_BUNDLES}" \
+      --no-bundle \
       --ci
 
-# Deja el resultado en /out para que el host lo copie.
-RUN mkdir -p /out && cp -r /workspace/dist/. /out/
+# El ejecutable, que es el artefacto imprescindible.
+RUN mkdir -p /out \
+    && cp /workspace/apps/desktop/src-tauri/target/"${TAURI_TARGET}"/release/steam-keys.exe /out/
 
-CMD ["sh", "-c", "ls -laR /out"]
+# NSIS para generar el instalador.
+#
+# Tauri descarga sus propias utilidades (`nsis_tauri_utils.dll`) pero **no** el
+# empaquetador: da por hecho que `makensis` esta instalado. Y como el target es
+# Windows, lo busca por su nombre con sufijo: el error que sale es
+# `makensis.exe: No such file or directory`.
+#
+# En Linux no hay release "-linux" de NSIS que sirva (las que existen dan 404),
+# asi que se baja el zip oficial, que si trae `Bin/makensis.exe`. El zip se
+# descomprime entero porque `makensis` busca sus `Plugins` y `Include` en
+# arbolados relativos al propio ejecutable.
+#
+# Dos trampas de aqui para adelante:
+#
+#   1. `unzip` NO marca ejecutable lo que extrae de un zip de Windows, porque el
+#      formato no guarda permisos POSIX. Un `ln -sf` al .exe deja un symlink
+#      caido a un fichero sin bit +x, y el `test -x` lo delata.
+#   2. Aunque tuviera permisos, el kernel de Linux no puede ejecutar un PE.
+#      Hace falta wine, que es lo que se instalo en la capa de sistema.
+#
+# La solucion es un envoltorio de shell con nombre `makensis.exe`: para el
+# kernel sigue siendo un script por el shebang, y para Tauri es el fichero que
+# estaba buscando. El nombre sin sufijo tambien se enlaza, por si algun script
+# lo invoca de otra forma.
+RUN NSIS_VERSION=3.10 \
+    && curl -fsSL -o /tmp/nsis.zip \
+         "https://downloads.sourceforge.net/project/nsis/NSIS%203/${NSIS_VERSION}/nsis-${NSIS_VERSION}.zip" \
+    && mkdir -p /opt/nsis \
+    && unzip -q /tmp/nsis.zip -d /opt \
+    && mv "/opt/nsis-${NSIS_VERSION}"/* /opt/nsis/ \
+    && rmdir "/opt/nsis-${NSIS_VERSION}" \
+    && printf '%s\n' \
+         '#!/bin/sh' \
+         '# Tauri pide `makensis.exe` (target Windows) sobre un contenedor Linux:' \
+         '# este envoltorio traduce esa llamada a wine.' \
+         'export WINEDEBUG="${WINEDEBUG:--all}"' \
+         'export WINEPREFIX="${WINEPREFIX:-/root/.wine}"' \
+         'exec wine /opt/nsis/Bin/makensis.exe "$@"' \
+         > /usr/local/bin/makensis.exe \
+    && chmod +x /usr/local/bin/makensis.exe \
+    && ln -sf /usr/local/bin/makensis.exe /usr/local/bin/makensis \
+    && test -f /opt/nsis/Bin/makensis.exe \
+    && test -x /usr/local/bin/makensis.exe
+
+# El instalador NSIS, que es la cereza. Va en su propia capa para que un fallo
+# aqui no invalide el `.exe` de la anterior.
+#
+# Repite el `cargo xwin env`: sin esas variables, `cc-rs` no encuentra el
+# compilador ni los includes del CRT y el linkeo de `libsqlite3-sys` falla.
+#
+# El primer arranque de wine crea el prefix y tarda; se hace aqui para que el
+# fallo, si lo hay, aparezca en los logs y no se confunda con un problema de
+# Tauri. Y es `|| true` a proposito: que wine no funcione en este contenedor no
+# debe tirar abajo la imagen entera.
+RUN wineboot --init 2>/dev/null || true
+RUN set -eu; \
+    cargo xwin env --target "${TAURI_TARGET}" > /tmp/xwin-env.sh; \
+    . /tmp/xwin-env.sh; \
+    tauri build \
+      --target "${TAURI_TARGET}" \
+      --bundles nsis \
+      --ci \
+    || echo "AVISO: el instalador NSIS no se pudo generar en Linux." \
+    && cp -r /workspace/apps/desktop/src-tauri/target/"${TAURI_TARGET}"/release/bundle/. /out/ 2>/dev/null \
+    || echo "AVISO: sin carpeta bundle; solo queda el .exe en /out."
+
+# El ejecutable se copia a /out en el arranque, no durante el build: el volumen
+# que monta `dist/` del proyecto sobre `/out` oculta lo que la imagen traiga
+# ahi, asi que si se copiase en una capa se perderia justo al contenedor.
+#
+# `TAURI_TARGET` se repite como `ENV` porque es un `ARG`: los `ARG` solo valen
+# durante el build, y el `CMD` de abajo corre cuando ya no estan.
+ENV TAURI_TARGET=${TAURI_TARGET}
+
+CMD ["sh", "-c", "cp /workspace/apps/desktop/src-tauri/target/$TAURI_TARGET/release/steam-keys.exe /out/ && ls -la /out/"]

@@ -15,11 +15,13 @@ services:
       dockerfile: tools/docker/Dockerfile.windows-build
       args:
         TAURI_TARGET: x86_64-pc-windows-msvc
-        # Solo NSIS: el MSI (WiX) no compila en Linux sin wine.
+        # Solo NSIS: el MSI lo firma WiX, que necesita Windows de verdad.
         TAURI_BUNDLES: nsis
     image: steam-keys-windows-build
     volumes:
-      # Los artefactos salen directamente en dist/ del proyecto.
+      # Los artefactos salen directamente en dist/ del proyecto. Va en modo
+      # escritura a proposito: si el montaje fuera de solo lectura, taparia el
+      # /out de la imagen (que ya lleva el .exe) por un directorio vacio.
       - ../../dist:/out
     environment:
       CARGO_TERM_COLOR: always
