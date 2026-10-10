@@ -205,6 +205,13 @@ export function parseLegacyTxt(raw: string, options: IParseOptions = {}): IParse
       state.blockParent = null;
       state.orphanTitle = null;
       state.orphanNote = null;
+      // La llave cierra el bloque de DLC, y con el cierra la seccion. Si no se
+      // apaga aqui, el estado "canjeada" se queda activo para todo lo que venga
+      // despues: en el TXT original el bloque `{ ... }` de EARTH DEFENSE FORCE
+      // esta justo despues de un `ACTIVAR ...`, y todo lo que viene a
+      // continuacion salia marcado como canjeado sin serlo.
+      state.redeemMode = false;
+      state.noteContext = null;
       skippedLines += 1;
       continue;
     }

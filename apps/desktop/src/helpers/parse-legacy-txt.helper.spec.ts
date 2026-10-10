@@ -155,6 +155,53 @@ describe('cabeceras, notas y zonas de canje', () => {
     expect(result.entries[0]?.status).toBe(KeyStatus.Redeemed);
   });
 
+  test('"ACTIVAR Con el juego base - TODAS SON DLCS" tambien cuenta', () => {
+    // La variante real del TXT, que el patron antiguo no recogia porque solo
+    // buscaba "ACTIVAR CON EL JUEGO BASE" sin el "Con" en minuscula ni el
+    // resto del texto.
+    const raw = [
+      'ACTIVAR Con el juego base - TODAS SON DLCS ->>>',
+      '',
+      'EARTH DEFENSE FORCE 4.1',
+      '{',
+      'CLAVE-FILTRADA-2',
+      '}',
+      '',
+      'Desperados 3 - CLAVE-FILTRADA-1',
+    ].join('\n');
+
+    const result = parseLegacyTxt(raw);
+
+    const dlc = result.entries.find((e) => e.keyValue === 'CLAVE-FILTRADA-2');
+    expect(dlc?.status).toBe(KeyStatus.Redeemed);
+  });
+
+  test('el estado canjeada no se desborda al terminar el bloque de DLC', () => {
+    // Este es el fallo que motivo el arreglo. En el TXT original el bloque
+    // `{ ... }` va justo despues de un `ACTIVAR ...`, y al no apagarse el
+    // estado alli, *todo* lo que venia despues salia como canjeado.
+    const raw = [
+      'ACTIVAR Con el juego base - TODAS SON DLCS ->>>',
+      '',
+      'EARTH DEFENSE FORCE 4.1',
+      '{',
+      'CLAVE-FILTRADA-2',
+      '}',
+      '',
+      'Desperados 3 - CLAVE-FILTRADA-1',
+      'Superhot - CLAVE-FILTRADA-3',
+    ].join('\n');
+
+    const result = parseLegacyTxt(raw);
+
+    const despues = result.entries.filter((e) => e.title !== 'EARTH DEFENSE FORCE 4.1');
+
+    expect(despues.length).toBeGreaterThan(0);
+    for (const entrada of despues) {
+      expect(entrada.status).toBe(KeyStatus.Available);
+    }
+  });
+
   test('un nombre suelto seguido de la nota se combina como nombre y nota', () => {
     const raw = [
       'Destiny 2',

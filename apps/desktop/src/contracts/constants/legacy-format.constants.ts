@@ -76,8 +76,15 @@ export const DECORATIVE_PATTERN = /^[\s\-=_*#.~]{3,}$/;
 /** Separadores horizontales y encabezados de "ronda"/"sesion de regalos". */
 export const SECTION_MARKER_PATTERN = /(RONDA DE KEYS|Sesion de regalos|sesion de regalos)/i;
 
-/** Notas que indican que las keys siguientes son para activarlas yo. */
-export const REDEEM_MARKER_PATTERN = /(ACTIVAR\s+YO|ACTIVAR CON EL JUEGO BASE)/i;
+/**
+ * Notas que indican que las keys siguientes estan gastadas.
+ *
+ * El patron es deliberadamente amplio: en el TXT original aparecen
+ * `ACTIVAR YO ->>>>>` y `ACTIVAR Con el juego base - TODAS SON DLCS ->>>`, y
+ * solo hace falta que empiece por ACTIVAR. Que cierre con flechas, con texto
+ * o sin nada no cambia el significado.
+ */
+export const REDEEM_MARKER_PATTERN = /^.*\bACTIVAR\b/i;
 
 /** Lineas de instrucciones de Humble: no aportan ninguna clave. */
 export const INSTRUCTION_PATTERN = /\b(INSTRUCCIONES|INSTRUCCION|COMO CANJEAR|CÓMO CANJEAR)\b/i;

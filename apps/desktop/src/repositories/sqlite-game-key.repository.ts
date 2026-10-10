@@ -126,6 +126,58 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
     );
   }
 
+  /**
+   * Cambia el estado de varias claves en una sola sentencia.
+   *
+   * Existe para el modo "regalar": marcar treinta claves una a una son treinta
+   * viajes de ida y vuelta a la base de datos, y treinta recargas de la lista
+   * si cada uno va por su cuenta.
+   */
+  async setStatusMany(ids: readonly number[], status: KeyStatus): Promise<void> {
+    if (ids.length === 0) return;
+
+    const placeholders = ids.map((_, index) => `$${index + 2}`).join(', ');
+    await this.db.execute(
+      `UPDATE game_keys SET status = $1, updated_at = $1 WHERE id IN (${placeholders})`,
+      [status, ...ids],
+    );
+  }
+
+  /**
+   * Marca varias claves como regaladas, guardando para quien fue cada una.
+   *
+   * Va en un unico `UPDATE` con un `CASE`: el destinatario es distinto en cada
+   * clave, asi que no se puede repetir el mismo `bind` para todas.
+   */
+  async giftMany(
+    entries: readonly { id: number; giftedTo: string }[],
+  ): Promise<void> {
+    if (entries.length === 0) return;
+
+    const ids = entries.map((entry) => entry.id);
+    const idPlaceholders = ids.map((_, index) => `$${index + 2}`).join(', ');
+
+    const cases = entries
+      .map(
+        (_, index) =>
+          `WHEN ${index + 1} THEN $${entries.length + index + 2}`,
+      )
+      .join(' ');
+
+    await this.db.execute(
+      `UPDATE game_keys
+          SET status = 'gifted',
+              gifted_to = CASE id ${cases} END,
+              updated_at = $1
+        WHERE id IN (${idPlaceholders})`,
+      [
+        touchTimestamp(),
+        ...ids,
+        ...entries.map((entry) => entry.giftedTo),
+      ],
+    );
+  }
+
   async markUsed(id: number, usedAt?: string): Promise<void> {
     await this.db.execute(
       'UPDATE game_keys SET last_used_at = $1, updated_at = $2 WHERE id = $3',

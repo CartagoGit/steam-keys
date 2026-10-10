@@ -1,6 +1,7 @@
 import { getRepository, isPersistent } from '@/repositories/repository.factory';
 import { parseLegacyTxt } from '@/helpers/parse-legacy-txt.helper';
 import { exportKeysToLegacyTxt } from '@/helpers/export-legacy-txt.helper';
+import { buildGiftTxt, giftFileName } from '@/helpers/gift-export.helper';
 import { serializeTags } from '@/helpers/normalize-text.helper';
 import { KeySource } from '@/contracts/enums/key-source.enum';
 import { fileService } from '@/services/file.service';
@@ -47,6 +48,45 @@ export const gameKeyService = {
   async setStatus(id: number, status: IGameKey['status']): Promise<void> {
     const repository = await getRepository();
     await repository.setStatus(id, status);
+  },
+
+  /** Cambia el estado de varias claves a la vez, en una sola operacion. */
+  async setStatusMany(ids: readonly number[], status: IGameKey['status']): Promise<void> {
+    const repository = await getRepository();
+    await repository.setStatusMany(ids, status);
+  },
+
+  /**
+   * Marca varias claves como regaladas, guardando para quien fue cada una.
+   *
+   * El destinatario es obligatorio: una clave regalada sin saber a quien se le
+   * dio no sirve de nada, asi que la interfaz no deja confirmar sin el.
+   */
+  async giftMany(entries: readonly { id: number; giftedTo: string }[]): Promise<void> {
+    const repository = await getRepository();
+    await repository.giftMany(entries);
+  },
+
+  /**
+   * Guarda el TXT para regalar las claves seleccionadas.
+   *
+   * Las claves van en claro a proposito: el fichero existe para canjearlas, y
+   * una clave enmascarada no sirve. Por eso el dialogo de guardado se abre
+   * **antes** de marcar nada: si el usuario cancela, las claves siguen
+   * disponibles y no se ha regalado nada a nadie.
+   */
+  async exportGiftSelection(keys: readonly IGameKey[]): Promise<{
+    path: string;
+    total: number;
+  } | null> {
+    const path = await fileService.saveTextFile(
+      giftFileName(new Date()),
+      buildGiftTxt(keys),
+    );
+
+    if (path === null) return null;
+
+    return { path, total: keys.length };
   },
 
   async markUsed(id: number): Promise<void> {

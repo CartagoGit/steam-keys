@@ -13,6 +13,11 @@ export interface IKeyRowProps {
   onEdit: (entry: IGameKey) => void;
   onDelete: (entry: IGameKey) => void;
   onCycleStatus: (entry: IGameKey) => void;
+  /** Modo "regalar" activo: la fila se selecciona en vez de editar. */
+  selecting?: boolean;
+  /** La fila esta seleccionada en el modo "regalar". */
+  selected?: boolean;
+  onToggleSelect?: (entry: IGameKey) => void;
 }
 
 /**
@@ -26,6 +31,9 @@ export function KeyRow({
   onEdit,
   onDelete,
   onCycleStatus,
+  selecting = false,
+  selected = false,
+  onToggleSelect,
 }: IKeyRowProps) {
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -45,11 +53,45 @@ export function KeyRow({
   return (
     <article
       className={[
-        'group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl px-3 py-2.5',
+        'group grid items-center gap-x-3 gap-y-2 rounded-xl px-3 py-2.5',
+        'grid-cols-[minmax(0,1fr)_auto]',
+        'max-[900px]:grid-cols-1',
         'bg-surface-1 ring-1 ring-white/5 transition-colors hover:bg-surface-2 hover:ring-white/10',
+        // En modo "regalar" la fila deja de ser decorativa y pasa a ser un
+        // boton: se pulsa entera para seleccionar, y se marca con el anillo azul.
+        selecting ? 'cursor-pointer' : '',
+        selected ? 'bg-blue-500/10 ring-blue-500/40' : '',
         isGiftable ? '' : 'opacity-75',
       ].join(' ')}
+      onClick={
+        selecting
+          ? (event) => {
+              // Los botones de dentro (ojo, copiar, editar…) tienen su propia
+              // accion. Sin este corte, pulsarlos seleccionaria la fila ademas
+              // de hacer lo suyo, que es el tipo de sorpresa que hace que la
+              // gente deje de usar la seleccion multiple.
+              if ((event.target as HTMLElement).closest('button')) return;
+
+              onToggleSelect?.(entry);
+            }
+          : undefined
+      }
     >
+      {/* --------------------------------------------------------- seleccion */}
+      {selecting ? (
+        <span
+          aria-hidden="true"
+          className={[
+            'flex h-5 w-5 shrink-0 items-center justify-center rounded-md ring-1 transition',
+            selected
+              ? 'bg-blue-600 text-white ring-blue-500'
+              : 'bg-white/5 ring-white/15',
+          ].join(' ')}
+        >
+          {selected ? <Icon name="check" size={13} /> : null}
+        </span>
+      ) : null}
+
       {/* ---------------------------------------------------------- nombre */}
       <div className="flex min-w-0 items-center gap-3">
         <div
@@ -90,7 +132,7 @@ export function KeyRow({
       </div>
 
       {/* ----------------------------------------------------------- clave */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 max-[900px]:justify-end">
         <button
           type="button"
           onClick={() => setRevealed((value) => !value)}
@@ -115,7 +157,12 @@ export function KeyRow({
         <button
           type="button"
           onClick={() => onCycleStatus(entry)}
-          title="Cambiar estado"
+          title={`Estado: ${status.label}. Pulsa para cambiarlo.`}
+          // Sin estas clases, el boton sale con el estilo por defecto del
+          // navegador: fondo gris del sistema operativo, sin esquinas redondeadas
+          // y sin el espacio de la pastilla. En Windows sobre todo, donde el
+          // aspecto por defecto es un marco gris que desentona.
+          className="shrink-0 rounded-full transition hover:brightness-125 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
         >
           <Badge label={status.label} tone={status.tone} icon={status.icon} />
         </button>

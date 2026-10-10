@@ -8,7 +8,25 @@
 #  dependencias de WebKitGTK que pide Tauri.
 # ==============================================================================
 
-FROM rust:1.90-bookworm AS builder
+# Ni bookworm ni bullseye sirven, y por motivos opuestos:
+#
+# - **bookworm** (Debian 12) tiene WebKitGTK 4.1, que es lo que pide Tauri 2.3+,
+#   pero su glibc es la 2.36, y el AppImage que sale de ahi no arranca en
+#   Ubuntu 22.04 (glibc 2.35). El sintoma no dice nada de versiones:
+#
+#     symbol lookup error: libpango-1.0.so.0: undefined symbol:
+#     hb_ot_layout_get_horizontal_baseline_tag_for_script
+#
+# - **bullseye** (Debian 11) tiene glibc 2.31, pero su WebKitGTK es la 4.0, y
+#   el crate no la encuentra: `E: Unable to locate package libwebkit2gtk-4.1-dev`.
+#
+# Asi que se compila en **jammy** (Ubuntu 22.04, glibc 2.35), que tiene las dos
+# cosas: WebKitGTK 4.1 y una glibc compatible con Ubuntu 22.04, Fedora 36 y
+#openSUSE Leap. Sigue sin cubrir Debian 12, pero para una app personal da igual.
+#
+# La imagen oficial de Rust no publica tags `jammy`, asi que se parte de
+# `ubuntu:22.04` y se instala rustup encima.
+FROM ubuntu:22.04 AS builder
 
 ARG TAURI_TARGET=x86_64-unknown-linux-gnu
 ARG TAURI_BUNDLES=deb,appimage
@@ -25,18 +43,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       build-essential \
       patchelf \
       libwebkit2gtk-4.1-dev \
-      libappindicator3-dev \
       libayatana-appindicator3-dev \
       librsvg2-dev \
       libssl-dev \
       libxdo-dev \
-      file \
     && rm -rf /var/lib/apt/lists/*
 
 # Bun, para lanzar los scripts del proyecto.
 RUN curl -fsSL https://bun.sh/install | bash \
     && ln -s /root/.bun/bin/bun /usr/local/bin/bun \
     && ln -s /root/.bun/bin/bunx /usr/local/bin/bunx
+
+# Rust 1.90 con rustup, en vez de la imagen oficial: hace falta porque la
+# imagen oficial no publica tags de Ubuntu, y la version tiene que ser la misma
+# que exige `Cargo.toml` (`rust-version = "1.90"`).
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+      | sh -s -- -y --no-modify-path --profile minimal --default-toolchain 1.90 \
+    && ln -s /root/.cargo/bin/rustc /usr/local/bin/rustc \
+    && ln -s /root/.cargo/bin/cargo /usr/local/bin/cargo \
+    && ln -s /root/.cargo/bin/rustup /usr/local/bin/rustup \
+    && ln -s /root/.cargo/bin/rustdoc /usr/local/bin/rustdoc
 
 # `tauri-cli` sin nodejs: la variante con `rustls` no lo necesita.
 #
@@ -45,7 +71,7 @@ RUN curl -fsSL https://bun.sh/install | bash \
 # el PATH. El enlace de abajo es para poder llamar a `tauri build` directamente.
 RUN cargo install tauri-cli --version '^2' --locked \
       --no-default-features --features rustls \
-    && ln -sf /usr/local/cargo/bin/cargo-tauri /usr/local/bin/tauri
+    && ln -sf /root/.cargo/bin/cargo-tauri /usr/local/bin/tauri
 
 RUN rustup target add "${TAURI_TARGET}"
 

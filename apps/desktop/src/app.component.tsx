@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { ConfirmDialog, ToastStack, type IToast, type ToastTone } from './components/feedback.component';
+import { GiftBar } from './components/gift-bar.component';
+import { GiftDialog } from './components/gift-dialog.component';
 import { Icon } from './components/icon.component';
 import { ImportPreview } from './components/import-preview.component';
 import { KeyEditor } from './components/key-editor.component';
@@ -48,6 +50,19 @@ export function App() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [storageOpen, setStorageOpen] = useState(false);
+
+  // --------------------------------------------------------- modo regalar ---
+  /** Con el modo activo, las filas se seleccionan en vez de editarse. */
+  const [giftMode, setGiftMode] = useState(false);
+
+  /** Ids de las claves seleccionadas. Un `Set` para no recorrerlo todo. */
+  const [giftSelection, setGiftSelection] = useState<ReadonlySet<number>>(new Set());
+
+  /** Dialogo de "a quien se lo has regalado", o null si esta cerrado. */
+  const [giftDialogOpen, setGiftDialogOpen] = useState(false);
+
+  /** Confirmacion de marcar la seleccion como caducada. */
+  const [expireDialogOpen, setExpireDialogOpen] = useState(false);
 
   /** Contenido del TXT ya leido, pendiente de confirmar la importacion. */
   const [stagedImport, setStagedImport] = useState<{
@@ -188,6 +203,164 @@ export function App() {
     await reload();
   };
 
+  // ------------------------------------------------------- modo regalar ---
+
+  const giftSelectionIds = useMemo(
+    () => [...giftSelection].sort((a, b) => a - b),
+    [giftSelection],
+  );
+
+  /** Las claves seleccionadas, en el orden en que salen en la lista. */
+  const giftSelectionKeys = useMemo(
+    () => keys.filter((key) => giftSelection.has(key.id)),
+    [keys, giftSelection],
+  );
+
+  const handleToggleGiftMode = (): void => {
+    setGiftMode((activo) => {
+      // Al salir del modo se limpia todo: si no, la seleccion se queda
+      // escondida y al volver aparecen claves marcadas sin haber pulsado nada.
+      if (activo) setGiftSelection(new Set());
+
+      return !activo;
+    });
+  };
+
+  const handleToggleSelect = (entry: IGameKey): void => {
+    setGiftSelection((anterior) => {
+      const siguiente = new Set(anterior);
+
+      if (siguiente.has(entry.id)) siguiente.delete(entry.id);
+      else siguiente.add(entry.id);
+
+      return siguiente;
+    });
+  };
+
+  const handleClearSelection = (): void => {
+    setGiftSelection(new Set());
+  };
+
+  /** Selecciona todo lo que hay ahora mismo a la vista. */
+  const handleSelectAll = (): void => {
+    setGiftSelection(new Set(visible.map((key) => key.id)));
+  };
+
+  /**
+   * Guarda el TXT con las claves seleccionadas.
+   *
+   * El dialogo de guardado se abre **antes** de tocar los estados: si el
+   * usuario cancela, las claves siguen disponibles y no se ha regalado nada.
+   */
+  const handleExportGift = async (): Promise<void> => {
+    if (giftSelectionKeys.length === 0) return;
+
+    setBusy(true);
+
+    try {
+      const resultado = await gameKeyService.exportGiftSelection(giftSelectionKeys);
+
+      if (resultado === null) {
+        notify('No se guardo ningun fichero.', 'info');
+        return;
+      }
+
+      notify(
+        `${resultado.total} ${resultado.total === 1 ? 'clave guardada' : 'claves guardadas'} en ${resultado.path}`,
+        'success',
+      );
+    } catch (cause) {
+      notify(
+        cause instanceof Error ? cause.message : 'No se pudo guardar el fichero.',
+        'error',
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleOpenGiftDialog = (): void => {
+    if (giftSelectionKeys.length === 0) return;
+
+    setGiftDialogOpen(true);
+  };
+
+  /** Marca la seleccion como regalada y guarda el destinatario. */
+  const handleConfirmGift = async (destinatario: string): Promise<void> => {
+    const limpio = destinario.trim();
+
+    // El boton ya esta apagado si va vacio; esto es la segunda red, por si
+    // alguien llega aqui por el teclado o por una llamada directa.
+    if (limpio.length === 0) {
+      notify('Hay que decir a quien se lo has regalado.', 'error');
+      return;
+    }
+
+    if (giftSelectionKeys.length === 0) return;
+
+    setBusy(true);
+
+    try {
+      await gameKeyService.giftMany(
+        giftSelectionKeys.map((key) => ({ id: key.id, giftedTo: limpio })),
+      );
+
+      const total = giftSelectionKeys.length;
+
+      setGiftSelection(new Set());
+      setGiftDialogOpen(false);
+      setGiftMode(false);
+
+      notify(
+        `${total} ${total === 1 ? 'clave regalada' : 'claves regaladas'} a ${limpio}.`,
+        'success',
+      );
+      await reload();
+    } catch (cause) {
+      notify(
+        cause instanceof Error ? cause.message : 'No se pudieron marcar.',
+        'error',
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleOpenExpireDialog = (): void => {
+    if (giftSelectionKeys.length === 0) return;
+
+    setExpireDialogOpen(true);
+  };
+
+  /** Marca la seleccion como caducada. */
+  const handleConfirmExpire = async (): Promise<void> => {
+    if (giftSelectionKeys.length === 0) return;
+
+    setBusy(true);
+
+    try {
+      const total = giftSelectionKeys.length;
+
+      await gameKeyService.setStatusMany(giftSelectionIds, KeyStatus.Expired);
+
+      setGiftSelection(new Set());
+      setExpireDialogOpen(false);
+
+      notify(
+        `${total} ${total === 1 ? 'clave caducada' : 'claves caducadas'}.`,
+        'success',
+      );
+      await reload();
+    } catch (cause) {
+      notify(
+        cause instanceof Error ? cause.message : 'No se pudieron marcar.',
+        'error',
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
   /**
    * Paso 1 de la importacion: leer el fichero y previsualizarlo.
    *
@@ -274,6 +447,8 @@ export function App() {
         onExport={handleExport}
         onOpenStorage={() => setStorageOpen(true)}
         onToggleFilters={() => setFiltersOpen((open) => !open)}
+        onToggleGiftMode={handleToggleGiftMode}
+        giftMode={giftMode}
       />
 
       <main className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
@@ -298,6 +473,9 @@ export function App() {
                   onEdit={handleEdit}
                   onDelete={setDeleting}
                   onCycleStatus={handleCycleStatus}
+                  selecting={giftMode}
+                  selected={giftSelection.has(entry.id)}
+                  onToggleSelect={handleToggleSelect}
                 />
               ))}
             </div>
@@ -371,6 +549,42 @@ export function App() {
           confirmLabel="Eliminar"
           onConfirm={handleDelete}
           onCancel={() => setDeleting(null)}
+        />
+      ) : null}
+
+      {/* ------------------------------------------------- modo regalar --- */}
+      {giftMode && giftSelectionKeys.length > 0 ? (
+        <GiftBar
+          total={giftSelectionKeys.length}
+          available={visible.length}
+          onSelectAll={handleSelectAll}
+          onExport={handleExportGift}
+          onMarkGifted={handleOpenGiftDialog}
+          onMarkExpired={handleOpenExpireDialog}
+          onClear={handleClearSelection}
+        />
+      ) : null}
+
+      {giftDialogOpen ? (
+        <GiftDialog
+          total={giftSelectionKeys.length}
+          titles={giftSelectionKeys.map((key) => key.title)}
+          onConfirm={handleConfirmGift}
+          onCancel={() => setGiftDialogOpen(false)}
+        />
+      ) : null}
+
+      {expireDialogOpen ? (
+        <ConfirmDialog
+          title="Marcar como caducadas"
+          message={
+            giftSelectionKeys.length === 1
+              ? `"${giftSelectionKeys[0]?.title}" quedara como caducada y saldra de la lista de disponibles. Puedes cambiarlo luego con el toggle de estado.`
+              : `Las ${giftSelectionKeys.length} claves seleccionadas quedaran como caducadas y saldran de la lista de disponibles. Puedes cambiarlas luego con el toggle de estado.`
+          }
+          confirmLabel="Marcar caducadas"
+          onConfirm={handleConfirmExpire}
+          onCancel={() => setExpireDialogOpen(false)}
         />
       ) : null}
 

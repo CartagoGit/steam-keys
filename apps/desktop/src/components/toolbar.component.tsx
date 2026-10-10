@@ -21,6 +21,8 @@ export interface IToolbarProps {
   onExport: () => void;
   onOpenStorage: () => void;
   onToggleFilters: () => void;
+  onToggleGiftMode: () => void;
+  giftMode: boolean;
   filtersOpen: boolean;
 }
 
@@ -45,6 +47,8 @@ export function Toolbar({
   onExport,
   onOpenStorage,
   onToggleFilters,
+  onToggleGiftMode,
+  giftMode,
   filtersOpen,
 }: IToolbarProps) {
   const activeChips = filter.platforms.length + filter.statuses.length;
@@ -67,7 +71,10 @@ export function Toolbar({
 
   return (
     <header className="shrink-0 border-b border-line bg-surface-1">
-      <div className="flex items-center gap-3 px-4 py-3">
+      {/* Una sola fila mientras hay sitio; al estrechar, el buscador se baja a
+          una fila propia y los botones se reparten. Con `flex-wrap` a secas se
+          apretaba todo hasta que los botones se cortaban a media palabra. */}
+      <div className="flex flex-wrap items-center gap-3 px-4 py-3">
         <div className="flex items-center gap-2.5 pr-2">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600/15 text-blue-400 ring-1 ring-blue-500/25">
             <Icon name="key" size={18} />
@@ -80,7 +87,7 @@ export function Toolbar({
           </div>
         </div>
 
-        <div className="relative flex-1">
+        <div className="relative min-w-[14rem] flex-1 max-[900px]:order-last max-[900px]:basis-full">
           <Icon
             name="search"
             size={15}
@@ -103,6 +110,15 @@ export function Toolbar({
 
         <div className="flex items-center gap-2">
           <Button
+            variant={giftMode ? 'primary' : 'ghost'}
+            icon="gift"
+            onClick={onToggleGiftMode}
+            title="Seleccionar varios juegos para regalar"
+          >
+            Regalar
+          </Button>
+
+          <Button
             variant={activeChips > 0 || filtersOpen ? 'subtle' : 'ghost'}
             icon="filter"
             onClick={onToggleFilters}
@@ -120,7 +136,7 @@ export function Toolbar({
             <select
               value={sort}
               onChange={(event) => onSortChange(event.target.value as KeySort)}
-              className={`${SELECT_CLASS} w-40 py-2 pr-8`}
+              className={`${SELECT_CLASS} w-40 max-w-[45vw] py-2 pr-8`}
               aria-label="Ordenar por"
             >
               {SORTS.map((option) => (
