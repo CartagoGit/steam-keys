@@ -15,6 +15,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
+use tauri::Manager;
 
 /// Nombre del fichero de base de datos. Debe coincidir con `DB_CONNECTION`.
 const DB_FILE_NAME: &str = "steam-keys.db";
