@@ -62,8 +62,43 @@ bun run build:windows:docker
 ```
 
 Usa `cargo-xwin` para compilar el binario Rust contra el SDK de Windows desde
-un contenedor Linux. Solo genera el instalador **NSIS**; el **MSI** requiere
-Windows o `wine`.
+un contenedor Linux.
+
+Qué funciona y qué no desde Linux:
+
+| Artefacto | Desde Linux | Notas |
+|---|---|---|
+| `steam-keys.exe` | Sí | Cross-compilación pura, sin emulación |
+| Instalador **NSIS** (`setup.exe`) | Sí | `makensis.exe` oficial ejecutado bajo `wine` |
+| Instalador **MSI** | No | WiX necesita Windows de verdad; compílalo en Windows |
+
+Detalles que no son evidentes y que cuestan una hora cada una:
+
+- **No existe `tauri xwin build`.** `cargo-xwin` solo expone subcomandos de
+  cargo, y el CLI de Tauri no tiene un `xwin`. La vía que funciona es
+  `cargo xwin env > env.sh`, cargar ese fichero y dejar que `tauri build` herede
+  las variables.
+- **`frontendDist` se resuelve desde el directorio de trabajo**, no desde
+  `src-tauri/`. Dentro del contenedor eso significa `"../../../build"`.
+- **`clang-cl`, `llvm-rc` y `llvm-lib` necesitan alias sin número de versión** en
+  el `PATH`. En Debian bookworm vienen como `clang-cl-18`, `llvm-rc-18` y
+  `llvm-lib-18`, y el driver `clang-cl` está en `clang-tools-18`, no en
+  `clang-18`.
+- **`lib.exe` es `llvm-lib` renombrado**: el enlazado de MSVC lo busca por ese
+  nombre.
+- **El `.exe` se compila con `--no-bundle` en una capa aparte**, antes que el
+  instalador. Así un fallo de NSIS no tira abajo el ejecutable, que es lo que de
+  verdad importa.
+- **NSIS solo se puede generar en Linux con `wine32:i386`.** `makensis.exe` es
+  un PE de 32 bits; con solo `wine64` arranca en modo wow64, revienta con
+  `load_wow64_ntdll ... error c0000135` y **devuelve 0 sin hacer nada**. Tauri se
+  cree que ha ido bien y falla después con un engañoso
+  `No such file or directory` al copiar el instalador que nunca se creó. En los
+  logs, el aviso delata el problema: `wine32 is missing`.
+
+Los artefactos se copian a `dist/` al **arrancar** el contenedor, no durante el
+build: el volumen que monta `dist/` sobre `/out` oculta lo que la imagen traiga
+ahí. Por eso hay que ejecutar el build y luego `docker compose up --no-build`.
 
 ---
 
