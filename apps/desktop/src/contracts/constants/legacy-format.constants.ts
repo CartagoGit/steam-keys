@@ -1,3 +1,5 @@
+import { KeyStatus } from '../enums/key-status.enum';
+
 /**
  * Expresiones regulares que describen el formato real del TXT de origen.
  * Centralizadas aqui para que parser, validadores y tests compartan la misma
@@ -8,7 +10,7 @@
  * Clave de Steam clasica: cinco-cinco-cinco.
  *
  * El alfabeto real de Steam es A-Z y 0-9 completo: las claves del archivo
- * contienen ceros e "I" (`SYNTHETIC-KEY-1`, `SYNTHETIC-KEY-2`), asi que
+ * contienen ceros e "I" (`MQ7RT-29XKL-ZPN84`, `B4KMD-58RQW-LNCT3`), asi que
  * restricting el rango haria que se ignorarian dos de cada tres claves.
  */
 export const STEAM_KEY_PATTERN = /\b[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}\b/i;
@@ -21,7 +23,7 @@ export const HUMBLE_URL_PATTERN =
 export const HUMBLE_URL_KEY_PATTERN = /(?:\?|\/gift\?)[^#\s]*key=([A-Za-z0-9_-]{8,})/i;
 
 /**
- * Clave de Battle.net: tres-tres-tres, p.ej. `SYNTHETIC-KEY-3`.
+ * Clave de Battle.net: tres-tres-tres, p.ej. `A7T-9KX-R4Z`.
  *
  * El cierre usa una asercion negativa y no un `\b`: al terminar en caracteres
  * alfanumericos, un `\b` solo se cumpliria justo antes del ultimo, y el
@@ -41,6 +43,29 @@ export const ALPHANUMERIC_KEY_PATTERN =
 
 /** Marcador de "ya regalada": el TXT empieza la linea con un guion. */
 export const GIFT_MARKER_PATTERN = /^\s*-\s*/;
+
+/**
+ * Marcadores de estado que escribe el exportador al principio de la linea.
+ *
+ * El TXT original solo tenia `-` para "regalada"; el exportador anade el resto
+ * para que la ida y vuelta a la base de datos no pierda informacion.
+ */
+export const STATUS_MARKERS: Readonly<Record<string, KeyStatus>> = Object.freeze({
+  '-': KeyStatus.Gifted,
+  '!': KeyStatus.Redeemed,
+  '~': KeyStatus.Expired,
+  '?': KeyStatus.Unknown,
+});
+
+/** Caracteres que abren linea y significan algo mas que parte del nombre. */
+export const STATUS_MARKER_CHARS = Object.keys(STATUS_MARKERS).join('');
+
+/** Anotaciones con prefijo que escribe el exportador dentro de `[...]`. */
+export const PARENT_ANNOTATION_PREFIX = 'parent:';
+export const PLATFORM_ANNOTATION_PREFIX = 'plataforma:';
+
+/** Separador entre anotaciones encadenadas dentro de un mismo `[...]`. */
+export const ANNOTATION_SEPARATOR = '·';
 
 /** Cabecera de fecha del TXT: `# 22-01-25`, `# 10-10-2026`. */
 export const DATE_HEADER_PATTERN = /^#\s*(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})\s*$/;

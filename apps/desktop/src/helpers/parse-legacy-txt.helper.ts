@@ -12,6 +12,7 @@ import {
   RECIPIENT_PATTERN,
   REDEEM_MARKER_PATTERN,
   SECTION_MARKER_PATTERN,
+  STATUS_MARKERS,
   STEAM_KEY_PATTERN,
 } from '@/contracts/constants/legacy-format.constants';
 import { KeyPlatform } from '@/contracts/enums/key-platform.enum';
@@ -32,6 +33,7 @@ import {
 } from './detect-platform.helper';
 import { parseLegacyDate } from './format-date.helper';
 import {
+  extractAnnotations,
   keyFingerprint,
   normalizeKey,
   normalizeTitle,
@@ -212,21 +214,34 @@ export function parseLegacyTxt(raw: string, options: IParseOptions = {}): IParse
       const date = parseLegacyDate(line);
       if (date) {
         state.dateContext = date;
-        state.orphanTitle = null;
-        state.orphanNote = null;
       }
+      // Un comentario cierra cualquier titulo suelto pendiente.
+      state.orphanTitle = null;
+      state.orphanNote = null;
       skippedLines += 1;
       continue;
     }
 
     // -------------------------------------- separadores y decoracion ---
     if (DECORATIVE_PATTERN.test(line) && !line.includes('...')) {
+      // Un separador tambien cierra el titulo pendiente: si no, la siguiente
+      // clave se quedaria con el nombre de la cabecera de la seccion.
+      state.orphanTitle = null;
+      state.orphanNote = null;
       skippedLines += 1;
       continue;
     }
 
+    // ------------------------------------------------------- clave ---
+    // Se extrae aqui, antes de los encabezados: varias comprobaciones necesitan
+    // saber si la linea trae clave para no confundirse con una marca.
+    const token = extractKeyToken(line);
+    const hasKey = token !== null;
+
     // --------------------------------------- "4 Sesion de regalos ..." ---
-    if (SECTION_MARKER_PATTERN.test(line)) {
+    // Solo cuenta como encabezado si la linea NO trae clave: si la trae, es una
+    // entrada normal cuya nota puede mencionar una sesion de regalos.
+    if (SECTION_MARKER_PATTERN.test(line) && !hasKey) {
       state.noteContext = line.replace(/^[.\s]+|[.\s]+$/g, '');
       state.redeemMode = false;
       state.orphanTitle = null;
@@ -236,7 +251,7 @@ export function parseLegacyTxt(raw: string, options: IParseOptions = {}): IParse
     }
 
     // ----------------------------------------------- "ACTIVAR YO >>>>" ---
-    if (REDEEM_MARKER_PATTERN.test(line)) {
+    if (REDEEM_MARKER_PATTERN.test(line) && !hasKey) {
       state.noteContext = line.replace(/[\s\-<>]+$/, '').trim();
       state.redeemMode = true;
       state.orphanTitle = null;
@@ -249,7 +264,7 @@ export function parseLegacyTxt(raw: string, options: IParseOptions = {}): IParse
     // Solo si la linea NO trae clave: si la trae, es una entrada normal cuyo
     // nombre puede coincidir con el nombre de una tienda ("Blade & Soul ...").
     if (
-      !extractKeyToken(line) &&
+      !hasKey &&
       PLATFORM_HINT_PATTERN.test(line) &&
       !INSTRUCTION_PATTERN.test(line)
     ) {
@@ -265,7 +280,7 @@ export function parseLegacyTxt(raw: string, options: IParseOptions = {}): IParse
     }
 
     // --------------------------------- lineas de instrucciones (sin clave) ---
-    if (INSTRUCTION_PATTERN.test(line) && !extractKeyToken(line)) {
+    if (INSTRUCTION_PATTERN.test(line) && !hasKey) {
       addIssue(
         sourceLine,
         line,
@@ -275,9 +290,6 @@ export function parseLegacyTxt(raw: string, options: IParseOptions = {}): IParse
       skippedLines += 1;
       continue;
     }
-
-    // ---------------------------------------------------------- clave ---
-    const token = extractKeyToken(line);
 
     if (!token) {
       // Linea sin clave: candidata a nombre o a nota del siguiente bloque.
@@ -295,7 +307,7 @@ export function parseLegacyTxt(raw: string, options: IParseOptions = {}): IParse
     const before = line.slice(0, token.start);
     let after = line.slice(token.end);
 
-    // Casos como `SYNTHETIC-KEY-3-VFHW`: el sufijo no forma parte de la clave.
+    // Casos como `A7T-9KX-R4Z-VFHW`: el sufijo no forma parte de la clave.
     const junkSuffix = /^[-_](\S{2,8})$/.exec(after);
     if (junkSuffix && token.kind !== ParsedKeyKind.Steam) {
       addIssue(
@@ -326,8 +338,22 @@ export function parseLegacyTxt(raw: string, options: IParseOptions = {}): IParse
     // El guion de "regalada" solo cuenta si abre la linea. Un ` - ` detras de
     // la clave es un separador de titulo cualquiera, no una marca de regalo.
     const gifted = GIFT_MARKER_PATTERN.test(before);
+
+    // Marcador explicito de estado que escribe el exportador (`- ! ~ ?`).
+    const markerChar = line.startsWith('-')
+      ? '-'
+      : STATUS_MARKERS[line.charAt(0)]
+        ? line.charAt(0)
+        : null;
+    const explicitStatus = markerChar ? STATUS_MARKERS[markerChar] : null;
+
     const beforeClean = stripSeparators(before);
-    const afterClean = stripSeparators(after);
+
+    // Lo que va detras de la clave puede llevar las anotaciones que escribe el
+    // exportador: `[nota]` y `{etiquetas}`. Se separan para que no ensucien el
+    // titulo y para que la vuelta a exportar -> importar no pierda nada.
+    const annotated = extractAnnotations(stripSeparators(after));
+    const afterClean = annotated.title;
 
     let title: string;
     let giftedTo: string | null = null;
@@ -364,8 +390,12 @@ export function parseLegacyTxt(raw: string, options: IParseOptions = {}): IParse
     }
 
     // ---------------------------------------------------- plataforma ---
+    // La anotacion del exportador manda; si no la hay, se deduce de la forma
+    // de la clave o de la pista de plataforma que imposed el TXT.
     const platform =
-      state.platformHint ?? inferPlatformFromKeyShape(keyValue);
+      (annotated.platform as KeyPlatform | null) ??
+      state.platformHint ??
+      inferPlatformFromKeyShape(keyValue);
 
     if (platform === KeyPlatform.Unknown) {
       addIssue(
@@ -377,19 +407,23 @@ export function parseLegacyTxt(raw: string, options: IParseOptions = {}): IParse
     }
 
     // ------------------------------------------------------- estado ---
-    const status = gifted
-      ? KeyStatus.Gifted
-      : state.redeemMode
-        ? KeyStatus.Redeemed
-        : KeyStatus.Available;
+    const status =
+      explicitStatus ??
+      (gifted
+        ? KeyStatus.Gifted
+        : state.redeemMode
+          ? KeyStatus.Redeemed
+          : KeyStatus.Available);
 
     // --------------------------------------------------------- tags ---
     const tags: string[] = [];
     if (state.blockParent || state.orphanNote) tags.push('dlc');
     if (token.kind === ParsedKeyKind.HumbleUrl) tags.push('humble');
     if (state.noteContext) tags.push('contexto');
+    tags.push(...annotated.tags);
 
-    const note = state.orphanNote ?? state.noteContext;
+    // La nota explicita entre corchetes manda sobre la del contexto.
+    const note = annotated.note ?? state.orphanNote ?? state.noteContext;
 
     entries.push({
       title,
@@ -397,9 +431,9 @@ export function parseLegacyTxt(raw: string, options: IParseOptions = {}): IParse
       platform,
       status,
       keyKind: token.kind,
-      gifted,
+      gifted: status === KeyStatus.Gifted,
       giftedTo,
-      parentTitle: state.blockParent ?? null,
+      parentTitle: annotated.parentTitle ?? state.blockParent ?? null,
       note,
       tags,
       addedOn: state.dateContext,

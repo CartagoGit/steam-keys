@@ -1,0 +1,25 @@
+# ==============================================================================
+#  Atajo para compilar el instalador de Windows desde Linux/WSL2.
+#
+#    bun run build:windows:docker
+#
+#  El resultado aparece en dist/ dentro del proyecto.
+# ==============================================================================
+
+name: steam-keys
+
+services:
+  windows-build:
+    build:
+      context: ../..
+      dockerfile: tools/docker/Dockerfile.windows-build
+      args:
+        TAURI_TARGET: x86_64-pc-windows-msvc
+        # Solo NSIS: el MSI (WiX) no compila en Linux sin wine.
+        TAURI_BUNDLES: nsis
+    image: steam-keys-windows-build
+    volumes:
+      # Los artefactos salen directamente en dist/ del proyecto.
+      - ../../dist:/out
+    environment:
+      CARGO_TERM_COLOR: always

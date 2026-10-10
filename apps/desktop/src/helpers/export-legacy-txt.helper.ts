@@ -1,7 +1,25 @@
 import { APP_NAME } from '@/contracts/constants/app.constants';
-import { formatShortDate } from '@/helpers/format-date.helper';
+import {
+  ANNOTATION_SEPARATOR,
+  PARENT_ANNOTATION_PREFIX,
+  PLATFORM_ANNOTATION_PREFIX,
+  STATUS_MARKERS,
+} from '@/contracts/constants/legacy-format.constants';
+import { KeyPlatform } from '@/contracts/enums/key-platform.enum';
+import { KeyStatus } from '@/contracts/enums/key-status.enum';
 import { parseTags, serializeTags } from '@/helpers/normalize-text.helper';
 import type { IGameKey } from '@/contracts/interfaces/game-key.interface';
+
+/** Inversa de `STATUS_MARKERS`, para escribir el estado en el TXT. */
+const STATUS_MARKERS_REVERSE: Readonly<Record<KeyStatus, string>> = Object.freeze(
+  Object.entries(STATUS_MARKERS).reduce<Partial<Record<KeyStatus, string>>>(
+    (accumulator, [char, status]) => {
+      accumulator[status as KeyStatus] = char;
+      return accumulator;
+    },
+    {},
+  ) as Record<KeyStatus, string>,
+);
 
 /**
  * Vuelca la coleccion al formato del TXT original.
@@ -42,16 +60,28 @@ export function exportKeysToLegacyTxt(keys: readonly IGameKey[]): string {
 export function formatKeyLine(key: IGameKey): string {
   const parts: string[] = [];
 
-  // El guion inicial es la marca de "regalada" del formato original.
-  if (key.status === 'gifted') parts.push('-');
+  // Marcador de estado al inicio de la linea. El `-` es el marcador original
+  // de "regalada"; los demas los anade el exportador para no perder estados.
+  const marker = STATUS_MARKERS_REVERSE[key.status] ?? (key.status === 'gifted' ? '-' : '');
+  if (marker) parts.push(marker);
 
   parts.push(key.title);
   parts.push(`\tSteam Key: ${key.keyValue}`);
 
-  if (key.parentTitle) parts.push(`(${key.parentTitle})`);
   if (key.giftedTo) parts.push(`- ${key.giftedTo}`);
-  if (key.addedOn) parts.push(`# ${formatShortDate(key.addedOn)}`);
-  if (key.note) parts.push(`[${key.note}]`);
+
+  const notes: string[] = [];
+  if (key.parentTitle && key.parentTitle !== key.title) {
+    notes.push(`${PARENT_ANNOTATION_PREFIX} ${key.parentTitle}`);
+  }
+  // La plataforma solo se escribe cuando no es Steam: para el resto se deduce
+  // de la forma de la clave, y duplicarla solo generaria ruido.
+  if (key.platform !== KeyPlatform.Steam) {
+    notes.push(`${PLATFORM_ANNOTATION_PREFIX} ${key.platform}`);
+  }
+  if (key.note) notes.push(key.note);
+
+  if (notes.length > 0) parts.push(`[${notes.join(` ${ANNOTATION_SEPARATOR} `)}]`);
 
   const tags = parseTags(serializeTags(key.tags));
   if (tags.length > 0) parts.push(`{${tags.join(',')}}`);

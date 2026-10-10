@@ -19,29 +19,29 @@ describe('extractores de clave', () => {
 
   test('detecta la clave de una URL de Humble Bundle', () => {
     const result = parseLegacyTxt(
-      'INK _ https://www.humblebundle.com/downloads?key=CLAVE-FILTRADA-2',
+      'INK _ https://www.humblebundle.com/downloads?key=QwErTy12uIoP3aSd',
     );
     expect(result.entries).toHaveLength(1);
-    expect(result.entries[0]?.keyValue).toBe('ASSMZT8BKCMFZ CSC'.replace(' ', ''));
+    expect(result.entries[0]?.keyValue).toBe('QWERTY12UIOP3ASD');
     expect(result.entries[0]?.title).toBe('INK');
   });
 
   test('detecta la clave de una URL de regalo', () => {
     const result = parseLegacyTxt(
-      'SpeedRunners (Early Access)  - https://www.humblebundle.com/gift?key=CLAVE-FILTRADA-1',
+      'SpeedRunners (Early Access)  - https://www.humblebundle.com/gift?key=T7XbN2pLqW9mK4cR',
     );
-    expect(result.entries[0]?.keyValue).toBe('SYNTHETIC-KEY-4');
+    expect(result.entries[0]?.keyValue).toBe('T7XBN2PLQW9MK4CR');
   });
 
   test('detecta una clave de Battle.net con formato 3-3-3', () => {
-    const result = parseLegacyTxt('Destiny 2 - SYNTHETIC-KEY-3');
+    const result = parseLegacyTxt('Destiny 2 - A7T-9KX-R4Z');
     expect(result.entries[0]?.platform).toBe(KeyPlatform.BattleNet);
-    expect(result.entries[0]?.keyValue).toBe('SYNTHETIC-KEY-3');
+    expect(result.entries[0]?.keyValue).toBe('A7T-9KX-R4Z');
   });
 
   test('detecta una clave alfanumerica larga de otra tienda', () => {
-    const result = parseLegacyTxt('Blade & Soul Giveaway Pack - SYNTHETIC-KEY-6');
-    expect(result.entries[0]?.keyValue).toBe('SYNTHETIC-KEY-6');
+    const result = parseLegacyTxt('Blade & Soul Giveaway Pack - 8XkLm39pQrTv2wZn');
+    expect(result.entries[0]?.keyValue).toBe('8XKLM39PQRTV2WZN');
     expect(result.entries[0]?.platform).toBe(KeyPlatform.Unknown);
   });
 });
@@ -159,7 +159,7 @@ describe('cabeceras, notas y zonas de canje', () => {
     const raw = [
       'Destiny 2',
       'June 2018 Humble Monthly',
-      'SYNTHETIC-KEY-3',
+      'A7T-9KX-R4Z',
     ].join('\n');
 
     const result = parseLegacyTxt(raw);
@@ -171,7 +171,7 @@ describe('cabeceras, notas y zonas de canje', () => {
     const raw = [
       'BLIZARD DEJO DE USAR DESTINY EN BATTLE.NET ->>>',
       '',
-      'Overwatch - SYNTHETIC-KEY-3',
+      'Overwatch - A7T-9KX-R4Z',
     ].join('\n');
 
     const result = parseLegacyTxt(raw);
@@ -220,17 +220,17 @@ describe('lineas que el parser descarta', () => {
   });
 
   test('recorta el sufijo basura pegado a una clave', () => {
-    const raw = ['Destiny 2', 'June 2018 Humble Monthly', 'SYNTHETIC-KEY-3-VFHW'].join('\n');
+    const raw = ['Destiny 2', 'June 2018 Humble Monthly', 'A7T-9KX-R4Z-VFHW'].join('\n');
     const result = parseLegacyTxt(raw);
 
-    expect(result.entries[0]?.keyValue).toBe('SYNTHETIC-KEY-3');
+    expect(result.entries[0]?.keyValue).toBe('A7T-9KX-R4Z');
     expect(
       result.issues.some((issue) => issue.reason === ParsedIssueReason.ClaveSospechosa),
     ).toBe(true);
   });
 
   test('marca las claves de plataforma desconocida para revisarlas', () => {
-    const result = parseLegacyTxt('Regalo - SYNTHETIC-KEY-6');
+    const result = parseLegacyTxt('Regalo - 8XkLm39pQrTv2wZn');
     expect(result.entries[0]?.platform).toBe(KeyPlatform.Unknown);
     expect(
       result.issues.some((issue) => issue.reason === ParsedIssueReason.ClaveSospechosa),

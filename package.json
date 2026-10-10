@@ -29,6 +29,7 @@
     "export": "bun tools/scripts/export-txt.script.ts",
     "inspect:format": "bun tools/scripts/inspect-text-format.script.ts",
     "mask": "bun tools/scripts/mask-keys.script.ts",
+    "audit": "bun tools/scripts/audit-secrets.script.ts",
     "db:path": "bun tools/scripts/print-db-path.script.ts",
     "db:reset": "bun tools/scripts/reset-db.script.ts",
     "clean": "bun run clean:build && bun run clean:dist",

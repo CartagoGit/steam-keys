@@ -1,0 +1,86 @@
+# ==============================================================================
+#  Build de Steam Keys para Windows desde Linux (WSL2 o Docker).
+#
+#  Usa `cargo-xwin` para compilar el binario Rust contra el SDK de Windows: el
+#  contenedor es Linux, pero el ejecutable que sale es un .exe nativo.
+#
+#  Limitacion conocida: el instalador MSI (WiX) necesita Windows o wine, asi que
+#  aqui solo se genera el instalador NSIS. Para el MSI, compila en Windows.
+#
+#    docker build -f tools/docker/Dockerfile.windows-build -t steam-keys-build .
+#    docker run --rm -v "$PWD/dist:/out" steam-keys-build
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+#  Etapa 1: front-end (Vite) con Bun. Barata y cacheable.
+# ------------------------------------------------------------------------------
+FROM oven/bun:1 AS frontend
+
+WORKDIR /workspace
+
+COPY package.json bun.lock tsconfig.json tsconfig.base.json ./
+COPY apps/desktop/package.json ./apps/desktop/
+
+RUN bun install --frozen-lockfile
+
+COPY apps/desktop ./apps/desktop
+
+RUN bun run build:front
+
+
+# ------------------------------------------------------------------------------
+#  Etapa 2: compilacion Rust + empaquetado Windows.
+# ------------------------------------------------------------------------------
+FROM rust:1.90-bookworm AS builder
+
+ARG TAURI_TARGET=x86_64-pc-windows-msvc
+ARG TAURI_BUNDLES=nsis
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV CARGO_TERM_COLOR=always
+
+# Dependencias del sistema que pide Tauri y `cargo-xwin`.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates \
+      curl \
+      file \
+      llvm \
+      lld \
+      pkg-config \
+      wget \
+      unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Bun, para lanzar los scripts del proyecto.
+RUN curl -fsSL https://bun.sh/install | bash \
+    && ln -s /root/.bun/bin/bun /usr/local/bin/bun \
+    && ln -s /root/.bun/bin/bunx /usr/local/bin/bunx
+
+# Toolchain de Windows y compilador cruzado.
+RUN rustup target add "${TAURI_TARGET}"
+RUN cargo install cargo-xwin --locked
+
+WORKDIR /workspace
+
+COPY package.json bun.lock tsconfig.json tsconfig.base.json ./
+COPY apps/desktop/package.json ./apps/desktop/
+
+RUN bun install --frozen-lockfile
+
+COPY apps ./apps
+COPY tools ./tools
+
+# El front ya viene compilado de la etapa anterior: `beforeBuildCommand` de
+# Tauri volveria a lanzarlo si falta, pero aqui ya esta.
+COPY --from=frontend /workspace/build ./build
+
+# `cargo xwin` expone el SDK de Windows y el enlazador MSVC como `cc`.
+RUN cargo xwin tauri build \
+      --target "${TAURI_TARGET}" \
+      --bundles "${TAURI_BUNDLES}" \
+      --ci
+
+# Deja el resultado en /out para que el host lo copie.
+RUN mkdir -p /out && cp -r /workspace/dist/. /out/
+
+CMD ["sh", "-c", "ls -laR /out"]
