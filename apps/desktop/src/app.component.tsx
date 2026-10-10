@@ -15,7 +15,11 @@ import { KeyStatus } from '@/contracts/enums/key-status.enum';
 import { computeStats, emptyFilter, filterKeys, sortKeys } from '@/helpers/filter-keys.helper';
 import { gameKeyService } from '@/services/game-key.service';
 import { storageService } from '@/services/storage.service';
-import { isBrowserPreview } from '@/helpers/runtime.helper';
+import {
+  getStorageMode,
+  STORAGE_MODE_LABEL,
+  STORAGE_MODE_NOTICE,
+} from '@/helpers/runtime.helper';
 import type {
   IGameKey,
   IGameKeyDraft,
@@ -314,11 +318,16 @@ export function App() {
           {stats.available > 0 ? ` · ${stats.available} regalables` : ''}
         </span>
         <span className="flex items-center gap-3">
-          {isBrowserPreview() ? (
-            <span className="text-amber-400/80">
-              Vista previa en navegador: datos en memoria, no se guardan en disco
-            </span>
-          ) : null}
+          <span
+            title={STORAGE_MODE_NOTICE[getStorageMode()]}
+            className={[
+              'flex items-center gap-1.5',
+              getStorageMode() === 'memory' ? 'text-amber-400/80' : 'text-slate-500',
+            ].join(' ')}
+          >
+            <Icon name="package" size={12} />
+            {STORAGE_MODE_LABEL[getStorageMode()]}
+          </span>
           <span>
             <kbd className="rounded border border-white/10 px-1 py-0.5">{SEARCH_SHORTCUT}</kbd>{' '}
             buscar ·{' '}

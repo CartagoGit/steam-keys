@@ -39,10 +39,14 @@ Requisitos: [Bun](https://bun.sh) y (para compilar el `.exe`) Rust.
 
 ```bash
 bun install          # instala todo el workspace
-bun run dev          # abre la UI en el navegador (datos en memoria)
-bun test             # 46 tests
+bun run dev          # abre la UI en el navegador, con la BD real
+bun test             # 71 tests
 bun run typecheck    # TypeScript en modo estricto
 ```
+
+> `bun run dev` abre la interfaz **con tus claves de verdad**: un puente de
+> desarrollo ejecuta el SQL contra el mismo fichero SQLite que usa la app de
+> escritorio. Ver [El puente de desarrollo](#el-puente-de-desarrollo).
 
 ### La app de escritorio
 
@@ -89,12 +93,12 @@ Todos están en el `package.json` de la raíz.
 
 | Comando | Qué hace |
 |---|---|
-| `bun run dev` | Front en el navegador, datos en memoria |
+| `bun run dev` | Front en el navegador, contra la BD real |
 | `bun run dev:tauri` | App de escritorio nativa |
 | `bun run build` | Compila el front a `build/` |
 | `bun run build:windows` | `.exe` + instalador en `dist/` |
 | `bun run build:windows:docker` | Lo mismo, pero desde Linux |
-| `bun test` | Tests (parser, export, round-trip) |
+| `bun test` | Tests (parser, export, round-trip, puente) |
 | `bun run typecheck` | TypeScript estricto |
 | `bun run import` | Importa el TXT (simula por defecto) |
 | `bun run import -- --force` | Importa de verdad |
@@ -182,8 +186,53 @@ corrupción, para que puedas restaurar antes de perder claves.
 
 ### En el navegador
 
-`bun run dev` abre la interfaz sin Tauri, con los datos en `localStorage`. Sirve
-para trabajar en la UI; el botón Datos avisa de que no es almacenamiento real.
+`bun run dev` abre la interfaz sin Tauri, pero **con tus claves de verdad**: un
+middleware de Vite ejecuta el SQL contra el mismo fichero SQLite de la app de
+escritorio. Lo que añadas, edites o borres ahí se guarda en tu base de datos.
+
+#### El puente de desarrollo
+
+El problema que resuelve: dentro de Tauri la app abre SQLite con el plugin
+nativo, pero en el navegador ese plugin no existe, así que la app caía en un
+repositorio en memoria y se veía una colección vacía en lugar de tus claves.
+
+En vez de reimplementar el repositorio, el puente **ejecuta SQL de verdad** y el
+navegador solo le manda sentencias. El único código que escribe en la base de
+datos sigue siendo `SqliteGameKeyRepository`, idéntico en los dos entornos.
+
+```
+navegador ──HTTP+token──▶ middleware de Vite ──ejecFileSync──▶ dev-bridge.serve.ts ──▶ SQLite
+```
+
+Salvaguardas, en este orden:
+
+1. **Solo en desarrollo.** El middleware lleva `apply: 'serve'`: no existe en
+   `vite build` ni en el `.exe`. Además, un segundo plugin sustituye el cliente
+   del puente por un módulo que falla al usarlo, así que el bundle de producción
+   no contiene ni el endpoint ni el token. Se puede comprobar:
+
+   ```bash
+   bun run build && grep -r '__dev-bridge__\|dev-token' build/   # sin resultados
+   ```
+
+2. **Token por proceso.** Se genera al arrancar el servidor y se inyecta solo en
+   el bundle del navegador. Una petición sin ese header devuelve `403`. Al ser
+   un header personalizado, el navegador obliga a un preflight CORS, de modo que
+   una página web cualquiera no puede llamar a `127.0.0.1` aunque la víctima la
+   tenga abierta.
+
+3. **Solo en loopback.** Vite escucha en `127.0.0.1`, nunca en `0.0.0.0`.
+
+4. **Sin volcado masivo.** Solo hay `exec` y `select`. No existe forma de pedir
+   "dame la tabla entera" con las claves en claro.
+
+> Aun así, cualquier SQL que llegue al puente se ejecuta contra tu base de
+> datos. Es una herramienta de desarrollo, no una API: no lo expongas ni lo
+> apuntes a un servidor compartido.
+
+El botón **Datos** muestra en qué modo se está trabajando (Tauri, puente o
+memoria), para que no te confundas si algo de lo que ves cambia al abrir la
+interfaz desde otro sitio.
 
 ---
 
@@ -192,6 +241,8 @@ para trabajar en la UI; el botón Datos avisa de que no es almacenamiento real.
 ```
 steam-keys/
 ├── apps/desktop/                  App de escritorio
+│   ├── dev-bridge.contract.ts     Contrato puente ↔ cliente (sin Node)
+│   ├── dev-bridge.vite-plugin.ts  Middleware y stub de producción
 │   ├── src/
 │   │   ├── contracts/             Capa inferior, sin dependencias de React
 │   │   │   ├── constants/         Constantes y metadatos de UI
@@ -206,6 +257,7 @@ steam-keys/
 │
 ├── tools/
 │   ├── scripts/                   Scripts de uso genérico (Bun)
+│   │   ├── dev-bridge.serve.ts    Ejecuta el SQL del puente
 │   │   └── support/               Ayudas compartidas por los scripts
 │   └── docker/                    Build de Windows desde Linux
 │
@@ -227,8 +279,10 @@ Reglas que se respetan en todo el proyecto:
 ### Por qué dos repositorios
 
 La UI no sabe si hay SQLite detrás: habla con `IGameKeyRepository`. Dentro de
-Tauri se usa SQLite; en el navegador, un repositorio en memoria sobre
-`localStorage`. Eso permite trabajar en la interfaz sin compilar Rust.
+Tauri se usa el cliente nativo; en el navegador, el del puente de desarrollo; y
+solo si no hay ninguno de los dos, uno en memoria sobre `localStorage`. Los tres
+terminan en `SqliteGameKeyRepository` menos el último, así que el código que
+escribe en la base de datos es el mismo.
 
 ---
 

@@ -3,6 +3,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { BackupReason } from '@/contracts/enums/backup-reason.enum';
 import { RestoreMode } from '@/contracts/enums/restore-mode.enum';
 import { StorageHealth } from '@/contracts/enums/storage-health.enum';
+import {
+  getStorageMode,
+  STORAGE_MODE_LABEL,
+  STORAGE_MODE_NOTICE,
+  supportsBackups,
+} from '@/helpers/runtime.helper';
 import { storageService } from '@/services/storage.service';
 import { Button } from './ui.component';
 import { Icon } from './icon.component';
@@ -144,12 +150,14 @@ export function StoragePanel({ onClose, onChanged, notify }: IStoragePanelProps)
           ) : !info ? null : (
             <div className="space-y-5">
               {/* ------------------------------------------------- aviso */}
-              {!info.persistent ? (
+              {info.persistent ? (
                 <Aviso
-                  tone="amber"
-                  icon="alert"
-                  titulo="Vista previa en el navegador"
-                  texto="Aqui los datos viven en localStorage y se pierden si limpias los datos del navegador. Las copias de seguridad solo funcionan en la app de escritorio."
+                  tone={info.health === StorageHealth.Ok ? 'blue' : 'amber'}
+                  icon={info.health === StorageHealth.Ok ? 'info' : 'alert'}
+                  titulo={STORAGE_MODE_LABEL[getStorageMode()]}
+                  texto={info.health === StorageHealth.Ok
+                    ? STORAGE_MODE_NOTICE[getStorageMode()]
+                    : (info.healthDetail ?? 'La base de datos no responde como se espera.')}
                 />
               ) : null}
 
@@ -178,8 +186,9 @@ export function StoragePanel({ onClose, onChanged, notify }: IStoragePanelProps)
                     value={formatBytes(info.databaseSizeBytes)}
                   />
                   <Dato
-                    label="Persistente"
-                    value={info.persistent ? 'Si, SQLite' : 'No, en memoria'}
+                    label="Almacenamiento"
+                    value={STORAGE_MODE_LABEL[getStorageMode()]}
+                    ayuda="Donde se estan guardando las claves ahora mismo."
                   />
                   <Dato
                     label="Pendientes de revisar"
@@ -211,8 +220,12 @@ export function StoragePanel({ onClose, onChanged, notify }: IStoragePanelProps)
                     variant="subtle"
                     icon="download"
                     onClick={handleBackup}
-                    disabled={working || !info.persistent || info.totalKeys === 0}
-                    title="Crear una copia ahora"
+                    disabled={working || !supportsBackups() || info.totalKeys === 0}
+                    title={
+                      supportsBackups()
+                        ? 'Crear una copia ahora'
+                        : 'Solo disponible en la app de escritorio'
+                    }
                   >
                     Copiar ahora
                   </Button>
@@ -220,9 +233,9 @@ export function StoragePanel({ onClose, onChanged, notify }: IStoragePanelProps)
 
                 {info.backups.length === 0 ? (
                   <p className="rounded-lg bg-surface-2 px-3 py-3 text-xs text-slate-500 ring-1 ring-white/5">
-                    Todavia no hay copias. Se crean solas antes de cada
-                    importacion o restauracion, y tambien puedes pulsar
-                    «Copiar ahora».
+                    {supportsBackups()
+                      ? 'Todavia no hay copias. Se crean solas antes de cada importacion o restauracion, y tambien puedes pulsar «Copiar ahora».'
+                      : 'Las copias de seguridad son una funcion de la app de escritorio. Aqui no hay ninguna.'}
                   </p>
                 ) : (
                   <ul className="space-y-1.5">
@@ -243,7 +256,7 @@ export function StoragePanel({ onClose, onChanged, notify }: IStoragePanelProps)
                         <button
                           type="button"
                           onClick={() => setPendingRestore(backup)}
-                          disabled={working}
+                          disabled={working || !supportsBackups()}
                           className="rounded-lg px-2.5 py-1.5 text-xs text-slate-300 transition hover:bg-white/5 disabled:opacity-40"
                         >
                           Restaurar
@@ -265,7 +278,8 @@ export function StoragePanel({ onClose, onChanged, notify }: IStoragePanelProps)
                 <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
                   Se guardan las 10 copias mas recientes en la carpeta
                   <code className="mx-1 font-mono">backups</code>
-                  junto a la base de datos.
+                  junto a la base de datos, y se crean solas antes de cada
+                  importacion o restauracion.
                 </p>
               </section>
             </div>
@@ -392,17 +406,18 @@ function Opcion({ activo, titulo, texto, onClick }: IOpcionProps) {
 }
 
 interface IAvisoProps {
-  tone: 'amber' | 'rose';
+  tone: 'amber' | 'rose' | 'blue';
   icon: 'alert' | 'info';
   titulo: string;
   texto: string;
 }
 
 function Aviso({ tone, icon, titulo, texto }: IAvisoProps) {
-  const clases =
-    tone === 'rose'
-      ? 'bg-rose-500/10 text-rose-300 ring-rose-500/30'
-      : 'bg-amber-500/10 text-amber-300 ring-amber-500/25';
+  const clases = {
+    rose: 'bg-rose-500/10 text-rose-300 ring-rose-500/30',
+    amber: 'bg-amber-500/10 text-amber-300 ring-amber-500/25',
+    blue: 'bg-blue-500/10 text-blue-300 ring-blue-500/25',
+  }[tone];
 
   return (
     <div className={`rounded-lg px-3 py-2.5 ring-1 ${clases}`}>

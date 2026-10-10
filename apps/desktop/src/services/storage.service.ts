@@ -5,7 +5,11 @@ import { StorageHealth } from '@/contracts/enums/storage-health.enum';
 import { backupService } from '@/services/backup.service';
 import { fileService } from '@/services/file.service';
 import { gameKeyService } from '@/services/game-key.service';
-import { getRepository, isPersistent } from '@/repositories/repository.factory';
+import {
+  isPersistent,
+  supportsBackups,
+} from '@/helpers/runtime.helper';
+import { getRepository } from '@/repositories/repository.factory';
 import { tauriDatabaseClient } from '@/services/tauri-database.service';
 import type {
   IBackup,
@@ -33,19 +37,21 @@ export const storageService = {
     const info = await fileService.databaseInfo();
     const persistente = isPersistent();
 
-    // La comprobacion de integridad solo tiene sentido en SQLite: el
-    // repositorio en memoria no tiene fichero que pueda estar corrupto.
-    if (!persistente) {
+    // La comprobacion de integridad y las copias son de Tauri. Con el puente
+    // de desarrollo hay SQLite de verdad, pero sin los comandos de Rust, asi
+    // que se informa del estado sin inventarse un resultado.
+    if (!supportsBackups()) {
       return {
-        databasePath: null,
-        persistent: false,
-        databaseSizeBytes: 0,
+        databasePath: persistente ? info?.path ?? null : null,
+        persistent: persistente,
+        databaseSizeBytes: persistente ? (info?.sizeBytes ?? 0) : 0,
         totalKeys: keys.length,
         unknownPlatform: keys.filter((key) => key.platform === KeyPlatform.Unknown).length,
         backups: [],
-        health: StorageHealth.Desconocido,
-        healthDetail:
-          'Vista previa en navegador: los datos viven en localStorage, no en SQLite.',
+        health: persistente ? StorageHealth.Desconocido : StorageHealth.Desconocido,
+        healthDetail: persistente
+          ? null
+          : 'Vista previa en navegador: los datos viven en localStorage, no en SQLite.',
       };
     }
 
@@ -89,7 +95,7 @@ export const storageService = {
    * restore equivocado tambien se pueda deshacer.
    */
   async restore(name: string, mode: RestoreMode): Promise<IRestoreSummary> {
-    if (!isPersistent()) {
+    if (!supportsBackups()) {
       throw new Error(
         'Las copias de seguridad solo existen en la app de escritorio. ' +
           'Abre la app nativa para restaurar.',
@@ -119,7 +125,7 @@ export const storageService = {
 
   /** Importa de verdad el TXT ya leido. */
   async commitImport(contents: string) {
-    if (isPersistent()) {
+    if (supportsBackups()) {
       await backupService.create(BackupReason.AntesDeImportar);
     }
 

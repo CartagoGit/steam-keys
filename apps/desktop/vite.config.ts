@@ -4,6 +4,8 @@ import tailwindcss from '@tailwindcss/vite';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
+import { devBridgePlugin, devBridgeStubPlugin } from './dev-bridge.vite-plugin';
+
 const currentDir = dirname(fileURLToPath(import.meta.url));
 
 /**
@@ -14,7 +16,11 @@ const FRONT_BUILD_DIR = '../../build';
 const TAURI_SRC_DIR = './src-tauri';
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  // El puente solo existe en `bun run dev`: el primero lleva `apply: 'serve'`
+  // y se lleva por delante el endpoint, el segundo lleva `apply: 'build'` y
+  // borra el cliente del bundle. El ejecutable de Windows nunca lleva la puerta
+  // abierta, ni el codigo que la abriria.
+  plugins: [react(), tailwindcss(), devBridgePlugin(), devBridgeStubPlugin()],
 
   // ---------------------------------------------------------------- paths ---
   resolve: {
