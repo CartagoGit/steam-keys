@@ -19,6 +19,7 @@ export interface IToolbarProps {
   onCreate: () => void;
   onImport: () => void;
   onExport: () => void;
+  onOpenStorage: () => void;
   onToggleFilters: () => void;
   filtersOpen: boolean;
 }
@@ -42,6 +43,7 @@ export function Toolbar({
   onCreate,
   onImport,
   onExport,
+  onOpenStorage,
   onToggleFilters,
   filtersOpen,
 }: IToolbarProps) {
@@ -141,6 +143,15 @@ export function Toolbar({
           >
             Importar
           </Button>
+          <Button
+            variant="ghost"
+            icon="package"
+            onClick={onOpenStorage}
+            title="Datos, copias de seguridad y salud de la base de datos"
+          >
+            Datos
+          </Button>
+
           <Button variant="primary" icon="plus" onClick={onCreate}>
             Anadir
           </Button>

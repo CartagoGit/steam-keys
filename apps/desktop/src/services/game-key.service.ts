@@ -102,15 +102,14 @@ export const gameKeyService = {
     return { ...summary, issues: parsed.issues.length };
   },
 
-  /** Abre el dialogo nativo, importa y devuelve el resumen. */
-  async importFromDialog(dryRun: boolean): Promise<IImportSummary | null> {
-    const contents = await fileService.pickTextFile();
-    if (contents === null) return null;
-
-    return gameKeyService.importTxt(contents, dryRun);
-  },
-
-  /** Escribe la coleccion en un TXT usando el dialogo nativo de guardado. */
+  /**
+   * Exporta la coleccion en un TXT usando el dialogo nativo de guardado.
+   *
+   * La importacion **no** vive aqui: la lleva `storageService`, que lee el
+   * fichero una sola vez y pide confirmacion antes de escribir. Abrir el
+   * dialogo dos veces (una para previsualizar y otra para confirmar) era una
+   * fuente de errores silenciosos.
+   */
   async exportToDialog(): Promise<{ path: string; total: number } | null> {
     const keys = await gameKeyService.list();
     const contents = exportKeysToLegacyTxt(keys);

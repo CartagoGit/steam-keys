@@ -20,9 +20,12 @@ export const tauriDatabaseClient: IDatabaseClient = {
     return result.rowsAffected;
   },
 
+  // El plugin declara `select<T>(): Promise<T>`, mientras que nuestro contrato
+  // es `select<T>(): Promise<T[]>`. Hay que pedir `T[]` explicitamente para que
+  // los tipos no mientan sobre lo que devuelve.
   async select<T>(sql: string, bind: readonly unknown[] = []) {
     const db = await getConnection();
-    return db.select<T>(sql, bind as unknown[]);
+    return db.select<T[]>(sql, bind as unknown[]);
   },
 
   async migrate() {

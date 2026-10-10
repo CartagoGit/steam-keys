@@ -30,3 +30,10 @@ export type {
 } from './database.interface';
 
 export type { IconName } from './icon-name.interface';
+
+export type {
+  IBackup,
+  IRestoreSummary,
+  IStorageInfo,
+  IDatabaseInfo,
+} from './backup.interface';

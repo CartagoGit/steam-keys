@@ -101,6 +101,10 @@ Todos están en el `package.json` de la raíz.
 | `bun run export` | Exporta la BD a `build/steam-keys-export.txt` |
 | `bun run db:path` | Dónde está la base de datos y cuántas claves tiene |
 | `bun run db:reset -- --force` | Borra la base de datos |
+| `bun run backup:list` | Copias de seguridad guardadas |
+| `bun run backup:now -- motivo` | Crea una copia de seguridad |
+| `bun run backup:prune -- 5` | Deja solo las 5 más recientes |
+| `bun run backup:restore -- nombre` | Prepara una copia para restaurar |
 | `bun run mask` | Copia del TXT **sin claves**, segura para compartir |
 | `bun run audit` | Busca claves reales en el índice **y en el historial** de git |
 | `bun run inspect:format` | Mapa del formato del TXT original |
@@ -143,6 +147,43 @@ Lo que el parser **no** puede inventar:
 - **La plataforma de las claves que no son de Steam.** Si la forma de la clave
   no encaja en ningún patrón conocido, se marca *Sin determinar* y se revisa a
   mano en la UI. Preferimos decir «no lo sé» a inventar.
+
+---
+
+## Persistencia
+
+La colección vive en **SQLite**, en el directorio de configuración de Windows
+(`%APPDATA%\com.cartagostudios.steamkeys\steam-keys.db`), fuera del repositorio.
+Se crea sola la primera vez y sobrevive a cerrar la app.
+
+### Copias de seguridad
+
+El botón **Datos** de la barra abre el panel de almacenamiento: dónde está el
+fichero, cuántas claves hay, si la base está sana y qué copias existen.
+
+- Se guarda una copia **automáticamente** antes de cada importación y de cada
+  restauración.
+- Se conservan las **10 más recientes** en la carpeta `backups` contigua al
+  fichero, con el nombre `steam-keys-<fecha>-<motivo>.db`.
+- Restaurar **nunca borra**: solo añade las claves que falten y, si eliges la
+  opción de sobrescribir, devuelve a su estado anterior las que ya tenías.
+- Antes de restaurar se hace otra copia, así que un restore equivocado también
+  se deshace.
+
+> Restaurar **no** sustituye el fichero `.db` por debajo: la app mantiene la
+> conexión abierta y SQLite se quedaría con una referencia obsoleta. La copia se
+> deposita como `restore-candidate.db`, se abre con su propia conexión y las
+> filas se fusionan una a una.
+
+### Salud de la base
+
+El panel ejecuta `PRAGMA integrity_check` al abrirse y avisa si SQLite detecta
+corrupción, para que puedas restaurar antes de perder claves.
+
+### En el navegador
+
+`bun run dev` abre la interfaz sin Tauri, con los datos en `localStorage`. Sirve
+para trabajar en la UI; el botón Datos avisa de que no es almacenamiento real.
 
 ---
 

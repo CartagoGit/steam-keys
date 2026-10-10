@@ -9,3 +9,6 @@ export { KeySource } from './key-source.enum';
 export { KeySort } from './key-sort.enum';
 export { ParsedKeyKind } from './parsed-key-kind.enum';
 export { ParsedIssueReason } from './parsed-issue-reason.enum';
+export { BackupReason } from './backup-reason.enum';
+export { RestoreMode } from './restore-mode.enum';
+export { StorageHealth } from './storage-health.enum';

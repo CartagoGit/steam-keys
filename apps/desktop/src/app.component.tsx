@@ -2,8 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { ConfirmDialog, ToastStack, type IToast, type ToastTone } from './components/feedback.component';
 import { Icon } from './components/icon.component';
+import { ImportPreview } from './components/import-preview.component';
 import { KeyEditor } from './components/key-editor.component';
 import { KeyRow } from './components/key-row.component';
+import { StoragePanel } from './components/storage-panel.component';
 import { Toolbar } from './components/toolbar.component';
 import { Button } from './components/ui.component';
 
@@ -12,12 +14,14 @@ import { KeySort } from '@/contracts/enums/key-sort.enum';
 import { KeyStatus } from '@/contracts/enums/key-status.enum';
 import { computeStats, emptyFilter, filterKeys, sortKeys } from '@/helpers/filter-keys.helper';
 import { gameKeyService } from '@/services/game-key.service';
+import { storageService } from '@/services/storage.service';
 import { isBrowserPreview } from '@/helpers/runtime.helper';
 import type {
   IGameKey,
   IGameKeyDraft,
 } from '@/contracts/interfaces/game-key.interface';
 import type { IKeyFilter } from '@/contracts/interfaces/key-filter.interface';
+import type { IImportSummary } from '@/contracts/interfaces/import-summary.interface';
 
 /** Ciclo de estados al pulsar sobre la pastilla de una fila. */
 const STATUS_CYCLE: readonly KeyStatus[] = [
@@ -39,6 +43,14 @@ export function App() {
   const [toasts, setToasts] = useState<readonly IToast[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [storageOpen, setStorageOpen] = useState(false);
+
+  /** Contenido del TXT ya leido, pendiente de confirmar la importacion. */
+  const [stagedImport, setStagedImport] = useState<{
+    fileName: string;
+    contents: string;
+    preview: IImportSummary;
+  } | null>(null);
 
   const searchRef = useRef<HTMLInputElement>(null);
   const nextToastId = useRef(1);
@@ -172,31 +184,53 @@ export function App() {
     await reload();
   };
 
+  /**
+   * Paso 1 de la importacion: leer el fichero y previsualizarlo.
+   *
+   * El dialogo nativo se abre **una sola vez** aqui. Antes se abria dos veces
+   * (una para previsualizar y otra para confirmar), de modo que el usuario
+   * podia acabar importando un fichero distinto del que habia visto.
+   */
   const handleImport = async (): Promise<void> => {
     setBusy(true);
 
     try {
-      const preview = await gameKeyService.importFromDialog(true);
-      if (!preview) return;
+      const contents = await storageService.stageTxt();
+      if (contents === null) return;
 
-      const confirmed = window.confirm(
-        `Se van a importar ${preview.skipped} claves.\n\n` +
-          `Regaladas: ${preview.gifted} · Disponibles: ${preview.available}\n` +
-          `Duplicadas descartadas: ${preview.duplicates}\n` +
-          `Incidencias a revisar: ${preview.issues}\n\n` +
-          `¿Continuar?`,
+      const preview = await storageService.previewImport(contents);
+
+      setStagedImport({
+        fileName: 'steam-keys.txt',
+        contents,
+        preview,
+      });
+    } catch (cause) {
+      notify(
+        cause instanceof Error ? cause.message : 'No se pudo leer el fichero.',
+        'error',
       );
+    } finally {
+      setBusy(false);
+    }
+  };
 
-      if (!confirmed) return;
+  /** Paso 2: confirmar e importar el contenido ya leido. */
+  const handleConfirmImport = async (): Promise<void> => {
+    if (!stagedImport) return;
 
-      const result = await gameKeyService.importFromDialog(false);
-      if (!result) return;
+    setBusy(true);
+
+    try {
+      const result = await storageService.commitImport(stagedImport.contents);
 
       notify(
         `Importadas ${result.inserted} claves` +
           (result.alreadyInDb > 0 ? ` (${result.alreadyInDb} ya estaban)` : ''),
         'success',
       );
+
+      setStagedImport(null);
       await reload();
     } catch (cause) {
       notify(
@@ -234,6 +268,7 @@ export function App() {
         onCreate={handleCreate}
         onImport={handleImport}
         onExport={handleExport}
+        onOpenStorage={() => setStorageOpen(true)}
         onToggleFilters={() => setFiltersOpen((open) => !open)}
       />
 
@@ -291,6 +326,23 @@ export function App() {
           </span>
         </span>
       </footer>
+
+      {stagedImport ? (
+        <ImportPreview
+          fileName={stagedImport.fileName}
+          preview={stagedImport.preview}
+          onConfirm={handleConfirmImport}
+          onCancel={() => setStagedImport(null)}
+        />
+      ) : null}
+
+      {storageOpen ? (
+        <StoragePanel
+          onClose={() => setStorageOpen(false)}
+          onChanged={reload}
+          notify={notify}
+        />
+      ) : null}
 
       {editorOpen ? (
         <KeyEditor
