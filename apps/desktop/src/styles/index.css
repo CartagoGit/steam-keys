@@ -1,0 +1,102 @@
+@import 'tailwindcss';
+
+/*
+ * Tema oscuro por defecto: la app se usa de noche, reglando keys, y un fondo
+ * claro en una ventana siempre visible cansa mas que ayuda.
+ */
+@theme {
+  --color-surface-0: #0b0d12;
+  --color-surface-1: #11141b;
+  --color-surface-2: #171b24;
+  --color-surface-3: #1f242f;
+  --color-line: #2a303c;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-surface-0);
+  color: #e6e9ef;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* ---------------------------------------------------------------- scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-surface-3);
+  border-radius: 999px;
+  border: 2px solid var(--color-surface-0);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #2f3644;
+}
+
+/* ---------------------------------------------------------------- animaciones */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.16s ease-out;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.14s ease-out;
+}
+
+/* ---------------------------------------------------------------- focus */
+:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------- inputs */
+input,
+select,
+textarea,
+button {
+  font: inherit;
+}
+
+/* ---------------------------------------------------------------- dnd */
+.row-dragging {
+  opacity: 0.45;
+}

@@ -1,0 +1,54 @@
+# ==============================================================================
+#  STEAM KEYS — datos sensibles
+#  Este repositorio NUNCA debe contener keys reales.
+# ==============================================================================
+
+# TXT original con las keys: se ignora por completo.
+original/
+
+# Cualquier volcado de la base de datos, en cualquier formato.
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.sql
+!apps/desktop/src/contracts/**/*.sql
+backups/
+*.backup
+*.bak
+*.dump
+
+# Ficheros de texto que pudieran contener keys exportadas.
+*.txt
+!tools/scripts/fixtures/**/*.txt
+!README.md
+
+# ==============================================================================
+#  Dependencias
+# ==============================================================================
+node_modules/
+
+# ==============================================================================
+#  Artefactos de build (carpetas de trabajo, no se versionan)
+# ==============================================================================
+build/
+dist/
+
+# ==============================================================================
+#  Tauri / Rust
+# ==============================================================================
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
+**/*.rs.bk
+
+# ==============================================================================
+#  Editores y SO
+# ==============================================================================
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
