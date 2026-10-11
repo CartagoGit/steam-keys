@@ -729,9 +729,10 @@ export function App() {
       }
 
       notify(
-        resultado.total === 1
-          ? traducir('app.exportOne', [resultado.path])
-          : traducir('app.exportMany', [resultado.total, resultado.path]),
+        traducir(
+          pluralKey(resultado.total, 'app.exportOne', 'app.exportMany'),
+          [resultado.total, resultado.path],
+        ),
         'success',
       );
     } catch (cause) {
@@ -769,9 +770,7 @@ export function App() {
       setGiftDialogOpen(false);
 
       notify(
-        total === 1
-          ? traducir('app.giftedOne', [limpio])
-          : traducir('app.giftedMany', [total, limpio]),
+        traducir(pluralKey(total, 'app.giftedOne', 'app.giftedMany'), [total, limpio]),
         'success',
       );
       await reload();
@@ -806,9 +805,7 @@ export function App() {
       setExpireDialogOpen(false);
 
       notify(
-        total === 1
-          ? traducir('app.expiredOne')
-          : traducir('app.expiredMany', [total]),
+        traducir(pluralKey(total, 'app.expiredOne', 'app.expiredMany'), [total]),
         'success',
       );
       await reload();
@@ -849,9 +846,7 @@ export function App() {
       setTagsOpen(false);
 
       notify(
-        total === 1
-          ? traducir('app.tagsOne')
-          : traducir('app.tagsMany', [total]),
+        traducir(pluralKey(total, 'app.tagsOne', 'app.tagsMany'), [total]),
         'success',
       );
       await reload();
@@ -923,9 +918,10 @@ export function App() {
       });
 
       notify(
-        juegos.length === 1
-          ? traducir('app.libraryOne')
-          : traducir('app.libraryMany', [juegos.length]),
+        traducir(
+          pluralKey(juegos.length, 'app.libraryOne', 'app.libraryMany'),
+          [juegos.length],
+        ),
         'success',
       );
 
@@ -994,9 +990,10 @@ export function App() {
       const result = await storageService.commitImport(stagedImport.contents);
 
       notify(
-        (result.inserted === 1
-          ? traducir('app.importedOne')
-          : traducir('app.importedMany', [result.inserted])) +
+        traducir(
+          pluralKey(result.inserted, 'app.importedOne', 'app.importedMany'),
+          [result.inserted],
+        ) +
           (result.alreadyInDb > 0
             ? traducir('app.importedDupes', [result.alreadyInDb])
             : ''),

@@ -4,6 +4,7 @@ import { Icon } from './icon.component';
 import { Modal } from './modal.component';
 import { Button, INPUT_CLASS } from './ui.component';
 import { useT } from '@/context/locale.context';
+import { pluralKey } from '@/helpers/i18n.helper';
 
 export interface ITagsDialogProps {
   /** Las claves seleccionadas. */
@@ -88,9 +89,9 @@ export function TagsDialog({
               Etiquetas
             </h2>
             <p className="mt-0.5 text-[11px] text-t4">
-              {entries.length === 1
-                ? t('tags.count.one')
-                : t('tags.count.many', [entries.length])}
+              {t(pluralKey(entries.length, 'tags.count.one', 'tags.count.many'), [
+                entries.length,
+              ])}
             </p>
           </div>
 

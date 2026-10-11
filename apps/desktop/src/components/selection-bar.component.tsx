@@ -1,6 +1,7 @@
 import { Icon } from './icon.component';
 import { Button } from './ui.component';
 import { useT } from '@/context/locale.context';
+import { pluralKey } from '@/helpers/i18n.helper';
 import type { ISelectionFacts } from '@/helpers/selection.helper';
 
 export interface ISelectionBarProps {
@@ -59,10 +60,7 @@ export function SelectionBar({
   const { t } = useT();
 
   const todasSeleccionadas = facts.total > 0 && facts.total === visibles;
-  const etiqueta =
-    facts.total === 1
-      ? t('select.one')
-      : t('select.many', [facts.total]);
+  const etiqueta = t(pluralKey(facts.total, 'select.one', 'select.many'), [facts.total]);
 
   const descartadas = facts.total - facts.giftable;
 

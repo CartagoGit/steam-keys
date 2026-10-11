@@ -240,6 +240,28 @@ describe('cobertura de las traducciones', () => {
       expect(TRANSLATIONS[locale]['app.title']).toBe('Steam Keys');
     }
   });
+
+  test('ningun recuento lleva el numero escrito dentro', () => {
+    // «1 seleccionada» con el uno pegado al texto no se puede pluralizar: si
+    // el recuento cambia a dos, el texto sigue diciendo uno. Es la mitad del
+    // motivo por el que existe `pluralKey()`, y la otra mitad es que el
+    // numero escrito no se traduce — en arabe o en japones el uno se coloca
+    // distinto y el texto queda mal escrito en cuanto se copia.
+    //
+    // Solo se miran las claves con su pareja `…Many`: las que son un numero
+    // de otra cosa (un appId, un tamaño) no son un recuento.
+    const cocidas: string[] = [];
+
+    for (const clave of baseKeys()) {
+      if (!clave.endsWith('One')) continue;
+
+      const texto = TRANSLATIONS[AppLocale.Es][clave] ?? '';
+
+      if (/\b[12]\s+\w/.test(texto)) cocidas.push(`${clave}: ${texto}`);
+    }
+
+    expect(cocidas).toEqual([]);
+  });
 });
 
 describe('elegir la forma de un recuento', () => {

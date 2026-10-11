@@ -3,6 +3,7 @@ import { Icon } from './icon.component';
 import { Modal } from './modal.component';
 import { Button, INPUT_CLASS } from './ui.component';
 import { useT } from '@/context/locale.context';
+import { pluralKey } from '@/helpers/i18n.helper';
 import type { IGameKey } from '@/contracts';
 
 /** Cuántos títulos se enseñan antes de resumir con un "y N más". */
@@ -54,9 +55,9 @@ export function GiftDialog({
               {t('gift.title')}
             </h2>
             <p className="mt-0.5 text-[11px] text-t4">
-              {entries.length === 1
-                ? t('gift.count.one')
-                : t('gift.count.many', [entries.length])}
+              {t(pluralKey(entries.length, 'gift.count.one', 'gift.count.many'), [
+                entries.length,
+              ])}
             </p>
           </div>
 
