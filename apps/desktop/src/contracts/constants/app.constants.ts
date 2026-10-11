@@ -1,5 +1,5 @@
 /** Identificador del producto. Debe coincidir con `tauri.conf.json`. */
-export const APP_IDENTIFIER = 'com.cartagostudios.steamkeys';
+export const APP_IDENTIFIER = 'com.relaxingcup.steamkeys';
 
 /** Nombre visible de la app. */
 export const APP_NAME = 'Steam Keys';

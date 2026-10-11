@@ -2,7 +2,7 @@
 name = "steam-keys"
 version = "1.0.0"
 description = "Gestor local de keys de Steam"
-authors = ["Cartago"]
+authors = ["RelaxingCup"]
 edition = "2021"
 rust-version = "1.90"
 

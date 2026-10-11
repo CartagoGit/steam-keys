@@ -12,7 +12,7 @@
 import { homedir, platform } from 'node:os';
 import { join } from 'node:path';
 
-export const APP_IDENTIFIER = 'com.cartagostudios.steamkeys';
+export const APP_IDENTIFIER = 'com.relaxingcup.steamkeys';
 export const DB_FILE_NAME = 'steam-keys.db';
 
 /** Directorio de configuracion de la app. */

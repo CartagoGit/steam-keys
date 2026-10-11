@@ -2,7 +2,7 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Steam Keys",
   "version": "1.0.0",
-  "identifier": "com.cartagostudios.steamkeys",
+  "identifier": "com.relaxingcup.steamkeys",
 
   "build": {
     "beforeDevCommand": "bun run dev",
@@ -34,8 +34,8 @@
     "active": true,
     "targets": "all",
     "category": "Utility",
-    "publisher": "CartagoStudios",
-    "copyright": "Copyright (c) 2026 CartagoStudios",
+    "publisher": "RelaxingCup",
+    "copyright": "Copyright (c) 2026 RelaxingCup",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
