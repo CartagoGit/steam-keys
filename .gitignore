@@ -20,6 +20,13 @@ backups/
 *.bak
 *.dump
 
+# `Cargo.lock` se genera dentro del contenedor de compilacion. En una
+# aplicacion Rust normalmente se versiona, pero aqui no: el Rust solo existe
+# dentro de Docker, asi que versionar el fichero solo anadiria 5500 lineas que
+# nadie mira y que se regeneran en cada build.
+apps/desktop/src-tauri/Cargo.lock
+apps/desktop/src-tauri/target/
+
 # Ficheros de texto que pudieran contener keys exportadas.
 *.txt
 !tools/scripts/fixtures/**/*.txt

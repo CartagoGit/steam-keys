@@ -65,7 +65,28 @@ fn carpeta_portable_de(ejecutable: &Path, appimage: Option<&str>) -> Option<Path
     //   Steam Keys.app/Contents/MacOS/Steam Keys
     // Los datos van junto al `.app`, no dentro del paquete: dentro esta
     // firmado y macOS no deja escribir ahi.
-    if carpeta.ends_with("MacOS") {
+    //
+    // Se sube **solo** si las tres piezas encajan: carpeta `MacOS`, dentro de
+    // `Contents`, y ese `Contents` dentro de algo que acabe en `.app`. Con una
+    // sola bastaba y sobraba por los dos lados: si solo se mira `MacOS`, ante
+    // `/Users/yo/MacOS/steam-keys` —una carpeta corriente con ese nombre— el
+    // programa subia tres niveles y guardaba las claves en `/`; y si se miran
+    // `MacOS` y `Contents` sin mas, `/Users/yo/Contents/MacOS/steam-keys`
+    // tambien cuenta como paquete aunque no haya nada `.app` alrededor.
+    let en_paquete = carpeta
+        .file_name()
+        .is_some_and(|nombre| nombre == "MacOS")
+        && carpeta
+            .parent()
+            .and_then(Path::file_name)
+            .is_some_and(|nombre| nombre == "Contents")
+        && carpeta
+            .parent()
+            .and_then(Path::parent)
+            .and_then(Path::file_name)
+            .is_some_and(|nombre| nombre.to_string_lossy().ends_with(".app"));
+
+    if en_paquete {
         carpeta = carpeta.parent()?.to_path_buf(); // Contents
         carpeta = carpeta.parent()?.to_path_buf(); // Steam Keys.app
         carpeta = carpeta.parent()?.to_path_buf(); // la carpeta que lo contiene
@@ -98,7 +119,7 @@ fn es_escribible(dir: &Path) -> bool {
 /// `Program Files` o en `/Applications` en cuanto alguien la instala, y ahi no
 /// hay quien escriba sin permisos de administrador. Cuando la carpeta de al lado
 /// no sirve se vuelve a la del sistema, que es donde siempre se ha podido
-/// escribir, y la interfaz ensena la ruta real para que se vea donde acabo.
+/// escribir, y la interfaz enseña la ruta real para que se vea donde acaba.
 fn config_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     let portable = std::env::current_exe()
         .ok()
@@ -662,11 +683,36 @@ mod tests {
             Some(PathBuf::from("/Applications"))
         );
 
-        // Y una carpeta que se llama MacOS por casualidad no se confunde con
-        // un paquete: si no esta dentro de `Contents`, es una carpeta normal.
+        // Una carpeta corriente que se llama `MacOS` **no** es un paquete. Sin
+        // comprobar tambien `Contents`, el programa subia tres niveles y
+        // acababa escribiendo las claves en `/`, a tres carpetas de donde
+        // tocaba: aqui se queda donde esta.
         assert_eq!(
             carpeta_portable_de(Path::new("/Users/yo/MacOS/steam-keys"), None),
             Some(PathBuf::from("/Users/yo/MacOS"))
+        );
+
+        // Y un `MacOS` suelto en la raiz tampoco.
+        assert_eq!(
+            carpeta_portable_de(Path::new("/MacOS/steam-keys"), None),
+            Some(PathBuf::from("/MacOS"))
+        );
+    }
+
+    #[test]
+    fn un_contents_suelto_no_es_un_paquete() {
+        // `Contents` sin nada `.app` alrededor: el nombre tambien aparece en
+        // otros sitios, y subir ahi seria subir de mas.
+        assert_eq!(
+            carpeta_portable_de(Path::new("/Users/yo/Contents/MacOS/steam-keys"), None),
+            Some(PathBuf::from("/Users/yo/Contents/MacOS"))
+        );
+
+        // Un `MacOS` dentro de `Contents` sin `MacOS` intermedio tampoco:
+        // esta vez la carpeta que contiene el ejecutable no se llama asi.
+        assert_eq!(
+            carpeta_portable_de(Path::new("/Users/yo/Contents/steam-keys"), None),
+            Some(PathBuf::from("/Users/yo/Contents"))
         );
     }
 
