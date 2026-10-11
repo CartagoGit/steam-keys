@@ -1,4 +1,5 @@
 import { KeyPlatform } from '@/contracts';
+import { normalizeKey } from '@/helpers/normalize-text.helper';
 
 /**
  * Deduce la plataforma a partir de la *forma* de la clave.
@@ -9,7 +10,12 @@ import { KeyPlatform } from '@/contracts';
  * pedirla al usuario, que la corrige en un clic desde la UI.
  */
 export function inferPlatformFromKeyShape(keyValue: string): KeyPlatform {
-  const value = keyValue.trim().toUpperCase();
+  // `normalizeKey`, y no `trim().toUpperCase()` otra vez: es lo que se guarda en
+  // la base, y deducir la plataforma de una forma distinta de la que se
+  // normaliza haria que dos escrituras de la misma clave dieran plataformas
+  // distintas. `normalizeKey` ademas pliega los espacios interiores, no solo los
+  // de los bordes.
+  const value = normalizeKey(keyValue);
 
   // Steam: cinco-cinco-cinco.
   if (/^[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}$/.test(value)) {

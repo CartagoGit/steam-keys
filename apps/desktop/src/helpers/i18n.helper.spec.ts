@@ -9,6 +9,12 @@ import {
 import { APP_LOCALE_VALUES, AppLocale, DEFAULT_LOCALE, TRANSLATIONS } from '@/contracts';
 import { baseKeys } from './i18n.helper';
 
+/** Raiz de `src/`, para recorrer los ficheros que usan las claves. */
+const RAIZ = `${import.meta.dir}/..`;
+
+/** Raiz del repositorio, para llegar a `tools/scripts`. */
+const REPO = `${RAIZ}/../../..`;
+
 describe('interpolar valores', () => {
   test('sustituye los marcadores por su posicion', () => {
     expect(interpolate('{0} de {1}', ['3', '10'])).toBe('3 de 10');
@@ -117,6 +123,46 @@ describe('cobertura de las traducciones', () => {
     );
 
     expect(sobran).toEqual([]);
+  });
+
+  test('ninguna clave esta muerta', async () => {
+    // Una clave que nadie pinta es texto que hay que traducir a cinco idiomas,
+    // mantener al dia y revisar, a cambio de nada. No se ve leyendo el
+    // diccionario —la clave esta, y las pruebas de cobertura pasan— asi que
+    // hace falta buscarla.
+    //
+    // Se buscan **todas** las apariciones de la clave como cadena en el codigo
+    // de la app y de los scripts, y se descartan los propios diccionarios: las
+    // claves aparecen en los cinco, y contarlas como uso es exactamente lo que
+    // hacia que esto no encontrara nada.
+    //
+    // Asi aparecio `toast.*`: once claves duplicando `app.*`, que se quedaron
+    // sin usar cuando se renombraron los avisos y nadie las boro.
+    const DEFINEN = /contracts[\\/]constants[\\/]i18n.*\.constants\.ts$/;
+    const GENERA = /tools[\\/]scripts[\\/]build-i18n\.py$/;
+
+    const fuentes = [
+      ...new Bun.Glob('**/*.{ts,tsx}').scanSync({ cwd: RAIZ }),
+      ...new Bun.Glob('tools/scripts/**/*.{ts,tsx}').scanSync({ cwd: REPO }),
+    ].filter((ruta) => !DEFINEN.test(ruta) && !GENERA.test(ruta));
+
+    const codigo = await Promise.all(
+      fuentes.map(async (ruta) => {
+        const base = ruta.startsWith('tools/') ? REPO : RAIZ;
+
+        return Bun.file(`${base}/${ruta}`).text();
+      }),
+    );
+
+    // Sin ficheros leidos no se puede concluir nada: `every` sobre un array
+    // vacio es `true` y el test daria todas las claves por muertas. Se avisa.
+    expect(fuentes.length).toBeGreaterThan(50);
+
+    const muertas = baseKeys().filter((clave) =>
+      codigo.every((texto) => !texto.includes(`'${clave}'`)),
+    );
+
+    expect(muertas).toEqual([]);
   });
 
   test('ningun idioma repite el texto del espanol', () => {

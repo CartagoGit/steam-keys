@@ -46,9 +46,7 @@ export const EN: TranslationTable = Object.freeze({
   'action.cancel': 'Cancel',
   'action.close': 'Close',
   'action.confirm': 'Confirm',
-  'action.add': 'Add',
   'action.clear': 'Clear',
-  'action.forget': 'Forget',
 
   // ------------------------------------------------------- empty state ---
   'empty.title': 'No keys yet',
@@ -169,17 +167,6 @@ export const EN: TranslationTable = Object.freeze({
   'owned.unverified': 'Not matched yet',
 
   // ------------------------------------------------------------ toasts ---
-  'toast.saved': 'Key saved.',
-  'toast.created': 'Key added.',
-  'toast.deleted': 'Key removed.',
-  'toast.exported': 'Exported {0} keys.',
-  'toast.imported': 'Imported {0} keys.',
-  'toast.gifted': '{0} key(s) gifted to {1}.',
-  'toast.expired': '{count} key(s) marked as expired.',
-  'toast.tagsApplied': 'Tags updated on {0} key(s).',
-  'toast.noFile': 'No file was saved.',
-  'toast.recipient': 'You have to say who it was gifted to.',
-  'toast.nothingSelected': 'Nothing selected.',
 
   // ------------------------------------------------------ review score ---
 
@@ -189,8 +176,6 @@ export const EN: TranslationTable = Object.freeze({
     'Delete',
   'action.copy':
     'Copy',
-  'action.back':
-    'Back',
   'select.clear':
     'Clear',
   'select.giftableOne':

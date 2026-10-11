@@ -53,12 +53,7 @@ export function extractAnnotations(value: string): IAnnotatedText {
   let platform: string | null = null;
 
   let rest = value.replace(/\{([^}]*)\}/g, (_match, inner: string) => {
-    tags.push(
-      ...inner
-        .split(',')
-        .map((tag) => tag.trim())
-        .filter((tag) => tag.length > 0),
-    );
+    tags.push(...parseTags(inner));
     return ' ';
   });
 

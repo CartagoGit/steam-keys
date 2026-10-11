@@ -1,5 +1,5 @@
 import { KeyPlatform, KeySource, KeyStatus, type IGameKey, type IGameKeyDraft, type IGameKeyInput, type IGameKeyRepository, type IImportRow, type IImportSummary } from '@/contracts';
-import { keyFingerprint, serializeTags } from '@/helpers/normalize-text.helper';
+import { keyFingerprint, normalizeKey, parseTags, serializeTags } from '@/helpers/normalize-text.helper';
 import { nowSqliteTimestamp } from '@/helpers/format-date.helper';
 
 /**
@@ -30,7 +30,7 @@ export class MemoryGameKeyRepository implements IGameKeyRepository {
     const created: IGameKey = {
       id: nextId(),
       title: input.title.trim(),
-      keyValue: input.keyValue.trim().toUpperCase(),
+      keyValue: normalizeKey(input.keyValue),
       platform: input.platform ?? KeyPlatform.Steam,
       status: input.status ?? KeyStatus.Available,
       source: KeySource.Manual,
@@ -57,7 +57,7 @@ export class MemoryGameKeyRepository implements IGameKeyRepository {
     const updated: IGameKey = {
       ...existing,
       title: draft.title.trim(),
-      keyValue: draft.keyValue.trim().toUpperCase(),
+      keyValue: normalizeKey(draft.keyValue),
       platform: draft.platform,
       status: draft.status,
       giftedTo: draft.giftedTo,
@@ -175,7 +175,7 @@ export class MemoryGameKeyRepository implements IGameKeyRepository {
         giftedTo: row.giftedTo,
         parentTitle: row.parentTitle,
         note: row.note,
-        tags: row.tags ? row.tags.split(',').filter(Boolean) : [],
+        tags: parseTags(row.tags),
         addedOn: row.addedOn,
         lastUsedAt: null,
         createdAt: now,

@@ -17,9 +17,7 @@ export const ES: TranslationTable = Object.freeze({
   'action.cancel': 'Cancelar',
   'action.close': 'Cerrar',
   'action.confirm': 'Confirmar',
-  'action.add': 'Anadir',
   'action.clear': 'Limpiar',
-  'action.forget': 'Olvidar',
 
   // --------------------------------------------------------- estado vacio ---
   'empty.title': 'Todavia no hay claves',
@@ -40,7 +38,6 @@ export const ES: TranslationTable = Object.freeze({
   'action.edit': 'Editar',
   'action.delete': 'Eliminar',
   'action.copy': 'Copiar',
-  'action.back': 'Volver',
 
   // -------------------------------------------------------------- header ---
   'app.title': 'Steam Keys',
@@ -224,17 +221,6 @@ export const ES: TranslationTable = Object.freeze({
   'owned.unverified': 'Sin emparejar',
 
   // -------------------------------------------------------------- toasts ---
-  'toast.saved': 'Key actualizada.',
-  'toast.created': 'Key anadida.',
-  'toast.deleted': 'Key eliminada.',
-  'toast.exported': 'Exportadas {0} claves.',
-  'toast.imported': 'Importadas {0} claves.',
-  'toast.gifted': '{0} claves regaladas a {1}.',
-  'toast.expired': '{count} claves marcadas como caducadas.',
-  'toast.tagsApplied': 'Etiquetas actualizadas en {0} claves.',
-  'toast.noFile': 'No se guardo ningun fichero.',
-  'toast.recipient': 'Hay que decir a quien se lo has regalado.',
-  'toast.nothingSelected': 'No hay nada seleccionado.',
 
   // ------------------------------------------------------- review score ---
 

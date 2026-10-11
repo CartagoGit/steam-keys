@@ -3,6 +3,7 @@ import { KEY_PLATFORM_VALUES, KEY_STATUS_VALUES, KeyPlatform, KeyStatus, TRANSLA
 import { Button, Field, INPUT_CLASS, SELECT_CLASS } from './ui.component';
 import { Icon } from './icon.component';
 import { useT } from '@/context/locale.context';
+import { parseTags } from '@/helpers/normalize-text.helper';
 
 export interface IKeyEditorProps {
   /** `null` para crear una key nueva. */
@@ -57,14 +58,10 @@ export function KeyEditor({ entry, onSave, onClose }: IKeyEditorProps) {
     setDraft((current) => ({ ...current, ...changes }));
   };
 
-  const parsedTags = useMemo(
-    () =>
-      tagsText
-        .split(',')
-        .map((tag) => tag.trim())
-        .filter((tag) => tag.length > 0),
-    [tagsText],
-  );
+  // `parseTags`, que es lo que usa el resto del proyecto para cortar la lista.
+  // Aqui se hacia a mano con `split`/`trim`/`filter`; es la misma operacion
+  // escrita dos veces, y si un dia cambia una, la otra se queda hairy.
+  const parsedTags = useMemo(() => parseTags(tagsText), [tagsText]);
 
   const handleSubmit = async (event: React.FormEvent): Promise<void> => {
     event.preventDefault();

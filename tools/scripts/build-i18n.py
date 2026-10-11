@@ -1,20 +1,14 @@
 #!/usr/bin/env python3
 """Genera los diccionarios de traduccion a partir de una tabla.
-
 Se ejecuta a mano cuando se anaden claves nuevas:
-
     python3 tools/scripts/build-i18n.py
-
 No es parte del arranque: los `.ts` que genera estan versionados, y la app no
 debe depender de Python para arrancar.
 """
 import pathlib
 import re
-
 BASE = pathlib.Path(__file__).resolve().parents[2] / 'apps/desktop/src/contracts/constants'
-
 TRADUCCIONES = {}
-
 TRADUCCIONES['fr'] = {
  'export.title': 'export',
  'export.generated': 'Genere le {0}',
@@ -155,10 +149,9 @@ TRADUCCIONES['fr'] = {
  'tags.addHint': 'Ajouter le mot-cle a la selection',
  'tags.applyHint': 'Appliquer ces mots-cles a toutes les cles selectionnees',
  'action.save': 'Enregistrer', 'action.cancel': 'Annuler', 'action.close': 'Fermer',
- 'action.confirm': 'Confirmer', 'action.add': 'Ajouter', 'action.clear': 'Effacer',
- 'empty.title': 'Pas encore de cles', 'empty.hint': 'Importe ton fichier TXT ou ajoute une cle a la main.', 'empty.import': 'Importer TXT', 'empty.create': 'Ajouter une cle', 'empty.noResults': 'Aucun resultat', 'empty.noResultsHint': 'Essaie une autre recherche ou retire un filtre.', 'empty.clearFilters': 'Effacer les filtres', 'firstRun.title': 'Il ny a pas encore de base de donnees', 'firstRun.body': 'Aucune na encore ete creee. Elle sera creee quand tu ajouteras ou importeras ta premiere cle, a cote du programme, dans {0}.', 'firstRun.moved.title': 'Tu as copie le programme depuis ailleurs', 'firstRun.moved.body': 'Tes cles, tes reglages et ton compte Steam sont dans {0}. Si tu n as copie que l executable, copie aussi ce fichier depuis le dossier d origine et laisse le a cote; sinon tu partirais de zero.', 'firstRun.bring': 'Apporter la base de donnees', 'firstRun.create': 'Partir de zero', 'action.forget': 'Oublier', 'action.edit': 'Modifier', 'action.delete': 'Supprimer',
- 'action.copy': 'Copier', 'action.back': 'Retour',
- 'app.title': 'Steam Keys', 'app.subtitle': '{0} disponibles sur {1}',
+ 'action.confirm': 'Confirmer', 'action.clear': 'Effacer',
+ 'empty.title': 'Pas encore de cles', 'empty.hint': 'Importe ton fichier TXT ou ajoute une cle a la main.', 'empty.import': 'Importer TXT', 'empty.create': 'Ajouter une cle', 'empty.noResults': 'Aucun resultat', 'empty.noResultsHint': 'Essaie une autre recherche ou retire un filtre.', 'empty.clearFilters': 'Effacer les filtres', 'firstRun.title': 'Il ny a pas encore de base de donnees', 'firstRun.body': 'Aucune na encore ete creee. Elle sera creee quand tu ajouteras ou importeras ta premiere cle, a cote du programme, dans {0}.', 'firstRun.moved.title': 'Tu as copie le programme depuis ailleurs', 'firstRun.moved.body': 'Tes cles, tes reglages et ton compte Steam sont dans {0}. Si tu n as copie que l executable, copie aussi ce fichier depuis le dossier d origine et laisse le a cote; sinon tu partirais de zero.', 'firstRun.bring': 'Apporter la base de donnees', 'firstRun.create': 'Partir de zero', 'action.edit': 'Modifier', 'action.delete': 'Supprimer',
+ 'action.copy': 'Copier', 'app.title': 'Steam Keys', 'app.subtitle': '{0} disponibles sur {1}',
  'search.placeholder': 'Chercher un jeu, une cle, un destinataire ou une note…',
  'search.shortcut': '/',
  'toolbar.sort': 'Trier par', 'toolbar.export': 'Exporter', 'toolbar.import': 'Importer',
@@ -260,16 +253,7 @@ TRADUCCIONES['fr'] = {
  'library.owned': 'En propriete',
  'owned.owned': 'En propriete', 'owned.dlc': 'DLC',
  'owned.unverified': 'Non appaire',
- 'toast.saved': 'Cle mise a jour.', 'toast.created': 'Cle ajoutee.',
- 'toast.deleted': 'Cle supprimee.', 'toast.exported': '{0} cles exportees.',
- 'toast.imported': '{0} cles importees.', 'toast.gifted': '{0} cles offertes a {1}.',
- 'toast.expired': '{count} cles marquees comme expirees.',
- 'toast.tagsApplied': 'Etiquettes mises a jour sur {0} cles.',
- 'toast.noFile': 'Aucun fichier enregistre.',
- 'toast.recipient': 'Il faut dire a qui elle a ete offerte.',
- 'toast.nothingSelected': 'Rien de selectionne.',
-}
-
+ }
 TRADUCCIONES['pt'] = {
  'export.title': 'exportacao',
  'export.generated': 'Gerado em {0}',
@@ -410,11 +394,10 @@ TRADUCCIONES['pt'] = {
  'tags.addHint': 'Adicionar a etiqueta a selecao',
  'tags.applyHint': 'Aplicar estas etiquetas a todas as chaves selecionadas',
  'action.save': 'Guardar', 'action.cancel': 'Cancelar', 'action.close': 'Fechar',
- 'action.confirm': 'Confirmar', 'action.add': 'Adicionar', 'action.clear': 'Limpar',
+ 'action.confirm': 'Confirmar', 'action.clear': 'Limpar',
  'empty.title': 'Ainda nao tens chaves', 'empty.hint': 'Importa o teu ficheiro TXT ou adiciona uma chave a mao.', 'empty.import': 'Importar ficheiro TXT', 'empty.create': 'Adicionar chave', 'empty.noResults': 'Nenhum resultado', 'empty.noResultsHint': 'Tenta outra pesquisa ou remove um filtro.', 'empty.clearFilters': 'Limpar filtros', 'firstRun.title': 'Ainda nao ha base de dados', 'firstRun.body': 'Nenhuma foi criada ainda. Sera criada quando adicionares ou importares a tua primeira chave, ao lado do programa, em {0}.', 'firstRun.moved.title': 'Copiaste o programa de outro sitio', 'firstRun.moved.body': 'As tuas chaves, as tuas definicoes e a tua conta Steam estao todas dentro de {0}. Se so copiaste o executavel, copia tambem esse ficheiro da pasta de origem e deixa-o ao lado; senao ias comecar do zero.', 'firstRun.bring': 'Trazer a base de dados', 'firstRun.create': 'Comecar do zero',
- 'action.forget': 'Esquecer', 'action.edit': 'Editar', 'action.delete': 'Apagar',
- 'action.copy': 'Copiar', 'action.back': 'Voltar',
- 'app.title': 'Steam Keys', 'app.subtitle': '{0} disponiveis de {1}',
+ 'action.edit': 'Editar', 'action.delete': 'Apagar',
+ 'action.copy': 'Copiar', 'app.title': 'Steam Keys', 'app.subtitle': '{0} disponiveis de {1}',
  'search.placeholder': 'Procurar por jogo, chave, destinatario ou nota…',
  'search.shortcut': '/',
  'toolbar.sort': 'Ordenar por', 'toolbar.export': 'Exportar', 'toolbar.import': 'Importar',
@@ -516,16 +499,7 @@ TRADUCCIONES['pt'] = {
  'library.owned': 'Em propriedade',
  'owned.owned': 'Em propriedade', 'owned.dlc': 'DLC',
  'owned.unverified': 'Nao emparelhado',
- 'toast.saved': 'Chave atualizada.', 'toast.created': 'Chave adicionada.',
- 'toast.deleted': 'Chave apagada.', 'toast.exported': '{0} chaves exportadas.',
- 'toast.imported': '{0} chaves importadas.', 'toast.gifted': '{0} chaves presenteadas a {1}.',
- 'toast.expired': '{count} chaves marcadas como expiradas.',
- 'toast.tagsApplied': 'Etiquetas atualizadas em {0} chaves.',
- 'toast.noFile': 'Nenhum ficheiro foi guardado.',
- 'toast.recipient': 'Tens de dizer a quem foi presenteada.',
- 'toast.nothingSelected': 'Nada selecionado.',
-}
-
+ }
 TRADUCCIONES['de'] = {
  'export.title': 'Export',
  'export.generated': 'Erstellt am {0}',
@@ -666,11 +640,10 @@ TRADUCCIONES['de'] = {
  'tags.addHint': 'Schlagwort zur Auswahl hinzufuegen',
  'tags.applyHint': 'Diese Schlagworte auf alle ausgewaehlten Schluessel anwenden',
  'action.save': 'Speichern', 'action.cancel': 'Abbrechen', 'action.close': 'Schliessen',
- 'action.confirm': 'Bestaetigen', 'action.add': 'Hinzufuegen', 'action.clear': 'Leeren',
+ 'action.confirm': 'Bestaetigen', 'action.clear': 'Leeren',
  'empty.title': 'Noch keine Keys', 'empty.hint': 'Importiere deine TXT-Datei oder lege einen Key von Hand an.', 'empty.import': 'TXT importieren', 'empty.create': 'Key hinzufuegen', 'empty.noResults': 'Keine Treffer', 'empty.noResultsHint': 'Versuche eine andere Suche oder entferne einen Filter.', 'empty.clearFilters': 'Filter zuruecksetzen', 'firstRun.title': 'Es gibt noch keine Datenbank', 'firstRun.body': 'Es wurde noch keine angelegt. Sie entsteht, sobald du den ersten Key hinzufuegst oder importierst, direkt neben dem Programm, in {0}.', 'firstRun.moved.title': 'Du hast das Programm von woanders kopiert', 'firstRun.moved.body': 'Deine Keys, deine Einstellungen und dein Steam-Konto liegen alle in {0}. Wenn du nur die Programmdatei kopiert hast, kopiere diese Datei aus dem Originalordner ebenfalls und lass sie danebenliegen; sonst faengst du bei null an.', 'firstRun.bring': 'Datenbank mitbringen', 'firstRun.create': 'Von vorn anfangen',
- 'action.forget': 'Vergessen', 'action.edit': 'Bearbeiten', 'action.delete': 'Loeschen',
- 'action.copy': 'Kopieren', 'action.back': 'Zurueck',
- 'app.title': 'Steam Keys', 'app.subtitle': '{0} verfuegbar von {1}',
+ 'action.edit': 'Bearbeiten', 'action.delete': 'Loeschen',
+ 'action.copy': 'Kopieren', 'app.title': 'Steam Keys', 'app.subtitle': '{0} verfuegbar von {1}',
  'search.placeholder': 'Nach Spiel, Schluessel, Empfaenger oder Notiz suchen…',
  'search.shortcut': '/',
  'toolbar.sort': 'Sortieren nach', 'toolbar.export': 'Exportieren', 'toolbar.import': 'Importieren',
@@ -773,24 +746,11 @@ TRADUCCIONES['de'] = {
  'library.owned': 'Im Besitz',
  'owned.owned': 'Im Besitz', 'owned.dlc': 'DLC',
  'owned.unverified': 'Nicht zugeordnet',
- 'toast.saved': 'Schluessel aktualisiert.', 'toast.created': 'Schluessel hinzugefuegt.',
- 'toast.deleted': 'Schluessel geloescht.', 'toast.exported': '{0} Schluessel exportiert.',
- 'toast.imported': '{0} Schluessel importiert.', 'toast.gifted': '{0} Schluessel an {1} verschenkt.',
- 'toast.expired': '{count} Schluessel als abgelaufen markiert.',
- 'toast.tagsApplied': 'Schlagworte bei {0} Schluesseln aktualisiert.',
- 'toast.noFile': 'Es wurde keine Datei gespeichert.',
- 'toast.recipient': 'Du musst sagen, an wen er verschenkt wurde.',
- 'toast.nothingSelected': 'Nichts ausgewaehlt.',
-}
-
-
+ }
 def limpiar_vacios(texto: str) -> str:
     return re.sub(r'\n{3,}', '\n\n', texto)
-
-
 def bloque(nombre: str, tabla: dict, claves: list) -> str:
     """Escribe el `Object.freeze` de un idioma, en el orden de las claves de ES.
-
     Se recorre **el diccionario de destino**, no el de origen: el de origen solo
     aporta el orden y la lista de claves. Usar sus valores aqui era un fallo
     silencioso: el fichero salia con el castellano dentro y el test de cobertura
@@ -807,15 +767,11 @@ def bloque(nombre: str, tabla: dict, claves: list) -> str:
             lineas.append(f"  '{clave}': '{valor}',")
     lineas.append('});')
     return '\n'.join(lineas)
-
-
 def leer_es() -> list:
     """Claves del diccionario de origen, en su orden.
-
     El orden importa: el castellano va escrito a mano y es el que se lee cuando
     se busca un texto. Los demas se generan siguiendo ese mismo orden para que
     los cuatro ficheros se puedan comparar linea a linea.
-
     Aqui **no** se filtra nada. Una version anterior de este script traia una
     lista de claves que "no usaba nadie" y las borraba de los diccionarios al
     ejecutarse. Cuando una de esas claves volvio a usarse, el script la borro
@@ -826,11 +782,8 @@ def leer_es() -> list:
     texto = (BASE / 'i18n-es.constants.ts').read_text(encoding='utf-8')
     cuerpo = texto[texto.index('Object.freeze({'):]
     return re.findall(r"'([^']+)':", cuerpo)
-
-
 def main() -> None:
     claves = leer_es()
-
     for lang, tabla in TRADUCCIONES.items():
         destino = BASE / f'i18n-{lang}.constants.ts'
         destino.write_text(
@@ -840,7 +793,5 @@ def main() -> None:
             encoding='utf-8',
         )
         print(f'{destino.name}: {len(claves)} claves')
-
-
 if __name__ == '__main__':
     main()
