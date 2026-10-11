@@ -38,6 +38,13 @@ services:
       - ../../dist:/out
     environment:
       CARGO_TERM_COLOR: always
+      # Lo que sale del contenedor es de root. Estos dos numeros son los del usuario del host
+      # y se usan para devolver la propiedad de `dist/` y `build/` al final, que
+      # si no deja el siguiente `bun run build:front` sin poder borrar `build/`.
+      # `UID` es una variable de bash, no exportada, asi que compose no la ve;
+      # por eso van con nombre propio y con un 1000 por defecto.
+      HOST_UID: "${HOST_UID:-1000}"
+      HOST_GID: "${HOST_GID:-1000}"
       # La version va aqui, y no se saca de `tauri.conf.json` dentro del
       # contenedor, porque el script de empaquetado la necesita para renombrar
       # el instalador a `Steam Keys_<version>_x64-setup.exe`, que es como lo ve

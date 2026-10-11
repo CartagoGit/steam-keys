@@ -76,5 +76,12 @@ do
   cp "${instalador}" "${destino}"
 done
 
+# Lo que el contenedor escribe lo escribe como root, y en el host no hay quien
+# pueda borrarlo despues: el siguiente `bun run build:front` falla con EACCES al
+# vaciar `build/`, y `bun run clean` tambien. No es cosmetico — es un build que
+# se queda trabado hasta que se entra como root— asi que al final se devuelve la
+# propiedad al usuario del host. Los dos numeros llegan por `HOST_UID`/`HOST_GID`.
+chown -R "${HOST_UID:-0}:${HOST_GID:-0}" /out /workspace/build 2>/dev/null || true
+
 echo "=== dist/ ==="
 ls -la /out/

@@ -66,12 +66,3 @@ export const devBridgeDatabaseClient: IDatabaseClient = {
     // El puente no mantiene conexiones: cada peticion abre y cierra la suya.
   },
 };
-
-/** `true` si el puente de desarrollo esta disponible. */
-export function isDevBridgeAvailable(): boolean {
-// `import.meta.env.DEV` llega como `boolean` con los tipos de Vite y como
-  // cadena con los del repositorio, que no los incluye. Con `&&` a secas lo que
-  // salia no era un booleo, y la funcion que promete devolver `true` podia
-  // devolver `undefined` o `""`. `Boolean` funciona con las dos declaraciones.
-  return Boolean(import.meta.env.DEV) && token().length > 0;
-}

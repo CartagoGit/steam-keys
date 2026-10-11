@@ -1,5 +1,5 @@
 import { steamGet } from './steam-http.service';
-import type { IGameKey, ISteamOwnedGame, ISteamStoreApp, MatchConfidence } from '@/contracts';
+import type { ISteamOwnedGame, ISteamStoreApp, MatchConfidence } from '@/contracts';
 import { normalizeForMatch } from '@/helpers/match-title.helper';
 
 const WEB_API = 'https://api.steampowered.com';
@@ -434,14 +434,4 @@ export function bestCandidate(
     confianza: confidenceFor(mejor.puntuacion, candidatos.length),
     puntuaciones,
   };
-}
-
-/** Todas las claves que comparten el nombre mas limpio, para agruparlas. */
-export function keysMatching(
-  keys: readonly IGameKey[],
-  title: string,
-): readonly IGameKey[] {
-  const objetivo = normalizeForMatch(title);
-
-  return keys.filter((key) => normalizeForMatch(key.title) === objetivo);
 }

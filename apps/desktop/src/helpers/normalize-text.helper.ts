@@ -1,4 +1,4 @@
-import { ANNOTATION_SEPARATOR, GIFT_MARKER_PATTERN, PARENT_ANNOTATION_PREFIX, PLATFORM_ANNOTATION_PREFIX, STATUS_MARKERS, TITLE_NOISE_PATTERN } from '@/contracts';
+import { ANNOTATION_SEPARATOR, PARENT_ANNOTATION_PREFIX, PLATFORM_ANNOTATION_PREFIX, STATUS_MARKERS, TITLE_NOISE_PATTERN } from '@/contracts';
 
 /** Marcadores de estado al inicio de linea: `- ! ~ ?`, en racha o no. */
 const LEADING_STATUS_MARKER = new RegExp(
@@ -94,11 +94,6 @@ export function extractAnnotations(value: string): IAnnotatedText {
     platform,
     tags,
   };
-}
-
-/** Quita el guion inicial que marca "ya regalada". No toca guiones internos. */
-export function stripGiftMarker(value: string): string {
-  return value.replace(GIFT_MARKER_PATTERN, '');
 }
 
 /** Quita separadores finales o iniciales (` - `, ` _ `, tabs, espacios). */

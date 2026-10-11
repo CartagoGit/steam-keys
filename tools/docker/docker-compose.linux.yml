@@ -24,6 +24,10 @@ services:
       CARGO_TERM_COLOR: always
       TAURI_TARGET: x86_64-unknown-linux-gnu
       TAURI_BUNDLES: deb,appimage
+      # Ver el comentario del compose de Windows: sin esto el contenedor deja
+      # `build/` y `dist/` como root y el siguiente build en el host falla.
+      HOST_UID: "${HOST_UID:-1000}"
+      HOST_GID: "${HOST_GID:-1000}"
 
     # ------------------------------------------------------------- webkit ---
     # Tauri 2 en Linux usa WebKitGTK, no Chromium. La version 4.1 es la que
@@ -57,6 +61,10 @@ services:
         # sitios solo se parecen en los builds sin target.
         find /workspace -name '*.deb' -exec cp -t /out {} +
         find /workspace -name '*.AppImage' -exec cp -t /out {} +
+        # El contenedor escribe como root. Sin devolver la propiedad, el
+        # siguiente `bun run build:front` en el host no puede vaciar `build/` y
+        # falla con EACCES, igual que `bun run clean`.
+        chown -R "${HOST_UID:-0}:${HOST_GID:-0}" /out /workspace/build || true
         echo '=== dist/ ==='
         ls -la /out/
       "

@@ -69,8 +69,3 @@ export async function steamGet(ruta: string): Promise<string> {
 
   return respuesta.text();
 }
-
-/** `true` si las peticiones pasan por Rust y no por el navegador. */
-export async function viaProxy(): Promise<boolean> {
-  return hayInvoke();
-}

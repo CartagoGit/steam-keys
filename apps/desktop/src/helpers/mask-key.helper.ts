@@ -17,14 +17,3 @@ export function maskKey(value: string, visible: number = MASK_VISIBLE_CHARS): st
 
   return `${head}${hidden}${tail}`;
 }
-
-/**
- * Enmascara un fragmento de texto que contenga una clave, respetando su
- * longitud. Se usa en los mensajes de error y en la consola.
- */
-export function redact(value: string): string {
-  return value.replace(
-    /\b[A-Za-z0-9]{4,}(?:[-_][A-Za-z0-9]{2,}){1,4}\b/g,
-    (match) => maskKey(match, 2),
-  );
-}

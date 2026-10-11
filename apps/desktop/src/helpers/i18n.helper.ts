@@ -57,11 +57,6 @@ export function setCurrentLocale(locale: AppLocale): void {
   idiomaActual = locale;
 }
 
-/** El idioma global, para codigo que esta fuera del arbol de React. */
-export function currentLocale(): AppLocale {
-  return idiomaActual;
-}
-
 /** Traduce con el idioma global. Para codigo fuera de React. */
 export function t(clave: TranslationKey, args?: TranslationArgs): string {
   return translate(idiomaActual, clave, args);
