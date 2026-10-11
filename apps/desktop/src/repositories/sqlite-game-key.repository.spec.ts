@@ -217,6 +217,71 @@ describe('el estado y la plataforma por defecto', () => {
   });
 });
 
+describe('dar de alta una clave', () => {
+  test('cada valor cae en su columna', async () => {
+    const { repo, leer, limpiar } = crearRepositorio();
+
+    try {
+      await repo.insert({
+        ...fila('DDDD-4444-DDDD'),
+        title: 'Half-Life 2',
+        note: 'para el amigo',
+        tags: ['regalo', 'verano'],
+        giftedTo: 'Marta',
+      });
+
+      const guardada = leer(
+        'SELECT * FROM game_keys',
+      ) as Record<string, unknown>[];
+
+      expect(guardada.length).toBe(1);
+
+      const filaGuardada = guardada[0]!;
+
+      // Cada columna con su valor, uno a uno. El fallo que esto caza es el
+      // desplazamiento: si la lista de columnas y la de valores no tienen la
+      // misma longitud, SQLite acepta la sentencia y escribe cada dato en la
+      // columna de al lado sin decir nada.
+      expect(filaGuardada.title).toBe('Half-Life 2');
+      expect(filaGuardada.key_value).toBe('DDDD-4444-DDDD');
+      expect(filaGuardada.platform).toBe(KeyPlatform.Steam);
+      expect(filaGuardada.status).toBe(KeyStatus.Available);
+      expect(filaGuardada.source).toBe(KeySource.Manual);
+      expect(filaGuardada.gifted_to).toBe('Marta');
+      expect(filaGuardada.note).toBe('para el amigo');
+      expect(filaGuardada.tags).toBe('regalo,verano');
+
+      // Esta la escriben las tres rutas de alta con `null`: la columna acepta
+      // nulo y una clave nueva no tiene fecha de ultimo uso. Antes las dos
+      // primeras no laaban en la sentencia, asi que dependia de que el valor
+      // por defecto de la tabla fuera el correcto.
+      expect(filaGuardada.last_used_at).toBeNull();
+      expect(filaGuardada.added_on).toBeNull();
+
+      expect(String(filaGuardada.created_at)).toMatch(ES_SELLO);
+      expect(String(filaGuardada.updated_at)).toMatch(ES_SELLO);
+    } finally {
+      limpiar();
+    }
+  });
+
+  test('la clave se guarda normalizada, con espacios y en mayusculas', async () => {
+    const { repo, leer, limpiar } = crearRepositorio();
+
+    try {
+        // `fila()` es una `IImportRow`, que lleva las etiquetas ya en texto. El
+        // alta es una `IGameKeyInput`, y ahi son una lista.
+        await repo.insert({ ...fila('  eeee-5555-eeee '), tags: [] });
+
+      expect(
+        (leer('SELECT key_value FROM game_keys')[0] as { key_value: string }).key_value,
+      ).toBe('EEEE-5555-EEEE');
+    } finally {
+      limpiar();
+    }
+  });
+});
+
 /** Fila de importacion minima, con el estado ya disponible. */
 function fila(keyValue: string) {
   return {

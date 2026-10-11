@@ -1,4 +1,9 @@
-import { SCHEMA_STATEMENTS, type IAppSettings, type IDatabaseClient } from '@/contracts';
+import {
+  SCHEMA_STATEMENTS,
+  TABLE_APP_SETTINGS,
+  type IAppSettings,
+  type IDatabaseClient,
+} from '@/contracts';
 
 const STORAGE_KEY = 'steam-keys:settings';
 
@@ -18,11 +23,19 @@ const STORAGE_KEY = 'steam-keys:settings';
 export function memoryDatabaseClient(): IDatabaseClient {
   let ajustes: Record<string, string> = read();
 
+  // Los dos patrones se montan con el nombre de la tabla y no escritos a mano:
+  // si la tabla se renombra en el esquema, esto deja de reconocerla y falla en
+  // silencio — el navegador guardaria ajustes en un almacen y la app no los
+  // veria nunca—. La constante es un identificador sin metacaracteres, asi que
+  // interpolar en la expresion regular es seguro.
+  const ES_UPSERT = new RegExp(`^INSERT INTO ${TABLE_APP_SETTINGS}`, 'i');
+  const ES_LECTURA = new RegExp(`^SELECT key, value FROM ${TABLE_APP_SETTINGS}`, 'i');
+
   return {
     async execute(sql: string, bind: readonly unknown[] = []) {
       const limpio = sql.replace(/\s+/g, ' ').trim();
 
-      if (/^INSERT INTO app_settings/i.test(limpio)) {
+      if (ES_UPSERT.test(limpio)) {
         const [key, value] = bind;
         ajustes[String(key)] = bindToString(value);
         persist(ajustes);
@@ -35,7 +48,7 @@ export function memoryDatabaseClient(): IDatabaseClient {
     async select<T>(sql: string, bind: readonly unknown[] = []): Promise<T[]> {
       const limpio = sql.replace(/\s+/g, ' ').trim();
 
-      if (/^SELECT key, value FROM app_settings/i.test(limpio)) {
+      if (ES_LECTURA.test(limpio)) {
         void bind;
 
         return Object.entries(ajustes).map(([key, value]) => ({

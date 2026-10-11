@@ -27,9 +27,20 @@ export function touchTimestamp(): string {
   return nowSqliteTimestamp();
 }
 
-/** Columnas en el orden en que las devuelve `SELECT *`. */
-export const GAME_KEY_COLUMNS = [
-  'id',
+/**
+ * Columnas de `game_keys` que se escriben, en el orden del esquema.
+ *
+ * Es la **unica** lista de columnas de la tabla, y de ella salen las dos que se
+ * usan en SQL: la del `SELECT` —la de arriba con `id` delante— y la del `INSERT`.
+ * Escribir las dos a mano hacia que se separen: se anade una columna al `INSERT`
+ * y el `SELECT` se queda sin ella, o al reves, y en los dos casos la fila se
+ * lee a medias sin que nada falle.
+ *
+ * Van todas, tambien las que la entrada no trae —`last_used_at`—: el `INSERT`
+ * es uno solo para las tres rutas que escriben, y las que no tienen ese valor
+ * pasan `null`, que es lo que la columna admitia antes.
+ */
+export const GAME_KEY_WRITE_COLUMNS = [
   'title',
   'key_value',
   'platform',
@@ -43,4 +54,10 @@ export const GAME_KEY_COLUMNS = [
   'last_used_at',
   'created_at',
   'updated_at',
-].join(', ');
+] as const;
+
+/** Cuantos valores lleva la lista de valores de un `INSERT` de `game_keys`. */
+export const GAME_KEY_INSERT_SIZE = GAME_KEY_WRITE_COLUMNS.length;
+
+/** Columnas en el orden en que las devuelve `SELECT *`. */
+export const GAME_KEY_COLUMNS = ['id', ...GAME_KEY_WRITE_COLUMNS].join(', ');

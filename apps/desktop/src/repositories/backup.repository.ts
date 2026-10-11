@@ -1,6 +1,6 @@
 import { GAME_KEY_COLUMNS } from '@/helpers/map-row.helper';
 import { formatFileStamp } from '@/helpers/format-date.helper';
-import { MAX_BACKUPS, TABLE_BACKUPS, type BackupReason, type IBackup, type IDatabaseClient, type IGameKeyRow } from '@/contracts';
+import { MAX_BACKUPS, TABLE_BACKUPS, TABLE_GAME_KEYS, type BackupReason, type IBackup, type IDatabaseClient, type IGameKeyRow } from '@/contracts';
 
 import { readBackupReason } from '@/helpers/settings.helper';
 /**
@@ -84,7 +84,7 @@ async function nombreLibre(db: IDatabaseClient, base: string): Promise<string> {
 
 /** Lee todas las claves que hay ahora mismo. */
 async function snapshot(db: IDatabaseClient): Promise<readonly IGameKeyRow[]> {
-  return db.select<IGameKeyRow>(`SELECT ${GAME_KEY_COLUMNS} FROM game_keys`);
+  return db.select<IGameKeyRow>(`SELECT ${GAME_KEY_COLUMNS} FROM ${TABLE_GAME_KEYS}`);
 }
 
 /**

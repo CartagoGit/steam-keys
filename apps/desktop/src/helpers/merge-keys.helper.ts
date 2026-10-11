@@ -1,4 +1,5 @@
 import { RestoreMode, TABLE_GAME_KEYS, type IDatabaseClient, type IGameKeyRow, type IRestoreSummary } from '@/contracts';
+import { gameKeyInsertStatement } from '@/helpers/sql.helper';
 import {
   normalizeKey,
   parseTags,
@@ -35,34 +36,29 @@ export async function mergeKeysFromBackup(
     const id = existentes[0]?.id;
 
     if (id === undefined) {
-      // 13 columnas y 13 valores. Antes el ultimo marcador salia dos veces
-      // (`$12, $12`), copiado del `INSERT` del alta normal, donde si procede
-      // porque ahi los dos son el mismo `touchTimestamp()`. Aqui no: la fila de
-      // la copia trae `created_at` y `updated_at` distintos, y repetir el
-      // marcador guardaba la fecha de creacion en la de modificacion,  perdia
-      // la segunda sin avisar. La rama de `UPDATE` de mas abajo si la
-      // respectaba: la misma operacion trataba de dos formas.
-      await db.execute(
-        `INSERT INTO ${TABLE_GAME_KEYS}
-           (title, key_value, platform, status, source, gifted_to, parent_title,
-            note, tags, added_on, last_used_at, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
-        [
-          fila.title,
-          clave,
-          fila.platform,
-          fila.status,
-          fila.source,
-          fila.gifted_to,
-          fila.parent_title,
-          fila.note,
-          serializeTags(parseTags(fila.tags)),
-          fila.added_on,
-          fila.last_used_at,
-          fila.created_at,
-          fila.updated_at,
-        ],
-      );
+      // 13 columnas y 13 valores, en el orden de `GAME_KEY_WRITE_COLUMNS`. El
+      // marcador va uno a uno por columna y no se repite: la fila de la copia
+      // trae `created_at` y `updated_at` distintos, y antes la sentencia
+      // compartia marcador entre las dos —copiado del alta normal, donde si
+      // procede porque ahi las dos fechas son la misma—, de modo que se
+      // guardaba la fecha de creacion en la de modificacion y la segunda se
+      // perdia sin avisar. La rama de `UPDATE` de mas abajo si la respetaba:
+      // la misma operacion trataba de dos formas.
+      await db.execute(gameKeyInsertStatement(), [
+        fila.title,
+        clave,
+        fila.platform,
+        fila.status,
+        fila.source,
+        fila.gifted_to,
+        fila.parent_title,
+        fila.note,
+        serializeTags(parseTags(fila.tags)),
+        fila.added_on,
+        fila.last_used_at,
+        fila.created_at,
+        fila.updated_at,
+      ]);
       inserted += 1;
       continue;
     }

@@ -3,7 +3,7 @@ import {
   mapRowToGameKey,
   touchTimestamp,
 } from '@/helpers/map-row.helper';
-import { sqlPlaceholders } from '@/helpers/sql.helper';
+import { gameKeyInsertStatement, sqlPlaceholders } from '@/helpers/sql.helper';
 import {
   keyFingerprint,
   normalizeKey,
@@ -46,26 +46,28 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
 
   async insert(input: IGameKeyInput): Promise<IGameKey> {
     const keyValue = normalizeKey(input.keyValue);
+    const ahora = touchTimestamp();
 
-    await this.db.execute(
-      `INSERT INTO ${TABLE_GAME_KEYS}
-         (title, key_value, platform, status, source, gifted_to, parent_title,
-          note, tags, added_on, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11)`,
-      [
-        input.title.trim(),
-        keyValue,
-        input.platform ?? KeyPlatform.Steam,
-        input.status ?? KeyStatus.Available,
-        KeySource.Manual,
-        input.giftedTo ?? null,
-        input.parentTitle ?? null,
-        input.note ?? null,
-        serializeTags(input.tags),
-        input.addedOn ?? null,
-        touchTimestamp(),
-      ],
-    );
+    // `created_at` y `updated_at` se numeran por separado aunque valgan lo
+    // mismo. Antes compartian marcador (`$11, $11`), que es el truco que hizo
+    // que en la restauracion —donde las dos fechas si son distintas— la
+    // segunda se perdiera. Los valores van en el orden de
+    // `GAME_KEY_WRITE_COLUMNS`, que es el de la sentencia.
+    await this.db.execute(gameKeyInsertStatement(), [
+      input.title.trim(),
+      keyValue,
+      input.platform ?? KeyPlatform.Steam,
+      input.status ?? KeyStatus.Available,
+      KeySource.Manual,
+      input.giftedTo ?? null,
+      input.parentTitle ?? null,
+      input.note ?? null,
+      serializeTags(input.tags),
+      input.addedOn ?? null,
+      null,
+      ahora,
+      ahora,
+    ]);
 
     const created = await this.findByKey(keyValue);
     if (!created) throw new Error('No se pudo recuperar la key recien creada.');
@@ -254,25 +256,22 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
       }
       existing.add(fingerprint);
 
-      const affected = await this.db.execute(
-        `INSERT OR IGNORE INTO ${TABLE_GAME_KEYS}
-           (title, key_value, platform, status, source, gifted_to, parent_title,
-            note, tags, added_on, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11)`,
-        [
-          row.title,
-          normalizeKey(row.keyValue),
-          row.platform,
-          row.status,
-          row.source,
-          row.giftedTo,
-          row.parentTitle,
-          row.note,
-          row.tags,
-          row.addedOn,
-          touchTimestamp(),
-        ],
-      );
+      const ahora = touchTimestamp();
+      const affected = await this.db.execute(gameKeyInsertStatement(true), [
+        row.title,
+        normalizeKey(row.keyValue),
+        row.platform,
+        row.status,
+        row.source,
+        row.giftedTo,
+        row.parentTitle,
+        row.note,
+        row.tags,
+        row.addedOn,
+        null,
+        ahora,
+        ahora,
+      ]);
 
       inserted += affected;
     }

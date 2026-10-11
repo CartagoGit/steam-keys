@@ -2,7 +2,14 @@ import { invoke } from '@tauri-apps/api/core';
 import SqliteDatabase from '@tauri-apps/plugin-sql';
 
 import { GAME_KEY_COLUMNS } from '@/helpers/map-row.helper';
-import type { IDatabaseClient, IGameKeyRow } from '@/contracts';
+import {
+  BackupReason,
+  TABLE_APP_SETTINGS,
+  TABLE_BACKUPS,
+  TABLE_GAME_KEYS,
+  type IDatabaseClient,
+  type IGameKeyRow,
+} from '@/contracts';
 
 /**
  * Trae las copias de seguridad de la version anterior, que eran ficheros.
@@ -42,7 +49,7 @@ async function leerFilas(nombre: string): Promise<readonly IGameKeyRow[]> {
 
     try {
       return await copia.select<IGameKeyRow[]>(
-        `SELECT ${GAME_KEY_COLUMNS} FROM game_keys`,
+        `SELECT ${GAME_KEY_COLUMNS} FROM ${TABLE_GAME_KEYS}`,
       );
     } finally {
       // Se cierra siempre: dejar conexiones abiertas bloquea el fichero, y el
@@ -99,11 +106,11 @@ export async function migrateLegacyBackups(db: IDatabaseClient): Promise<number>
       if (filas.length === 0) continue;
 
       await db.execute(
-        `INSERT OR IGNORE INTO backups (nombre, reason, creado_ms, contenido)
+        `INSERT OR IGNORE INTO ${TABLE_BACKUPS} (nombre, reason, creado_ms, contenido)
          VALUES ($1, $2, $3, $4)`,
         [
           nombre,
-          'traida-de-archivos',
+          BackupReason.TraidaDeArchivos,
           Date.now(),
           JSON.stringify({ rowCount: filas.length, rows: filas }),
         ],
@@ -135,7 +142,7 @@ export async function migrateLegacyBackups(db: IDatabaseClient): Promise<number>
 /** Nombres de las copias que ya estan en la base de datos. */
 async function leerNombres(db: IDatabaseClient): Promise<Set<string>> {
   try {
-    const filas = await db.select<{ nombre: string }>('SELECT nombre FROM backups');
+    const filas = await db.select<{ nombre: string }>(`SELECT nombre FROM ${TABLE_BACKUPS}`);
 
     return new Set(filas.map((fila) => fila.nombre));
   } catch {
@@ -148,7 +155,7 @@ async function leerNombres(db: IDatabaseClient): Promise<Set<string>> {
 /** Deja constancia de que la migracion se hizo, para no repetirla. */
 async function marcarMigrada(db: IDatabaseClient): Promise<void> {
   await db.execute(
-    `INSERT INTO app_settings (key, value) VALUES ($1, $2)
+    `INSERT INTO ${TABLE_APP_SETTINGS} (key, value) VALUES ($1, $2)
        ON CONFLICT (key) DO UPDATE SET value = excluded.value`,
     [CLAVE_MIGRADA, '1'],
   );
@@ -158,7 +165,7 @@ async function marcarMigrada(db: IDatabaseClient): Promise<void> {
 export async function legacyBackupsMigrated(db: IDatabaseClient): Promise<boolean> {
   try {
     const filas = await db.select<{ value: string }>(
-      'SELECT value FROM app_settings WHERE key = $1',
+      `SELECT value FROM ${TABLE_APP_SETTINGS} WHERE key = $1`,
       [CLAVE_MIGRADA],
     );
 

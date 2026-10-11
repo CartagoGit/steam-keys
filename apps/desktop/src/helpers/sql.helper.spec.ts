@@ -1,6 +1,11 @@
 import { describe, expect, test } from 'bun:test';
 
-import { sqlPlaceholders } from './sql.helper';
+import { sqlPlaceholders, gameKeyInsertStatement } from './sql.helper';
+import {
+  GAME_KEY_COLUMNS,
+  GAME_KEY_INSERT_SIZE,
+  GAME_KEY_WRITE_COLUMNS,
+} from './map-row.helper';
 
 /**
  * Tests de los marcadores de posicion de SQL.
@@ -40,5 +45,51 @@ describe('marcadores para un IN', () => {
 
     expect(numeros).toEqual([4, 5, 6, 7, 8, 9]);
     expect(new Set(numeros).size).toBe(numeros.length);
+  });
+});
+
+describe('el INSERT de game_keys', () => {
+  const columnas = (sql: string): string[] =>
+    sql.slice(sql.indexOf('('), sql.indexOf('VALUES')).replace(/[()\s]/g, '').split(',');
+
+  const marcadores = (sql: string): string[] =>
+    sql.slice(sql.indexOf('VALUES') + 'VALUES'.length).replace(/[()\s]/g, '').split(',');
+
+  test('escribe todas las columnas menos el id', () => {
+    const sql = gameKeyInsertStatement();
+
+    expect(columnas(sql)).toEqual([...GAME_KEY_WRITE_COLUMNS]);
+  });
+
+  test('lleva un marcador por columna, en orden y sin repetir', () => {
+    // Un marcador por columna, y cada columna con el suyo. La version anterior
+    // repetia `$11` para las dos fechas, que funciona en el alta —donde valen
+    // lo mismo— y hacia perder la de modificacion al restaurar una copia.
+    const esperados = GAME_KEY_WRITE_COLUMNS.map((_, indice) => `$${indice + 1}`);
+
+    expect(marcadores(gameKeyInsertStatement())).toEqual(esperados);
+    expect(marcadores(gameKeyInsertStatement(true))).toEqual(esperados);
+  });
+
+  test('la variante que ignora duplicados lleva OR IGNORE', () => {
+    expect(gameKeyInsertStatement()).toMatch(/^INSERT INTO game_keys/);
+    expect(gameKeyInsertStatement()).not.toContain('OR IGNORE');
+    expect(gameKeyInsertStatement(true)).toMatch(/^INSERT OR IGNORE INTO game_keys/);
+  });
+
+  test('el numero de marcadores lo dice la lista de columnas, no el codigo', () => {
+    // Si el esquema crece, el `VALUES` tiene que crecer con el. Este es el
+    // fallo que cuesta un rato de depuracion: una columna de mas en la lista y
+    // un valor de menos, y SQLite acepta la sentencia y escribe el valor en la
+    // columna equivocada.
+    const sql = gameKeyInsertStatement();
+
+    expect(GAME_KEY_INSERT_SIZE).toBe(GAME_KEY_WRITE_COLUMNS.length);
+    expect(marcadores(sql).length).toBe(GAME_KEY_INSERT_SIZE);
+    expect(columnas(sql).length).toBe(GAME_KEY_INSERT_SIZE);
+  });
+
+  test('el SELECT y el INSERT leen de la misma lista de columnas', () => {
+    expect(GAME_KEY_COLUMNS).toEqual(['id', ...GAME_KEY_WRITE_COLUMNS].join(', '));
   });
 });

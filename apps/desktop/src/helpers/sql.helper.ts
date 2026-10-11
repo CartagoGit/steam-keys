@@ -18,6 +18,8 @@
  * Por eso los ids empiezan donde toca, explicito, y no con un `+ 2` repetido
  * en cada llamada.
  */
+import { TABLE_GAME_KEYS } from '@/contracts';
+import { GAME_KEY_INSERT_SIZE, GAME_KEY_WRITE_COLUMNS } from '@/helpers/map-row.helper';
 
 /**
  * Lista de marcadores para un `IN (...)`.
@@ -29,4 +31,30 @@
  */
 export function sqlPlaceholders(total: number, primero = 1): string {
   return Array.from({ length: total }, (_, indice) => `$${primero + indice}`).join(', ');
+}
+
+/**
+ * El `INSERT INTO game_keys`, con sus columnas y sus marcadores ya puestos.
+ *
+ * Habia tres sentencias escritas a mano para la misma tabla —el alta normal, la
+ * importacion masiva y la restauracion desde una copia—, y las tres acabaron
+ * divergiendo: la de la restauracion llevo `last_used_at` y las otras dos no, y
+ * las de alta e importacion repetian `$11` para `created_at` y `updated_at`
+ * porque las dos fechas son la misma. Un dia se anade una columna y solo se
+ * recuerda en dos de las tres: no sale ningun error, la fila se inserta con el
+ * valor por defecto y el dato se pierde en silencio.
+ *
+ * Ahora la lista sale de `GAME_KEY_WRITE_COLUMNS` y los marcadores de
+ * `sqlPlaceholders`, asi que las tres rutas comparten una sola definicion.
+ *
+ * @param ignorarDuplicados `INSERT OR IGNORE`, para las rutas que pueden
+ *   encontrar la clave ya puesta —reimportar el mismo TXT, restaurar dos veces
+ *   la misma copia— y deben saltarse en vez de reventar contra el indice unico.
+ */
+export function gameKeyInsertStatement(ignorarDuplicados = false): string {
+  const columnas = GAME_KEY_WRITE_COLUMNS.join(', ');
+
+  return `INSERT ${ignorarDuplicados ? 'OR IGNORE ' : ''}INTO ${TABLE_GAME_KEYS}
+           (${columnas})
+         VALUES (${sqlPlaceholders(GAME_KEY_INSERT_SIZE)})`;
 }
