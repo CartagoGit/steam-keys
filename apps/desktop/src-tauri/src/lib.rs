@@ -17,7 +17,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::Serialize;
 use tauri::Manager;
 
-/// Nombre del fichero de base de datos. Debe coincidir con `DB_CONNECTION`.
+/// Nombre del fichero de base de datos. Debe coincidir con `DB_FILE_NAME`.
 const DB_FILE_NAME: &str = "steam-keys.db";
 
 /// Subdirectorio donde se guardan las copias de seguridad.
@@ -44,10 +44,99 @@ struct BackupInfo {
 // Rutas internas
 // ---------------------------------------------------------------------------
 
+/// Carpeta que se supone portable, deducida del ejecutable.
+///
+/// Se separa de `config_dir` para poder probarla: aqui no se toca el disco ni el
+/// entorno, solo entra una ruta y sale otra. Es la parte con los casos raros de
+/// cada sistema, y la que hay que poder comprobar sin compilar la app entera.
+fn carpeta_portable_de(ejecutable: &Path, appimage: Option<&str>) -> Option<PathBuf> {
+    // Un AppImage no se ejecuta desde su sitio: se monta en temporal y el
+    // ejecutable real aparece en `/tmp/.mount_XXXX/`. Los datos se guardarian
+    // ahi, que se borra al cerrar. El propio AppImage dice donde esta con
+    // `$APPIMAGE`, que es la unica ruta fiable en ese caso.
+    let base = match appimage {
+        Some(ruta) => PathBuf::from(ruta),
+        None => PathBuf::from(ejecutable),
+    };
+
+    let mut carpeta = base.parent()?.to_path_buf();
+
+    // En macOS el ejecutable cuelga de un paquete:
+    //   Steam Keys.app/Contents/MacOS/Steam Keys
+    // Los datos van junto al `.app`, no dentro del paquete: dentro esta
+    // firmado y macOS no deja escribir ahi.
+    if carpeta.ends_with("MacOS") {
+        carpeta = carpeta.parent()?.to_path_buf(); // Contents
+        carpeta = carpeta.parent()?.to_path_buf(); // Steam Keys.app
+        carpeta = carpeta.parent()?.to_path_buf(); // la carpeta que lo contiene
+    }
+
+    Some(carpeta)
+}
+
+/// Si en `dir` se puede crear un fichero.
+///
+/// Comprobar los permisos no basta: en Windows da permisos de escritura sobre
+/// un fichero pero no sobre la carpeta, y en Linux `readonly` en el montaje
+/// hace que `metadata().permissions()` diga que si. La unica forma fiable es
+/// intentar escribir, y borrar el testigo enseguida.
+fn es_escribible(dir: &Path) -> bool {
+    let testigo = dir.join(".escritura-probando");
+
+    match fs::write(&testigo, b"") {
+        Ok(()) => {
+            let _ = fs::remove_file(&testigo);
+            true
+        }
+        Err(_) => false,
+    }
+}
+
+/// Directorio de datos: el portable si se puede escribir, si no el del sistema.
+///
+/// El modo portable es el normal, pero no puede ser el unico: la app acaba en
+/// `Program Files` o en `/Applications` en cuanto alguien la instala, y ahi no
+/// hay quien escriba sin permisos de administrador. Cuando la carpeta de al lado
+/// no sirve se vuelve a la del sistema, que es donde siempre se ha podido
+/// escribir, y la interfaz ensena la ruta real para que se vea donde acabo.
 fn config_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let portable = std::env::current_exe()
+        .ok()
+        .and_then(|exe| {
+            let appimage = std::env::var("APPIMAGE").ok();
+            carpeta_portable_de(&exe, appimage.as_deref())
+        })
+        .filter(|dir| dir.is_dir() && es_escribible(dir));
+
+    if let Some(dir) = portable {
+        return Ok(dir);
+    }
+
     app.path()
         .app_config_dir()
         .map_err(|error| format!("No se pudo resolver el directorio de la app: {error}"))
+}
+
+/// Si los datos estan junto al ejecutable o en la carpeta del sistema.
+///
+/// Va al panel de datos para que el sitio donde se guardan las claves no sea un
+/// misterio: si esta en modo portable y se mueve el ejecutable, las claves se
+/// quedan atras, y eso hay que verlo antes de que pase.
+fn es_portable(app: &tauri::AppHandle) -> bool {
+    let Ok(ejecutable) = std::env::current_exe() else {
+        return false;
+    };
+
+    let appimage = std::env::var("APPIMAGE").ok();
+
+    let Some(esperado) = carpeta_portable_de(&ejecutable, appimage.as_deref()) else {
+        return false;
+    };
+
+    // Se compara con lo que `config_dir` resuelve de verdad, y no con una
+    // segunda resolucion por separado: si divergieran, el panel podria
+    // decir que es portable mientras la base esta en otro sitio.
+    config_dir(app).map(|usada| usada == esperado).unwrap_or(false)
 }
 
 fn database_file(app: &tauri::AppHandle) -> Result<PathBuf, String> {
@@ -291,12 +380,30 @@ struct DatabaseInfo {
     path: String,
     exists: bool,
     size_bytes: u64,
+    /// `true` si los datos estan junto al ejecutable, no en la carpeta del
+    /// sistema. El panel lo enseña porque de ello depende donde haya que
+    /// buscar las claves si un dia desaparecen.
+    portable: bool,
 }
 
 /// Ruta de la base de datos, para mostrarla en la UI.
 #[tauri::command]
 fn database_path(app: tauri::AppHandle) -> Result<String, String> {
     Ok(database_file(&app)?.to_string_lossy().to_string())
+}
+
+/// Ruta **absoluta** del directorio de datos.
+///
+/// El frontend la pide antes de abrir la base de datos. Antes no hacia falta:
+/// `sqlite:steam-keys.db` la resolvía el plugin contra la carpeta del sistema.
+/// Ahora los datos pueden estar en otro sitio, y el plugin solo acepta la ruta
+/// absoluta cuando se la dan entera.
+///
+/// Ojo con el separador `:` de `sqlite:`: el plugin parte por el primer dos
+/// puntos, asi que una ruta con unidad de Windows (`C:\...`) sobrevive intacta.
+#[tauri::command]
+fn data_directory(app: tauri::AppHandle) -> Result<String, String> {
+    Ok(config_dir(&app)?.to_string_lossy().to_string())
 }
 
 /// Ruta, existencia y tamaño del fichero de base de datos.
@@ -313,6 +420,7 @@ fn database_info(app: tauri::AppHandle) -> Result<DatabaseInfo, String> {
         path: fichero.to_string_lossy().to_string(),
         exists,
         size_bytes,
+        portable: es_portable(&app),
     })
 }
 
@@ -433,8 +541,11 @@ fn stage_backup(app: tauri::AppHandle, name: String) -> Result<String, String> {
     fs::copy(&origen, &destino)
         .map_err(|error| format!("No se pudo preparar la copia: {error}"))?;
 
-    // Nombre relativo, que es como el plugin SQL resuelve las rutas.
-    Ok(format!("sqlite:{STAGED_FILE_NAME}"))
+    // Ruta **absoluta**, a diferencia de antes. Devolver solo el nombre del
+    // fichero hacia que el plugin lo resolviera contra su carpeta por defecto,
+    // que en modo portable no es donde esta la copia: se abriria una base
+    // vacia y la restauracion perderia todo.
+    Ok(format!("sqlite:{}", destino.to_string_lossy()))
 }
 
 /// Borra la copia preparada tras usarla.
@@ -506,6 +617,7 @@ pub fn run() {
             read_text_file,
             write_text_file,
             database_path,
+            data_directory,
             database_info,
             create_backup,
             list_backups,
@@ -520,6 +632,75 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn la_carpeta_portable_es_la_del_ejecutable() {
+        // Linux y macOS: un binario suelto, y la carpeta es la de al lado.
+        assert_eq!(
+            carpeta_portable_de(Path::new("/home/yo/juegos/steam-keys"), None),
+            Some(PathBuf::from("/home/yo/juegos"))
+        );
+
+        // El caso de Windows no se prueba aqui a proposito: `Path` solo trata
+        // la barra invertida como separador en Windows, asi que
+        // `C:\Juegos\app.exe` seria un unico nombre de fichero al probar en
+        // Linux y la comprobacion daria una carpeta vacia. El codigo es el
+        // mismo (`parent()`); lo que hay que mirar en Windows es que la carpeta
+        // de al lado se pueda escribir, que es lo que decide el modo de verdad.
+    }
+
+    #[test]
+    fn en_macos_se_sale_del_paquete_app() {
+        // El ejecutable cuelga tres niveles del sitio donde esta el `.app`:
+        // Contents/MacOS/Steam Keys. Los datos no pueden ir dentro del
+        // paquete, que esta firmado.
+        assert_eq!(
+            carpeta_portable_de(
+                Path::new("/Applications/Steam Keys.app/Contents/MacOS/Steam Keys"),
+                None
+            ),
+            Some(PathBuf::from("/Applications"))
+        );
+
+        // Y una carpeta que se llama MacOS por casualidad no se confunde con
+        // un paquete: si no esta dentro de `Contents`, es una carpeta normal.
+        assert_eq!(
+            carpeta_portable_de(Path::new("/Users/yo/MacOS/steam-keys"), None),
+            Some(PathBuf::from("/Users/yo/MacOS"))
+        );
+    }
+
+    #[test]
+    fn el_appimage_manda_sobre_el_ejecutable() {
+        // Dentro de un AppImage el ejecutable esta en `/tmp/.mount_XXXX/`, que
+        // se borra al cerrar. `$APPIMAGE` es lo unico que dice donde esta de
+        // verdad el fichero que el usuario tiene en su disco o en su USB.
+        let montada = "/tmp/.mount_SteamKeys1234/usr/bin/steam-keys";
+        let appimage = "/home/yo/juegos/Steam Keys.AppImage";
+
+        assert_eq!(
+            carpeta_portable_de(Path::new(montada), Some(appimage)),
+            Some(PathBuf::from("/home/yo/juegos"))
+        );
+    }
+
+    #[test]
+    fn sin_carpeta_no_se_puede_resolver() {
+        // La raiz no tiene padre, asi que no hay donde guardar nada.
+        assert_eq!(carpeta_portable_de(Path::new("/"), None), None);
+    }
+
+    #[test]
+    fn se_detecta_si_se_puede_escribir() {
+        // Con que se pueda crear un fichero, vale. En una carpeta de solo
+        // lectura el resultado puede depender de si los tests se ejecutan como
+        // root, asi que ese caso no se comprueba aqui: lo decide `es_escribible`
+        // en el momento de arrancar, que es cuando importa.
+        let temporal = std::env::temp_dir();
+
+        assert!(es_escribible(&temporal));
+        assert!(!es_escribible(Path::new("/no/existe/esta/carpeta")));
+    }
 
     #[test]
     fn el_nombre_de_copia_debe_ser_seguro() {

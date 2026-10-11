@@ -226,6 +226,21 @@ export function StoragePanel({ onClose, onChanged, notify }: IStoragePanelProps)
                     </code>
                   </div>
                 ) : null}
+
+                {/*
+                  En modo portable el aviso no es un extra: es la unica
+                  advertencia que impide perder la coleccion. Si mueves el
+                  ejecutable a otra carpeta sin copiar tambien el `.db`, las
+                  claves se quedan atras y no hay forma de que la app lo note.
+                */}
+                {info.portable ? (
+                  <Aviso
+                    tone="blue"
+                    icon="info"
+                    titulo={t('storage.portable.title')}
+                    texto={t('storage.portable.text')}
+                  />
+                ) : null}
               </section>
 
               {/* ------------------------------------------------- copias */}

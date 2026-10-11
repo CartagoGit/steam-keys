@@ -44,6 +44,7 @@ export const storageService = {
       return {
         databasePath: persistente ? info?.path ?? null : null,
         persistent: persistente,
+        portable: false,
         databaseSizeBytes: persistente ? (info?.sizeBytes ?? 0) : 0,
         totalKeys: keys.length,
         unknownPlatform: keys.filter((key) => key.platform === KeyPlatform.Unknown).length,
@@ -64,6 +65,7 @@ export const storageService = {
     return {
       databasePath: info?.path ?? null,
       persistent: true,
+      portable: info?.portable ?? false,
       databaseSizeBytes: info?.sizeBytes ?? 0,
       totalKeys: keys.length,
       unknownPlatform,

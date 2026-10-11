@@ -16,6 +16,8 @@ BASE = pathlib.Path(__file__).resolve().parents[2] / 'apps/desktop/src/contracts
 TRADUCCIONES = {}
 
 TRADUCCIONES['fr'] = {
+ 'storage.portable.title': 'Mode portable',
+ 'storage.portable.text': 'Tes cles sont dans un fichier .db a cote du programme, pas dans ton dossier utilisateur. Si tu deplaces l executable, deplace aussi steam-keys.db et le dossier backups, sinon tu perdras ta collection.',
  'platform.unknown': 'Non determinee',
  'gift.hint': 'Marquer les cles selectionnees comme deja offertes',
  'select.markExpired': 'Marquer comme expirees',
@@ -248,6 +250,8 @@ TRADUCCIONES['fr'] = {
 }
 
 TRADUCCIONES['pt'] = {
+ 'storage.portable.title': 'Modo portatil',
+ 'storage.portable.text': 'As tuas chaves estao num ficheiro .db ao lado do programa, nao na tua pasta de utilizador. Se moveres o executavel para outra pasta, move tambem steam-keys.db e a pasta backups, ou ficas sem a colecao.',
  'platform.unknown': 'Nao determinada',
  'gift.hint': 'Marcar as chaves selecionadas como ja presenteadas',
  'select.markExpired': 'Marcar como expiradas',
@@ -480,6 +484,8 @@ TRADUCCIONES['pt'] = {
 }
 
 TRADUCCIONES['de'] = {
+ 'storage.portable.title': 'Tragbarer Modus',
+ 'storage.portable.text': 'Deine Schluessel liegen in einer .db-Datei neben dem Programm, nicht in deinem Benutzerordner. Wenn du die Programmdatei verschiebst, verschiebe auch steam-keys.db und den Ordner backups, sonst bleibt die Sammlung zurueck.',
  'platform.unknown': 'Nicht ermittelt',
  'gift.hint': 'Die ausgewaehlten Schluessel als verschenkt markieren',
  'select.markExpired': 'Als abgelaufen markieren',

@@ -1,0 +1,38 @@
+# ==============================================================================
+#  Imagen minima para ejecutar los tests de Rust.
+#
+#    docker compose -f tools/docker/docker-compose.test.yml up --build
+#
+#  Que no compila la app entera: solo `cargo test` sobre el crate de Tauri, que
+#  es donde vive la logica de rutas del modo portable. Saltarse `tauri-cli` (lo
+#  mas lento de `Dockerfile.linux-build`) ahorra unos minutos, y el resto de las
+#  dependencias de Rust se compilan igual, asi que lo que se comprueba es real.
+#
+#  Se usa Ubuntu 22.04 por el mismo motivo que el build: WebKitGTK 4.1 con una
+#  glibc que no rompe el AppImage.
+# ==============================================================================
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV CARGO_TERM_COLOR=always
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates \
+      curl \
+      pkg-config \
+      build-essential \
+      libwebkit2gtk-4.1-dev \
+      libayatana-appindicator3-dev \
+      librsvg2-dev \
+      libssl-dev \
+      libxdo-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+      | sh -s -- -y --no-modify-path --profile minimal --default-toolchain 1.90 \
+    && ln -s /root/.cargo/bin/rustc /usr/local/bin/rustc \
+    && ln -s /root/.cargo/bin/cargo /usr/local/bin/cargo \
+    && ln -s /root/.cargo/bin/rustup /usr/local/bin/rustup \
+    && ln -s /root/.cargo/bin/rustdoc /usr/local/bin/rustdoc
+
+WORKDIR /workspace

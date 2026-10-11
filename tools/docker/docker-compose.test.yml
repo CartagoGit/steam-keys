@@ -1,0 +1,42 @@
+# ==============================================================================
+#  Tests de Rust del crate de Tauri.
+#
+#    docker compose -f tools/docker/docker-compose.test.yml up --build
+#
+#  Es la unica forma de comprobar el modo portable en una maquina sin Rust: el
+#  codigo que decide donde van los datos es Rust, y sus tests (el caso de
+#  macOS, el del AppImage, el de la carpeta que no admite escritura) no se
+#  pueden ejecutar desde TypeScript.
+#
+#  El registro de Cargo y el `target/` van en volumenes aparte. Sin ellos, cada
+#  ejecucion volveria a compilar las 300 dependencias de Tauri desde cero.
+# ==============================================================================
+name: steam-keys
+
+services:
+  test:
+    build:
+      context: ../..
+      dockerfile: tools/docker/Dockerfile.test
+    image: steam-keys-test
+    volumes:
+      # Solo el crate de Tauri hace falta: el frontend ya esta comprobado con
+      # `bun test`, y montar el repositorio entero seria mas lento que compilar.
+      - ../../apps/desktop/src-tauri:/workspace/src-tauri
+      - cargo-registry:/root/.cargo/registry
+      - cargo-git:/root/.cargo/git
+      - cargo-target:/workspace/src-tauri/target
+    command: >
+      sh -c "
+        set -eu
+        cd /workspace/src-tauri
+        echo '=== version de Rust ==='
+        cargo --version
+        echo '=== cargo test ==='
+        cargo test --offline 2>/dev/null || cargo test
+      "
+
+volumes:
+  cargo-registry:
+  cargo-git:
+  cargo-target:

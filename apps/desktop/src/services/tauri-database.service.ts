@@ -1,17 +1,24 @@
 import { SCHEMA_STATEMENTS } from '@/contracts/constants/db-schema.constants';
-import { DB_CONNECTION } from '@/contracts/constants/app.constants';
+import { DB_FILE_NAME } from '@/contracts/constants/app.constants';
 import type { IDatabaseClient } from '@/contracts/interfaces/database.interface';
 import SqliteDatabase from '@tauri-apps/plugin-sql';
+import { invoke } from '@tauri-apps/api/core';
 
 let connection: SqliteDatabase | null = null;
 
 /**
  * Cliente SQLite real, sobre el plugin de Tauri.
  *
- * La base de datos vive en el directorio de configuracion de la app (fuera del
- * repositorio). El esquema se crea desde TypeScript con sentencias
- * idempotentes, de modo que no hay migraciones en Rust que se puedan quedar
- * desincronizadas con este mismo DDL.
+ * La base de datos va **junto al ejecutable** (modo portable), asi que la ruta
+ * se la pide a Rust en vez de suponerla. Antes era una cadena fija relativa
+ * (`sqlite:steam-keys.db`) y el plugin la resolvia contra la carpeta de
+ * configuracion del sistema; con el modo portable esa carpeta ya no es donde
+ * estan los datos, y una ruta relativa abriria una base vacia al lado sin
+ * querer — o, peor, crearia una segunda coleccion.
+ *
+ * El esquema se crea desde TypeScript con sentencias idempotentes, de modo que
+ * no hay migraciones en Rust que se puedan quedar desincronizadas con este
+ * mismo DDL.
  */
 export const tauriDatabaseClient: IDatabaseClient = {
   async execute(sql, bind = []) {
@@ -45,6 +52,13 @@ export const tauriDatabaseClient: IDatabaseClient = {
 async function getConnection(): Promise<SqliteDatabase> {
   if (connection) return connection;
 
-  connection = await SqliteDatabase.load(DB_CONNECTION);
+  const directorio = await invoke<string>('data_directory');
+
+  // Se separan con `/` y no con el separador del sistema: el plugin parte la
+  // cadena por el primer `:` y lo que venga detras lo pasa tal cual, y tanto
+  // Windows como Linux aceptan la barra hacia delante en una ruta de fichero.
+  const ruta = `${directorio}/${DB_FILE_NAME}`;
+
+  connection = await SqliteDatabase.load(`sqlite:${ruta}`);
   return connection;
 }

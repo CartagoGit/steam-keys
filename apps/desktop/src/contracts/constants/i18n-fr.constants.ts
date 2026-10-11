@@ -283,4 +283,7 @@ export const FR: TranslationTable = Object.freeze({
   'footer.showing': 'On affiche {0} sur {1}. Affine la recherche pour voir le reste.',
   'footer.count': '{0} cles sur {1}',
   'platform.unknown': 'Non determinee',
+  'storage.portable.title': 'Mode portable',
+  'storage.portable.text':
+    'Tes cles sont dans un fichier .db a cote du programme, pas dans ton dossier utilisateur. Si tu deplaces l executable, deplace aussi steam-keys.db et le dossier backups, sinon tu perdras ta collection.',
 });

@@ -413,6 +413,8 @@ export const EN: TranslationTable = Object.freeze({
   'footer.shortcutNew': 'new',
   'footer.showing': 'Showing {0} of {1}. Narrow the search to see the rest.',
   'platform.unknown': 'Undetermined',
+  'storage.portable.title': 'Portable mode',
+  'storage.portable.text': 'Your keys live in a .db file next to the program, not in your user folder. If you move the executable elsewhere, move steam-keys.db and the backups folder with it, or you will be left without your collection.',
 });
 
 /**

@@ -71,6 +71,7 @@ export const fileService = {
       path: info.path,
       exists: info.exists,
       sizeBytes: info.size_bytes,
+      portable: info.portable,
     };
   },
 };
@@ -80,6 +81,7 @@ interface IDatabaseInfoRaw {
   path: string;
   exists: boolean;
   size_bytes: number;
+  portable: boolean;
 }
 
 /**

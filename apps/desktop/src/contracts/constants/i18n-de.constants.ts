@@ -282,4 +282,7 @@ export const DE: TranslationTable = Object.freeze({
   'footer.showing': 'Zeige {0} von {1}. Grenze die Suche ein, um den Rest zu sehen.',
   'footer.count': '{0} von {1} Schluesseln',
   'platform.unknown': 'Nicht ermittelt',
+  'storage.portable.title': 'Tragbarer Modus',
+  'storage.portable.text':
+    'Deine Schluessel liegen in einer .db-Datei neben dem Programm, nicht in deinem Benutzerordner. Wenn du die Programmdatei verschiebst, verschiebe auch steam-keys.db und den Ordner backups, sonst bleibt die Sammlung zurueck.',
 });

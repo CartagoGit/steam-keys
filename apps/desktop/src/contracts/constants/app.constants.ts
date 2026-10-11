@@ -5,12 +5,15 @@ export const APP_IDENTIFIER = 'com.relaxingcup.steamkeys';
 export const APP_NAME = 'Steam Keys';
 
 /**
- * Cadena de conexion de Tauri. La ruta es relativa al directorio de
- * configuracion de la app, es decir, fuera del repositorio.
+ * Nombre del fichero de base de datos, sin ruta.
+ *
+ * La ruta **no** esta aqui a proposito: en modo portable depende de donde este
+ * el ejecutable, y eso solo lo sabe Rust. Antes era la constante `DB_CONNECTION`
+ * con la cadena `sqlite:steam-keys.db`, que el plugin resolvia contra la
+ * carpeta de configuracion del sistema. Con los datos al lado del ejecutable
+ * esa carpeta no es la buena, asi que ahora `tauri-database.service.ts` pide la
+ * ruta al comando `data_directory` y le añade este nombre.
  */
-export const DB_CONNECTION = 'sqlite:steam-keys.db';
-
-/** Nombre del fichero de base de datos, sin ruta. */
 export const DB_FILE_NAME = 'steam-keys.db';
 
 /** Numero de entradas que se pintan por pagina antes de recortar la lista. */

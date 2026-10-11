@@ -8,6 +8,11 @@ export interface IDatabaseInfo {
   exists: boolean;
   /** Tamaño en bytes. `0` si el fichero no existe. */
   sizeBytes: number;
+  /**
+   * `true` si los datos estan al lado del ejecutable y no en la carpeta de
+   * configuracion del sistema.
+   */
+  portable: boolean;
 }
 
 /** Una copia de seguridad de la base de datos. */
@@ -39,6 +44,14 @@ export interface IStorageInfo {
   databasePath: string | null;
   /** `true` si los datos viven en SQLite y no en memoria. */
   persistent: boolean;
+  /**
+   * `true` si los datos estan al lado del ejecutable (modo portable).
+   *
+   * Importa porque en ese modo las claves viajan con la carpeta del programa:
+   * si mueves el ejecutable, te quedas sin ellas salvo que copies tambien el
+   * `.db`. En el modo normal no hay que hacer nada, de ahi que el panel lo diga.
+   */
+  portable: boolean;
   /** Tamaño del fichero, en bytes. `0` si no se puede conocer. */
   databaseSizeBytes: number;
   /** Numero de claves almacenadas. */

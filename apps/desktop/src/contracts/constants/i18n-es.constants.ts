@@ -328,4 +328,6 @@ export const ES: TranslationTable = Object.freeze({
   'footer.showing': 'Mostrando {0} de {1}. Afina la busqueda para ver el resto.',
   'footer.count': '{0} de {1} claves',
   'platform.unknown': 'Sin determinar',
+  'storage.portable.title': 'Modo portable',
+  'storage.portable.text': 'Las claves estan en un .db al lado del programa, no en tu carpeta de usuario. Si mueves el ejecutable a otra carpeta, mueve tambien steam-keys.db y la carpeta backups, o te quedaras sin la coleccion.',
 });

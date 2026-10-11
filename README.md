@@ -15,7 +15,7 @@ Este repositorio **jamás** contiene claves reales.
 | Qué | Dónde | ¿Versionado? |
 |---|---|---|
 | TXT original con las claves | `original/steam-keys.txt` | **No** (`.gitignore`) |
-| Base de datos SQLite | `%APPDATA%\com.relaxingcup.steamkeys\steam-keys.db` | **No** (fuera del repo) |
+| Base de datos SQLite | `dist/steam-keys.db`, junto al ejecutable | **No** (`.gitignore`) |
 | Exportaciones y listados | `build/steam-keys-export.txt` | **No** (`.gitignore`) |
 | Listados enmascarados, sin claves | `build/steam-keys-masked.txt` | **No** (`.gitignore`) |
 
@@ -226,9 +226,33 @@ Lo que el parser **no** puede inventar:
 
 ## Persistencia
 
-La colección vive en **SQLite**, en el directorio de configuración de Windows
-(`%APPDATA%\com.relaxingcup.steamkeys\steam-keys.db`), fuera del repositorio.
-Se crea sola la primera vez y sobrevive a cerrar la app.
+La colección vive en **SQLite**, en un `steam-keys.db` **junto al ejecutable**
+(modo portable), con las copias en `backups/` al lado. Se crea sola la primera
+vez y sobrevive a cerrar la app.
+
+Funciona igual en Windows, macOS y Linux, con una salvedad por plataforma:
+
+| Sistema | Dónde acaba |
+|---|---|
+| Windows | La carpeta donde este el `.exe` |
+| macOS | La carpeta que contiene el `.app` (nunca dentro: esta firmado) |
+| Linux | La carpeta que contiene el binario o el `.AppImage` |
+
+**Si mueves el programa, mueve también `steam-keys.db` y `backups/`.** Si no, las
+claves se quedan en la carpeta antigua. El panel de datos dice siempre dónde
+está el fichero y si está en modo portable.
+
+> **Si la carpeta no se puede escribir**, la app vuelve a la de configuración del
+> sistema (`%APPDATA%\<identificador>\` en Windows) y arranca igualmente. Es lo
+> que pasa al instalarla en `Program Files` o en `/Applications`, donde no hay
+> quien escriba sin permisos de administrador.
+
+Los scripts de consola (`bun run db:path`, `db:backup`, …) miran `dist/` por
+defecto. Para trabajar sobre otra copia:
+
+````bash
+STEAM_KEYS_DATA_DIR=/mnt/usb/steam-keys bun run db:path
+````
 
 ### Copias de seguridad
 
