@@ -47,8 +47,10 @@ async function leerFilas(nombre: string): Promise<readonly IGameKeyRow[]> {
       );
     } finally {
       // Se cierra siempre: dejar conexiones abiertas bloquea el fichero, y el
-      // temporal no se podria borrar.
-      await copia.close().catch(() => undefined);
+      // temporal no se podria borrar. Y se cierra **diciendo cual es**: sin
+      // argumento, `tauri-plugin-sql` cierra todos los pools, incluida la base
+      // de datos principal que esta migracion esta usando para escribir.
+      await copia.close(conexion).catch(() => undefined);
     }
   } finally {
     await invoke('discard_staged_backup').catch(() => undefined);
@@ -76,9 +78,22 @@ export async function migrateLegacyBackups(db: IDatabaseClient): Promise<number>
 
   if (nombres.length === 0) return 0;
 
-  let importadas = 0;
+  // Si una ejecucion anterior se quedo a mitad, dejo un temporal sin borrar al
+  // lado del ejecutable. Se limpia antes de empezar, que aqui no hay nada que
+  // perder todavia.
+  await invoke('discard_staged_backup').catch(() => undefined);
 
-  for (const nombre of nombres) {
+  // Las que ya estan dentro no se vuelven a abrir. No es solo una otimizacion:
+  // si alguna dejo de leerse en una pasada anterior, sin esto la app releeria
+  // en cada arranque todas las copias antiguas para siempre, y son ficheros
+  // enteros de base de datos.
+  const yaDentro = await leerNombres(db);
+  const pendientes = nombres.filter((nombre) => !yaDentro.has(nombre));
+
+  let importadas = 0;
+  let fallos = 0;
+
+  for (const nombre of pendientes) {
     try {
       const filas = await leerFilas(nombre);
 
@@ -98,13 +113,37 @@ export async function migrateLegacyBackups(db: IDatabaseClient): Promise<number>
       importadas += 1;
     } catch {
       // Una copia que no se puede leer no debe impedir las demas. Se sigue con
-      // la siguiente, y la carpeta se queda intacta para otro dia.
+      // la siguiente y la carpeta se queda intacta. No se anota el motivo: no
+      // hay donde mirarlo, y escribir claves de diagnostico en los ajustes del
+      // usuario solo deja basura. Como el nombre no llega a la tabla, el
+      // siguiente arranque lo intentara otra vez por si el fichero estaba a
+      // medias.
+      fallos += 1;
     }
   }
 
-  await marcarMigrada(db);
+  // Solo se marca como hecha si **todas** han entrado. Marcarlo con algunas
+  // fallidas seria la peor opcion: no volverian a intentarse nunca y esas
+  // copias se quedarian fuera para siempre sin que nadie se entere. Con
+  // `INSERT OR IGNORE` volver a intentarlo es inofensivo.
+  if (fallos === 0) {
+    await marcarMigrada(db);
+  }
 
   return importadas;
+}
+
+/** Nombres de las copias que ya estan en la base de datos. */
+async function leerNombres(db: IDatabaseClient): Promise<Set<string>> {
+  try {
+    const filas = await db.select<{ nombre: string }>('SELECT nombre FROM backups');
+
+    return new Set(filas.map((fila) => fila.nombre));
+  } catch {
+    // Sin tabla `backups` todavia —aun no se ha creado el esquema—: no hay nada
+    // que dar por traido y se importa todo.
+    return new Set();
+  }
 }
 
 /** Deja constancia de que la migracion se hizo, para no repetirla. */

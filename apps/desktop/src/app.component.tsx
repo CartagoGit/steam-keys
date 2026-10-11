@@ -334,7 +334,9 @@ export function App() {
         await migrateLegacyBackups(db);
       } catch {
         // Sin carpeta de copias antiguas, o sin permisos para leerla: no hay
-        // nada que hacer y la app sigue con lo que hay.
+        // nada que hacer y la app sigue con lo que hay. Que la migracion no se
+        // haya marcado como hecha no tiene consecuencia: los ficheros siguen
+        // donde estaban y en el siguiente arranque se vuelve a mirar.
       }
     };
 

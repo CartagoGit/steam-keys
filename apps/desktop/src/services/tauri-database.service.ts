@@ -5,6 +5,7 @@ import SqliteDatabase from '@tauri-apps/plugin-sql';
 import { invoke } from '@tauri-apps/api/core';
 
 let connection: SqliteDatabase | null = null;
+let connectionString = '';
 
 /**
  * Cliente SQLite real, sobre el plugin de Tauri.
@@ -44,8 +45,17 @@ export const tauriDatabaseClient: IDatabaseClient = {
 
   async close() {
     if (!connection) return;
-    await connection.close();
+
+    // `close()` **sin argumentos cierra todos los pools del plugin**, no solo
+    // el suyo: es la documentacion del propio `tauri-plugin-sql`. Si se abria
+    // otra base en paralelo —como hace la migracion de las copias antiguas— y
+    // esta cerraba sin decir cual, se llevaria por delante tambien la base
+    // principal y a partir de ahi toda consulta fallaria. Por eso el nombre se
+    // pasa siempre, y es la misma cadena con la que se abrio.
+    await connection.close(connectionString);
+
     connection = null;
+    connectionString = '';
   },
 };
 
@@ -57,8 +67,8 @@ async function getConnection(): Promise<SqliteDatabase> {
   // Se separan con `/` y no con el separador del sistema: el plugin parte la
   // cadena por el primer `:` y lo que venga detras lo pasa tal cual, y tanto
   // Windows como Linux aceptan la barra hacia delante en una ruta de fichero.
-  const ruta = `${directorio}/${DB_FILE_NAME}`;
+  connectionString = `sqlite:${directorio}/${DB_FILE_NAME}`;
 
-  connection = await SqliteDatabase.load(`sqlite:${ruta}`);
+  connection = await SqliteDatabase.load(connectionString);
   return connection;
 }

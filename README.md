@@ -40,7 +40,7 @@ Requisitos: [Bun](https://bun.sh) y (para compilar el `.exe`) Rust.
 ```bash
 bun install          # instala todo el workspace
 bun run dev          # abre la UI en el navegador, con la BD real
-bun test             # 71 tests
+bun test             # 241 tests
 bun run typecheck    # TypeScript en modo estricto
 ```
 
@@ -291,8 +291,9 @@ fichero, cuántas claves hay, si la base está sana y qué copias existen.
 
 - Se guarda una copia **automáticamente** antes de cada importación y de cada
   restauración.
-- Se conservan las **10 más recientes** en la carpeta `backups` contigua al
-  fichero, con el nombre `steam-keys-<fecha>-<motivo>.db`.
+- Se conservan las **10 más recientes**, cada una con su nombre, su motivo y su
+  fecha, dentro de la propia base de datos. Ya no hay carpeta `backups/` ni
+  ficheros sueltos: son filas de la tabla `backups`.
 - Restaurar **nunca borra**: solo añade las claves que falten y, si eliges la
   opción de sobrescribir, devuelve a su estado anterior las que ya tenías.
 - Antes de restaurar se hace otra copia, así que un restore equivocado también
@@ -302,6 +303,14 @@ fichero, cuántas claves hay, si la base está sana y qué copias existen.
 > conexión abierta y SQLite se quedaría con una referencia obsoleta. La copia se
 > deposita como `restore-candidate.db`, se abre con su propia conexión y las
 > filas se fusionan una a una.
+
+#### Y si vienes de una versión que las tenía en ficheros
+
+Quien actualice puede tener copias de las antiguas en la carpeta `backups/` de
+al lado. La app las lee **una vez**, saca sus filas y las guarda en la tabla, y
+ahí se quedan: **los ficheros no se borran ni se tocan**. Si algo falla, no se
+marca la migración como hecha y en el siguiente arranque se vuelve a intentar;
+las que ya están dentro no se vuelven a abrir.
 
 ### Salud de la base
 
