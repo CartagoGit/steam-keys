@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { KEY_PLATFORM_VALUES, KEY_STATUS_VALUES, KeyPlatform, KeyStatus, TRANSLATIONS, platformLabel, statusMeta, type IGameKey, type IGameKeyDraft } from '@/contracts';
 import { Button, Field, INPUT_CLASS, SELECT_CLASS } from './ui.component';
 import { Icon } from './icon.component';
+import { Modal } from './modal.component';
 import { useT } from '@/context/locale.context';
 import { parseTags } from '@/helpers/normalize-text.helper';
 
@@ -63,7 +64,7 @@ export function KeyEditor({ entry, onSave, onClose }: IKeyEditorProps) {
   // escrita dos veces, y si un dia cambia una, la otra se queda hairy.
   const parsedTags = useMemo(() => parseTags(tagsText), [tagsText]);
 
-  const handleSubmit = async (event: React.FormEvent): Promise<void> => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
 
     if (draft.title.trim().length === 0 || draft.keyValue.trim().length === 0) {
@@ -83,16 +84,14 @@ export function KeyEditor({ entry, onSave, onClose }: IKeyEditorProps) {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6 backdrop-blur-sm"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
+    <Modal
+      open
+      onClose={onClose}
+      as="form"
+      onSubmit={handleSubmit}
+      size="lg"
+      label={entry ? t('editor.editTitle') : t('editor.newTitle')}
     >
-      <form
-        onSubmit={handleSubmit}
-        className="animate-scale-in flex max-h-full w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-surface-1 shadow-2xl ring-1 ring-line"
-      >
         <header className="flex items-center justify-between border-b border-line px-5 py-4">
           <div>
             <h2 className="text-base font-semibold text-t1">
@@ -118,7 +117,6 @@ export function KeyEditor({ entry, onSave, onClose }: IKeyEditorProps) {
           <div className="sm:col-span-2">
             <Field label={t('editor.title')} required>
               <input
-                autoFocus
                 className={INPUT_CLASS}
                 value={draft.title}
                 onChange={(event) => patch({ title: event.target.value })}
@@ -225,7 +223,6 @@ export function KeyEditor({ entry, onSave, onClose }: IKeyEditorProps) {
             {entry ? t('editor.save') : t('editor.add')}
           </Button>
         </footer>
-      </form>
-    </div>
+    </Modal>
   );
 }

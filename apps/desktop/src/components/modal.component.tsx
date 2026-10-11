@@ -5,6 +5,17 @@ export interface IModalProps {
   open: boolean;
   onClose: () => void;
   children: React.ReactNode;
+  /**
+   * Elemento que envuelve el contenido del dialogo.
+   *
+   * El editor de claves necesita un `<form>` para que el guardado salga con
+   * Enter desde cualquier campo, y `<div>` dentro de un `<form>` no se puede.
+   * Por eso se puede cambiar la etiqueta en vez de obligar al editor a
+   * mantener su propio fondo, su propio Escape y su propio fondo oscurecido.
+   */
+  as?: 'div' | 'form';
+  /** `onSubmit` del `<form>`, cuando `as="form"`. */
+  onSubmit?: (event: React.FormEvent<HTMLFormElement>) => void;
   /** Ancho maximo del panel. */
   size?: 'sm' | 'md' | 'lg';
   /** Al pulsar fuera, se cierra. Los dialogos de confirmacion, si. */
@@ -25,6 +36,17 @@ const SIZES: Record<TSize, string> = {
 };
 
 /**
+ * Lo que puede recibir el foco dentro de un dialogo.
+ *
+ * `[tabindex]:not([tabindex="-1"])` recoge los que se han hecho enfocables a
+ * proposito con `tabIndex={0}`, que si no se quedarian fuera de la trampa.
+ * `[disabled]` y los de `aria-hidden` no entran: no son alcanzables con el
+ * teclado y enfocar un boton apagado no hace nada.
+ */
+const ENFOCABLES =
+  'a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
+/**
  * Dialogo modal con animacion de entrada y de salida.
  *
  * La parte dificil de animar una salida en React es que al poner
@@ -38,10 +60,70 @@ const SIZES: Record<TSize, string> = {
  * repetir en cada uno: cerrar con Escape, cerrar pulsando fuera, el fondo
  * oscurecido y el `aria-modal`.
  */
+/**
+ * El panel del dialogo: el rectangulo con el contenido, dentro del fondo.
+ *
+ * Vive aparte porque el editor de claves necesita un `<form>` —para que el
+ * guardado salga con Enter desde cualquier campo— y los demas un `<div>`. Ni
+ * `<As tag={...}>` ni un componente parametrizado por la etiqueta compilan:
+ * React comprueba los atributos contra las dos etiquetas a la vez y no hay un
+ * tipo que valga para las dos. Con dos ramas, cada una tipa contra lo suyo y
+ * `onSubmit` solo existe en la que lo necesita.
+ */
+function PanelInterno({
+  ref,
+  form,
+  className,
+  onSalir,
+  onSubmit,
+  children,
+}: {
+  ref: React.RefObject<HTMLDivElement | null>;
+  /** `true` pinta un `<form>` en vez de un `<div>`. */
+  form: boolean;
+  className: string;
+  onSalir: () => void;
+  onSubmit?: (event: React.FormEvent<HTMLFormElement>) => void;
+  children: React.ReactNode;
+}) {
+  // Se filtra por el propio panel: el fondo tambien termina su animacion y si
+  // no se filtra, se cerraria dos veces.
+  const alTerminar = (event: React.AnimationEvent): void => {
+    if (event.target !== event.currentTarget) return;
+
+    onSalir();
+  };
+
+  // `tabIndex={-1}` sin `outline-none`: el anillo de foco se ve cuando el panel
+  // recibe el foco por teclado, que es cuando hace falta saber donde esta. La
+  // trampa de foco lo enfoca al abrir y cuando el Tab se queda sin nada.
+  if (form) {
+    return (
+      <form
+        ref={ref as React.RefObject<HTMLFormElement & HTMLDivElement>}
+        tabIndex={-1}
+        onSubmit={onSubmit}
+        className={className}
+        onAnimationEnd={alTerminar}
+      >
+        {children}
+      </form>
+    );
+  }
+
+  return (
+    <div ref={ref} tabIndex={-1} className={className} onAnimationEnd={alTerminar}>
+      {children}
+    </div>
+  );
+}
+
 export function Modal({
   open,
   onClose,
   children,
+  as: As = 'div',
+  onSubmit,
   size = 'md',
   closeOnBackdrop = true,
   closeOnEscape = true,
@@ -52,6 +134,15 @@ export function Modal({
   const [saliendo, setSaliendo] = useState(false);
 
   const panelRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * El elemento que estaba enfocado cuando se abrio el dialogo.
+   *
+   * Sin guardarlo, al cerrar el foco se queda en el `<body>`: el siguiente Tab
+   * empieza desde arriba de la pagina y hay que recorrer media pantalla hasta
+   * volver al boton. Con esto, el foco vuelve justo a donde estaba.
+   */
+  const abridorRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -78,21 +169,90 @@ export function Modal({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [open, onClose, closeOnEscape]);
 
-  // Al abrir, el foco entra en el dialogo. Sin esto, seguiria en el boton que
-  // lo abrio y el primer Tab se iria al fondo de la pagina, por detras del
-  // fondo oscurecido.
+  // Al abrir, el foco entra en el dialogo y no sale hasta que se cierra.
+  //
+  // Sin esto, seguiria en el boton que lo abrio y el primer Tab se iria al
+  // fondo de la pagina, por detras del fondo oscurecido: el cursor se perdia
+  // en una pantalla que ya no se ve y habia que cazarlo con el raton. En el
+  // editor de claves era peor —el Tab iba a la barra de la pagina y Enter
+  // pulsaba «Anadir» o «Exportar» en vez de guardar.
   useEffect(() => {
     if (!open || !panelRef.current) return;
 
     const panel = panelRef.current;
+    abridorRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
     const primero = panel.querySelector<HTMLElement>(
       'input, textarea, select, button:not([disabled])',
     );
 
-    primero?.focus();
+    (primero ?? panel).focus();
+
+    /**
+     * Los elementos que se pueden enfocar ahora mismo.
+     *
+     * Se recalcula en cada pulsacion porque un dialogo puede mostrar botones
+     * nuevos al cambiar el contenido —confirmar, deshabilitado hasta que se
+     * rellena— y una lista fija dejaria fuera lo que acaba de aparecer.
+     */
+    const enfocables = (): HTMLElement[] =>
+      [...panel.querySelectorAll<HTMLElement>(ENFOCABLES)].filter(
+        (nodo) => nodo.offsetParent !== null || nodo === document.activeElement,
+      );
+
+    const alPulsarTab = (event: KeyboardEvent): void => {
+      if (event.key !== 'Tab') return;
+
+      const lista = enfocables();
+
+      if (lista.length === 0) {
+        // No hay nada que enfocar: el Tab no debe salirse del dialogo.
+        event.preventDefault();
+        panel.focus();
+        return;
+      }
+
+      const primero_ = lista[0]!;
+      const ultimo = lista[lista.length - 1]!;
+      const activo = document.activeElement;
+
+      // Cycle: del ultimo al primero, y del primero al ultimo. Sin Shift, que
+      // es el caso normal; con Shift, en sentido contrario.
+      if (event.shiftKey && (activo === primero_ || activo === panel)) {
+        event.preventDefault();
+        ultimo.focus();
+      } else if (!event.shiftKey && activo === ultimo) {
+        event.preventDefault();
+        primero_.focus();
+      }
+    };
+
+    panel.addEventListener('keydown', alPulsarTab);
+
+    return () => {
+      panel.removeEventListener('keydown', alPulsarTab);
+      // El elemento puede haberse desmontado con el dialogo.
+      abridorRef.current?.focus();
+      abridorRef.current = null;
+    };
   }, [open]);
 
   if (!visible) return null;
+
+  /**
+   * Cierra de verdad: termina la animacion de salida y desmonta.
+   *
+   * `onAnimationEnd` salta tambien al terminar la animacion de **entrada**, y
+   * ese momento no es para cerrar: sin esta comprobacion el dialogo se
+   * cerraria justo despues de abrirse.
+   */
+  const terminarSalida = (): void => {
+    if (!saliendo) return;
+
+    setVisible(false);
+    setSaliendo(false);
+  };
 
   const clases = [
     // `flex max-h-[...] flex-col` es lo que hace que el `flex-1 overflow-y-auto`
@@ -123,21 +283,15 @@ export function Modal({
       aria-modal="true"
       aria-label={label}
     >
-      <div
+      <PanelInterno
         ref={panelRef}
+        form={As === 'form'}
         className={clases}
-        onAnimationEnd={(event) => {
-          // Se filtra por el propio panel: el fondo tambien termina su
-          // animacion y si no se filtra, se cerraria dos veces.
-          if (event.target !== event.currentTarget) return;
-          if (!saliendo) return;
-
-          setVisible(false);
-          setSaliendo(false);
-        }}
+        onSalir={terminarSalida}
+        onSubmit={onSubmit}
       >
         {children}
-      </div>
+      </PanelInterno>
     </div>
   );
 }
