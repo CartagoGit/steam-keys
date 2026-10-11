@@ -81,6 +81,9 @@ export const backupService = {
       const resultado = filas[0]?.integrity_check;
 
       if (resultado === 'ok') {
+      // 'ok' es lo que devuelve `PRAGMA integrity_check` de SQLite, no un valor
+      // nuestro: no hay enum al que convertirlo, y meterlo seria traducir el
+      // dialecto para luego no usar la traduccion.
         return { health: StorageHealth.Ok, detail: null };
       }
 

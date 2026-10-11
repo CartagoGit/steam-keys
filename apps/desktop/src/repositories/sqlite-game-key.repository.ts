@@ -9,7 +9,7 @@ import {
   normalizeKey,
   serializeTags,
 } from '@/helpers/normalize-text.helper';
-import { KeyPlatform, KeySource, KeyStatus, type IDatabaseClient, type IGameKey, type IGameKeyDraft, type IGameKeyInput, type IGameKeyRepository, type IGameKeyRow, type IImportRow, type IImportSummary } from '@/contracts';
+import { KeyPlatform, KeySource, KeyStatus, TABLE_GAME_KEYS, type IDatabaseClient, type IGameKey, type IGameKeyDraft, type IGameKeyInput, type IGameKeyRepository, type IGameKeyRow, type IImportRow, type IImportSummary } from '@/contracts';
 
 /**
  * Repositorio de keys sobre SQLite.
@@ -150,26 +150,27 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
   ): Promise<void> {
     if (entries.length === 0) return;
 
+    const total = entries.length;
     const ids = entries.map((entry) => entry.id);
-    const idPlaceholders = sqlPlaceholders(ids.length, 2);
 
-    // Los destinatarios van detras de los ids, que ocupan del 2 al 1+ids.length.
-    const casosDesde = ids.length + 2;
+    // Orden de los valores: `$1` estado, `$2` sello, y a partir de ahi los ids y
+    // los destinatarios. Los indices se cuentan aqui y no a mano porque dos
+    // listas en la misma sentencia se pisan en silencio (mira `sqlPlaceholders`).
+    const idPlaceholders = sqlPlaceholders(total, 3);
+    const casosDesde = 3 + total;
 
     const cases = entries
-      .map(
-        (_, index) =>
-          `WHEN ${index + 1} THEN $${casosDesde + index}`,
-      )
+      .map((_, indice) => `WHEN ${indice + 1} THEN $${casosDesde + indice}`)
       .join(' ');
 
     await this.db.execute(
-      `UPDATE game_keys
-          SET status = 'gifted',
+      `UPDATE ${TABLE_GAME_KEYS}
+          SET status = $1,
               gifted_to = CASE id ${cases} END,
-              updated_at = $1
+              updated_at = $2
         WHERE id IN (${idPlaceholders})`,
       [
+        KeyStatus.Gifted,
         touchTimestamp(),
         ...ids,
         ...entries.map((entry) => entry.giftedTo),

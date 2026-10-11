@@ -1,4 +1,19 @@
-import { APP_LOCALE_VALUES, APP_THEME_VALUES, AppTheme, DEFAULT_LOCALE, type AppLocale } from '@/contracts';
+import {
+  APP_LOCALE_VALUES,
+  APP_THEME_VALUES,
+  APP_VIEW_VALUES,
+  AppTheme,
+  AppView,
+  DEFAULT_KEY_KIND,
+  DEFAULT_KEY_SCOPE,
+  DEFAULT_LOCALE,
+  DEFAULT_VIEW,
+  KEY_KIND_VALUES,
+  KEY_SCOPE_VALUES,
+  KeyKind,
+  KeyScope,
+  type AppLocale,
+} from '@/contracts';
 
 /**
  * Lectura y escritura de valores en la tabla de ajustes.
@@ -61,4 +76,25 @@ export function readLocale(value: string | undefined): AppLocale {
   return APP_LOCALE_VALUES.includes(value as AppLocale)
     ? (value as AppLocale)
     : DEFAULT_LOCALE;
+}
+
+/** Lee el ambito del filtro, validando contra la lista. */
+export function readScope(value: string | undefined): KeyScope {
+  return KEY_SCOPE_VALUES.includes(value as KeyScope)
+    ? (value as KeyScope)
+    : DEFAULT_KEY_SCOPE;
+}
+
+/** Lee el tipo de clave del filtro, validando contra la lista. */
+export function readKind(value: string | undefined): KeyKind {
+  return KEY_KIND_VALUES.includes(value as KeyKind)
+    ? (value as KeyKind)
+    : DEFAULT_KEY_KIND;
+}
+
+/** Lee la vista abierta, validando contra la lista. */
+export function readView(value: string | undefined): AppView {
+  return APP_VIEW_VALUES.includes(value as AppView)
+    ? (value as AppView)
+    : DEFAULT_VIEW;
 }

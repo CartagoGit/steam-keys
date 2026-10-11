@@ -1,5 +1,7 @@
 import type { AppLocale } from '../enums/app-locale.enum';
 import type { AppTheme } from '../enums/app-theme.enum';
+import type { AppView } from '../enums/app-view.enum';
+import type { KeyKind, KeyScope } from '../enums/key-scope.enum';
 
 /**
  * Ajustes de la aplicacion, guardados en la tabla `app_settings`.
@@ -28,11 +30,11 @@ export interface IAppSettings {
   /** Ultima sincronizacion correcta, en ISO. */
   steamSyncedAt: string | null;
   /** Que ambito estaba seleccionado la ultima vez. */
-  lastScope: string;
+  lastScope: KeyScope;
   /** Que tipo estaba seleccionado la ultima vez. */
-  lastKind: string;
+  lastKind: KeyKind;
   /** Que vista estaba abierta la ultima vez. */
-  lastView: string;
+  lastView: AppView;
 }
 
 /** Claves de la tabla `app_settings`. */
@@ -47,7 +49,9 @@ export type AppSettingKey =
   //Caiga donde se dejo y no haya que volver a pulsar los filtros cada vez.
   | 'lastScope'
   | 'lastKind'
-  | 'lastView';
+  | 'lastView'
+  /** Marca de que las copias antiguas ya se han traido a la base de datos. */
+  | 'backupsMigratedToDatabase';
 
 /** Un ajuste tal y como sale de la tabla, antes de interpretar el tipo. */
 export interface ISettingRow {

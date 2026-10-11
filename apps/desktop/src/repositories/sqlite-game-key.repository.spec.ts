@@ -140,6 +140,28 @@ describe('cambiar el estado de varias claves a la vez', () => {
   });
 });
 
+describe('regalar varias claves a la vez', () => {
+  // Aqui no hay tests de `giftMany` a proposito, y el motivo merece explicarse
+  // porque es justo la trampa que hace escribir un test que miente.
+  //
+  // `giftMany` arma un `CASE` con un destinatario por clave. Para eso la
+  // sentencia necesita marcadores `$1`, `$2`... numerados, que es lo que habla
+  // el motor de verdad: sqlx, en Rust.
+  //
+  // Pero `bun:sqlite` **cuenta esos marcadores mal**. Con seis marcadores
+  // numerados distintos y siete valores responde `expected 6 values, received
+  // 7`; y cuando el numero si coincide, enlaza los valores al reves y actualiza
+  // cero filas sin decir nada. Se comprobo aislando el SQL.
+  //
+  // Un test aqui, entonces, no comprobaria el codigo: comprobaria que
+  // `bun:sqlite` se equivoca. Pasaria con el bug puesto y fallaria con el
+  // codigo bien, que es peor que no tener ninguno.
+  //
+  // Lo que si es comprobable son los indices, y se comprueba mas abajo en
+  // `sql.helper.spec.ts`: esa es la parte que falla en silencio de verdad, y la
+  // que motivo los errores de `setStatusMany` y `setTagsMany`.
+});
+
 describe('el estado y la plataforma por defecto', () => {
   test('una clave nueva nace con la plataforma declarada en el enum', async () => {
     const { repo, leer, limpiar } = crearRepositorio();

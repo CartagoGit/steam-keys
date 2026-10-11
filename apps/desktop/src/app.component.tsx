@@ -18,7 +18,7 @@ import { TagsDialog } from './components/tags-dialog.component';
 import { Toolbar } from './components/toolbar.component';
 import { Button } from './components/ui.component';
 
-import { AppView, DEFAULT_VIEW, KeyKind, KeyScope, KeySort, KeyStatus, PAGE_SIZE, SEARCH_SHORTCUT, mergeTags, removeTags, type AppLocale, type IAppSettings, type IGameKey, type IGameKeyDraft, type IImportSummary, type IKeyFilter, type ISteamOwnedGame, type SteamAccountStatus, type TranslationArgs, type Translator } from '@/contracts';
+import { AppTheme, AppView, DEFAULT_VIEW, KEY_STATUS_VALUES, StorageMode, KeyScope, KeySort, KeyStatus, PAGE_SIZE, SEARCH_SHORTCUT, mergeTags, removeTags, type AppLocale, type IAppSettings, type IGameKey, type IGameKeyDraft, type IImportSummary, type IKeyFilter, type ISteamOwnedGame, type SteamAccountStatus, type TranslationArgs, type Translator } from '@/contracts';
 import { computeStats, emptyFilter, filterKeys, sortKeys } from '@/helpers/filter-keys.helper';
 import { analyzeSelection, claveGrupo, groupByTitle, podarSeleccion, type SelectAction } from '@/helpers/selection.helper';
 import { useKeepMounted } from '@/helpers/use-exit-animation.helper';
@@ -40,14 +40,14 @@ import {
   STORAGE_MODE_NOTICE,
 } from '@/helpers/runtime.helper';
 
-/** Ciclo de estados al pulsar sobre la pastilla de una fila. */
-const STATUS_CYCLE: readonly KeyStatus[] = [
-  KeyStatus.Available,
-  KeyStatus.Gifted,
-  KeyStatus.Redeemed,
-  KeyStatus.Expired,
-  KeyStatus.Unknown,
-];
+/**
+ * Ciclo de estados al pulsar sobre la pastilla de una fila.
+ *
+ * Es `KEY_STATUS_VALUES` y no una lista propia: estaba escrita aqui con los
+ * mismos cinco valores, y al anadir un estado al enum el clic seguia dando la
+ * vuelta por los antiguos.
+ */
+const STATUS_CYCLE = KEY_STATUS_VALUES;
 
 /**
  * El filtro arranca con lo que se dejo la ultima vez.
@@ -60,8 +60,11 @@ function initialFilter(cargados: IAppSettings): IKeyFilter {
 
   return {
     ...base,
-    scope: (cargados.lastScope as KeyScope) || base.scope,
-    kind: (cargados.lastKind as KeyKind) || base.kind,
+    // `lastScope` y `lastKind` ya vienen validados desde el servicio de ajustes:
+    // si el valor guardado no existe, ahi se sustituye por el de defecto. Por eso
+    // ya no hace falta castearlos ni comprobar nada mas aqui.
+    scope: cargados.lastScope,
+    kind: cargados.lastKind,
   };
 }
 
@@ -277,7 +280,7 @@ export function App() {
         setIdioma(cargados.locale);
         applyTheme(cargados.theme);
         setFilter(initialFilter(cargados));
-        setVista(cargados.lastView === AppView.Games ? AppView.Games : DEFAULT_VIEW);
+        setVista(cargados.lastView);
 
         if (cargados.steamApiKey && cargados.steamId) {
           const juegos = await steamService.getOwnedGames(
@@ -1133,7 +1136,7 @@ export function App() {
             title={traducir(STORAGE_MODE_NOTICE[getStorageMode()])}
             className={[
               'flex items-center gap-1.5',
-              getStorageMode() === 'memory' ? 'text-warn' : 'text-t4',
+              getStorageMode() === StorageMode.Memory ? 'text-warn' : 'text-t4',
             ].join(' ')}
           >
             <Icon name="package" size={12} />
@@ -1312,10 +1315,10 @@ function etiquetasComunes(entries: readonly IGameKey[]): readonly string[] {
  * el CSS del todo, porque hay reglas de los componentes que dependen de
  * variables y hay que resolverlas aqui una sola vez y para todas.
  */
-function applyTheme(tema: string): void {
+function applyTheme(tema: AppTheme): void {
   if (typeof document === 'undefined') return;
 
-  if (tema !== 'system') {
+  if (tema !== AppTheme.System) {
     document.documentElement.dataset.theme = tema;
     return;
   }
@@ -1324,7 +1327,9 @@ function applyTheme(tema: string): void {
     typeof matchMedia === 'function' &&
     matchMedia('(prefers-color-scheme: light)').matches;
 
-  document.documentElement.dataset.theme = claro ? 'light' : 'dark';
+  document.documentElement.dataset.theme = claro
+    ? AppTheme.Light
+    : AppTheme.Dark;
 }
 
 interface IEmptyStateProps {

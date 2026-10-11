@@ -1,9 +1,21 @@
-import { AppTheme, DEFAULT_LOCALE, type IAppSettings, type ISettingRow } from '@/contracts';
+import {
+  AppTheme,
+  DEFAULT_KEY_KIND,
+  DEFAULT_KEY_SCOPE,
+  DEFAULT_LOCALE,
+  DEFAULT_VIEW,
+  TABLE_APP_SETTINGS,
+  type IAppSettings,
+  type ISettingRow,
+} from '@/contracts';
 import { getDatabaseClient } from '@/repositories/repository.factory';
 import {
   readBool,
+  readKind,
   readLocale,
+  readScope,
   readTheme,
+  readView,
   serializeSetting,
 } from '@/helpers/settings.helper';
 
@@ -15,9 +27,9 @@ export const DEFAULT_SETTINGS: IAppSettings = Object.freeze({
   steamId: '',
   steamLinked: false,
   steamSyncedAt: null,
-  lastScope: 'available',
-  lastKind: 'all',
-  lastView: 'keys',
+  lastScope: DEFAULT_KEY_SCOPE,
+  lastKind: DEFAULT_KEY_KIND,
+  lastView: DEFAULT_VIEW,
 });
 
 /**
@@ -53,9 +65,9 @@ export const settingsService = {
       steamId: tabla.get('steamId') ?? DEFAULT_SETTINGS.steamId,
       steamLinked: readBool(tabla.get('steamLinked')),
       steamSyncedAt: tabla.get('steamSyncedAt') || null,
-      lastScope: tabla.get('lastScope') || DEFAULT_SETTINGS.lastScope,
-      lastKind: tabla.get('lastKind') || DEFAULT_SETTINGS.lastKind,
-      lastView: tabla.get('lastView') || DEFAULT_SETTINGS.lastView,
+      lastScope: readScope(tabla.get('lastScope')),
+      lastKind: readKind(tabla.get('lastKind')),
+      lastView: readView(tabla.get('lastView')),
     };
   },
 
@@ -64,22 +76,22 @@ export const settingsService = {
     const db = await getDatabaseClient();
 
     await db.execute(
-      `INSERT INTO app_settings (key, value) VALUES ($1, $2)
+      `INSERT INTO ${TABLE_APP_SETTINGS} (key, value) VALUES ($1, $2)
          ON CONFLICT (key) DO UPDATE SET value = excluded.value`,
       [key, serializeSetting(value)],
     );
   },
 
-  /** Guarda varios ajustes en una sola transaccion logica. */
+  /**
+   * Guarda varios ajustes.
+   *
+   * Delega en `set` en vez de repetir la sentencia: eran el mismo `INSERT`
+   * escrito dos veces, y si un dia cambia solo se acordaba uno. Ademas
+   * `setMany` abria una conexion para nada cuando el parche venia vacio.
+   */
   async setMany(patch: Partial<IAppSettings>): Promise<void> {
-    const db = await getDatabaseClient();
-
     for (const [key, value] of Object.entries(patch)) {
-      await db.execute(
-        `INSERT INTO app_settings (key, value) VALUES ($1, $2)
-           ON CONFLICT (key) DO UPDATE SET value = excluded.value`,
-        [key, serializeSetting(value)],
-      );
+      await this.set(key as keyof IAppSettings, value as never);
     }
   },
 
