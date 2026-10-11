@@ -54,6 +54,14 @@ export const EN: TranslationTable = Object.freeze({
   'empty.noResultsHint': 'Try a different search or clear one of the filters.',
   'empty.clearFilters': 'Clear filters',
 
+  // ------------------------------------------------------- first run ---
+  'firstRun.title': 'There is no database yet',
+  'firstRun.body': 'None has been created. It will be created when you add or import your first key, next to the program, in {0}.',
+  'firstRun.moved.title': 'You copied the program from somewhere else',
+  'firstRun.moved.body': 'Your keys, your settings and your Steam account all live inside {0}. If you only copied the executable, copy that file from the original folder too and leave it next to it; otherwise you would start from scratch.',
+  'firstRun.bring': 'Bring the database',
+  'firstRun.create': 'Start from scratch',
+
   // -------------------------------------------------------------- header ---
   'app.title': 'Steam Keys',
   'app.subtitle': '{0} available of {1}',

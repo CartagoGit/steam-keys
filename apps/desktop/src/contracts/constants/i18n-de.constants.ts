@@ -16,6 +16,14 @@ export const DE: TranslationTable = Object.freeze({
   'empty.noResults': 'Keine Treffer',
   'empty.noResultsHint': 'Versuche eine andere Suche oder entferne einen Filter.',
   'empty.clearFilters': 'Filter zuruecksetzen',
+  'firstRun.title': 'Es gibt noch keine Datenbank',
+  'firstRun.body':
+    'Es wurde noch keine angelegt. Sie entsteht, sobald du den ersten Key hinzufuegst oder importierst, direkt neben dem Programm, in {0}.',
+  'firstRun.moved.title': 'Du hast das Programm von woanders kopiert',
+  'firstRun.moved.body':
+    'Deine Keys, deine Einstellungen und dein Steam-Konto liegen alle in {0}. Wenn du nur die Programmdatei kopiert hast, kopiere diese Datei aus dem Originalordner ebenfalls und lass sie danebenliegen; sonst faengst du bei null an.',
+  'firstRun.bring': 'Datenbank mitbringen',
+  'firstRun.create': 'Von vorn anfangen',
   'action.edit': 'Bearbeiten',
   'action.delete': 'Loeschen',
   'action.copy': 'Kopieren',

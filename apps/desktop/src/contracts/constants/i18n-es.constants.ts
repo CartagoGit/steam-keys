@@ -29,6 +29,14 @@ export const ES: TranslationTable = Object.freeze({
   'empty.noResults': 'Ningun resultado',
   'empty.noResultsHint': 'Prueba a cambiar la busqueda o quitar algun filtro.',
   'empty.clearFilters': 'Limpiar filtros',
+
+  // --------------------------------------------------- primer arranque ---
+  'firstRun.title': 'Todavia no hay base de datos',
+  'firstRun.body': 'No se ha creado ninguna. Se creara en cuanto anadas o importes la primera clave, al lado del programa, en {0}.',
+  'firstRun.moved.title': 'Has copiado el programa desde otro sitio',
+  'firstRun.moved.body': 'Las claves, los ajustes y la cuenta de Steam estan dentro de {0}. Si has copiado solo el ejecutable, copia tambien ese fichero de la carpeta de origen y dejalo al lado; si no, empezarias de cero.',
+  'firstRun.bring': 'Traer la base de datos',
+  'firstRun.create': 'Empezar de cero',
   'action.edit': 'Editar',
   'action.delete': 'Eliminar',
   'action.copy': 'Copiar',

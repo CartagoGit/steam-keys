@@ -28,10 +28,13 @@ import { analyzeSelection, claveGrupo, groupByTitle, podarSeleccion, type Select
 import { mergeTags, removeTags } from '@/contracts/constants/tag.constants';
 import { useKeepMounted } from '@/helpers/use-exit-animation.helper';
 import type { TranslationArgs, Translator } from '@/contracts/constants/i18n.constants';
+import type { IStartup } from '@/services/startup.service';
 import type { AppLocale } from '@/contracts/enums/app-locale.enum';
 import { gameKeyService } from '@/services/game-key.service';
 import { settingsService, DEFAULT_SETTINGS } from '@/services/settings.service';
 import { storageService } from '@/services/storage.service';
+import { inspectStartup } from '@/services/startup.service';
+import { FirstRun } from '@/components/first-run.component';
 import { steamService, SteamError, resolveSteamId } from '@/services/steam.service';
 import {
   getStorageMode,
@@ -118,6 +121,19 @@ export function App() {
   const [ajustesListos, setAjustesListos] = useState(false);
 
   /**
+   * Si al arrancar hay base de datos o no.
+   *
+   * `null` mientras se comprueba, que es un estado distinto de los dos: no se
+   * puede pintar el aviso de "no hay base de datos" antes de saber si la hay, o
+   * un arranque lento enseño un aviso falso.
+   *
+   * Mientras vale `empty` **no se abre la base de datos**, y por tanto no se
+   * llama a `migrate()` ni se escribe nada. Es lo que evita que aparezca un
+   * `steam-keys.db` de cero bytes el simple hecho de arrancar el programa.
+   */
+  const [arranque, setArranque] = useState<IStartup | null>(null);
+
+  /**
    * Que tabla se ve: las claves o los juegos de Steam.
    *
    * No es un filtro sino otra coleccion, asi que no vive en `filter`. Se
@@ -201,6 +217,31 @@ export function App() {
   }, []);
 
   // --------------------------------------------------------- carga de datos ---
+  /**
+   * Comprueba si hay base de datos **antes** de abrirla.
+   *
+   * Va el primero de todo y por su cuenta. Abrir la base de datos la crea: por
+   * eso la pregunta tiene que ser "mira el fichero", no "abre y mira si hay
+   * tablas". Preguntar despues de abrir seria tarde, el fichero ya esta en disco.
+   *
+   * Si el idioma guardado se lee aqui se perderia el motivo de mirar el
+   * fichero: `settingsService.load()` abre la base de datos, y con eso ya no se
+   * puede saber si estaba antes. Por eso el arranque va aparte y, mientras valga
+   * `empty`, los dos efectos de carga de abajo no llegan a dispararse.
+   */
+  useEffect(() => {
+    const mirar = async (): Promise<void> => {
+      const estado = await inspectStartup();
+
+      // El idioma sale aqui, y no de los ajustes, porque todavia no hay ajustes
+      // que leer: estan dentro de la base de datos que estamos comprobando.
+      setIdioma(estado.locale);
+      setArranque(estado);
+    };
+
+    void mirar();
+  }, []);
+
   const reload = useCallback(async (): Promise<void> => {
     try {
       setKeys(await gameKeyService.list());
@@ -215,11 +256,17 @@ export function App() {
   }, [notify]);
 
   useEffect(() => {
+    // Sin base de datos no se toca nada: ni claves, ni ajustes. Es lo que
+    // mantiene el programa sin crear un fichero vacio al abrirlo.
+    if (arranque?.database !== 'ready') return;
+
     void reload();
-  }, [reload]);
+  }, [reload, arranque]);
 
   /** Carga los ajustes y, si ya habia una cuenta conectada, su biblioteca. */
   useEffect(() => {
+    if (arranque?.database !== 'ready') return;
+
     const cargar = async (): Promise<void> => {
       try {
         const cargados = await settingsService.load();
@@ -256,7 +303,7 @@ export function App() {
     };
 
     void cargar();
-  }, []);
+  }, [arranque]);
 
   // --------------------------------------------------------------- filtros ---
   const patchFilter = useCallback((changes: Partial<IKeyFilter>): void => {
@@ -949,6 +996,19 @@ export function App() {
   return (
     <LocaleContext.Provider value={t}>
     <div className="flex h-full flex-col bg-surface-0">
+      {/*
+       * Primer arranque. Va antes que la barra porque no hay coleccion todavia
+       * y las dos cosas que se pueden hacer —traer la base de datos o empezar de
+       * cero— son las unicas que existen: abrir la barra ofereceria filtros y
+       * acciones sobre una lista vacia que todavia no esta ni en disco.
+       */}
+      {arranque === null ? null : arranque.database === 'empty' ? (
+        <FirstRun
+          databasePath={arranque.databasePath}
+          onStartEmpty={() => setArranque({ ...arranque, database: 'ready' })}
+        />
+      ) : (
+        <>
       <Toolbar
         filter={filter}
         stats={stats}
@@ -1165,6 +1225,8 @@ export function App() {
       ) : null}
 
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
+        </>
+      )}
     </div>
     </LocaleContext.Provider>
   );

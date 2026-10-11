@@ -569,6 +569,75 @@ fn stage_backup(app: tauri::AppHandle, name: String) -> Result<String, String> {
     Ok(format!("sqlite:{}", destino.to_string_lossy()))
 }
 
+/// Adopta una base de datos venida de otra carpeta.
+///
+/// Es el otro camino del primer arranque: alguien copia el programa a otro
+/// sitio, pero trae tambien el `steam-keys.db` de la copia buena. En vez de
+/// fusionarla fila a fila como las copias de seguridad —que aqui no hay nada
+/// que fusionar todavia— se comprueba que sea una base valida y se coloca
+/// entera donde la app la va a buscar.
+///
+/// La copia se hace a un temporal primero y solo se mueve al sitio definitivo
+/// cuando el origen se ha podido abrir. Mover primero y fallar despues dejaria
+/// media base de datos en el sitio bueno, que es peor que no tener ninguna.
+#[tauri::command]
+fn adopt_database(app: tauri::AppHandle, source: String) -> Result<(), String> {
+    let origen = PathBuf::from(&source);
+
+    if !origen.is_file() {
+        return Err("El fichero elegido no existe.".to_string());
+    }
+
+    let directorio = config_dir(&app)?;
+    let destino = directorio.join(DB_FILE_NAME);
+
+    // La base de datos ya viva no se pisa: si ya hay una, el camino correcto es
+    // restaurar una copia, no sustituirla por un fichero abierto en otra parte.
+    if destino.is_file() {
+        return Err("Ya hay una base de datos aqui.".to_string());
+    }
+
+    let temporal = directorio.join(STAGED_FILE_NAME);
+
+    fs::copy(&origen, &temporal)
+        .map_err(|error| format!("No se pudo copiar {source}: {error}"))?;
+
+    // Se comprueba la cabecera antes de darlo por bueno. Un `.db` a medias, de
+    // otra version o que no es una base de datos se reconoce aqui y no
+    // despues, con el mensaje de error hueco que da el plugin a mitad de la
+    // interfaz.
+    if let Err(error) = comprobar_sqlite(&temporal) {
+        let _ = fs::remove_file(&temporal);
+        return Err(error);
+    }
+
+    fs::rename(&temporal, &destino)
+        .map_err(|error| format!("No se pudo dejar la base de datos en su sitio: {error}"))
+}
+
+/// Comprueba que un fichero sea una base de datos de SQLite de verdad.
+///
+/// Se mira la cabecera en vez de abrir el fichero porque el plugin de SQL solo
+/// expone su API al frontend, no a Rust. La cabecera son los 16 bytes con los
+/// que empieza todo fichero SQLite.
+///
+/// Que la cabecera cuadre no significa que la base este entera, pero descarta
+/// el caso de verdad habitual —un `.db` de cero bytes, un fichero de texto o el
+/// que estaba a mitad de una copia— sin anadir la dependencia de un motor SQLite
+/// solo para poder abrir un fichero.
+fn comprobar_sqlite(ruta: &Path) -> Result<(), String> {
+    /// Los 16 bytes con los que empieza todo fichero SQLite.
+    const CABECERA: &[u8; 16] = b"SQLite format 3\0";
+
+    let bytes = fs::read(ruta).map_err(|error| format!("No se pudo leer el fichero: {error}"))?;
+
+    if bytes.len() < CABECERA.len() || &bytes[..CABECERA.len()] != CABECERA {
+        return Err("Ese fichero no es una base de datos de SQLite.".to_string());
+    }
+
+    Ok(())
+}
+
 /// Borra la copia preparada tras usarla.
 #[tauri::command]
 fn discard_staged_backup(app: tauri::AppHandle) -> Result<(), String> {
@@ -643,6 +712,7 @@ pub fn run() {
             create_backup,
             list_backups,
             stage_backup,
+            adopt_database,
             discard_staged_backup,
             delete_backup
         ])
@@ -746,6 +816,48 @@ mod tests {
 
         assert!(es_escribible(&temporal));
         assert!(!es_escribible(Path::new("/no/existe/esta/carpeta")));
+    }
+
+    #[test]
+    fn una_base_de_datos_valida_pasa_la_comprobacion() {
+        let ruta = std::env::temp_dir().join("comprobada-valida.db");
+
+        // Cabecera de SQLite seguida de algo de contenido.
+        fs::write(&ruta, b"SQLite format 3\0\x00\x10\x00\x01\x01\x00@\x00\x00\x00\x01pagina")
+            .expect("no se pudo escribir");
+
+        assert_eq!(comprobar_sqlite(&ruta), Ok(()));
+
+        let _ = fs::remove_file(&ruta);
+    }
+
+    #[test]
+    fn un_fichero_vacio_o_que_no_es_base_de_datos_se_rechaza() {
+        let ruta = std::env::temp_dir().join("comprobada-invalida.db");
+
+        // Cero bytes: es el caso de verdad de la copia a medias.
+        fs::write(&ruta, b"").expect("no se pudo escribir");
+        assert!(comprobar_sqlite(&ruta).is_err());
+
+        // Un TXT cualquiera, que es lo que se elige por error en el dialogo.
+        fs::write(&ruta, b"Steam Key: ABCDE-FGHIJ-KLMNO\n").expect("no se pudo escribir");
+        assert!(comprobar_sqlite(&ruta).is_err());
+
+        // Cabecera parecida pero no exacta: la diferencia esta en el final.
+        fs::write(&ruta, b"SQLite format 2\0\x00\x10\x00\x01\x01\x00@")
+            .expect("no se pudo escribir");
+        assert!(comprobar_sqlite(&ruta).is_err());
+
+        // Mas corto que la cabecera.
+        fs::write(&ruta, b"SQLite").expect("no se pudo escribir");
+        assert!(comprobar_sqlite(&ruta).is_err());
+
+        let _ = fs::remove_file(&ruta);
+    }
+
+    #[test]
+    fn un_fichero_que_no_existe_se_rechaza() {
+        assert!(comprobar_sqlite(Path::new("/no/existe/este/fichero.db")).is_err());
     }
 
     #[test]

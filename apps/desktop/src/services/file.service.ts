@@ -61,6 +61,29 @@ export const fileService = {
     return invoke<string>('database_path');
   },
 
+  /**
+   * Elige una base de datos y la deja en su sitio.
+   *
+   * Es la primera mitad de "traer la coleccion de otra carpeta": el usuario
+   * elige el `.db`, Rust comprueba que sea de verdad y lo copia al lado del
+   * programa. No hay fusion de filas porque todavia no hay nada que fusionar.
+   */
+  async adoptDatabase(title: string): Promise<boolean> {
+    if (!isTauri()) return false;
+
+    const selected = await open({
+      title,
+      multiple: false,
+      directory: false,
+      filters: [{ name: 'Base de datos', extensions: ['db', 'sqlite', 'sqlite3'] }],
+    });
+
+    if (typeof selected !== 'string') return false;
+
+    await invoke('adopt_database', { source: selected });
+    return true;
+  },
+
   /** Ruta, existencia y tamaño del fichero de base de datos. */
   async databaseInfo(): Promise<IDatabaseInfo | null> {
     if (!isTauri()) return null;

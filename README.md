@@ -227,8 +227,14 @@ Lo que el parser **no** puede inventar:
 ## Persistencia
 
 La colección vive en **SQLite**, en un `steam-keys.db` **junto al ejecutable**
-(modo portable), con las copias en `backups/` al lado. Se crea sola la primera
-vez y sobrevive a cerrar la app.
+(modo portable), con las copias en `backups/` al lado. Sobrevive a cerrar la
+app.
+
+**No se crea hasta que hay algo que guardar.** La primera vez la app mira si el
+fichero está —sin abrirlo, porque abrirlo ya lo crearía— y, si no está, enseña
+un aviso con los dos caminos reales: traer el `steam-keys.db` de la carpeta de
+origen (si lo que has copiado ha sido solo el ejecutable), o empezar de cero. El
+fichero aparece en cuanto añades o importas la primera clave.
 
 Funciona igual en Windows, macOS y Linux, con una salvedad por plataforma:
 
@@ -246,6 +252,18 @@ está el fichero y si está en modo portable.
 > sistema (`%APPDATA%\<identificador>\` en Windows) y arranca igualmente. Es lo
 > que pasa al instalarla en `Program Files` o en `/Applications`, donde no hay
 > quien escriba sin permisos de administrador.
+
+### La base de datos de desarrollo
+
+`bun run dev` **no toca la base de datos de la app**. El puente de desarrollo
+trabaja sobre `.dev/steam-keys-dev.db`, una copia aparte con el mismo esquema.
+El pie de la ventana lo dice, para que no se confunda una con la otra.
+
+Para mirar tus claves de verdad desde el navegador:
+
+````bash
+STEAM_KEYS_DB_PATH=dist/steam-keys.db bun run dev
+````
 
 Los scripts de consola (`bun run db:path`, `db:backup`, …) miran `dist/` por
 defecto. Para trabajar sobre otra copia:
