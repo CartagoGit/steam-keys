@@ -12,7 +12,7 @@ export { AppLocale, APP_LOCALE_VALUES, DEFAULT_LOCALE } from './app-locale.enum'
 export { AppTheme, APP_THEME_VALUES, APP_THEME_SWATCHES } from './app-theme.enum';
 export { AppView, APP_VIEW_VALUES, DEFAULT_VIEW } from './app-view.enum';
 
-export { BackupReason, BACKUP_REASON_VALUES } from './backup-reason.enum';
+export { BackupReason, BACKUP_REASON_LABEL, BACKUP_REASON_VALUES } from './backup-reason.enum';
 
 export { KeyPlatform, KEY_PLATFORM_VALUES } from './key-platform.enum';
 export { KeyStatus, KEY_STATUS_VALUES, GIFTABLE_STATUSES } from './key-status.enum';

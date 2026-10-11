@@ -1,5 +1,19 @@
-import { ANNOTATION_SEPARATOR, APP_NAME, KeyPlatform, KeyStatus, PARENT_ANNOTATION_PREFIX, PLATFORM_ANNOTATION_PREFIX, STATUS_MARKERS, type IGameKey } from '@/contracts';
+import {
+  ANNOTATION_SEPARATOR,
+  APP_NAME,
+  DEFAULT_LOCALE,
+  KeyPlatform,
+  KeyStatus,
+  LOCALE_BCP47,
+  PARENT_ANNOTATION_PREFIX,
+  PLATFORM_ANNOTATION_PREFIX,
+  STATUS_MARKERS,
+  type AppLocale,
+  type IGameKey,
+} from '@/contracts';
 import { parseTags, serializeTags } from '@/helpers/normalize-text.helper';
+import { formatShortDate } from '@/helpers/format-date.helper';
+import { t } from '@/helpers/i18n.helper';
 
 /** Inversa de `STATUS_MARKERS`, para escribir el estado en el TXT. */
 const STATUS_MARKERS_REVERSE: Readonly<Record<KeyStatus, string>> = Object.freeze(
@@ -18,12 +32,23 @@ const STATUS_MARKERS_REVERSE: Readonly<Record<KeyStatus, string>> = Object.freez
  * El objetivo es el round-trip: lo que exporta la app debe poder volver a
  * importarse con `parseLegacyTxt` sin perder informacion.
  */
-export function exportKeysToLegacyTxt(keys: readonly IGameKey[]): string {
+export function exportKeysToLegacyTxt(
+  keys: readonly IGameKey[],
+  locale: AppLocale = DEFAULT_LOCALE,
+): string {
   const lines: string[] = [];
 
-  lines.push(`${APP_NAME.toUpperCase()} — exportacion`);
-  lines.push(`Generado el ${new Date().toLocaleDateString('es-ES')}`);
-  lines.push(`Total: ${keys.length} claves`);
+  // La cabecera es lo unico de este fichero que se lee con ojos humanos: lo
+  // demas lo consume `parseLegacyTxt`. Por eso va traducida y con la fecha del
+  // idioma de quien exporta. La fecha iba fija en `es-ES`, asi que un usuario
+  // en ingles recibia una cabecera en castellano con el orden dia/mes/ano.
+  //
+  // Los `## <estado>` de abajo **no** se traducen a proposito: son parte del
+  // formato que el parser reconoce, y ponerlos en el idioma de la app romperia
+  // el round-trip que este fichero promete.
+  lines.push(`${APP_NAME.toUpperCase()} — ${t('export.title')}`);
+  lines.push(t('export.generated', [formatShortDate(new Date().toISOString(), locale)]));
+  lines.push(t('export.total', [keys.length]));
   lines.push('');
 
   const byStatus = new Map<string, IGameKey[]>();
@@ -37,7 +62,7 @@ export function exportKeysToLegacyTxt(keys: readonly IGameKey[]): string {
     lines.push(`${'-'.repeat(70)}`);
     lines.push(`## ${status} (${group.length})`);
 
-    for (const key of [...group].sort((a, b) => a.title.localeCompare(b.title, 'es'))) {
+    for (const key of [...group].sort((a, b) => a.title.localeCompare(b.title, LOCALE_BCP47[locale]))) {
       lines.push(formatKeyLine(key));
     }
 

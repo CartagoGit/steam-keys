@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { AppLocale, BackupReason, RestoreMode, StorageHealth, type IBackup, type IRestoreSummary, type IStorageInfo } from '@/contracts';
+import { AppLocale, BackupReason, BACKUP_REASON_LABEL, RestoreMode, StorageHealth, type IBackup, type IRestoreSummary, type IStorageInfo, type Translator } from '@/contracts';
 import {
   getStorageMode,
   STORAGE_MODE_LABEL,
@@ -264,7 +264,7 @@ export function StoragePanel({ onClose, onChanged, notify }: IStoragePanelProps)
                         <Icon name="package" size={15} className="text-t4" />
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-xs font-medium text-t1">
-                            {describeBackup(backup, locale)}
+                            {describeBackup(backup, locale, t)}
                           </p>
                           <p className="truncate text-[11px] text-t4">
                             {backup.rowCount >= 0
@@ -350,7 +350,7 @@ function RestoreDialog({
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-6 backdrop-blur-sm">
       <div className="animate-scale-in w-full max-w-md rounded-2xl bg-surface-1 p-5 shadow-2xl ring-1 ring-line">
         <h3 className="text-sm font-semibold text-t1">
-          {t('storage.restoreTitle', [describeBackup(backup, locale)])}
+          {t('storage.restoreTitle', [describeBackup(backup, locale, t)])}
         </h3>
         <p className="mt-1 text-xs leading-relaxed text-t3">
           {t('storage.restoreHint')}
@@ -466,12 +466,18 @@ function Dato({ label, value, ayuda }: IDatoProps) {
   );
 }
 
-/** Nombre legible de una copia a partir de su fecha y su motivo. */
-function describeBackup(backup: IBackup, locale: AppLocale): string {
+/**
+ * Nombre legible de una copia: su fecha y su motivo, los dos ya traducidos.
+ *
+ * El motivo antes se sacaba con `reason.replace(/-/g, ' ')`, deshaciendo el
+ * saneo del nombre. Eso es perder el dato por el camino —un motivo que contenga
+ * un guion de verdad se parte mal— y ademas salia siempre en castellano. Ahora
+ * `reason` es un `BackupReason` y se traduce con su clave.
+ */
+function describeBackup(backup: IBackup, locale: AppLocale, t: Translator): string {
   if (Number.isNaN(new Date(backup.createdAtMs).getTime())) return backup.name;
 
   const sello = formatDateTime(backup.createdAtMs, locale);
-  const motivo = backup.reason.trim() !== '' ? backup.reason : BackupReason.Manual;
 
-  return `${sello} · ${motivo.replace(/-/g, ' ')}`;
+  return `${sello} · ${t(BACKUP_REASON_LABEL[backup.reason])}`;
 }

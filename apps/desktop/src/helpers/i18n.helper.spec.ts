@@ -134,6 +134,8 @@ describe('cobertura de las traducciones', () => {
         // Nombres de juegos, codigo de tecla y sigla.
         'sort.alpha', 'editor.titlePlaceholder', 'editor.keyPlaceholder',
         'editor.parentPlaceholder', 'editor.tagsPlaceholder', 'owned.dlc',
+        // "Manual" es la misma palabra en los dos idiomas.
+        'storage.reason.manual',
       ],
       fr: [
         // Cognados con el castellano, mas lo mismo que en ingles.
@@ -161,6 +163,10 @@ describe('cobertura de las traducciones', () => {
         // datos: "Restaurar", "App de escritorio" y "Restaurar {0}" son la
         // misma palabra en los dos idiomas, escrita igual.
         'storage.restore', 'storage.restoreTitle', 'storage.mode.desktop',
+        // "Manual", "Antes de importar" y "Antes de restaurar" son la misma
+        // palabra en los dos idiomas, escrita igual.
+        'storage.reason.manual', 'storage.reason.beforeImport',
+        'storage.reason.beforeRestore',
       ],
       de: ['sort.alpha', 'editor.titlePlaceholder', 'editor.keyPlaceholder',
         'editor.parentPlaceholder', 'editor.tagsPlaceholder', 'owned.dlc'],

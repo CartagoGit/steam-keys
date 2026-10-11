@@ -16,6 +16,13 @@ BASE = pathlib.Path(__file__).resolve().parents[2] / 'apps/desktop/src/contracts
 TRADUCCIONES = {}
 
 TRADUCCIONES['fr'] = {
+ 'export.title': 'export',
+ 'export.generated': 'Genere le {0}',
+ 'export.total': 'Total : {0} cles',
+ 'selection.blockedOne': 'Passe le filtre sur « Disponibles » pour en laisser un',
+ 'selection.blockedMany': 'Passe le filtre sur « Disponibles » pour en laisser {0}',
+ 'selection.blockedNone': 'Passe le filtre sur « Disponibles » pour agir sur la selection',
+ 'selection.blockedExpired': 'Elles etaient deja toutes perimees',
  'file.filter.text': 'Texte',
  'data.title': 'Donnees et sauvegardes',
  'data.subtitle': 'Ou vit ta collection et comment la recuperer si quelque chose tourne mal.',
@@ -51,6 +58,11 @@ TRADUCCIONES['fr'] = {
  'storage.backups.desktopOnly': 'Les sauvegardes sont une fonction de l application de bureau. Il n y en a aucune ici.',
  'storage.backups.keep': 'Les 10 sauvegardes les plus recentes sont dans le dossier « backups » a cote de la base de donnees, et se font toutes seules avant chaque import ou restauration.',
  'storage.refresh': 'Actualiser',
+  'storage.reason.manual': 'Manuelle',
+ 'storage.reason.beforeImport': 'Avant l’import',
+ 'storage.reason.beforeRestore': 'Avant la restauration',
+ 'storage.reason.onMigrate': 'Lors de la migration',
+ 'storage.reason.fromFiles': 'Importée depuis des fichiers',
  'storage.restoreTitle': 'Restaurer {0}',
  'storage.restoreHint': 'Une copie de l etat actuel est faite avant d appliquer quoi que ce soit, donc ca se peut aussi annuler.',
  'storage.merge.title': 'Ajouter seulement ce qui manque',
@@ -259,6 +271,13 @@ TRADUCCIONES['fr'] = {
 }
 
 TRADUCCIONES['pt'] = {
+ 'export.title': 'exportacao',
+ 'export.generated': 'Gerado em {0}',
+ 'export.total': 'Total: {0} chaves',
+ 'selection.blockedOne': 'Muda o filtro para "Apenas disponiveis" para deixar essa de fora',
+ 'selection.blockedMany': 'Muda o filtro para "Apenas disponiveis" para deixar essas {0} de fora',
+ 'selection.blockedNone': 'Muda o filtro para "Apenas disponiveis" para agir sobre a selecao',
+ 'selection.blockedExpired': 'Ja estavam todas fora de validade',
  'file.filter.text': 'Ficheiros',
  'data.title': 'Dados e copias de seguranca',
  'data.subtitle': 'Onde vive a tua colecao e como recupera-la se algo correr mal.',
@@ -294,6 +313,11 @@ TRADUCCIONES['pt'] = {
  'storage.backups.desktopOnly': 'As copias de seguranca sao uma funcionalidade da app de escritorio. Aqui nao ha nenhuma.',
  'storage.backups.keep': 'Guardam-se as 10 copias mais recentes na pasta «backups» junto a base de dados, e sao feitas sozinhas antes de cada importacao ou restauro.',
  'storage.refresh': 'Atualizar',
+  'storage.reason.manual': 'Manual',
+ 'storage.reason.beforeImport': 'Antes de importar',
+ 'storage.reason.beforeRestore': 'Antes de restaurar',
+ 'storage.reason.onMigrate': 'Ao migrar',
+ 'storage.reason.fromFiles': 'Trazida de arquivos',
  'storage.restoreTitle': 'Restaurar {0}',
  'storage.restoreHint': 'Faz-se uma copia do estado atual antes de aplicar seja o que for, por isso isto tambem se pode desfazer.',
  'storage.merge.title': 'Adicionar so o que falta',
@@ -503,6 +527,13 @@ TRADUCCIONES['pt'] = {
 }
 
 TRADUCCIONES['de'] = {
+ 'export.title': 'Export',
+ 'export.generated': 'Erstellt am {0}',
+ 'export.total': 'Gesamt: {0} Schlussel',
+ 'selection.blockedOne': 'Setze den Filter auf "Nur verfugbare", damit dieser eine wegfallt',
+ 'selection.blockedMany': 'Setze den Filter auf "Nur verfugbare", damit diese {0} wegfallen',
+ 'selection.blockedNone': 'Setze den Filter auf "Nur verfugbare", um auf die Auswahl zu wirken',
+ 'selection.blockedExpired': 'Sie waren alle schon abgelaufen',
  'file.filter.text': 'Text',
  'data.title': 'Daten und Sicherungen',
  'data.subtitle': 'Wo deine Sammlung liegt und wie du sie zuruckholst, wenn etwas schiefgeht.',
@@ -538,6 +569,11 @@ TRADUCCIONES['de'] = {
  'storage.backups.desktopOnly': 'Sicherungen gibt es nur in der Desktop-App. Hier sind keine.',
  'storage.backups.keep': 'Die 10 neuesten Sicherungen liegen im Ordner «backups» neben der Datenbank und werden vor jedem Import und jeder Wiederherstellung automatisch angelegt.',
  'storage.refresh': 'Aktualisieren',
+  'storage.reason.manual': 'Manuell',
+ 'storage.reason.beforeImport': 'Vor dem Import',
+ 'storage.reason.beforeRestore': 'Vor dem Wiederherstellen',
+ 'storage.reason.onMigrate': 'Beim Migrieren',
+ 'storage.reason.fromFiles': 'Aus Dateien übernommen',
  'storage.restoreTitle': '{0} wiederherstellen',
  'storage.restoreHint': 'Vor dem Anlegen wird eine Kopie des jetzigen Zustands gemacht, also laesst sich auch das rueckgaengig machen.',
  'storage.merge.title': 'Nur ergaenzen, was fehlt',

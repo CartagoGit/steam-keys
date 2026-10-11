@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { backupRepository } from './backup.repository';
-import { SCHEMA_STATEMENTS, type IDatabaseClient } from '@/contracts';
+import { BackupReason, SCHEMA_STATEMENTS, type IDatabaseClient } from '@/contracts';
 
 /**
  * Tests de las copias de seguridad dentro de la base de datos.
@@ -68,7 +68,7 @@ describe('copias dentro de la base de datos', () => {
 
     try {
       await meterClaves(db, 3);
-      const creada = await backupRepository.create(db, 'manual');
+      const creada = await backupRepository.create(db, BackupReason.Manual);
 
       expect(creada.rowCount).toBe(3);
       expect(creada.name).toContain('manual');
@@ -86,7 +86,7 @@ describe('copias dentro de la base de datos', () => {
 
     try {
       await meterClaves(db, 4);
-      await backupRepository.create(db, 'antes-de-importar');
+      await backupRepository.create(db, BackupReason.AntesDeImportar);
 
       const filas = await backupRepository.rowsOf(db, (
         await backupRepository.list(db)
@@ -107,8 +107,8 @@ describe('copias dentro de la base de datos', () => {
 
       // Cuanto pesa una copia con las claves dentro, y cuanto pesa el fichero
       // entero: la diferencia es justo lo que dejan de dragar a las siguientes.
-      await backupRepository.create(db, 'primera');
-      const conUna = await backupRepository.create(db, 'segunda');
+      await backupRepository.create(db, BackupReason.Manual);
+      const conUna = await backupRepository.create(db, BackupReason.AntesDeImportar);
 
       const total = await db.select<{ bytes: number }>(
         'SELECT SUM(LENGTH(contenido)) AS bytes FROM backups',
@@ -135,8 +135,11 @@ describe('copias dentro de la base de datos', () => {
     try {
       await meterClaves(db, 2);
 
+      const creadas: string[] = [];
+
       for (let i = 0; i < 12; i += 1) {
-        await backupRepository.create(db, `copia-${i}`);
+        const copia = await backupRepository.create(db, BackupReason.Manual);
+        creadas.push(copia.name);
         // Un milisegundo entre copias: el nombre lleva la marca de tiempo y dos
         // copias en el mismo milisegundo se distinguirian por el sufijo.
         await new Promise((r) => setTimeout(r, 2));
@@ -145,9 +148,12 @@ describe('copias dentro de la base de datos', () => {
       const lista = await backupRepository.list(db);
       expect(lista).toHaveLength(10);
 
-      // Y las que se quedan son las nuevas.
-      expect(lista[0]!.name).toContain('copia-11');
-      expect(lista.at(-1)!.name).toContain('copia-2');
+      // Las que se quedan son las diez ultimas creadas. El orden es **el de
+      // insercion**, no el del nombre: con dos copias en el mismo segundo el
+      // nombre lleva un sufijo, y en texto `copia-10` va antes que `copia-9`.
+      // Por eso el motivo ya no lleva el numero —ademas de ser un enum— y el
+      // nombre es lo unico inequivoco.
+      expect(lista.map((copia) => copia.name)).toEqual(creadas.slice(2).reverse());
     } finally {
       cerrar();
     }
@@ -159,8 +165,8 @@ describe('copias dentro de la base de datos', () => {
     try {
       await meterClaves(db, 1);
 
-      const a = await backupRepository.create(db, 'manual');
-      const b = await backupRepository.create(db, 'manual');
+      const a = await backupRepository.create(db, BackupReason.Manual);
+      const b = await backupRepository.create(db, BackupReason.Manual);
 
       expect(a.name).not.toBe(b.name);
       expect(await backupRepository.list(db)).toHaveLength(2);
@@ -174,7 +180,7 @@ describe('copias dentro de la base de datos', () => {
 
     try {
       await meterClaves(db, 1);
-      const creada = await backupRepository.create(db, 'manual');
+      const creada = await backupRepository.create(db, BackupReason.Manual);
 
       await backupRepository.remove(db, creada.name);
 
@@ -189,7 +195,7 @@ describe('copias dentro de la base de datos', () => {
 
     try {
       await meterClaves(db, 2);
-      await backupRepository.create(db, 'manual');
+      await backupRepository.create(db, BackupReason.Manual);
 
       const nombre = (await backupRepository.list(db))[0]!.name;
 
@@ -227,7 +233,7 @@ describe('copias dentro de la base de datos', () => {
       await meterClaves(db, 1);
 
       for (let i = 0; i < 11; i += 1) {
-        await backupRepository.create(db, `c-${i}`);
+        await backupRepository.create(db, BackupReason.Manual);
         await new Promise((r) => setTimeout(r, 2));
       }
 

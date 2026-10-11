@@ -1,6 +1,8 @@
 import { GAME_KEY_COLUMNS } from '@/helpers/map-row.helper';
-import { MAX_BACKUPS, type IDatabaseClient, type IGameKeyRow } from '@/contracts';
+import { formatFileStamp } from '@/helpers/format-date.helper';
+import { MAX_BACKUPS, TABLE_BACKUPS, type BackupReason, type IBackup, type IDatabaseClient, type IGameKeyRow } from '@/contracts';
 
+import { readBackupReason } from '@/helpers/settings.helper';
 /**
  * Copias de seguridad guardadas dentro de la propia base de datos.
  *
@@ -16,6 +18,9 @@ import { MAX_BACKUPS, type IDatabaseClient, type IGameKeyRow } from '@/contracts
  */
 
 const SELECCION = 'nombre, reason, creado_ms, contenido';
+
+/** Borra una copia por su nombre. La rotacion y el borrado manual, lo mismo. */
+const BORRAR_POR_NOMBRE = `DELETE FROM ${TABLE_BACKUPS} WHERE nombre = $1`;
 
 /** Una fila de la tabla `backups`, tal y como la devuelve SQL. */
 interface IBackupRow {
@@ -35,23 +40,15 @@ interface ISnapshot {
 /**
  * Marca de tiempo compacta para el nombre de la copia.
  *
- * El nombre lleva la fecha al principio, y no un `id` autogenerado, porque el
- * orden por nombre tiene que coincidir con el orden por fecha: es lo que
- * permite quedarse con las mas recientes sin depender de `creado_ms`, que puede
- * coincidir entre dos copias.
+ * El nombre lleva la fecha al principio para que se ordene a ojo, pero el orden
+ * de verdad del que se fia la rotacion es el de insercion: ver `rotate`.
  */
 function etiqueta(ms: number): string {
-  const d = new Date(ms);
-  const p = (n: number): string => String(n).padStart(2, '0');
-
-  return (
-    `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}` +
-    `-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`
-  );
+  return formatFileStamp(new Date(ms));
 }
 
 /** Deja solo letras, digitos y guiones, para que el nombre sea un id seguro. */
-function sanitize(reason: string): string {
+function sanitize(reason: BackupReason): string {
   return reason
     .toLowerCase()
     .normalize('NFD')
@@ -75,7 +72,7 @@ async function nombreLibre(db: IDatabaseClient, base: string): Promise<string> {
     const candidato = sufijo === 1 ? base : `${base}-${sufijo}`;
 
     const existente = await db.select<{ nombre: string }>(
-      'SELECT nombre FROM backups WHERE nombre = $1',
+      `SELECT nombre FROM ${TABLE_BACKUPS} WHERE nombre = $1`,
       [candidato],
     );
 
@@ -125,17 +122,17 @@ export const backupRepository = {
    * y la escritura fallase, se habria perdido una copia sin tener ninguna nueva
    * en su lugar.
    */
-  async create(db: IDatabaseClient, reason: string): Promise<IBackupInfo> {
+  async create(db: IDatabaseClient, reason: BackupReason): Promise<IBackup> {
     const filas = await snapshot(db);
     const ahora = Date.now();
 
-    const base = `steam-keys-${etiqueta(ahora)}-${sanitize(reason) || 'manual'}`;
+    const base = `steam-keys-${etiqueta(ahora)}-${sanitize(reason)}`;
     const nombre = await nombreLibre(db, base);
 
     const contenido = JSON.stringify({ rowCount: filas.length, rows: filas });
 
     await db.execute(
-      `INSERT INTO backups (nombre, reason, creado_ms, contenido)
+      `INSERT INTO ${TABLE_BACKUPS} (nombre, reason, creado_ms, contenido)
        VALUES ($1, $2, $3, $4)`,
       [nombre, reason, ahora, contenido],
     );
@@ -152,14 +149,17 @@ export const backupRepository = {
   },
 
   /** Copias de la mas reciente a la mas antigua. */
-  async list(db: IDatabaseClient): Promise<readonly IBackupInfo[]> {
+  async list(db: IDatabaseClient): Promise<readonly IBackup[]> {
     const filas = await db.select<IBackupRow>(
-      `SELECT ${SELECCION} FROM backups ORDER BY rowid DESC`,
+      `SELECT ${SELECCION} FROM ${TABLE_BACKUPS} ORDER BY rowid DESC`,
     );
 
     return filas.map((fila) => ({
       name: fila.nombre,
-      reason: fila.reason,
+      // La fila viene de SQL, donde `reason` es texto; el contrato pide el enum.
+      // `readBackupReason` valida y cae a `manual` si la copia la creo una
+      // version que usaba otro motivo.
+      reason: readBackupReason(fila.reason),
       createdAtMs: fila.creado_ms,
       rowCount: leerConteo(fila.contenido),
       sizeBytes: fila.contenido.length,
@@ -168,7 +168,7 @@ export const backupRepository = {
 
   /** Borra una copia concreta. */
   async remove(db: IDatabaseClient, name: string): Promise<void> {
-    await db.execute('DELETE FROM backups WHERE nombre = $1', [name]);
+    await db.execute(BORRAR_POR_NOMBRE, [name]);
   },
 
   /**
@@ -180,7 +180,7 @@ export const backupRepository = {
    */
   async rowsOf(db: IDatabaseClient, name: string): Promise<readonly IGameKeyRow[]> {
     const filas = await db.select<Pick<IBackupRow, 'contenido'>>(
-      'SELECT contenido FROM backups WHERE nombre = $1',
+      `SELECT contenido FROM ${TABLE_BACKUPS} WHERE nombre = $1`,
       [name],
     );
 
@@ -208,26 +208,13 @@ export const backupRepository = {
    */
   async rotate(db: IDatabaseClient): Promise<void> {
     const sobrantes = await db.select<{ nombre: string }>(
-      `SELECT nombre FROM backups ORDER BY rowid DESC LIMIT -1 OFFSET $1`,
+      `SELECT nombre FROM ${TABLE_BACKUPS} ORDER BY rowid DESC LIMIT -1 OFFSET $1`,
       [MAX_BACKUPS],
     );
 
     for (const sobra of sobrantes) {
-      await db.execute('DELETE FROM backups WHERE nombre = $1', [sobra.nombre]);
+      await db.execute(BORRAR_POR_NOMBRE, [sobra.nombre]);
     }
   },
 };
 
-/** Una copia, ya sin los detalles de SQL. */
-export interface IBackupInfo {
-  /** Nombre de la copia. Es su identificador. */
-  name: string;
-  /** Por que se hizo: `manual`, `antes-de-importar`… */
-  reason: string;
-  /** Epoch en milisegundos, para formatearlo en la interfaz. */
-  createdAtMs: number;
-  /** Cuantas claves contiene. `-1` si no se pudo leer. */
-  rowCount: number;
-  /** Tamaño del JSON de la copia. */
-  sizeBytes: number;
-}

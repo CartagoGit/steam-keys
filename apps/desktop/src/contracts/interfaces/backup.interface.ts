@@ -1,4 +1,5 @@
 import type { StorageHealth } from '../enums/storage-health.enum';
+import type { BackupReason } from '../enums/backup-reason.enum';
 
 /** Datos del fichero de base de datos en disco. */
 export interface IDatabaseInfo {
@@ -25,8 +26,15 @@ export interface IDatabaseInfo {
 export interface IBackup {
   /** Nombre de la copia. Es su identificador. */
   name: string;
-  /** Por que se hizo: `manual`, `antes-de-importar`… */
-  reason: string;
+  /**
+ * Por que se creo la copia.
+ *
+ * *Es un `BackupReason` y no un `string` para que el motivo se pueda traducir al
+   * pintarlo. Con `string` el panel tenia que ponerlo tal cual, y una copia creada
+   * al migrar aparecia como `traida de archivos` en el mismo sitio donde todo lo
+   * demas estaba traducido.
+   */
+  reason: BackupReason;
   /** Cuantas claves contiene. `-1` si no se pudo leer el contenido. */
   rowCount: number;
   /** Tamaño del contenido de la copia. */

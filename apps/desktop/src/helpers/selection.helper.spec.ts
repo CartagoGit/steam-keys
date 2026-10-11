@@ -1,4 +1,6 @@
 import { describe, expect, test } from 'bun:test';
+import { APP_LOCALE_VALUES } from '@/contracts';
+import { translate } from '@/helpers/i18n.helper';
 
 import {
   analyzeSelection,
@@ -80,7 +82,7 @@ describe('que se puede hacer con una seleccion', () => {
     // habia en la barra de seleccion se quito por duplicar el filtro de la
     // barra de filtros, y este mensaje quedaria obsoleto si se hubiera dejado.
     const motivo = facts.blocked.find((b) => b.action === 'export');
-    expect(motivo?.message).toContain('filtro a «Solo disponibles»');
+    expect(motivo?.messageKey).toBe('selection.blockedOne');
 
     // Las claves concretas que lo impiden si vienen, en `ids`, para poder
     // nombrarlas en el aviso al completar la accion.
@@ -92,7 +94,35 @@ describe('que se puede hacer con una seleccion', () => {
     const motivo = facts.blocked.find((b) => b.action === 'export');
 
     expect(motivo).toBeDefined();
-    expect(motivo?.message.length).toBeGreaterThan(10);
+    expect(motivo?.messageKey).toBe('selection.blockedOne');
+  });
+
+  // El mensaje salia escrito a mano en castellano, y el lint que busca eso solo
+  // recorria los `.tsx`: un helper es un `.ts` y quedaba fuera por construccion.
+  // Aqui se comprueba la cadena entera: que exista en los cinco idiomas y que al
+  // traducirla salga el numero que corresponde.
+  test('el motivo del bloqueo sale traducido y con su numero', () => {
+    const facts = analyzeSelection(
+      [
+        clave(1, KeyStatus.Gifted),
+        clave(2, KeyStatus.Gifted),
+        clave(3, KeyStatus.Available),
+      ],
+      false,
+    );
+
+    const motivo = facts.blocked.find((b) => b.action === 'export');
+
+    expect(motivo?.messageKey).toBe('selection.blockedMany');
+
+    for (const locale of APP_LOCALE_VALUES) {
+      const texto = translate(locale, motivo!.messageKey, motivo!.messageArgs);
+
+      // Nunca devuelve la clave en crudo: eso seria un texto sin traducir
+      // pintado en el tooltip.
+      expect(texto).not.toBe(motivo!.messageKey);
+      expect(texto).toContain('2');
+    }
   });
 
   test('caducar si vale para lo que no esta caducado', () => {
@@ -114,7 +144,7 @@ describe('que se puede hacer con una seleccion', () => {
     expect(facts.canExpire).toBe(false);
 
     const motivo = facts.blocked.find((b) => b.action === 'expire');
-    expect(motivo?.message).toContain('caducadas');
+    expect(motivo?.messageKey).toBe('selection.blockedExpired');
   });
 
   test('una seleccion vacia no habilita nada', () => {
@@ -140,7 +170,8 @@ describe('que se puede hacer con una seleccion', () => {
     );
 
     const motivo = facts.blocked.find((b) => b.action === 'gift');
-    expect(motivo?.message).toContain('esas 2');
+    expect(motivo?.messageKey).toBe('selection.blockedMany');
+    expect(motivo?.messageArgs).toEqual([2]);
     expect(motivo?.ids).toEqual([1, 2]);
   });
 
@@ -148,18 +179,20 @@ describe('que se puede hacer con una seleccion', () => {
     const facts = analyzeSelection([clave(1, KeyStatus.Redeemed)], true);
 
     const motivo = facts.blocked.find((b) => b.action === 'export');
-    expect(motivo?.message).toContain('esa 1');
+    expect(motivo?.messageKey).toBe('selection.blockedOne');
+    expect(motivo?.messageArgs ?? []).toEqual([]);
     expect(motivo?.ids).toEqual([1]);
   });
 
   test('si no hay ninguna que estorbe el motivo no inventa un numero', () => {
-    // Todo disponible pero con el interruptor apagado: no hay claves que
-    // dejar fuera, asi que el motivo no debe decir "esas 0".
+    // Todo disponible pero con el filtro en «Todos»: no hay claves que dejar
+    // fuera, asi que el motivo no debe llevar un "esas 0".
     const facts = analyzeSelection([clave(1, KeyStatus.Available)], false);
 
     const motivo = facts.blocked.find((b) => b.action === 'export');
-    expect(motivo?.message).toContain('filtro a «Solo disponibles»');
-    expect(motivo?.message).not.toContain('esas 0');
+
+    expect(motivo?.messageKey).toBe('selection.blockedNone');
+    expect(motivo?.messageArgs ?? []).toEqual([]);
   });
 });
 

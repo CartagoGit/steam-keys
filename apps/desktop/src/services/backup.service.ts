@@ -1,5 +1,5 @@
 import { isBrowserPreview } from '@/helpers/runtime.helper';
-import { KeyPlatform, RestoreMode, StorageHealth, TABLE_GAME_KEYS, type IBackup, type IDatabaseClient, type IRestoreSummary } from '@/contracts';
+import { BackupReason, KeyPlatform, RestoreMode, StorageHealth, TABLE_GAME_KEYS, type IBackup, type IDatabaseClient, type IRestoreSummary } from '@/contracts';
 import { mergeKeysFromBackup } from '@/helpers/merge-keys.helper';
 import { backupRepository } from '@/repositories/backup.repository';
 
@@ -28,7 +28,7 @@ export const backupService = {
   },
 
   /** Crea una copia de seguridad y la devuelve. */
-  async create(db: IDatabaseClient, reason: string): Promise<IBackup> {
+  async create(db: IDatabaseClient, reason: BackupReason): Promise<IBackup> {
     return backupRepository.create(db, reason);
   },
 

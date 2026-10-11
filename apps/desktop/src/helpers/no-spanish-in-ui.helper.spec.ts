@@ -71,6 +71,39 @@ const SOSPECHOSAS = [
 /** Atributos cuyo valor es codigo, no texto de pantalla. */
 const ATRIBUTOS_DE_CODIGO = new Set(['className', 'id', 'name', 'type', 'key', 'href', 'role']);
 
+/** Helpers `.ts`, donde un texto tambien acaba en pantalla si alguien lo pinta. */
+function helpers(): string[] {
+  const salida: string[] = [];
+
+  for (const nombre of readdirSync(join(RAIZ, 'helpers'))) {
+    const ruta = join(RAIZ, 'helpers', nombre);
+
+    if (statSync(ruta).isDirectory()) salida.push(...helpers());
+    else if (nombre.endsWith('.ts') && !nombre.endsWith('.spec.ts')) salida.push(ruta);
+  }
+
+  return salida;
+}
+
+/** Quita comentarios, que describen el problema pero no lo causan. */
+function sinComentariosDe(codigo: string): string {
+  return codigo.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+}
+
+/**
+ * Si el indice cae dentro de una cadena.
+ *
+ * Mirar el caracter anterior y el siguiente es suficiente para lo que se busca
+ * aqui: las palabras sospechosas empiezan por mayuscula, y en el codigo de un
+ * helper nunca son la primera letra de un identificador.
+ */
+function enCadena(codigo: string, indice: number): boolean {
+  const antes = codigo.slice(0, indice);
+  const comillas = (antes.match(/['"`]/g) ?? []).length;
+
+  return comillas % 2 === 1;
+}
+
 /**
  * Comprueba si un texto es de verdad lo que se pinta.
  *
@@ -167,6 +200,38 @@ describe('nada de castellano escrito a mano en la interfaz', () => {
     const fallos = ficheros.flatMap((f) =>
       sospechosos(f).map((texto) => `${f.split('/').pop()} ${texto}`),
     );
+
+    expect(fallos).toEqual([]);
+  });
+
+  test('ningun helper devuelve castellano al que se lo pinte', () => {
+    // El recorrido anterior solo miraba `.tsx`. Un helper es un `.ts`, asi que
+    // quedaba fuera **por construccion**, y sus textos se colaban igual: el
+    // texto que devuelve acaba pintado por el componente que lo llama, y quien
+    // lo ve es el usuario.
+    //
+    // Aqui el problema es distinto: en un `.ts` no hay etiquetas donde mirar, asi
+    // que lo que se busca es el castellano que sale de una funcion, en una
+    // cadena, y no en un identificador ni en un comentario.
+    const fallos: string[] = [];
+
+    for (const f of helpers()) {
+      const codigo = sinComentariosDe(readFileSync(f, 'utf-8'));
+
+      for (const palabra of SOSPECHOSAS) {
+        let i = codigo.indexOf(palabra);
+
+        while (i !== -1) {
+          // Solo dentro de una cadena: un identificador o una clave de
+          // traduccion no se pintan.
+          if (enCadena(codigo, i)) {
+            fallos.push(`${f.split('/').pop()} linea ${codigo.slice(0, i).split('\n').length}: ${palabra}`);
+          }
+
+          i = codigo.indexOf(palabra, i + palabra.length);
+        }
+      }
+    }
 
     expect(fallos).toEqual([]);
   });

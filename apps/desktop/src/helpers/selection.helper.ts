@@ -1,4 +1,4 @@
-import { KeyStatus, normalizeTag, type IGameKey } from '@/contracts';
+import { KeyStatus, normalizeTag, type IGameKey, type TranslationKey } from '@/contracts';
 
 /**
  * Como de utilizable es una clave para la accion que se le pide.
@@ -14,8 +14,16 @@ export interface IBlockReason {
   action: SelectAction;
   /** Las claves que lo impiden, para poder nombrarlas en el aviso. */
   ids: readonly number[];
-  /** Texto listo para el tooltip. */
-  message: string;
+  /**
+   * Clave del diccionario para el tooltip.
+   *
+   * Es una clave y no el texto porque este helper es una funcion pura que no
+   * sabe en que idioma esta la app, y el texto acababa en castellano painted
+   * con la app puesta en ingles. Quien lo recibe lo traduce con `t()`.
+   */
+  messageKey: TranslationKey;
+  /** Valores para los `{0}` de `messageKey`, en orden. */
+  messageArgs?: readonly (string | number)[];
 }
 
 /** Una clave, con los permisos ya resueltos para las acciones de la barra. */
@@ -140,24 +148,28 @@ export function analyzeSelection(
     // ya dice cuantas hay de cada. Aqui va lo que **falta por hacer**, que es
     // lo unico que no se deduce leyendo la cabecera.
     //
-    // El numero va en plural solo si corresponde. "esas 1" se lee mal y el
+    // El plural lo resuelve el idioma, no una cadena: "esas 1" se lee mal y el
     // usuario lo nota, porque es justo el texto que va debajo del boton.
-    const motivo =
+    const messageKey: TranslationKey =
       noRegalables.length === 1
-        ? 'Cambia el filtro a «Solo disponibles» para dejar fuera esa 1'
+        ? 'selection.blockedOne'
         : noRegalables.length > 1
-          ? `Cambia el filtro a «Solo disponibles» para dejar fuera esas ${noRegalables.length}`
-          : 'Cambia el filtro a «Solo disponibles» para poder actuar sobre la seleccion';
+          ? 'selection.blockedMany'
+          : 'selection.blockedNone';
 
-    blocked.push({ action: 'export', ids: noRegalables.map((key) => key.id), message: motivo });
-    blocked.push({ action: 'gift', ids: noRegalables.map((key) => key.id), message: motivo });
+    const messageArgs: readonly (string | number)[] =
+      noRegalables.length > 1 ? [noRegalables.length] : [];
+
+    for (const action of ['export', 'gift'] as const) {
+      blocked.push({ action, ids: noRegalables.map((key) => key.id), messageKey, messageArgs });
+    }
   }
 
   if (expirable === 0) {
     blocked.push({
       action: 'expire',
       ids: noExpirables.map((key) => key.id),
-      message: 'Ya estaban todas caducadas',
+      messageKey: 'selection.blockedExpired',
     });
   }
 

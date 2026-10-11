@@ -21,7 +21,7 @@ import { Button } from './components/ui.component';
 
 import { AppTheme, AppView, DEFAULT_VIEW, KEY_STATUS_VALUES, StorageMode, KeyScope, KeySort, KeyStatus, PAGE_SIZE, SEARCH_SHORTCUT, mergeTags, removeTags, type AppLocale, type IAppSettings, type IGameKey, type IGameKeyDraft, type IImportSummary, type IKeyFilter, type ISteamOwnedGame, type SteamAccountStatus, type TranslationArgs, type Translator } from '@/contracts';
 import { computeStats, emptyFilter, filterKeys, sortKeys } from '@/helpers/filter-keys.helper';
-import { analyzeSelection, claveGrupo, groupByTitle, podarSeleccion, type SelectAction } from '@/helpers/selection.helper';
+import { analyzeSelection, claveGrupo, groupByTitle, isGiftable, podarSeleccion, type SelectAction } from '@/helpers/selection.helper';
 import { useKeepMounted } from '@/helpers/use-exit-animation.helper';
 import type { IStartup } from '@/services/startup.service';
 import { gameKeyService } from '@/services/game-key.service';
@@ -260,7 +260,9 @@ export function App() {
     } finally {
       setLoading(false);
     }
-  }, [notify]);
+    // `traducir` tambien: sin el, el error de carga se queda en el idioma
+    // anterior si el usuario cambia de idioma con la lista ya cargada.
+  }, [notify, traducir]);
 
   useEffect(() => {
     // Sin base de datos no se toca nada: ni claves, ni ajustes. Es lo que
@@ -404,18 +406,7 @@ export function App() {
   );
 
   const esPropio = useCallback(
-    (title: string): boolean => {
-      const objetivo = normalizeForMatch(title);
-
-      // Se busca tal cual primero: un DLC con su propio appid esta en la
-      // biblioteca aunque el juego base no este.
-      if (ownedNames.has(objetivo)) return true;
-
-      // Y luego quitando la coletilla de edicion, porque "GOTY Edition" y la
-      // edicion normal son el mismo juego y solo se compra una.
-      const limpio = normalizeForMatch(title);
-      return limpio.length > 0 && ownedNames.has(limpio);
-    },
+    (title: string): boolean => ownedNames.has(normalizeForMatch(title)),
     [ownedNames],
   );
 
@@ -468,14 +459,24 @@ export function App() {
     setSelection(new Set(visible.map((key) => key.id)));
   }, [visible]);
 
-  /** El texto que explica por que un boton esta apagado. */
+  /**
+ * El texto que explica por que un boton esta apagado.
+ *
+ * El helper devuelve la **clave** del diccionario y sus argumentos, no el
+ * texto: es una funcion pura y no sabe en que idioma esta la app. Aqui se
+ * traduce.
+ */
   const motivo = useCallback(
     (action: SelectAction): string | undefined => {
       if (selectedKeys.length === 0) return traducir('app.nothingSelected');
 
-      return facts.blocked.find((bloqueo) => bloqueo.action === action)?.message;
+      const bloqueo = facts.blocked.find((item) => item.action === action);
+
+      return bloqueo === undefined
+        ? undefined
+        : traducir(bloqueo.messageKey, bloqueo.messageArgs);
     },
-    [facts.blocked, selectedKeys.length],
+    [facts.blocked, selectedKeys.length, traducir],
   );
 
   // ------------------------------------------------------------- atajos ---
@@ -1274,11 +1275,8 @@ export function App() {
 
 /** `true` si la clave se puede regalar todavia. */
 function isAvailable(entry: IGameKey): boolean {
-  return entry.status === KeyStatus.Available;
+  return isGiftable(entry);
 }
-
-/** Minusculas, sin acentos y sin puntuacion, para comparar nombres. */
-/** Quita la coletilla de edicion de un titulo. */
 
 /** Las etiquetas que aparecen en todas las claves seleccionadas. */
 function etiquetasComunes(entries: readonly IGameKey[]): readonly string[] {

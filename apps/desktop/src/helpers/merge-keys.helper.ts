@@ -35,11 +35,18 @@ export async function mergeKeysFromBackup(
     const id = existentes[0]?.id;
 
     if (id === undefined) {
+      // 13 columnas y 13 valores. Antes el ultimo marcador salia dos veces
+      // (`$12, $12`), copiado del `INSERT` del alta normal, donde si procede
+      // porque ahi los dos son el mismo `touchTimestamp()`. Aqui no: la fila de
+      // la copia trae `created_at` y `updated_at` distintos, y repetir el
+      // marcador guardaba la fecha de creacion en la de modificacion,  perdia
+      // la segunda sin avisar. La rama de `UPDATE` de mas abajo si la
+      // respectaba: la misma operacion trataba de dos formas.
       await db.execute(
         `INSERT INTO ${TABLE_GAME_KEYS}
            (title, key_value, platform, status, source, gifted_to, parent_title,
             note, tags, added_on, last_used_at, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $12)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
         [
           fila.title,
           clave,
@@ -49,10 +56,11 @@ export async function mergeKeysFromBackup(
           fila.gifted_to,
           fila.parent_title,
           fila.note,
-          tagsDe(fila.tags),
+          serializeTags(parseTags(fila.tags)),
           fila.added_on,
           fila.last_used_at,
           fila.created_at,
+          fila.updated_at,
         ],
       );
       inserted += 1;
@@ -73,7 +81,7 @@ export async function mergeKeysFromBackup(
           fila.gifted_to,
           fila.parent_title,
           fila.note,
-          tagsDe(fila.tags),
+          serializeTags(parseTags(fila.tags)),
           fila.added_on,
           fila.last_used_at,
           fila.updated_at,
@@ -87,11 +95,4 @@ export async function mergeKeysFromBackup(
   }
 
   return { total: filas.length, inserted, skipped, updated };
-}
-
-/** Normaliza el texto de etiquetas para que nunca quede en blanco. */
-function tagsDe(tags: string | null): string {
-  if (!tags) return '';
-
-  return tags.trim().length > 0 ? tags : serializeTags(parseTags(tags));
 }

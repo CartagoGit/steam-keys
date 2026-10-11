@@ -4,6 +4,8 @@ import {
   APP_VIEW_VALUES,
   AppTheme,
   AppView,
+  BACKUP_REASON_VALUES,
+  BackupReason,
   DEFAULT_KEY_KIND,
   DEFAULT_KEY_SCOPE,
   DEFAULT_LOCALE,
@@ -52,49 +54,61 @@ export function readBool(value: string | undefined): boolean {
 }
 
 /**
- * Lee el tema de los cinco valores.
+ * Lee un enum desde el texto guardado, con reserva.
  *
- * La comprobacion va contra la lista, no contra una comparacion con `dark` y
- * `light`: al anadir `midnight` y `paper` la comparacion se quedo corta y los
- * dos temas nuevos se guardaban bien pero al releerse caian en `system`, de
- * modo que el tema elegido se perdia al reiniciar. Comprobar contra la lista
- * hace que anadir un tema nuevo no pueda volver a romperlo.
+ * Todos los lectores de la tabla de ajustes son esto con distinta lista, asi
+ * que viven aqui para que no se repitan cinco veces. Lo importante es que la
+ * comprobacion va **contra la lista completa**, no contra un par de valores:
+ * cuando se comprobaba solo `dark` y `light`, al anadir `midnight` y `paper` los
+ * dos temas nuevos se guardaban bien pero al releerse caian en `system`, y el
+ * tema elegido se perdia al reiniciar. Anadir un valor nuevo al enum no puede
+ * volver a romperlo.
  */
+export function readEnum<T extends string>(
+  value: string | undefined | null,
+  valores: readonly T[],
+  porDefecto: T,
+): T {
+  return valores.includes(value as T) ? (value as T) : porDefecto;
+}
+
+/** Lee el tema de la interfaz. */
 export function readTheme(value: string | undefined): AppTheme {
-  return APP_THEME_VALUES.includes(value as AppTheme)
-    ? (value as AppTheme)
-    : AppTheme.System;
+  return readEnum(value, APP_THEME_VALUES, AppTheme.System);
 }
 
 /**
- * Lee el idioma de los cinco valores.
+ * Lee el idioma de la interfaz.
  *
- * Los tres ultimos (fr, pt, ca) estan a medio traducir y caen al castellano,
- * que es el idioma de origen y siempre esta completo.
+ * Los ultimos estan a medio traducir y caen al castellano, que es el idioma de
+ * origen y siempre esta completo.
  */
 export function readLocale(value: string | undefined): AppLocale {
-  return APP_LOCALE_VALUES.includes(value as AppLocale)
-    ? (value as AppLocale)
-    : DEFAULT_LOCALE;
+  return readEnum(value, APP_LOCALE_VALUES, DEFAULT_LOCALE);
 }
 
-/** Lee el ambito del filtro, validando contra la lista. */
+/** Lee el ambito del filtro. */
 export function readScope(value: string | undefined): KeyScope {
-  return KEY_SCOPE_VALUES.includes(value as KeyScope)
-    ? (value as KeyScope)
-    : DEFAULT_KEY_SCOPE;
+  return readEnum(value, KEY_SCOPE_VALUES, DEFAULT_KEY_SCOPE);
 }
 
-/** Lee el tipo de clave del filtro, validando contra la lista. */
+/** Lee el tipo de clave del filtro. */
 export function readKind(value: string | undefined): KeyKind {
-  return KEY_KIND_VALUES.includes(value as KeyKind)
-    ? (value as KeyKind)
-    : DEFAULT_KEY_KIND;
+  return readEnum(value, KEY_KIND_VALUES, DEFAULT_KEY_KIND);
 }
 
-/** Lee la vista abierta, validando contra la lista. */
+/** Lee la vista abierta. */
 export function readView(value: string | undefined): AppView {
-  return APP_VIEW_VALUES.includes(value as AppView)
-    ? (value as AppView)
-    : DEFAULT_VIEW;
+  return readEnum(value, APP_VIEW_VALUES, DEFAULT_VIEW);
+}
+
+/**
+ * Lee el motivo de una copia de seguridad.
+ *
+ * Una copia creada por una version anterior puede tener un motivo que este
+ * proyecto ya no conoce. Se cae a `manual`, que siempre existe, en vez de
+ * dejar que el motivo llegue a la interfaz y se pinte en crudo.
+ */
+export function readBackupReason(value: string | undefined): BackupReason {
+  return readEnum(value, BACKUP_REASON_VALUES, BackupReason.Manual);
 }
