@@ -5,8 +5,10 @@ import { getStorageMode, StorageMode } from '@/helpers/runtime.helper';
 import type { IDatabaseClient, IGameKeyRepository } from '@/contracts';
 
 let instancia: IGameKeyRepository | null = null;
-let modoDetectado: StorageMode | null = null;
+let modoRepositorio: StorageMode | null = null;
+
 let clienteInstancia: IDatabaseClient | null = null;
+let modoCliente: StorageMode | null = null;
 
 /**
  * Cliente de base de datos del entorno actual.
@@ -20,29 +22,33 @@ let clienteInstancia: IDatabaseClient | null = null;
  * En modo memoria se devuelve un cliente en memoria nuevo cada vez, porque no
  * hay conexion que compartir: los ajustes se guardan alli tambien, para que la
  * app siga siendo usable en el navegador sin Tauri.
+ *
+ * `modoCliente` lleva su propio modo en vez de compartir el de `getRepository()`:
+ * cada cache responde a lo suyo. Antes de tenerlos separados,
+ * `getDatabaseClient()` arrancaba con su variable a `null` porque solo
+ * `getRepository()` la escribia, asi que no reutilizaba nunca su cliente.
  */
 export async function getDatabaseClient(): Promise<IDatabaseClient> {
   const modo = getStorageMode();
 
-  if (clienteInstancia && modoDetectado === modo && modo !== StorageMode.Memory) {
+  if (clienteInstancia && modoCliente === modo && modo !== StorageMode.Memory) {
     return clienteInstancia;
   }
 
   switch (modo) {
     case StorageMode.Tauri: {
       clienteInstancia = tauriDatabaseClient;
-      await tauriDatabaseClient.migrate();
-      return clienteInstancia;
+      break;
     }
 
     case StorageMode.DevBridge: {
+      // Import dinamico: el puente no existe en el build de produccion.
       const { devBridgeDatabaseClient } = await import(
         '@/services/dev-bridge-database.service'
       );
 
       clienteInstancia = devBridgeDatabaseClient;
-      await devBridgeDatabaseClient.migrate();
-      return clienteInstancia;
+      break;
     }
 
     case StorageMode.Memory:
@@ -52,9 +58,17 @@ export async function getDatabaseClient(): Promise<IDatabaseClient> {
       );
 
       clienteInstancia = memoryDatabaseClient();
-      return clienteInstancia;
+      break;
     }
   }
+
+  modoCliente = modo;
+
+  // La migracion solo cuando hay esquema que desplegar. En modo memoria el
+  // cliente construye sus tablas al crearse y no tiene nada que migrar.
+  if (modo !== StorageMode.Memory) await clienteInstancia.migrate();
+
+  return clienteInstancia;
 }
 
 /**
@@ -72,37 +86,22 @@ export async function getRepository(): Promise<IGameKeyRepository> {
   const modo = getStorageMode();
 
   // El modo puede cambiar en caliente si el usuario recompila el front.
-  if (instancia && modoDetectado === modo) return instancia;
+  if (instancia && modoRepositorio === modo) return instancia;
 
-  modoDetectado = modo;
+  modoRepositorio = modo;
 
-  switch (modo) {
-    case StorageMode.Tauri: {
-      const repositorio = new SqliteGameKeyRepository(tauriDatabaseClient);
-      await tauriDatabaseClient.migrate();
-      instancia = repositorio;
-      return repositorio;
-    }
+  // Tauri y puente de desarrollo usan el mismo repositorio sobre SQLite; lo
+  // unico que cambia es de donde sale el cliente, y eso lo decide
+  // `getDatabaseClient()`. Resolverlo aqui otra vez —como hacia este codigo
+  // con `tauriDatabaseClient` fijo— abria dos caminos paralelos: los ajustes
+  // iban por `getDatabaseClient()` y las claves por aqui, y en el navegador de
+  // desarrollo acababan en bases distintas al recargar la pagina.
+  instancia =
+    modo === StorageMode.Memory
+      ? new MemoryGameKeyRepository()
+      : new SqliteGameKeyRepository(await getDatabaseClient());
 
-    case StorageMode.DevBridge: {
-      // Import dinamico: el puente no existe en el build de produccion.
-      const { devBridgeDatabaseClient } = await import(
-        '@/services/dev-bridge-database.service'
-      );
-
-      const cliente: IDatabaseClient = devBridgeDatabaseClient;
-      await cliente.migrate();
-
-      const repositorio = new SqliteGameKeyRepository(cliente);
-      instancia = repositorio;
-      return repositorio;
-    }
-
-    case StorageMode.Memory:
-    default:
-      instancia = new MemoryGameKeyRepository();
-      return instancia;
-  }
+  return instancia;
 }
 
 /** `true` si los datos viven en SQLite y no en `localStorage`. */
@@ -110,8 +109,17 @@ export function isPersistent(): boolean {
   return getStorageMode() !== StorageMode.Memory;
 }
 
-/** Descarta la instancia cacheada. Solo para tests. */
+/**
+ * Descarta las instancias cacheadas.
+ *
+ * Ttiene que limpiar el cliente **y** el repositorio: con dos caches
+ * separadas, deixar solo el repositorio hacia que el test siguiente cogiera un
+ * cliente de una ejecucion anterior y escribiera en una base de datos que ya
+ * no era la suya.
+ */
 export function resetRepository(): void {
   instancia = null;
-  modoDetectado = null;
+  modoRepositorio = null;
+  clienteInstancia = null;
+  modoCliente = null;
 }
