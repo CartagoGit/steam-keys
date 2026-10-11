@@ -39,7 +39,18 @@ export interface IButtonProps {
   full?: boolean;
 }
 
-const VARIANTS: Record<string, string> = {
+/**
+ * El tipo sale de la prop, no de `Record<string, string>`.
+ *
+ * Con `Record<string, ...>` el mapa acepta cualquier clave: escribir `variant="primry"`
+ * compila sin decir nada y el boton sale con el estilo por defecto, porque el
+ * `?? VARIANTS.subtle` de mas abajo se traga el error. Con `Record<TablaDeVariantes, string>`
+ * la prop y la tabla no pueden separarse, y la comprobacion de que estan
+ * completas la hace el compilador en vez de la vista.
+ */
+type TVariant = NonNullable<IButtonProps['variant']>;
+
+const VARIANTS: Record<TVariant, string> = {
   primary:
     'bg-accent text-on-accent hover:brightness-110 active:brightness-95 shadow-sm',
   ghost: 'text-t2 hover:bg-hover hover:text-t1 active:bg-hover-2',
@@ -70,7 +81,7 @@ export function Button({
         'disabled:cursor-not-allowed disabled:opacity-40',
         size === 'sm' ? 'px-2.5 py-1.5 text-xs' : 'px-3.5 py-2 text-sm',
         full ? 'w-full' : '',
-        VARIANTS[variant] ?? VARIANTS.subtle,
+        VARIANTS[variant],
       ].join(' ')}
     >
       {icon ? <Icon name={icon} size={size === 'sm' ? 13 : 15} /> : null}

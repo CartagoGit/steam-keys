@@ -77,9 +77,23 @@ export function isPersistent(): boolean {
   return getStorageMode() !== StorageMode.Memory;
 }
 
-/** `true` si se pueden crear y restaurar copias de seguridad. */
+/**
+ * `true` si se pueden crear y restaurar copias de seguridad.
+ *
+ * Las copias son filas de la tabla `backups` de la propia base de datos, no
+ * ficheros ni comandos de Rust: funcionan siempre que haya un motor de verdad
+ * detras. Antes de que fueran filas eran ficheros y solo se podian hacer desde
+ * Tauri, y por eso esto era `isTauri()`. Ese predicado se quedo puesto cuando
+ * el almacenamiento cambio, y el resultado era el contrario del real: la UI
+ * deshabilitaba el boton de copia en el puente de desarrollo, que es donde se
+ * prueba la interfaz, y lo hacia con el texto de "solo en la app de
+ * escritorio". Una copia en la base de descartes no es asunto del usuario.
+ *
+ * Unica fuente de verdad. `backupService.available()` decia lo mismo con otro
+ * nombre y no lo llamaba nadie.
+ */
 export function supportsBackups(): boolean {
-  return isTauri();
+  return isPersistent();
 }
 
 /** `true` si solo hay `localStorage` detrás. */

@@ -1,4 +1,4 @@
-import { isBrowserPreview } from '@/helpers/runtime.helper';
+import { supportsBackups } from '@/helpers/runtime.helper';
 import { BackupReason, KeyPlatform, RestoreMode, StorageHealth, TABLE_GAME_KEYS, type IBackup, type IDatabaseClient, type IRestoreSummary } from '@/contracts';
 import { mergeKeysFromBackup } from '@/helpers/merge-keys.helper';
 import { backupRepository } from '@/repositories/backup.repository';
@@ -16,15 +16,16 @@ import { backupRepository } from '@/repositories/backup.repository';
  */
 export const backupService = {
   /**
-   * `true` si hay un motor real sobre el que trabajar.
+   * `true` si se pueden crear y restaurar copias de seguridad.
    *
-   * Antes era "solo dentro de Tauri", porque las copias eran ficheros y en el
-   * navegador no habia donde ponerlos. Ahora que son filas de la tabla
-   * `backups`, funcionan en cualquier sitio donde haya un motor de verdad: la
-   * app de escritorio **y** el puente de desarrollo.
+   * No es una pregunta para este servicio: la respuesta la da
+   * `supportsBackups()`, que es donde se mira el modo de almacenamiento. Se
+   * expone aqui solo porque de primeras habia dos y cada una decia una cosa —
+   * esta decia "todo menos el navegador en memoria" y la otra "solo Tauri"—, y
+   * la contradicted era la que dejo las copias apagadas en el puente.
    */
   available(): boolean {
-    return !isBrowserPreview();
+    return supportsBackups();
   },
 
   /** Crea una copia de seguridad y la devuelve. */

@@ -6,14 +6,21 @@ import {
   isPersistent,
   supportsBackups,
 } from '@/helpers/runtime.helper';
-import { getRepository } from '@/repositories/repository.factory';
-import { tauriDatabaseClient } from '@/services/tauri-database.service';
+import { getDatabaseClient, getRepository } from '@/repositories/repository.factory';
 
 /**
  * Fachada de almacenamiento: donde viven los datos, si estan sanos y como
  * recuperarlos.
  *
  * La UI de datos no habla ni con Rust ni con SQL: solo con esta clase.
+ *
+ * **El cliente se pide siempre al factory**, nunca se usa
+ * `tauriDatabaseClient` aqui. Eso no era un descuido cuando solo existia Tauri,
+ * pero al abrirse las copias al puente de desarrollo se volvio un fallo de
+ * verdad: en `bun run dev` estas llamadas habrian escrito sobre el motor de
+ * Tauri —que en el navegador no existe— en vez de sobre la base de descarte.
+ * El factory existe justamente para que los ajustes y el repositorio hablen
+ * **con la misma conexion**, y esta fachada es parte de ese club.
  */
 export const storageService = {
   /** `true` si los datos sobreviven a cerrar la app. */
@@ -25,13 +32,15 @@ export const storageService = {
   async info(): Promise<IStorageInfo> {
     const repository = await getRepository();
     const keys = await repository.listAll();
+    const cliente = await getDatabaseClient();
 
     const info = await fileService.databaseInfo();
     const persistente = isPersistent();
 
-    // La comprobacion de integridad y las copias son de Tauri. Con el puente
-    // de desarrollo hay SQLite de verdad, pero sin los comandos de Rust, asi
-    // que se informa del estado sin inventarse un resultado.
+    // Las copias y el recuento son SQL contra la tabla, asi que valen en
+    // cualquier sitio con un motor de verdad. Lo que sigue siendo de Tauri es
+    // la *ruta* del fichero —`fileService.databaseInfo()`—, que no tiene
+    // equivalente en el puente.
     if (!supportsBackups()) {
       return {
         databasePath: persistente ? info?.path ?? null : null,
@@ -49,9 +58,9 @@ export const storageService = {
     }
 
     const [salud, unknownPlatform, backups] = await Promise.all([
-      backupService.checkHealth(tauriDatabaseClient),
-      backupService.countUnknownPlatform(tauriDatabaseClient),
-      backupService.list(tauriDatabaseClient).catch(() => [] as readonly IBackup[]),
+      backupService.checkHealth(cliente),
+      backupService.countUnknownPlatform(cliente),
+      backupService.list(cliente).catch(() => [] as readonly IBackup[]),
     ]);
 
     return {
@@ -69,17 +78,17 @@ export const storageService = {
 
   /** Crea una copia de seguridad a peticion del usuario. */
   async backupNow(reason: BackupReason = BackupReason.Manual): Promise<IBackup> {
-    return backupService.create(tauriDatabaseClient, reason);
+    return backupService.create(await getDatabaseClient(), reason);
   },
 
   /** Copias de seguridad disponibles. */
-  listBackups(): Promise<readonly IBackup[]> {
-    return backupService.list(tauriDatabaseClient);
+  async listBackups(): Promise<readonly IBackup[]> {
+    return backupService.list(await getDatabaseClient());
   },
 
   /** Elimina una copia concreta. */
   async deleteBackup(name: string): Promise<void> {
-    await backupService.remove(tauriDatabaseClient, name);
+    await backupService.remove(await getDatabaseClient(), name);
   },
 
   /**
@@ -91,14 +100,16 @@ export const storageService = {
   async restore(name: string, mode: RestoreMode): Promise<IRestoreSummary> {
     if (!supportsBackups()) {
       throw new Error(
-        'Las copias de seguridad solo existen en la app de escritorio. ' +
-          'Abre la app nativa para restaurar.',
+        'Las copias de seguridad necesitan una base de datos de verdad. ' +
+          'Aqui no hay ninguna.',
       );
     }
 
-    await backupService.create(tauriDatabaseClient, BackupReason.AntesDeRestaurar);
+    const cliente = await getDatabaseClient();
 
-    return backupService.restore(tauriDatabaseClient, name, mode);
+    await backupService.create(cliente, BackupReason.AntesDeRestaurar);
+
+    return backupService.restore(cliente, name, mode);
   },
 
   /**
@@ -120,7 +131,7 @@ export const storageService = {
   /** Importa de verdad el TXT ya leido. */
   async commitImport(contents: string) {
     if (supportsBackups()) {
-      await backupService.create(tauriDatabaseClient, BackupReason.AntesDeImportar);
+      await backupService.create(await getDatabaseClient(), BackupReason.AntesDeImportar);
     }
 
     return gameKeyService.importTxt(contents, false);

@@ -15,7 +15,10 @@ export interface IModalProps {
   label: string;
 }
 
-const SIZES: Record<string, string> = {
+/** El tipo sale de la prop `size`, para que anadir un tamano no se pueda olvidar. */
+type TSize = NonNullable<IModalProps['size']>;
+
+const SIZES: Record<TSize, string> = {
   sm: 'max-w-sm',
   md: 'max-w-md',
   lg: 'max-w-lg',

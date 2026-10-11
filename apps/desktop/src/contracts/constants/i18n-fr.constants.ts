@@ -76,7 +76,8 @@ export const FR: TranslationTable = Object.freeze({
     'Seules les cles qui autorisent cet etat changent. Les autres restent telles quelles.',
   'bulk.apply': 'Changer l etat',
   'bulk.pending': '{0} cles passent a {1}',
-  'bulk.done': 'Etat change sur {0} cles.',
+  'bulk.doneOne': 'Statut change sur {0} cle.',
+  'bulk.doneMany': 'Statut change sur {0} cles.',
   'bulk.none': 'Aucune des cles selectionnees ne peut passer a cet etat.',
   'status.available': 'Disponible',
   'status.gifted': 'Offerte',
@@ -217,7 +218,7 @@ export const FR: TranslationTable = Object.freeze({
   'storage.corrupted': 'SQLite signale un probleme d integrite.',
   'storage.corruptedTitle': 'La base de donnees est abimee',
   'storage.backupNow': 'Creer une copie maintenant',
-  'storage.desktopOnly': 'Reserve a l application de bureau',
+  'storage.desktopOnly': 'Sans base de donnees',
   'storage.copyNow': 'Copier maintenant',
   'storage.restoring': 'Restauration…',
   'storage.restore': 'Restaurer',
@@ -275,10 +276,11 @@ export const FR: TranslationTable = Object.freeze({
   'storage.backups.none':
     'Pas encore de sauvegardes. Elles se font toutes seules avant chaque import ou restauration, et tu peux aussi utiliser « Copier maintenant ».',
   'storage.backups.desktopOnly':
-    'Les sauvegardes sont une fonction de l application de bureau. Il n y en a aucune ici.',
-  'storage.backups.keys': '{0} cles',
+    'Ici les donnees vivent dans le navigateur, pas dans une base de donnees, il n\'y a donc nulle part ou garder des copies.',
+  'storage.backups.keysOne': '{0} cle',
+  'storage.backups.keysMany': '{0} cles',
   'storage.backups.keep':
-    'Les 10 sauvegardes les plus recentes sont dans le dossier « backups » a cote de la base de donnees, et se font toutes seules avant chaque import ou restauration.',
+    'Les 10 copies les plus recentes sont gardees dans la base de donnees elle-meme, et elles sont creees automatiquement avant chaque importation ou restauration.',
   'storage.refresh': 'Actualiser',
   'storage.reason.manual': 'Manuelle',
   'storage.reason.beforeImport': 'Avant l’import',
@@ -297,6 +299,7 @@ export const FR: TranslationTable = Object.freeze({
   'storage.restoreSafe':
     'Aucune option ne supprime de cles : restaurer ne reduit jamais ta collection.',
   'row.delete': 'Supprimer la cle',
+  'row.delete.body': '« {0} » sera supprime de ta collection. Tu ne peux pas l annuler.',
   'app.linkFailed': 'Impossible de connecter le compte.',
   'gift.hint': 'Marquer les cles selectionnees comme deja offertes',
   'select.markExpired': 'Marquer comme expirees',
@@ -305,7 +308,8 @@ export const FR: TranslationTable = Object.freeze({
   'footer.shortcutSearch': 'chercher',
   'footer.shortcutNew': 'nouvelle',
   'footer.showing': 'On affiche {0} sur {1}. Affine la recherche pour voir le reste.',
-  'footer.count': '{0} cles sur {1}',
+  'footer.countOne': '{0} cle',
+  'footer.countMany': '{0} cles sur {1}',
   'platform.unknown': 'Non determinee',
   'storage.portable.title': 'Mode portable',
   'storage.portable.text':

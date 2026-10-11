@@ -1,6 +1,12 @@
 import { describe, expect, test } from 'bun:test';
 
-import { STORAGE_MODE_LABEL, STORAGE_MODE_NOTICE, StorageMode } from './runtime.helper';
+import {
+  isPersistent,
+  STORAGE_MODE_LABEL,
+  STORAGE_MODE_NOTICE,
+  StorageMode,
+  supportsBackups,
+} from './runtime.helper';
 import { APP_LOCALE_VALUES, AppLocale, TRANSLATIONS } from '@/contracts';
 import { translate } from './i18n.helper';
 
@@ -65,5 +71,62 @@ describe('textos del modo de almacenamiento', () => {
     const aviso = translate(AppLocale.Es, STORAGE_MODE_NOTICE[StorageMode.Tauri]);
 
     expect(aviso).toContain('SQLite');
+  });
+});
+
+describe('que se puede hacer en cada modo', () => {
+  test('las copias dependen de tener una base de datos, no de estar en Tauri', () => {
+    // Las copias son filas de la tabla `backups`, no ficheros ni comandos de
+    // Rust. Mientras fueron ficheros, `supportsBackups()` era `isTauri()` y todo
+    // fue coherente; al pasar a la tabla el predicado se quedo como estaba y
+    // empezo a deshabilitar el boton de copia en el puente de desarrollo —que
+    // es justo donde se prueba la interfaz— con el texto de "solo en la app de
+    // escritorio".
+    //
+    // Este test ata las dos cosas: hay motor de verdad, hay copias. Si alguien
+    // vuelve a atar las copias a Tauri, falla aqui y no en la pantalla.
+    expect(supportsBackups()).toBe(isPersistent());
+  });
+
+  test('sin motor de verdad no hay copias en ningun idioma', () => {
+    // En el navegador sin Tauri los datos viven en `localStorage`, que no tiene
+    // tablas. El texto tiene que decirlo por lo que falta —una base de datos—
+    // y no por quien la puede leer, que es lo que decia antes y ya no era
+    // cierto con el puente abierto.
+    const sinBase = APP_LOCALE_VALUES.flatMap((locale) =>
+      ['storage.desktopOnly', 'storage.backups.desktopOnly']
+        .filter((clave) => {
+          const texto = translate(locale, clave).toLowerCase();
+
+          return (
+            texto.includes('escritorio') ||
+            texto.includes('desktop') ||
+            texto.includes('bureau') ||
+            texto.includes('ambiente de trabalho') ||
+            texto.includes(' Arbeitsplatz')
+          );
+        })
+        .map((clave) => `${locale}:${clave}`),
+    );
+
+    expect(sinBase).toEqual([]);
+  });
+
+  test('el aviso de las copias no habla de una carpeta que ya no existe', () => {
+    // `storage.backups.keep` describia una carpeta `backups/` al lado de la base
+    // de datos. Ese almacenamiento se cambio por la tabla `backups` y el texto
+    // se quedo: un usuario que buscase sus copias ahi no las encontraria, y
+    // pensaria que se habian perdido.
+    const Wrong = APP_LOCALE_VALUES.flatMap((locale) => {
+      const texto = translate(locale, 'storage.backups.keep').toLowerCase();
+
+      const hablaDeCarpeta = ['carpeta', 'dossier', 'pasta', 'ordner'].some((p) =>
+        texto.includes(p),
+      );
+
+      return hablaDeCarpeta ? [`${locale}:storage.backups.keep`] : [];
+    });
+
+    expect(Wrong).toEqual([]);
   });
 });

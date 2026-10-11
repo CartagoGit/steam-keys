@@ -49,6 +49,15 @@ export const GIFT_MARKER_PATTERN = /^\s*-\s*/;
  *
  * El TXT original solo tenia `-` para "regalada"; el exportador anade el resto
  * para que la ida y vuelta a la base de datos no pierda informacion.
+ *
+ * La clave es un caracter suelto y cualquiera, asi que el tipo de clave no se
+ * puede cerrar a una union de literales sin inventar un tipo artificial. Por
+ * eso el mapa se declara abierto y **no se indexa nunca directamente**: para
+ * leer se usa `statusForMarker()` y para escribir `markerForStatus()`, que son
+ * las unicas dos formas de cruzarse con este dato. Con `Record<string, ...>`
+ * un `STATUS_MARKERS[char]` se typea como `KeyStatus` —nunca `undefined`— y
+ * el `if (STATUS_MARKERS[char])` que hace falta para cubrir el caracter
+ * corriente deja de avisar al compilador.
  */
 export const STATUS_MARKERS: Readonly<Record<string, KeyStatus>> = Object.freeze({
   '-': KeyStatus.Gifted,
@@ -58,7 +67,29 @@ export const STATUS_MARKERS: Readonly<Record<string, KeyStatus>> = Object.freeze
 });
 
 /** Caracteres que abren linea y significan algo mas que parte del nombre. */
-export const STATUS_MARKER_CHARS = Object.keys(STATUS_MARKERS).join('');
+export const STATUS_MARKER_CHARS = Object.freeze(Object.keys(STATUS_MARKERS).join(''));
+
+/** Estado que corresponde a un caracter de marcador, o `null` si no lo es. */
+export function statusForMarker(char: string): KeyStatus | null {
+  return STATUS_MARKERS[char] ?? null;
+}
+
+/**
+ * Caracter que escribe el exportador para un estado, o `null` si ese estado no
+ * tiene marcador (el TXT original no distinguia "disponible" de nada, asi que
+ * `available` es el unico que se escribe sin prefijo).
+ *
+ * Es la inversa de `STATUS_MARKERS`: ambos caminos salen del mismo mapa, de
+ * modo que anadir un estado nuevo obliga a decidir su marcador aqui.
+ */
+export function markerForStatus(status: KeyStatus): string | null {
+  for (const [char, mapped] of Object.entries(STATUS_MARKERS)) {
+    if (mapped === status) {
+      return char;
+    }
+  }
+  return null;
+}
 
 /** Anotaciones con prefijo que escribe el exportador dentro de `[...]`. */
 export const PARENT_ANNOTATION_PREFIX = 'parent:';

@@ -66,6 +66,11 @@ const SOSPECHOSAS = [
   'Sin guardar',
   'Cargando',
   'Restaurar',
+  // El mensaje de confirmacion de borrado estaba entero escrito a mano:
+  // `message={`Se eliminara "${title}" de tu coleccion…`}. No lo pilla una
+  // palabra suelta porque el texto entero es una frase; anadido tal cual.
+  'Se eliminara',
+  'Se podria eliminar',
 ];
 
 /** Atributos cuyo valor es codigo, no texto de pantalla. */

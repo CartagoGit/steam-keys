@@ -26,7 +26,9 @@ export interface ISegmentedProps<T extends string> {
 }
 
 /** Los colores de cada tono: el anillo y el fondo del boton activo. */
-const TONES: Record<string, { anillo: string; fondo: string; texto: string }> = {
+type TTono = NonNullable<ISegmentedProps<string>["tone"]>;
+
+const TONES: Record<TTono, { anillo: string; fondo: string; texto: string }> = {
   neutral: {
     anillo: 'ring-info/60 bg-info/15 text-info',
     fondo: 'ring-line-strong',
@@ -130,8 +132,15 @@ function IconGlyph({ name }: { name: IconName }) {
  * Se usan en vez de iconos SVG porque en un boton de 28 px de alto un SVG pesa
  * mas que el texto y lo descuadra; ademas el color lo hereda del boton sin
  * tener que pasarle clases.
+ *
+ * El tipo sale de `IconName`, no de `Record<string, string>`: con el tipo
+ * abierto, anadir un icono nuevo a la enumeracion no obliga a decidir aqui si
+ * lleva glifo o no, y el `?? '·'` de `IconGlyph` se traga el olvido sin avisar.
+ * `Partial` mantiene esa red de seguridad sin fingir que todos los iconos
+ * tienen glifo: hoy `check-circle` comparte glifo con `check`, y el resto
+ * (flechas, lapiz...) no se usan en este boton y se dibujarian como punto.
  */
-const GLIFOS: Record<string, string> = {
+const GLIFOS: Partial<Readonly<Record<IconName, string>>> = {
   check: '✓',
   'check-circle': '✓',
   gamepad: '\u{1F3AE}',

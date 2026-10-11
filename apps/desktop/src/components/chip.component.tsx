@@ -71,7 +71,10 @@ export interface IChipGroupProps {
   disabledTitle?: string;
 }
 
-const TONOS: Record<string, string> = {
+/** El tipo sale de la prop `tone` de `IChipGroupProps`, para que no se separen. */
+type TTono = IChipGroupProps['tone'];
+
+const TONOS: Record<TTono, string> = {
   sky: 'text-info',
   emerald: 'text-ok',
 };

@@ -1,3 +1,4 @@
+import { pluralKey } from '@/helpers/i18n.helper';
 import { useMemo, useState } from 'react';
 import { KEY_STATUS_VALUES, KeyStatus, TRANSLATIONS, statusMeta, type IGameKey, type Translator } from '@/contracts';
 import { Icon } from './icon.component';
@@ -267,7 +268,7 @@ export function BulkStatusDialog({
               role="status"
               className="rounded-lg bg-ok/10 px-3 py-2 text-[11px] text-ok ring-1 ring-ok/20"
             >
-              {t('bulk.done', [aplicadas])}
+              {t(pluralKey(aplicadas, 'bulk.doneOne', 'bulk.doneMany'), [aplicadas])}
             </p>
           ) : (
             <p

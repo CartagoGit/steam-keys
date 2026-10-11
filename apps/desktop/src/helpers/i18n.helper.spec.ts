@@ -4,6 +4,7 @@ import {
   browserLocale,
   detectLocale,
   interpolate,
+  pluralKey,
   translate,
 } from './i18n.helper';
 import { APP_LOCALE_VALUES, AppLocale, DEFAULT_LOCALE, TRANSLATIONS } from '@/contracts';
@@ -238,5 +239,73 @@ describe('cobertura de las traducciones', () => {
     for (const locale of APP_LOCALE_VALUES) {
       expect(TRANSLATIONS[locale]['app.title']).toBe('Steam Keys');
     }
+  });
+});
+
+describe('elegir la forma de un recuento', () => {
+  test('uno toma el singular y el resto el plural', () => {
+    expect(pluralKey(1, 'footer.countOne', 'footer.countMany')).toBe('footer.countOne');
+    for (const cuenta of [0, 2, 3, 11, 21, 100, 1001]) {
+      expect(pluralKey(cuenta, 'footer.countOne', 'footer.countMany')).toBe('footer.countMany');
+    }
+  });
+
+  test('las dos formas de cada recuento existen en todos los idiomas', () => {
+    // Un par a medias no da error de tipos —`TranslationKey` es `string`— pero
+    // deja la pantalla mostrando «undefined».
+    const pares: readonly [string, string][] = [
+      ['footer.countOne', 'footer.countMany'],
+      ['bulk.doneOne', 'bulk.doneMany'],
+      ['storage.backups.keysOne', 'storage.backups.keysMany'],
+    ];
+
+    for (const [singular, plural] of pares) {
+      for (const locale of APP_LOCALE_VALUES) {
+        expect(TRANSLATIONS[locale][singular]).toBeTruthy();
+        expect(TRANSLATIONS[locale][plural]).toBeTruthy();
+      }
+    }
+  });
+
+  test('«1 clave» sale en singular en los cinco idiomas', () => {
+    // El fallo que motivaba el helper: con una sola clave salia «1 keys»,
+    // y ninguna prueba lo detectaba porque el texto existia y era traducible.
+    //
+    // No se comprueba contra un literal por idioma —en ingles «1 key» es
+    // justamente la forma buena— sino que las dos formas tienen que existir y
+    // ser distintas. El helper elige la forma, no el numero: quien llama sigue
+    // pasando el recuento a interpolar, y por eso se compara con el mismo
+    // numero en las dos formas.
+    for (const locale of APP_LOCALE_VALUES) {
+      const uno = translate(locale, 'footer.countOne', [1, 9]);
+      const varios = translate(locale, 'footer.countMany', [1, 9]);
+
+      expect(uno).toContain('1');
+      expect(varios).toContain('1');
+      expect(uno).not.toBe(varios);
+
+      // Y que el helper elige la que toca segun el numero que recibe.
+      expect(translate(locale, pluralKey(1, 'footer.countOne', 'footer.countMany'), [1, 9])).toBe(uno);
+      expect(translate(locale, pluralKey(3, 'footer.countOne', 'footer.countMany'), [1, 9])).toBe(varios);
+    }
+  });
+
+  test('con filtro activo decide por el total, no por lo que se ve', () => {
+    // El pie dice «1 de 200 claves» con un filtro puesto: si la forma la
+    // eligiese `visible.length`, saldria «1 clave», que parece que solo hay una
+    // en la coleccion. El singular es solo para cuando hay exactamente una.
+    const conFiltro = translate(
+      AppLocale.Es,
+      pluralKey(200, 'footer.countOne', 'footer.countMany'),
+      [1, 200],
+    );
+    expect(conFiltro).toBe(translate(AppLocale.Es, 'footer.countMany', [1, 200]));
+    expect(conFiltro).toContain('1');
+    expect(conFiltro).toContain('200');
+
+    // Y sin filtro, una sola clave: ahi si el singular sin total.
+    expect(
+      translate(AppLocale.Es, pluralKey(1, 'footer.countOne', 'footer.countMany'), [1, 1]),
+    ).toBe(translate(AppLocale.Es, 'footer.countOne', [1, 1]));
   });
 });

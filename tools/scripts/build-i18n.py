@@ -5,9 +5,54 @@ Se ejecuta a mano cuando se anaden claves nuevas:
 No es parte del arranque: los `.ts` que genera estan versionados, y la app no
 debe depender de Python para arrancar.
 """
+import ast
+import ast
 import pathlib
 import re
 BASE = pathlib.Path(__file__).resolve().parents[2] / 'apps/desktop/src/contracts/constants'
+
+def _detectar_duplicados() -> None:
+    """Falla si un idioma declara dos veces la misma clave.
+
+    Un dict de Python con una clave repetida no da error: se queda con la
+    ultima. Una tabla con la traduccion de frances pegada dos veces —o con una
+    linea de portugues colada en la de frances— genera un fichero que parece
+    correcto y solo se nota leyendo el idioma equivocado en pantalla. Como este
+    script **reescribe** los diccionarios, un duplicado no se ve al revisar el
+    diff: hay que buscarlo antes de escribir.
+
+    Se analiza el arbol sintactico de este mismo fichero y no `TRADUCCIONES`
+    porque a la altura de la comprobacion los dict ya estan construidos y el
+    dano hecho: `TRADUCCIONES['fr']` ya se comido las claves repetidas. El arbol
+    las conserva todas, que es lo que hace falta para nombrarlas.
+    """
+    arbol = ast.parse(pathlib.Path(__file__).resolve().read_text(encoding='utf-8'))
+
+    for lang in ('fr', 'pt', 'de'):
+        claves: list[str] = []
+
+        for nodo in ast.walk(arbol):
+            # TRADUCCIONES['fr'] = { ... }
+            es_asignacion = isinstance(nodo, ast.Assign)
+            es_indice = (
+                es_asignacion
+                and isinstance(nodo.value, ast.Dict)
+                and isinstance(nodo.targets[0], ast.Subscript)
+                and isinstance(nodo.targets[0].value, ast.Name)
+                and nodo.targets[0].value.id == 'TRADUCCIONES'
+                and isinstance(nodo.targets[0].slice, ast.Constant)
+                and nodo.targets[0].slice.value == lang
+            )
+            if es_indice:
+                claves = [k.value for k in nodo.value.keys if isinstance(k, ast.Constant)]
+
+        repetidas = sorted({c for c in claves if claves.count(c) > 1})
+        if repetidas:
+            raise SystemExit(
+                f'{lang}: claves repetidas en la tabla, se quedaria la ultima '
+                f'sin avisar -> {", ".join(repetidas)}'
+            )
+
 TRADUCCIONES = {}
 TRADUCCIONES['fr'] = {
  'export.title': 'export',
@@ -27,7 +72,7 @@ TRADUCCIONES['fr'] = {
  'row.select': 'Selectionner {0}',
  'row.onSteam': 'Sur Steam',
  'storage.portable.title': 'Mode portable',
- 'storage.portable.text': 'Tes cles et tes sauvegardes sont dans un seul fichier, steam-keys.db, a cote du programme et pas dans ton dossier utilisateur. Si tu deplaces l executable, deplace aussi ce fichier, sinon tu perdras ta collection.', 'storage.backups.keys': '{0} cles',
+ 'storage.portable.text': 'Tes cles et tes sauvegardes sont dans un seul fichier, steam-keys.db, a cote du programme et pas dans ton dossier utilisateur. Si tu deplaces l executable, deplace aussi ce fichier, sinon tu perdras ta collection.', 'storage.backups.keysOne': '{0} cle', 'storage.backups.keysMany': '{0} cles',
  'platform.unknown': 'Non determinee',
  'gift.hint': 'Marquer les cles selectionnees comme deja offertes',
  'select.markExpired': 'Marquer comme expirees',
@@ -36,7 +81,7 @@ TRADUCCIONES['fr'] = {
  'footer.shortcutSearch': 'chercher',
  'footer.shortcutNew': 'nouvelle',
  'footer.showing': 'On affiche {0} sur {1}. Affine la recherche pour voir le reste.',
- 'footer.count': '{0} cles sur {1}',
+ 'footer.countOne': '{0} cle', 'footer.countMany': '{0} cles sur {1}',
  'app.linkFailed': 'Impossible de connecter le compte.',
  'storage.checking': 'Verification…',
  'storage.section.storage': 'Stockage',
@@ -49,8 +94,8 @@ TRADUCCIONES['fr'] = {
  'storage.data.unknownHint': 'Cles dont la plateforme na pas pu etre determinee.',
  'storage.data.location': 'Emplacement',
  'storage.backups.none': 'Pas encore de sauvegardes. Elles se font toutes seules avant chaque import ou restauration, et tu peux aussi utiliser « Copier maintenant ».',
- 'storage.backups.desktopOnly': 'Les sauvegardes sont une fonction de l application de bureau. Il n y en a aucune ici.',
- 'storage.backups.keep': 'Les 10 sauvegardes les plus recentes sont dans le dossier « backups » a cote de la base de donnees, et se font toutes seules avant chaque import ou restauration.',
+ 'storage.backups.desktopOnly': 'Ici les donnees vivent dans le navigateur, pas dans une base de donnees, il n\'y a donc nulle part ou garder des copies.',
+ 'storage.backups.keep': 'Les 10 copies les plus recentes sont gardees dans la base de donnees elle-meme, et elles sont creees automatiquement avant chaque importation ou restauration.',
  'storage.refresh': 'Actualiser',
   'storage.reason.manual': 'Manuelle',
  'storage.reason.beforeImport': 'Avant l’import',
@@ -65,7 +110,8 @@ TRADUCCIONES['fr'] = {
  'storage.overwrite.text': 'En plus, chaque cle revient a son etat dans la copie. Utile si tu as change des etats par erreur.',
  'storage.restoreSafe': 'Aucune option ne supprime de cles : restaurer ne reduit jamais ta collection.',
  'row.delete': 'Supprimer la cle',
- 'select.markExpired': 'Marquer comme expirees',
+  'row.delete.body': '« {0} » sera supprime de ta collection. Tu ne peux pas l annuler.',
+ 
  'app.loadFailed': 'Impossible de lire la collection.',
  'app.nothingSelected': 'Rien de selectionne.',
  'app.saveFailed': 'Impossible d enregistrer.',
@@ -98,18 +144,18 @@ TRADUCCIONES['fr'] = {
  'app.importedDupes': ' ({0} y etaient deja)',
  'app.exported': '{0} cles exportees.',
  'app.synced': 'Bibliotheque synchronisee : {0} jeux.',
- 'footer.showing': 'On affiche {0} sur {1}. Affine la recherche pour voir le reste.',
+ 
  'footer.count': '{0} cles sur {1}',
- 'footer.giftable': '· {0} offeringables',
- 'footer.games': '{0} jeux sur Steam',
- 'footer.shortcutSearch': 'chercher',
- 'footer.shortcutNew': 'nouvelle',
+ 
+ 
+ 
+ 
  'bulk.blocked.notOwned': 'Tu ne l as plus : tu ne peux pas la redonner',
  'bulk.blocked.needRecipient': 'Il manque encore a qui tu l as donnee',
  'gift.count.one': '1 cle selectionnee',
  'gift.count.many': '{0} cles selectionnees',
  'gift.action': 'Marquer comme offertes',
- 'gift.hint': 'Marquer les cles selectionnees comme deja offertes',
+ 
  'gift.needRecipient': 'Ecris d abord a qui tu la donnes',
  'import.none': 'Rien a importer',
  'import.apply': 'Importer {0} cles',
@@ -132,7 +178,7 @@ TRADUCCIONES['fr'] = {
  'storage.corrupted': 'SQLite signale un probleme d integrite.',
  'storage.corruptedTitle': 'La base de donnees est abimee',
  'storage.backupNow': 'Creer une copie maintenant',
- 'storage.desktopOnly': 'Reserve a l application de bureau',
+ 'storage.desktopOnly': 'Sans base de donnees',
  'storage.copyNow': 'Copier maintenant',
  'storage.restoring': 'Restauration…',
  'storage.restore': 'Restaurer',
@@ -145,7 +191,7 @@ TRADUCCIONES['fr'] = {
  'settings.apiKey.show': 'Voir la cle',
  'settings.apiKey.hide': 'Masquer la cle',
  'data.close': 'Fermer les donnees',
- 'footer.count': '{0} cles sur {1}',
+ 
  'tags.addHint': 'Ajouter le mot-cle a la selection',
  'tags.applyHint': 'Appliquer ces mots-cles a toutes les cles selectionnees',
  'action.save': 'Enregistrer', 'action.cancel': 'Annuler', 'action.close': 'Fermer',
@@ -186,7 +232,7 @@ TRADUCCIONES['fr'] = {
  'bulk.hint':
    'Seules les cles qui autorisent cet etat changent. Les autres restent telles quelles.',
  'bulk.apply': "Changer l etat",
- 'bulk.pending': '{0} cles passent a {1}', 'bulk.done': 'Etat change sur {0} cles.',
+ 'bulk.pending': '{0} cles passent a {1}', 'bulk.doneOne': 'Statut change sur {0} cle.', 'bulk.doneMany': 'Statut change sur {0} cles.',
  'bulk.none': "Aucune des cles selectionnees ne peut passer a cet etat.",
  'status.available': 'Disponible', 'status.gifted': 'Offerte', 'status.redeemed': 'Activee',
  'status.expired': 'Expiree', 'status.unknown': 'A verifier',
@@ -272,7 +318,7 @@ TRADUCCIONES['pt'] = {
  'row.select': 'Selecionar {0}',
  'row.onSteam': 'Na Steam',
  'storage.portable.title': 'Modo portatil',
- 'storage.portable.text': 'As tuas chaves e as tuas copias estao num unico ficheiro, steam-keys.db, ao lado do programa e nao na tua pasta de utilizador. Se moveres o executavel para outra pasta, move tambem esse ficheiro, ou ficas sem a colecao.', 'storage.backups.keys': '{0} chaves',
+ 'storage.portable.text': 'As tuas chaves e as tuas copias estao num unico ficheiro, steam-keys.db, ao lado do programa e nao na tua pasta de utilizador. Se moveres o executavel para outra pasta, move tambem esse ficheiro, ou ficas sem a colecao.', 'storage.backups.keysOne': '{0} chaves', 'storage.backups.keysMany': '{0} chaves',
  'platform.unknown': 'Nao determinada',
  'gift.hint': 'Marcar as chaves selecionadas como ja presenteadas',
  'select.markExpired': 'Marcar como expiradas',
@@ -281,7 +327,7 @@ TRADUCCIONES['pt'] = {
  'footer.shortcutSearch': 'procurar',
  'footer.shortcutNew': 'nova',
  'footer.showing': 'A mostrar {0} de {1}. Afina a busca para ver o resto.',
- 'footer.count': '{0} de {1} chaves',
+ 'footer.countOne': '{0} chave', 'footer.countMany': '{0} de {1} chaves',
  'app.linkFailed': 'Nao foi possivel ligar a conta.',
  'storage.checking': 'A verificar…',
  'storage.section.storage': 'Armazenamento',
@@ -294,8 +340,8 @@ TRADUCCIONES['pt'] = {
  'storage.data.unknownHint': 'Chaves cuja plataforma nao se conseguiu determinar.',
  'storage.data.location': 'Localizacao',
  'storage.backups.none': 'Ainda nao ha copias. Sao feitas sozinhas antes de cada importacao ou restauro, e tambem podes usar «Copiar agora».',
- 'storage.backups.desktopOnly': 'As copias de seguranca sao uma funcionalidade da app de escritorio. Aqui nao ha nenhuma.',
- 'storage.backups.keep': 'Guardam-se as 10 copias mais recentes na pasta «backups» junto a base de dados, e sao feitas sozinhas antes de cada importacao ou restauro.',
+ 'storage.backups.desktopOnly': 'Aqui os dados vivem no navegador, nao numa base de dados, por isso nao ha onde guardar copias.',
+ 'storage.backups.keep': 'As 10 copias mais recentes ficam guardadas dentro da propria base de dados, e sao criadas sozinhas antes de cada importacao ou restauracao.',
  'storage.refresh': 'Atualizar',
   'storage.reason.manual': 'Manual',
  'storage.reason.beforeImport': 'Antes de importar',
@@ -310,7 +356,8 @@ TRADUCCIONES['pt'] = {
  'storage.overwrite.text': 'Para alem disso, cada chave volta ao estado que tinha na copia. Util se mudaste estados sem querer.',
  'storage.restoreSafe': 'Nenhuma opcao apaga chaves: restaurar nunca reduz a colecao.',
  'row.delete': 'Apagar chave',
- 'select.markExpired': 'Marcar como expiradas',
+  'row.delete.body': '«{0}» sera apagado da tua colecao. Nao podes anular.',
+ 
  'app.loadFailed': 'Nao foi possivel ler a colecao.',
  'app.nothingSelected': 'Nada selecionado.',
  'app.saveFailed': 'Nao foi possivel guardar.',
@@ -343,18 +390,18 @@ TRADUCCIONES['pt'] = {
  'app.importedDupes': ' ({0} ja estavam la)',
  'app.exported': '{0} chaves exportadas.',
  'app.synced': 'Biblioteca sincronizada: {0} jogos.',
- 'footer.showing': 'A mostrar {0} de {1}. Afina a busca para ver o resto.',
+ 
  'footer.count': '{0} de {1} chaves',
- 'footer.giftable': '· {0} para presentear',
- 'footer.games': '{0} jogos na Steam',
- 'footer.shortcutSearch': 'procurar',
- 'footer.shortcutNew': 'nova',
+ 
+ 
+ 
+ 
  'bulk.blocked.notOwned': 'Ja nao a tens: nao da para oferecer outra vez',
  'bulk.blocked.needRecipient': 'Ainda falta dizer a quem deste',
  'gift.count.one': '1 chave selecionada',
  'gift.count.many': '{0} chaves selecionadas',
  'gift.action': 'Marcar como presenteadas',
- 'gift.hint': 'Marcar as chaves selecionadas como ja presenteadas',
+ 
  'gift.needRecipient': 'Escreve primeiro a quem vais dar',
  'import.none': 'Nada para importar',
  'import.apply': 'Importar {0} chaves',
@@ -377,7 +424,7 @@ TRADUCCIONES['pt'] = {
  'storage.corrupted': 'O SQLite reportou um problema de integridade.',
  'storage.corruptedTitle': 'A base de dados esta danificada',
  'storage.backupNow': 'Criar uma copia agora',
- 'storage.desktopOnly': 'So na app de ambiente de trabalho',
+ 'storage.desktopOnly': 'Sem base de dados',
  'storage.copyNow': 'Copiar agora',
  'storage.restoring': 'A restaurar…',
  'storage.restore': 'Restaurar',
@@ -390,7 +437,7 @@ TRADUCCIONES['pt'] = {
  'settings.apiKey.show': 'Mostrar a chave',
  'settings.apiKey.hide': 'Esconder a chave',
  'data.close': 'Fechar os dados',
- 'footer.count': '{0} de {1} chaves',
+ 
  'tags.addHint': 'Adicionar a etiqueta a selecao',
  'tags.applyHint': 'Aplicar estas etiquetas a todas as chaves selecionadas',
  'action.save': 'Guardar', 'action.cancel': 'Cancelar', 'action.close': 'Fechar',
@@ -432,7 +479,7 @@ TRADUCCIONES['pt'] = {
  'bulk.hint':
    'So as chaves que permitem esse estado mudam. As outras ficam como estao.',
  'bulk.apply': 'Mudar o estado',
- 'bulk.pending': '{0} chaves passam a {1}', 'bulk.done': 'Estado mudado em {0} chaves.',
+ 'bulk.pending': '{0} chaves passam a {1}', 'bulk.doneOne': 'Estado alterado em {0} chave.', 'bulk.doneMany': 'Estado alterado em {0} chaves.',
  'bulk.none': 'Nenhuma das selecionadas pode passar a esse estado.',
  'status.available': 'Disponivel', 'status.gifted': 'Presenteada', 'status.redeemed': 'Ativada',
  'status.expired': 'Expirada', 'status.unknown': 'A verificar',
@@ -518,7 +565,7 @@ TRADUCCIONES['de'] = {
  'row.select': '{0} auswahlen',
  'row.onSteam': 'In Steam',
  'storage.portable.title': 'Tragbarer Modus',
- 'storage.portable.text': 'Deine Keys und deine Sicherungen liegen in einer einzigen Datei, steam-keys.db, neben dem Programm und nicht in deinem Benutzerordner. Wenn du die Programmdatei verschiebst, verschiebe diese Datei mit, sonst bleibt die Sammlung zurueck.', 'storage.backups.keys': '{0} Keys',
+ 'storage.portable.text': 'Deine Keys und deine Sicherungen liegen in einer einzigen Datei, steam-keys.db, neben dem Programm und nicht in deinem Benutzerordner. Wenn du die Programmdatei verschiebst, verschiebe diese Datei mit, sonst bleibt die Sammlung zurueck.', 'storage.backups.keysOne': '{0} Keys', 'storage.backups.keysMany': '{0} Keys',
  'platform.unknown': 'Nicht ermittelt',
  'gift.hint': 'Die ausgewaehlten Schluessel als verschenkt markieren',
  'select.markExpired': 'Als abgelaufen markieren',
@@ -527,7 +574,7 @@ TRADUCCIONES['de'] = {
  'footer.shortcutSearch': 'suchen',
  'footer.shortcutNew': 'neu',
  'footer.showing': 'Zeige {0} von {1}. Grenze die Suche ein, um den Rest zu sehen.',
- 'footer.count': '{0} von {1} Schluesseln',
+ 'footer.countOne': '{0} Key', 'footer.countMany': '{0} von {1} Keys',
  'app.linkFailed': 'Das Konto liess sich nicht verbinden.',
  'storage.checking': 'Wird geprueft…',
  'storage.section.storage': 'Speicher',
@@ -540,8 +587,8 @@ TRADUCCIONES['de'] = {
  'storage.data.unknownHint': 'Schluessel, deren Plattform nicht ermittelt werden konnte.',
  'storage.data.location': 'Ort',
  'storage.backups.none': 'Noch keine Sicherungen. Sie werden vor jedem Import und jeder Wiederherstellung automatisch angelegt, und du kannst auch «Jetzt kopieren» benutzen.',
- 'storage.backups.desktopOnly': 'Sicherungen gibt es nur in der Desktop-App. Hier sind keine.',
- 'storage.backups.keep': 'Die 10 neuesten Sicherungen liegen im Ordner «backups» neben der Datenbank und werden vor jedem Import und jeder Wiederherstellung automatisch angelegt.',
+ 'storage.backups.desktopOnly': 'Hier liegen die Daten im Browser, nicht in einer Datenbank. Es gibt also keinen Ort fuer Kopien.',
+ 'storage.backups.keep': 'Die 10 neuesten Kopien liegen in der Datenbank selbst und werden vor jedem Import oder Wiederherstellen automatisch angelegt.',
  'storage.refresh': 'Aktualisieren',
   'storage.reason.manual': 'Manuell',
  'storage.reason.beforeImport': 'Vor dem Import',
@@ -556,7 +603,8 @@ TRADUCCIONES['de'] = {
  'storage.overwrite.text': 'Setzt ausserdem jeden Schluessel auf den Stand der Kopie zurueck. Nuetzlich, wenn du Status von Hand geaendert hast.',
  'storage.restoreSafe': 'Keine der Optionen loescht Schluessel: Wiederherstellen verkleinert deine Sammlung nie.',
  'row.delete': 'Schluessel loeschen',
- 'select.markExpired': 'Als abgelaufen markieren',
+  'row.delete.body': '«{0}» wird aus deiner Sammlung geloescht. Das laesst sich nicht rueckgaengig machen.',
+ 
  'app.loadFailed': 'Die Sammlung liess sich nicht lesen.',
  'app.nothingSelected': 'Nichts ausgewaehlt.',
  'app.saveFailed': 'Konnte nicht gespeichert werden.',
@@ -589,18 +637,18 @@ TRADUCCIONES['de'] = {
  'app.importedDupes': ' ({0} waren schon da)',
  'app.exported': '{0} Schluessel exportiert.',
  'app.synced': 'Bibliothek synchronisiert: {0} Spiele.',
- 'footer.showing': 'Zeige {0} von {1}. Grenze die Suche ein, um den Rest zu sehen.',
+ 
  'footer.count': '{0} von {1} Schluesseln',
- 'footer.giftable': '· {0} verschenkbar',
- 'footer.games': '{0} Spiele bei Steam',
- 'footer.shortcutSearch': 'suchen',
- 'footer.shortcutNew': 'neu',
+ 
+ 
+ 
+ 
  'bulk.blocked.notOwned': 'Du hast sie nicht mehr: sie laesst sich nicht nochmal verschenken',
  'bulk.blocked.needRecipient': 'Es fehlt noch, an wen du sie gegeben hast',
  'gift.count.one': '1 Schluessel ausgewaehlt',
  'gift.count.many': '{0} Schluessel ausgewaehlt',
  'gift.action': 'Als verschenkt markieren',
- 'gift.hint': 'Die ausgewaehlten Schluessel als verschenkt markieren',
+ 
  'gift.needRecipient': 'Schreib erst, an wen du sie gibst',
  'import.none': 'Nichts zu importieren',
  'import.apply': '{0} Schluessel importieren',
@@ -623,7 +671,7 @@ TRADUCCIONES['de'] = {
  'storage.corrupted': 'SQLite hat ein Integritaetsproblem gemeldet.',
  'storage.corruptedTitle': 'Die Datenbank ist beschaedigt',
  'storage.backupNow': 'Jetzt eine Kopie anlegen',
- 'storage.desktopOnly': 'Nur in der Desktop-App',
+ 'storage.desktopOnly': 'Keine Datenbank',
  'storage.copyNow': 'Jetzt kopieren',
  'storage.restoring': 'Wird wiederhergestellt…',
  'storage.restore': 'Wiederherstellen',
@@ -636,7 +684,7 @@ TRADUCCIONES['de'] = {
  'settings.apiKey.show': 'Schluessel anzeigen',
  'settings.apiKey.hide': 'Schluessel verbergen',
  'data.close': 'Daten schliessen',
- 'footer.count': '{0} von {1} Schluesseln',
+ 
  'tags.addHint': 'Schlagwort zur Auswahl hinzufuegen',
  'tags.applyHint': 'Diese Schlagworte auf alle ausgewaehlten Schluessel anwenden',
  'action.save': 'Speichern', 'action.cancel': 'Abbrechen', 'action.close': 'Schliessen',
@@ -678,7 +726,7 @@ TRADUCCIONES['de'] = {
  'bulk.hint':
    'Geaendert wird nur, was diesen Status zulaesst. Der Rest bleibt unberuehrt.',
  'bulk.apply': 'Status aendern',
- 'bulk.pending': '{0} Schluessel werden zu {1}', 'bulk.done': 'Status bei {0} Schluesseln geaendert.',
+ 'bulk.pending': '{0} Schluessel werden zu {1}', 'bulk.doneOne': 'Status bei {0} Key geandert.', 'bulk.doneMany': 'Status bei {0} Keys geandert.',
  'bulk.none': 'Keiner der ausgewaehlten Schluessel kann auf diesen Status wechseln.',
  'status.available': 'Verfuegbar', 'status.gifted': 'Verschenkt', 'status.redeemed': 'Eingeloest',
  'status.expired': 'Abgelaufen', 'status.unknown': 'Zu pruefen',
@@ -783,6 +831,7 @@ def leer_es() -> list:
     cuerpo = texto[texto.index('Object.freeze({'):]
     return re.findall(r"'([^']+)':", cuerpo)
 def main() -> None:
+    _detectar_duplicados()
     claves = leer_es()
     for lang, tabla in TRADUCCIONES.items():
         destino = BASE / f'i18n-{lang}.constants.ts'

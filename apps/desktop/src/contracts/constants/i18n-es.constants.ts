@@ -25,14 +25,17 @@ export const ES: TranslationTable = Object.freeze({
   'empty.import': 'Importar TXT',
   'empty.create': 'Anadir clave',
   'empty.noResults': 'Ningun resultado',
-  'empty.noResultsHint': 'Prueba a cambiar la busqueda o quitar algun filtro.',
+  'empty.noResultsHint': 
+    'Prueba a cambiar la busqueda o quitar algun filtro.',
   'empty.clearFilters': 'Limpiar filtros',
 
   // --------------------------------------------------- primer arranque ---
   'firstRun.title': 'Todavia no hay base de datos',
-  'firstRun.body': 'No se ha creado ninguna. Se creara en cuanto anadas o importes la primera clave, al lado del programa, en {0}.',
+  'firstRun.body': 
+    'No se ha creado ninguna. Se creara en cuanto anadas o importes la primera clave, al lado del programa, en {0}.',
   'firstRun.moved.title': 'Has copiado el programa desde otro sitio',
-  'firstRun.moved.body': 'Las claves, los ajustes y la cuenta de Steam estan dentro de {0}. Si has copiado solo el ejecutable, copia tambien ese fichero de la carpeta de origen y dejalo al lado; si no, empezarias de cero.',
+  'firstRun.moved.body': 
+    'Las claves, los ajustes y la cuenta de Steam estan dentro de {0}. Si has copiado solo el ejecutable, copia tambien ese fichero de la carpeta de origen y dejalo al lado; si no, empezarias de cero.',
   'firstRun.bring': 'Traer la base de datos',
   'firstRun.create': 'Empezar de cero',
   'action.edit': 'Editar',
@@ -91,8 +94,10 @@ export const ES: TranslationTable = Object.freeze({
   'select.groupGift': 'Regalar',
   'select.groupState': 'Cambiar su estado',
   'select.groupOrganize': 'Organizar',
-  'select.exportHint': 'Guardar las claves seleccionadas en un TXT para regalar',
-  'select.giftedHint': 'Marca las seleccionadas como ya regaladas y dice a quien',
+  'select.exportHint': 
+    'Guardar las claves seleccionadas en un TXT para regalar',
+  'select.giftedHint': 
+    'Marca las seleccionadas como ya regaladas y dice a quien',
   'select.tagsHint': 'Cambia las etiquetas de las seleccionadas',
 
   // ------------------------------------------- cambiar estado de golpe ---
@@ -102,7 +107,8 @@ export const ES: TranslationTable = Object.freeze({
     'Se cambia solo a las claves que permitan ese estado. Las demas se quedan como estan.',
   'bulk.apply': 'Cambiar el estado',
   'bulk.pending': '{0} claves pasan a {1}',
-  'bulk.done': 'Estado cambiado en {0} claves.',
+  'bulk.doneOne': 'Estado cambiado en {0} clave.',
+  'bulk.doneMany': 'Estado cambiado en {0} claves.',
   'bulk.none': 'Ninguna de las seleccionadas puede pasar a ese estado.',
 
   // ----------------------------------------------------------- tooltips ---
@@ -117,13 +123,15 @@ export const ES: TranslationTable = Object.freeze({
   'status.hint.gifted': 'Ya se la he dado a alguien.',
   'status.hint.redeemed': 'Activada por mi.',
   'status.hint.expired': 'La fecha limite de activacion ya paso.',
-  'status.hint.unknown': 'No consta cuando caduca o si se puede comprobar.',
+  'status.hint.unknown': 
+    'No consta cuando caduca o si se puede comprobar.',
 
   // --------------------------------------------------------- tags modal ---
   'tags.title': 'Etiquetas',
   'tags.new': 'Etiqueta nueva',
   'tags.addHint': 'Anadir la etiqueta a la seleccion',
-  'tags.applyHint': 'Aplicar estas etiquetas a todas las claves seleccionadas',
+  'tags.applyHint': 
+    'Aplicar estas etiquetas a todas las claves seleccionadas',
 
   // ---------------------------------------------------------- key editor ---
   'editor.title': 'Juego',
@@ -195,12 +203,14 @@ export const ES: TranslationTable = Object.freeze({
   'settings.steam.linkedOk': 'Conexion realizada y guardada',
   'settings.steam.games': '{0} juegos',
   'settings.steam.forget': 'Olvidar la clave',
-  'settings.steam.forgetHint': 'Borrar la clave de la API de la base de datos',
+  'settings.steam.forgetHint': 
+    'Borrar la clave de la API de la base de datos',
   'settings.steam.needKey': 'Hace falta la clave de la API',
   'settings.steam.needId': 'Pon tu ID de Steam o el nombre de tu perfil',
   'settings.theme.hint':
     'Se ve al momento. «System» sigue al sistema operativo y cambia solo si el sistema cambia.',
-  'settings.language.hint': 'Cambia el idioma de los menus y los botones.',
+  'settings.language.hint': 
+    'Cambia el idioma de los menus y los botones.',
   'settings.steam.visibility':
     'Tu perfil de Steam tiene que ser publico para que la app vea tu biblioteca.',
 
@@ -227,11 +237,13 @@ export const ES: TranslationTable = Object.freeze({
   // -------------------------------------------------------------- datos ---
   'data.close': 'Cerrar datos',
   'data.title': 'Datos y copias de seguridad',
-  'data.subtitle': 'Onde vive tu coleccion y como recuperarla si algo sale mal.',
+  'data.subtitle': 
+    'Onde vive tu coleccion y como recuperarla si algo sale mal.',
 
   // ------------------------------------------------------ copia y restauro ---
   'storage.created': 'Copia creada: {0}',
-  'storage.restored': 'Restauradas {0} claves: {1} nuevas, {2} actualizadas, {3} sin cambios.',
+  'storage.restored': 
+    'Restauradas {0} claves: {1} nuevas, {2} actualizadas, {3} sin cambios.',
 
   // ------------------------------------------------------------- ficheros ---
   'file.pick.title': 'Selecciona el TXT de keys',
@@ -243,11 +255,15 @@ export const ES: TranslationTable = Object.freeze({
   // --------------------------------------------------------------- pie ---
   'row.select': 'Seleccionar {0}',
   'row.onSteam': 'En Steam',
-  'bulk.blocked.notOwned': 'Ya no la tienes: regalarla otra vez no es posible',
+  'bulk.blocked.notOwned': 
+    'Ya no la tienes: regalarla otra vez no es posible',
   'bulk.blocked.needRecipient': 'Falta decir a quien se la regalaste',
-  'selection.blockedOne': 'Cambia el filtro a «Solo disponibles» para dejar fuera esa 1',
-  'selection.blockedMany': 'Cambia el filtro a «Solo disponibles» para dejar fuera esas {0}',
-  'selection.blockedNone': 'Cambia el filtro a «Solo disponibles» para poder actuar sobre la seleccion',
+  'selection.blockedOne': 
+    'Cambia el filtro a «Solo disponibles» para dejar fuera esa 1',
+  'selection.blockedMany': 
+    'Cambia el filtro a «Solo disponibles» para dejar fuera esas {0}',
+  'selection.blockedNone': 
+    'Cambia el filtro a «Solo disponibles» para poder actuar sobre la seleccion',
   'selection.blockedExpired': 'Ya estaban todas caducadas',
 
   // ------------------------------------------------------ exportacion ---
@@ -279,16 +295,19 @@ export const ES: TranslationTable = Object.freeze({
   'storage.corrupted': 'SQLite ha reportado un problema de integridad.',
   'storage.corruptedTitle': 'La base de datos esta dañada',
   'storage.backupNow': 'Crear una copia ahora',
-  'storage.desktopOnly': 'Solo disponible en la app de escritorio',
+  'storage.desktopOnly': 'Sin base de datos',
   'storage.copyNow': 'Copiar ahora',
   'storage.restoring': 'Restaurando…',
   'storage.restore': 'Restaurar',
   'storage.mode.desktop': 'App de escritorio',
   'storage.mode.devBridge': 'Desarrollo (BD aparte)',
   'storage.mode.memory': 'Vista previa en navegador',
-  'storage.notice.desktop': 'Las claves estan en tu disco, en una base de datos SQLite, con copias de seguridad automaticas.',
-  'storage.notice.devBridge': 'Estas viendo una base de datos de desarrollo aparte de la de la app, en .dev/. Lo que edites aqui no toca tus claves; es el sitio donde se prueba la interfaz.',
-  'storage.notice.memory': 'Vista previa en navegador: los datos viven en localStorage y se pierden si limpias los datos del navegador.',
+  'storage.notice.desktop': 
+    'Las claves estan en tu disco, en una base de datos SQLite, con copias de seguridad automaticas.',
+  'storage.notice.devBridge': 
+    'Estas viendo una base de datos de desarrollo aparte de la de la app, en .dev/. Lo que edites aqui no toca tus claves; es el sitio donde se prueba la interfaz.',
+  'storage.notice.memory': 
+    'Vista previa en navegador: los datos viven en localStorage y se pierden si limpias los datos del navegador.',
   'app.loadFailed': 'No se pudo leer la coleccion.',
   'app.nothingSelected': 'No hay nada seleccionado.',
   'app.saveFailed': 'No se pudieron guardar.',
@@ -327,14 +346,20 @@ export const ES: TranslationTable = Object.freeze({
   'storage.data.keys': 'Claves guardadas',
   'storage.data.size': 'Tamano del fichero',
   'storage.data.where': 'Almacenamiento',
-  'storage.data.whereHint': 'Donde se estan guardando las claves ahora mismo.',
+  'storage.data.whereHint': 
+    'Donde se estan guardando las claves ahora mismo.',
   'storage.data.unknown': 'Pendientes de revisar',
-  'storage.data.unknownHint': 'Claves cuya plataforma no se pudo determinar.',
+  'storage.data.unknownHint': 
+    'Claves cuya plataforma no se pudo determinar.',
   'storage.data.location': 'Ubicacion',
-  'storage.backups.none': 'Todavia no hay copias. Se crean solas antes de cada importacion o restauracion, y tambien puedes pulsar «Copiar ahora».',
-  'storage.backups.desktopOnly': 'Las copias de seguridad son una funcion de la app de escritorio. Aqui no hay ninguna.',
-  'storage.backups.keys': '{0} claves',
-  'storage.backups.keep': 'Se guardan las 10 copias mas recientes en la carpeta «backups» junto a la base de datos, y se crean solas antes de cada importacion o restauracion.',
+  'storage.backups.none': 
+    'Todavia no hay copias. Se crean solas antes de cada importacion o restauracion, y tambien puedes pulsar «Copiar ahora».',
+  'storage.backups.desktopOnly': 
+    'Aqui los datos viven en el navegador, no en una base de datos, asi que no hay sitio donde guardar copias.',
+  'storage.backups.keysOne': '{0} clave',
+  'storage.backups.keysMany': '{0} claves',
+  'storage.backups.keep': 
+    'Se guardan las 10 copias mas recientes dentro de la propia base de datos, y se crean solas antes de cada importacion o restauracion.',
   'storage.refresh': 'Actualizar',
   'storage.reason.manual': 'Manual',
   'storage.reason.beforeImport': 'Antes de importar',
@@ -342,13 +367,18 @@ export const ES: TranslationTable = Object.freeze({
   'storage.reason.onMigrate': 'Al migrar',
   'storage.reason.fromFiles': 'Traida de archivos',
   'storage.restoreTitle': 'Restaurar {0}',
-  'storage.restoreHint': 'Se creara una copia del estado actual antes de aplicar nada, asi que esto tambien se puede deshacer.',
+  'storage.restoreHint': 
+    'Se creara una copia del estado actual antes de aplicar nada, asi que esto tambien se puede deshacer.',
   'storage.merge.title': 'Solo anadir lo que falte',
-  'storage.merge.text': 'Recupera las claves que no tienes. No toca las que ya existen.',
+  'storage.merge.text': 
+    'Recupera las claves que no tienes. No toca las que ya existen.',
   'storage.overwrite.title': 'Anadir y actualizar estados',
-  'storage.overwrite.text': 'Ademas, devuelve cada clave a como estaba en la copia. Util si has cambiado estados a mano por error.',
-  'storage.restoreSafe': 'Ninguna opcion borra claves: restaurar nunca reduce tu coleccion.',
+  'storage.overwrite.text': 
+    'Ademas, devuelve cada clave a como estaba en la copia. Util si has cambiado estados a mano por error.',
+  'storage.restoreSafe': 
+    'Ninguna opcion borra claves: restaurar nunca reduce tu coleccion.',
   'row.delete': 'Eliminar clave',
+  'row.delete.body': 'Se eliminara «{0}» de tu coleccion. Esto no se puede deshacer.',
   'app.linkFailed': 'No se ha podido conectar la cuenta.',
   'gift.hint': 'Marcar las claves seleccionadas como regaladas',
   'select.markExpired': 'Marcar como caducadas',
@@ -356,9 +386,12 @@ export const ES: TranslationTable = Object.freeze({
   'footer.games': '{0} juegos en Steam',
   'footer.shortcutSearch': 'buscar',
   'footer.shortcutNew': 'nueva',
-  'footer.showing': 'Mostrando {0} de {1}. Afina la busqueda para ver el resto.',
-  'footer.count': '{0} de {1} claves',
+  'footer.showing': 
+    'Mostrando {0} de {1}. Afina la busqueda para ver el resto.',
+  'footer.countOne': '{0} clave',
+  'footer.countMany': '{0} de {1} claves',
   'platform.unknown': 'Sin determinar',
   'storage.portable.title': 'Modo portable',
-  'storage.portable.text': 'Las claves y las copias estan en un solo fichero, steam-keys.db, al lado del programa y no en tu carpeta de usuario. Si mueves el ejecutable a otra carpeta, mueve tambien ese fichero, o te quedaras sin la coleccion.',
+  'storage.portable.text': 
+    'Las claves y las copias estan en un solo fichero, steam-keys.db, al lado del programa y no en tu carpeta de usuario. Si mueves el ejecutable a otra carpeta, mueve tambien ese fichero, o te quedaras sin la coleccion.',
 });

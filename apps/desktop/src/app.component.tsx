@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { setCurrentLocale, translate } from '@/helpers/i18n.helper';
+import { pluralKey, setCurrentLocale, translate } from '@/helpers/i18n.helper';
 import { normalizeForMatch } from '@/helpers/match-title.helper';
 import { LocaleContext, useT, type ITranslator } from './context/locale.context';
 
@@ -654,7 +654,7 @@ export function App() {
 
     // El aviso va **ademas** del mensaje del dialogo, no en vez de el: el
     // dialogo se puede cerrar sin leer y el cambio ya esta hecho.
-    notify(traducir('bulk.done', [aplicables.length]), 'success');
+    notify(traducir(pluralKey(aplicables.length, 'bulk.doneOne', 'bulk.doneMany'), [aplicables.length]), 'success');
 
     return aplicables.length;
   };
@@ -1129,7 +1129,11 @@ export function App() {
           </span>
         ) : (
         <span>
-          {traducir('footer.count', [visible.length, keys.length])}
+          {/* La forma la decide el TOTAL, no lo que se ve: con un filtro
+              activo puede haber 1 clave visible de 200, y «1 clave» a secas
+              dira que solo hay una. `footer.countMany` es «{0} de {1} claves»
+              justamente para eso; el singular es solo el caso de una unica. */}
+          {traducir(pluralKey(keys.length, 'footer.countOne', 'footer.countMany'), [visible.length, keys.length])}
           {stats.available > 0 ? traducir('footer.giftable', [stats.available]) : ''}
         </span>
         )}
@@ -1196,8 +1200,8 @@ export function App() {
       {deleting ? (
         <ConfirmDialog
           title={traducir('row.delete')}
-          message={`Se eliminara "${deleting.title}" de tu coleccion. Esto no se puede deshacer.`}
-          confirmLabel="Eliminar"
+          message={traducir('row.delete.body', [deleting.title])}
+          confirmLabel={traducir('action.delete')}
           onConfirm={handleDelete}
           onCancel={() => setDeleting(null)}
         />

@@ -77,7 +77,8 @@ export const DE: TranslationTable = Object.freeze({
     'Geaendert wird nur, was diesen Status zulaesst. Der Rest bleibt unberuehrt.',
   'bulk.apply': 'Status aendern',
   'bulk.pending': '{0} Schluessel werden zu {1}',
-  'bulk.done': 'Status bei {0} Schluesseln geaendert.',
+  'bulk.doneOne': 'Status bei {0} Key geandert.',
+  'bulk.doneMany': 'Status bei {0} Keys geandert.',
   'bulk.none': 'Keiner der ausgewaehlten Schluessel kann auf diesen Status wechseln.',
   'status.available': 'Verfuegbar',
   'status.gifted': 'Verschenkt',
@@ -219,7 +220,7 @@ export const DE: TranslationTable = Object.freeze({
   'storage.corrupted': 'SQLite hat ein Integritaetsproblem gemeldet.',
   'storage.corruptedTitle': 'Die Datenbank ist beschaedigt',
   'storage.backupNow': 'Jetzt eine Kopie anlegen',
-  'storage.desktopOnly': 'Nur in der Desktop-App',
+  'storage.desktopOnly': 'Keine Datenbank',
   'storage.copyNow': 'Jetzt kopieren',
   'storage.restoring': 'Wird wiederhergestellt…',
   'storage.restore': 'Wiederherstellen',
@@ -276,10 +277,12 @@ export const DE: TranslationTable = Object.freeze({
   'storage.data.location': 'Ort',
   'storage.backups.none':
     'Noch keine Sicherungen. Sie werden vor jedem Import und jeder Wiederherstellung automatisch angelegt, und du kannst auch «Jetzt kopieren» benutzen.',
-  'storage.backups.desktopOnly': 'Sicherungen gibt es nur in der Desktop-App. Hier sind keine.',
-  'storage.backups.keys': '{0} Keys',
+  'storage.backups.desktopOnly':
+    'Hier liegen die Daten im Browser, nicht in einer Datenbank. Es gibt also keinen Ort fuer Kopien.',
+  'storage.backups.keysOne': '{0} Keys',
+  'storage.backups.keysMany': '{0} Keys',
   'storage.backups.keep':
-    'Die 10 neuesten Sicherungen liegen im Ordner «backups» neben der Datenbank und werden vor jedem Import und jeder Wiederherstellung automatisch angelegt.',
+    'Die 10 neuesten Kopien liegen in der Datenbank selbst und werden vor jedem Import oder Wiederherstellen automatisch angelegt.',
   'storage.refresh': 'Aktualisieren',
   'storage.reason.manual': 'Manuell',
   'storage.reason.beforeImport': 'Vor dem Import',
@@ -297,6 +300,8 @@ export const DE: TranslationTable = Object.freeze({
   'storage.restoreSafe':
     'Keine der Optionen loescht Schluessel: Wiederherstellen verkleinert deine Sammlung nie.',
   'row.delete': 'Schluessel loeschen',
+  'row.delete.body':
+    '«{0}» wird aus deiner Sammlung geloescht. Das laesst sich nicht rueckgaengig machen.',
   'app.linkFailed': 'Das Konto liess sich nicht verbinden.',
   'gift.hint': 'Die ausgewaehlten Schluessel als verschenkt markieren',
   'select.markExpired': 'Als abgelaufen markieren',
@@ -305,7 +310,8 @@ export const DE: TranslationTable = Object.freeze({
   'footer.shortcutSearch': 'suchen',
   'footer.shortcutNew': 'neu',
   'footer.showing': 'Zeige {0} von {1}. Grenze die Suche ein, um den Rest zu sehen.',
-  'footer.count': '{0} von {1} Schluesseln',
+  'footer.countOne': '{0} Key',
+  'footer.countMany': '{0} von {1} Keys',
   'platform.unknown': 'Nicht ermittelt',
   'storage.portable.title': 'Tragbarer Modus',
   'storage.portable.text':

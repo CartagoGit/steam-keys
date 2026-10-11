@@ -54,14 +54,17 @@ export const EN: TranslationTable = Object.freeze({
   'empty.import': 'Import TXT',
   'empty.create': 'Add key',
   'empty.noResults': 'No results',
-  'empty.noResultsHint': 'Try a different search or clear one of the filters.',
+  'empty.noResultsHint': 
+    'Try a different search or clear one of the filters.',
   'empty.clearFilters': 'Clear filters',
 
   // ------------------------------------------------------- first run ---
   'firstRun.title': 'There is no database yet',
-  'firstRun.body': 'None has been created. It will be created when you add or import your first key, next to the program, in {0}.',
+  'firstRun.body': 
+    'None has been created. It will be created when you add or import your first key, next to the program, in {0}.',
   'firstRun.moved.title': 'You copied the program from somewhere else',
-  'firstRun.moved.body': 'Your keys, your settings and your Steam account all live inside {0}. If you only copied the executable, copy that file from the original folder too and leave it next to it; otherwise you would start from scratch.',
+  'firstRun.moved.body': 
+    'Your keys, your settings and your Steam account all live inside {0}. If you only copied the executable, copy that file from the original folder too and leave it next to it; otherwise you would start from scratch.',
   'firstRun.bring': 'Bring the database',
   'firstRun.create': 'Start from scratch',
 
@@ -124,7 +127,8 @@ export const EN: TranslationTable = Object.freeze({
   // -------------------------------------------------------- empty state ---
 
   // --------------------------------------------------------- footer ---
-  'footer.count': '{0} of {1} keys',
+  'footer.countOne': '{0} key',
+  'footer.countMany': '{0} of {1} keys',
 
   // -------------------------------------------------------- tags modal ---
   'tags.title': 'Tags',
@@ -214,8 +218,8 @@ export const EN: TranslationTable = Object.freeze({
     'Change status',
   'bulk.pending':
     '{0} keys become {1}',
-  'bulk.done':
-    'Status changed on {0} keys.',
+  'bulk.doneOne': 'Status changed on {0} key.',
+  'bulk.doneMany': 'Status changed on {0} keys.',
   'bulk.none':
     'None of the selected keys can move to that status.',
   'settings.steamId.hint':
@@ -323,17 +327,24 @@ export const EN: TranslationTable = Object.freeze({
   'data.close':
     'Close data',
   'data.title': 'Data and backups',
-  'data.subtitle': 'Where your collection lives and how to get it back if something goes wrong.',
+  'data.subtitle': 
+    'Where your collection lives and how to get it back if something goes wrong.',
   'storage.created': 'Backup created: {0}',
-  'storage.restored': 'Restored {0} keys: {1} added, {2} updated, {3} unchanged.',
+  'storage.restored': 
+    'Restored {0} keys: {1} added, {2} updated, {3} unchanged.',
   'file.pick.title': 'Choose the TXT file with your keys',
   'file.save.title': 'Save the list of keys',
   'file.filter.text': 'Text',
-  'bulk.blocked.notOwned': 'You do not have it any more: giving it away again is not possible',
-  'bulk.blocked.needRecipient': 'You still have to say who you gave it to',
-  'selection.blockedOne': 'Switch the filter to "Only available" to leave that one out',
-  'selection.blockedMany': 'Switch the filter to "Only available" to leave these {0} out',
-  'selection.blockedNone': 'Switch the filter to "Only available" to act on the selection',
+  'bulk.blocked.notOwned': 
+    'You do not have it any more: giving it away again is not possible',
+  'bulk.blocked.needRecipient': 
+    'You still have to say who you gave it to',
+  'selection.blockedOne': 
+    'Switch the filter to "Only available" to leave that one out',
+  'selection.blockedMany': 
+    'Switch the filter to "Only available" to leave these {0} out',
+  'selection.blockedNone': 
+    'Switch the filter to "Only available" to act on the selection',
   'selection.blockedExpired': 'They were all already expired',
   'export.title': 'export',
   'export.generated': 'Generated on {0}',
@@ -363,16 +374,19 @@ export const EN: TranslationTable = Object.freeze({
   'storage.corrupted': 'SQLite has reported an integrity problem.',
   'storage.corruptedTitle': 'The database is damaged',
   'storage.backupNow': 'Create a copy now',
-  'storage.desktopOnly': 'Available in the desktop app only',
+  'storage.desktopOnly': 'No database',
   'storage.copyNow': 'Copy now',
   'storage.restoring': 'Restoring…',
   'storage.restore': 'Restore',
   'storage.mode.desktop': 'Desktop app',
   'storage.mode.devBridge': 'Development (separate database)',
   'storage.mode.memory': 'Preview in the browser',
-  'storage.notice.desktop': 'Your keys are on your disk, in a SQLite database, with automatic backups.',
-  'storage.notice.devBridge': 'You are looking at a development database, separate from the one the app uses, in .dev/. Whatever you edit here does not touch your real keys; this is where the interface gets tested.',
-  'storage.notice.memory': 'Preview in the browser: the data lives in localStorage and is lost if you clear the browser data.',
+  'storage.notice.desktop': 
+    'Your keys are on your disk, in a SQLite database, with automatic backups.',
+  'storage.notice.devBridge': 
+    'You are looking at a development database, separate from the one the app uses, in .dev/. Whatever you edit here does not touch your real keys; this is where the interface gets tested.',
+  'storage.notice.memory': 
+    'Preview in the browser: the data lives in localStorage and is lost if you clear the browser data.',
   'app.loadFailed': 'Could not read the collection.',
   'app.nothingSelected': 'Nothing selected.',
   'app.saveFailed': 'Could not save.',
@@ -413,12 +427,17 @@ export const EN: TranslationTable = Object.freeze({
   'storage.data.where': 'Storage',
   'storage.data.whereHint': 'Where your keys are being stored right now.',
   'storage.data.unknown': 'To review',
-  'storage.data.unknownHint': 'Keys whose platform could not be determined.',
+  'storage.data.unknownHint': 
+    'Keys whose platform could not be determined.',
   'storage.data.location': 'Location',
-  'storage.backups.none': 'No backups yet. They are made automatically before each import or restore, and you can also press «Copy now».',
-  'storage.backups.desktopOnly': 'Backups are a desktop app feature. There are none here.',
-  'storage.backups.keys': '{0} keys',
-  'storage.backups.keep': 'The 10 most recent copies are kept in the «backups» folder next to the database, and they are made automatically before each import or restore.',
+  'storage.backups.none': 
+    'No backups yet. They are made automatically before each import or restore, and you can also press «Copy now».',
+  'storage.backups.desktopOnly': 
+    'Here the data lives in the browser, not in a database, so there is nowhere to keep copies.',
+  'storage.backups.keysOne': '{0} key',
+  'storage.backups.keysMany': '{0} keys',
+  'storage.backups.keep': 
+    'The 10 most recent copies are kept inside the database itself, and they are made automatically before each import or restore.',
   'storage.refresh': 'Refresh',
   'storage.reason.manual': 'Manual',
   'storage.reason.beforeImport': 'Before importing',
@@ -426,13 +445,19 @@ export const EN: TranslationTable = Object.freeze({
   'storage.reason.onMigrate': 'On migration',
   'storage.reason.fromFiles': 'Brought from files',
   'storage.restoreTitle': 'Restore {0}',
-  'storage.restoreHint': 'A copy of the current state is made before anything is applied, so this can be undone too.',
+  'storage.restoreHint': 
+    'A copy of the current state is made before anything is applied, so this can be undone too.',
   'storage.merge.title': 'Only add what is missing',
-  'storage.merge.text': 'Recovers the keys you do not have. Leaves the existing ones alone.',
+  'storage.merge.text': 
+    'Recovers the keys you do not have. Leaves the existing ones alone.',
   'storage.overwrite.title': 'Add and update statuses',
-  'storage.overwrite.text': 'It also puts every key back the way it was in the copy. Useful if you changed statuses by mistake.',
-  'storage.restoreSafe': 'Neither option deletes keys: restoring never shrinks your collection.',
+  'storage.overwrite.text': 
+    'It also puts every key back the way it was in the copy. Useful if you changed statuses by mistake.',
+  'storage.restoreSafe': 
+    'Neither option deletes keys: restoring never shrinks your collection.',
   'row.delete': 'Delete key',
+  'row.delete.body':
+    '«{0}» will be removed from your collection. This cannot be undone.',
   'app.linkFailed': 'Could not link the account.',
   'gift.hint': 'Mark the selected keys as already gifted',
   'select.markExpired': 'Mark as expired',
@@ -440,10 +465,12 @@ export const EN: TranslationTable = Object.freeze({
   'footer.games': '{0} games on Steam',
   'footer.shortcutSearch': 'search',
   'footer.shortcutNew': 'new',
-  'footer.showing': 'Showing {0} of {1}. Narrow the search to see the rest.',
+  'footer.showing': 
+    'Showing {0} of {1}. Narrow the search to see the rest.',
   'platform.unknown': 'Undetermined',
   'storage.portable.title': 'Portable mode',
-  'storage.portable.text': 'Your keys and your backups live in a single file, steam-keys.db, next to the program and not in your user folder. If you move the executable elsewhere, move that file with it, or you will be left without your collection.',
+  'storage.portable.text': 
+    'Your keys and your backups live in a single file, steam-keys.db, next to the program and not in your user folder. If you move the executable elsewhere, move that file with it, or you will be left without your collection.',
 });
 
 /**

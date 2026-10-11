@@ -1,4 +1,4 @@
-import { ACTIVATE_NOTE_PATTERN, ALPHANUMERIC_KEY_PATTERN, BATTLENET_KEY_PATTERN, BLOCK_CLOSE_PATTERN, BLOCK_OPEN_PATTERN, DECORATIVE_PATTERN, GIFT_MARKER_PATTERN, GIVEAWAY_END_PATTERN, GIVEAWAY_START_PATTERN, GIVEAWAY_TAG, HUMBLE_URL_KEY_PATTERN, INSTRUCTION_PATTERN, KeyPlatform, KeyStatus, PLATFORM_HINT_PATTERN, ParsedIssueReason, ParsedKeyKind, RECIPIENT_MAX_WORDS, RECIPIENT_PATTERN, REDEEM_MARKER_PATTERN, SECTION_MARKER_PATTERN, STATUS_MARKERS, STEAM_KEY_PATTERN, type IParseOptions, type IParseResult, type IParseStats, type IParsedEntry, type IParsedIssue, type IParsedKeyToken } from '@/contracts';
+import { ACTIVATE_NOTE_PATTERN, ALPHANUMERIC_KEY_PATTERN, BATTLENET_KEY_PATTERN, BLOCK_CLOSE_PATTERN, BLOCK_OPEN_PATTERN, DECORATIVE_PATTERN, GIFT_MARKER_PATTERN, GIVEAWAY_END_PATTERN, GIVEAWAY_START_PATTERN, GIVEAWAY_TAG, HUMBLE_URL_KEY_PATTERN, INSTRUCTION_PATTERN, KeyPlatform, KeyStatus, PLATFORM_HINT_PATTERN, ParsedIssueReason, ParsedKeyKind, RECIPIENT_MAX_WORDS, RECIPIENT_PATTERN, REDEEM_MARKER_PATTERN, SECTION_MARKER_PATTERN, statusForMarker, STEAM_KEY_PATTERN, type IParseOptions, type IParseResult, type IParseStats, type IParsedEntry, type IParsedIssue, type IParsedKeyToken } from '@/contracts';
 import {
   inferPlatformFromKeyShape,
   platformFromHint,
@@ -390,12 +390,7 @@ export function parseLegacyTxt(raw: string, options: IParseOptions = {}): IParse
     const gifted = GIFT_MARKER_PATTERN.test(before);
 
     // Marcador explicito de estado que escribe el exportador (`- ! ~ ?`).
-    const markerChar = line.startsWith('-')
-      ? '-'
-      : STATUS_MARKERS[line.charAt(0)]
-        ? line.charAt(0)
-        : null;
-    const explicitStatus = markerChar ? STATUS_MARKERS[markerChar] : null;
+    const explicitStatus = statusForMarker(line.charAt(0));
 
     const beforeClean = stripSeparators(before);
 

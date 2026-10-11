@@ -7,7 +7,7 @@ import {
   LOCALE_BCP47,
   PARENT_ANNOTATION_PREFIX,
   PLATFORM_ANNOTATION_PREFIX,
-  STATUS_MARKERS,
+  markerForStatus,
   type AppLocale,
   type IGameKey,
 } from '@/contracts';
@@ -15,16 +15,10 @@ import { parseTags, serializeTags } from '@/helpers/normalize-text.helper';
 import { formatShortDate } from '@/helpers/format-date.helper';
 import { t } from '@/helpers/i18n.helper';
 
-/** Inversa de `STATUS_MARKERS`, para escribir el estado en el TXT. */
-const STATUS_MARKERS_REVERSE: Readonly<Record<KeyStatus, string>> = Object.freeze(
-  Object.entries(STATUS_MARKERS).reduce<Partial<Record<KeyStatus, string>>>(
-    (accumulator, [char, status]) => {
-      accumulator[status as KeyStatus] = char;
-      return accumulator;
-    },
-    {},
-  ) as Record<KeyStatus, string>,
-);
+/**
+ * Escribe el estado en el TXT con `markerForStatus()`, la inversa de
+ * `STATUS_MARKERS`; si un estado no tiene marcador se escribe sin prefijo.
+ */
 
 /**
  * Vuelca la coleccion al formato del TXT original.
@@ -78,7 +72,7 @@ export function formatKeyLine(key: IGameKey): string {
 
   // Marcador de estado al inicio de la linea. El `-` es el marcador original
   // de "regalada"; los demas los anade el exportador para no perder estados.
-  const marker = STATUS_MARKERS_REVERSE[key.status] ?? (key.status === KeyStatus.Gifted ? '-' : '');
+  const marker = markerForStatus(key.status) ?? (key.status === KeyStatus.Gifted ? '-' : '');
   if (marker) parts.push(marker);
 
   parts.push(key.title);

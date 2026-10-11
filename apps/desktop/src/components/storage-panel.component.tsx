@@ -1,3 +1,4 @@
+import { pluralKey } from '@/helpers/i18n.helper';
 import { useCallback, useEffect, useState } from 'react';
 
 import { AppLocale, BackupReason, BACKUP_REASON_LABEL, RestoreMode, StorageHealth, type IBackup, type IRestoreSummary, type IStorageInfo, type Translator } from '@/contracts';
@@ -268,7 +269,7 @@ export function StoragePanel({ onClose, onChanged, notify }: IStoragePanelProps)
                           </p>
                           <p className="truncate text-[11px] text-t4">
                             {backup.rowCount >= 0
-                              ? `${t('storage.backups.keys', [backup.rowCount])} · ${formatBytes(backup.sizeBytes)}`
+                              ? `${t(pluralKey(backup.rowCount, 'storage.backups.keysOne', 'storage.backups.keysMany'), [backup.rowCount])} · ${formatBytes(backup.sizeBytes)}`
                               : formatBytes(backup.sizeBytes)}
                           </p>
                         </div>

@@ -1,8 +1,14 @@
-import { ANNOTATION_SEPARATOR, PARENT_ANNOTATION_PREFIX, PLATFORM_ANNOTATION_PREFIX, STATUS_MARKERS, TITLE_NOISE_PATTERN } from '@/contracts';
+import { ANNOTATION_SEPARATOR, PARENT_ANNOTATION_PREFIX, PLATFORM_ANNOTATION_PREFIX, STATUS_MARKER_CHARS, TITLE_NOISE_PATTERN } from '@/contracts';
 
-/** Marcadores de estado al inicio de linea: `- ! ~ ?`, en racha o no. */
+/**
+ * Marcadores de estado al inicio de linea: `- ! ~ ?`, en racha o no.
+ *
+ * Se arma desde `STATUS_MARKER_CHARS` —derivada de `STATUS_MARKERS`— y no
+ * desde `Object.keys(STATUS_MARKERS)` para no tener dos caminos que producen
+ * el mismo alfabeto: anadir un marcador nuevo llega aqui solo.
+ */
 const LEADING_STATUS_MARKER = new RegExp(
-  `^[\\s]*[${Object.keys(STATUS_MARKERS)
+  `^[\\s]*[${[...STATUS_MARKER_CHARS]
     .map((char) => `\\${char}`)
     .join('')}]+[\\s]*`,
 );

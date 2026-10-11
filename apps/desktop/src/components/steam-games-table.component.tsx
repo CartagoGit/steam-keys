@@ -1,3 +1,4 @@
+import { pluralKey } from '@/helpers/i18n.helper';
 import { Icon } from './icon.component';
 import { useT } from '@/context/locale.context';
 import { LOCALE_BCP47, type ISteamOwnedGame, type SteamAccountStatus } from '@/contracts';
@@ -45,7 +46,9 @@ export function SteamGamesTable({
         <div className="leading-tight">
           <h2 className="text-sm font-medium text-t1">{t('view.games')}</h2>
           <p className="text-[11px] text-t4">
-            {t('footer.count', [cuenta.juegos, cuenta.juegos])}
+            {/* Cuenta de juegos de Steam: no lleva filtros, asi que aqui el
+                numero que decide la forma y el que se muestra son el mismo. */}
+            {t(pluralKey(cuenta.juegos, 'footer.countOne', 'footer.countMany'), [cuenta.juegos, cuenta.juegos])}
           </p>
         </div>
 

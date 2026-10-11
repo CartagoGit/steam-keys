@@ -12,6 +12,30 @@ export function interpolate(
 }
 
 /**
+ * Elige entre la forma singular y la plural de un recuento.
+ *
+ * Se escribe una clave por forma —`algo.one` y `algo.many`— en vez de meter el
+ * numero en una sola cadena. Con una sola clave sale «1 keys»: el texto existe,
+ * el idioma se cambia bien y las pruebas de traduccion pasan, porque ninguna de
+ * las tres cosas mira la concordancia.
+ *
+ * El aleman declara las dos claves con la misma palabra, que es lo que hace el
+ * idioma. Decide quien escribe el diccionario, no el helper: meter reglas de
+ * plural dentro fallaria en frances.
+ *
+ * @param count    La cantidad. El singular se usa solo si es exactamente 1.
+ * @param singular Clave del singular.
+ * @param plural   Clave del plural.
+ */
+export function pluralKey(
+  count: number,
+  singular: TranslationKey,
+  plural: TranslationKey,
+): TranslationKey {
+  return count === 1 ? singular : plural;
+}
+
+/**
  * Traduce una clave al idioma pedido.
  *
  * Si el idioma no tiene la clave se cae al español, y si el español tampoco la

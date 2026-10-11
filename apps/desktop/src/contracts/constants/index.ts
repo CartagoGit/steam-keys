@@ -88,7 +88,10 @@ export {
   RECIPIENT_PATTERN,
   REDEEM_MARKER_PATTERN,
   SECTION_MARKER_PATTERN,
+  markerForStatus,
+  STATUS_MARKER_CHARS,
   STATUS_MARKERS,
   STEAM_KEY_PATTERN,
+  statusForMarker,
   TITLE_NOISE_PATTERN,
 } from './legacy-format.constants';
