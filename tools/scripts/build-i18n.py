@@ -17,7 +17,7 @@ TRADUCCIONES = {}
 
 TRADUCCIONES['fr'] = {
  'storage.portable.title': 'Mode portable',
- 'storage.portable.text': 'Tes cles sont dans un fichier .db a cote du programme, pas dans ton dossier utilisateur. Si tu deplaces l executable, deplace aussi steam-keys.db et le dossier backups, sinon tu perdras ta collection.',
+ 'storage.portable.text': 'Tes cles et tes sauvegardes sont dans un seul fichier, steam-keys.db, a cote du programme et pas dans ton dossier utilisateur. Si tu deplaces l executable, deplace aussi ce fichier, sinon tu perdras ta collection.', 'storage.backups.keys': '{0} cles',
  'platform.unknown': 'Non determinee',
  'gift.hint': 'Marquer les cles selectionnees comme deja offertes',
  'select.markExpired': 'Marquer comme expirees',
@@ -251,7 +251,7 @@ TRADUCCIONES['fr'] = {
 
 TRADUCCIONES['pt'] = {
  'storage.portable.title': 'Modo portatil',
- 'storage.portable.text': 'As tuas chaves estao num ficheiro .db ao lado do programa, nao na tua pasta de utilizador. Se moveres o executavel para outra pasta, move tambem steam-keys.db e a pasta backups, ou ficas sem a colecao.',
+ 'storage.portable.text': 'As tuas chaves e as tuas copias estao num unico ficheiro, steam-keys.db, ao lado do programa e nao na tua pasta de utilizador. Se moveres o executavel para outra pasta, move tambem esse ficheiro, ou ficas sem a colecao.', 'storage.backups.keys': '{0} chaves',
  'platform.unknown': 'Nao determinada',
  'gift.hint': 'Marcar as chaves selecionadas como ja presenteadas',
  'select.markExpired': 'Marcar como expiradas',
@@ -486,7 +486,7 @@ TRADUCCIONES['pt'] = {
 
 TRADUCCIONES['de'] = {
  'storage.portable.title': 'Tragbarer Modus',
- 'storage.portable.text': 'Deine Schluessel liegen in einer .db-Datei neben dem Programm, nicht in deinem Benutzerordner. Wenn du die Programmdatei verschiebst, verschiebe auch steam-keys.db und den Ordner backups, sonst bleibt die Sammlung zurueck.',
+ 'storage.portable.text': 'Deine Keys und deine Sicherungen liegen in einer einzigen Datei, steam-keys.db, neben dem Programm und nicht in deinem Benutzerordner. Wenn du die Programmdatei verschiebst, verschiebe diese Datei mit, sonst bleibt die Sammlung zurueck.', 'storage.backups.keys': '{0} Keys',
  'platform.unknown': 'Nicht ermittelt',
  'gift.hint': 'Die ausgewaehlten Schluessel als verschenkt markieren',
  'select.markExpired': 'Als abgelaufen markieren',

@@ -59,7 +59,7 @@ export const storageService = {
     const [salud, unknownPlatform, backups] = await Promise.all([
       backupService.checkHealth(tauriDatabaseClient),
       backupService.countUnknownPlatform(tauriDatabaseClient),
-      backupService.list().catch(() => [] as readonly IBackup[]),
+      backupService.list(tauriDatabaseClient).catch(() => [] as readonly IBackup[]),
     ]);
 
     return {
@@ -77,17 +77,17 @@ export const storageService = {
 
   /** Crea una copia de seguridad a peticion del usuario. */
   async backupNow(reason: BackupReason = BackupReason.Manual): Promise<IBackup> {
-    return backupService.create(reason);
+    return backupService.create(tauriDatabaseClient, reason);
   },
 
   /** Copias de seguridad disponibles. */
   listBackups(): Promise<readonly IBackup[]> {
-    return backupService.list();
+    return backupService.list(tauriDatabaseClient);
   },
 
   /** Elimina una copia concreta. */
   async deleteBackup(name: string): Promise<void> {
-    await backupService.remove(name);
+    await backupService.remove(tauriDatabaseClient, name);
   },
 
   /**
@@ -104,7 +104,7 @@ export const storageService = {
       );
     }
 
-    await backupService.create(BackupReason.AntesDeRestaurar);
+    await backupService.create(tauriDatabaseClient, BackupReason.AntesDeRestaurar);
 
     return backupService.restore(tauriDatabaseClient, name, mode);
   },
@@ -128,7 +128,7 @@ export const storageService = {
   /** Importa de verdad el TXT ya leido. */
   async commitImport(contents: string) {
     if (supportsBackups()) {
-      await backupService.create(BackupReason.AntesDeImportar);
+      await backupService.create(tauriDatabaseClient, BackupReason.AntesDeImportar);
     }
 
     return gameKeyService.importTxt(contents, false);

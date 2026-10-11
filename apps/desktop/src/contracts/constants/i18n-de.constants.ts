@@ -273,6 +273,7 @@ export const DE: TranslationTable = Object.freeze({
   'storage.backups.none':
     'Noch keine Sicherungen. Sie werden vor jedem Import und jeder Wiederherstellung automatisch angelegt, und du kannst auch «Jetzt kopieren» benutzen.',
   'storage.backups.desktopOnly': 'Sicherungen gibt es nur in der Desktop-App. Hier sind keine.',
+  'storage.backups.keys': '{0} Keys',
   'storage.backups.keep':
     'Die 10 neuesten Sicherungen liegen im Ordner «backups» neben der Datenbank und werden vor jedem Import und jeder Wiederherstellung automatisch angelegt.',
   'storage.refresh': 'Aktualisieren',
@@ -299,5 +300,5 @@ export const DE: TranslationTable = Object.freeze({
   'platform.unknown': 'Nicht ermittelt',
   'storage.portable.title': 'Tragbarer Modus',
   'storage.portable.text':
-    'Deine Schluessel liegen in einer .db-Datei neben dem Programm, nicht in deinem Benutzerordner. Wenn du die Programmdatei verschiebst, verschiebe auch steam-keys.db und den Ordner backups, sonst bleibt die Sammlung zurueck.',
+    'Deine Keys und deine Sicherungen liegen in einer einzigen Datei, steam-keys.db, neben dem Programm und nicht in deinem Benutzerordner. Wenn du die Programmdatei verschiebst, verschiebe diese Datei mit, sonst bleibt die Sammlung zurueck.',
 });

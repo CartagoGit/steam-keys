@@ -411,6 +411,7 @@ export const EN: TranslationTable = Object.freeze({
   'storage.data.location': 'Location',
   'storage.backups.none': 'No backups yet. They are made automatically before each import or restore, and you can also press «Copy now».',
   'storage.backups.desktopOnly': 'Backups are a desktop app feature. There are none here.',
+  'storage.backups.keys': '{0} keys',
   'storage.backups.keep': 'The 10 most recent copies are kept in the «backups» folder next to the database, and they are made automatically before each import or restore.',
   'storage.refresh': 'Refresh',
   'storage.restoreTitle': 'Restore {0}',
@@ -431,7 +432,7 @@ export const EN: TranslationTable = Object.freeze({
   'footer.showing': 'Showing {0} of {1}. Narrow the search to see the rest.',
   'platform.unknown': 'Undetermined',
   'storage.portable.title': 'Portable mode',
-  'storage.portable.text': 'Your keys live in a .db file next to the program, not in your user folder. If you move the executable elsewhere, move steam-keys.db and the backups folder with it, or you will be left without your collection.',
+  'storage.portable.text': 'Your keys and your backups live in a single file, steam-keys.db, next to the program and not in your user folder. If you move the executable elsewhere, move that file with it, or you will be left without your collection.',
 });
 
 /**

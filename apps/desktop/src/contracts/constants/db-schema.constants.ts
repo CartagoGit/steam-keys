@@ -50,7 +50,36 @@ export const SCHEMA_STATEMENTS: readonly string[] = [
      key   TEXT PRIMARY KEY,
      value TEXT NOT NULL DEFAULT ''
    );`,
+
+  /**
+   * Copias de seguridad, **dentro** de la propia base de datos.
+   *
+   * Antes eran ficheros sueltos en una carpeta `backups/` al lado del
+   * ejecutable, y eso obliga a mover tres cosas en vez de dos al cambiar de
+   * carpeta o pasarlo a un USB.
+   *
+   * Lo que se guarda son **las filas**, no una copia del fichero, y no es un
+   * detalle menor: si cada copia guardase el fichero entero, incluiria las
+   * copias anteriores y el crecimiento seria del orden del doble en cada
+   * copia —156 KB de datos se convertian en 156 MB con diez copias—. Con las
+   * filas, el crecimiento es lineal y diez copias ocupan lo que ocupa la tabla
+   * de claves unas cuantas veces.
+   *
+   * `contenido` es el JSON de las filas de `game_keys`, porque es justo lo que
+   * necesita `mergeKeysFromBackup` para restaurar. Como ademas no hay que
+   * montar una segunda conexion SQLite sobre un fichero temporal para leer la
+   * copia, tambien es menos codigo que el que habia antes.
+   */
+  `CREATE TABLE IF NOT EXISTS backups (
+     nombre     TEXT PRIMARY KEY,
+     reason     TEXT    NOT NULL DEFAULT '',
+     creado_ms  INTEGER NOT NULL,
+     contenido  TEXT    NOT NULL
+   );`,
 ];
+
+/** Cuantas copias de seguridad se conservan como maximo. */
+export const MAX_BACKUPS = 10;
 
 /** Indices que se consultan para buscar rapido. */
 export const SEARCHABLE_COLUMNS: readonly string[] = [

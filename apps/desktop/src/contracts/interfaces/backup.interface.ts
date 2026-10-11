@@ -15,12 +15,21 @@ export interface IDatabaseInfo {
   portable: boolean;
 }
 
-/** Una copia de seguridad de la base de datos. */
+/**
+ * Una copia de seguridad.
+ *
+ * Ya no es un fichero: son las filas de la tabla `backups`. Por eso no hay
+ * `path`—antes era la del `.db` en la carpeta `backups/`, y eso ya no existe—
+ * y aparece `rowCount`, que antes no se podia saber sin abrir la copia.
+ */
 export interface IBackup {
-  /** Nombre del fichero dentro del directorio de copias. Es su identificador. */
+  /** Nombre de la copia. Es su identificador. */
   name: string;
-  /** Ruta completa en disco, solo informativa. */
-  path: string;
+  /** Por que se hizo: `manual`, `antes-de-importar`… */
+  reason: string;
+  /** Cuantas claves contiene. `-1` si no se pudo leer el contenido. */
+  rowCount: number;
+  /** Tamaño del contenido de la copia. */
   sizeBytes: number;
   /** Epoch en milisegundos, para formatearlo en la interfaz. */
   createdAtMs: number;

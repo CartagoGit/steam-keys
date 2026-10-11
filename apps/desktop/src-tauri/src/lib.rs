@@ -7,12 +7,13 @@
 //!   `read_text_file` / `write_text_file` solo se ejecutan sobre rutas que el
 //!   propio usuario acaba de elegir, asi que no hace falta el plugin `fs` con
 //!   permisos amplios.
-//! - Las copias de seguridad se mueven **solo** dentro del directorio de la
-//!   app, y el nombre de fichero se valida para que no se pueda escapar de ahi.
+//! - La base de datos y las copias viven **junto al ejecutable** (modo
+//!   portable), y cuando esa carpeta no se puede escribir se cae a la del
+//!   sistema. Las copias de seguridad son filas de la propia base de datos, no
+//!   ficheros sueltos.
 
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
 use tauri::Manager;
@@ -20,25 +21,15 @@ use tauri::Manager;
 /// Nombre del fichero de base de datos. Debe coincidir con `DB_FILE_NAME`.
 const DB_FILE_NAME: &str = "steam-keys.db";
 
-/// Subdirectorio donde se guardan las copias de seguridad.
-const BACKUP_DIR_NAME: &str = "backups";
-
-/// Fichero temporal donde se deposita una copia para poder restaurarla.
+/// Fichero temporal donde se deposita una base de datos traida de otro sitio.
 const STAGED_FILE_NAME: &str = "restore-candidate.db";
 
-/// Cuantas copias de seguridad se conservan como maximo.
-const MAX_BACKUPS: usize = 10;
-
-/// Una copia de seguridad, tal y como se la devuelve a la interfaz.
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct BackupInfo {
-    name: String,
-    path: String,
-    size_bytes: u64,
-    /// Epoch en milisegundos, para que lo formatee el frontend.
-    created_at_ms: u128,
-}
+/// Carpeta donde la version anterior guardaba las copias de seguridad.
+///
+/// Ya no se escribe: solo se lee, una unica vez, para traer las copias que
+/// alguien tenga de antes a la tabla `backups`. No se borra al terminar, porque
+/// borrar ficheros del usuario es justo lo que esta app no hace nunca.
+const LEGACY_BACKUPS_DIR: &str = "backups";
 
 // ---------------------------------------------------------------------------
 // Rutas internas
@@ -162,132 +153,6 @@ fn es_portable(app: &tauri::AppHandle) -> bool {
 
 fn database_file(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Ok(config_dir(app)?.join(DB_FILE_NAME))
-}
-
-fn backups_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    Ok(config_dir(app)?.join(BACKUP_DIR_NAME))
-}
-
-/// Epoch actual en milisegundos.
-fn now_ms() -> u128 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis())
-        .unwrap_or(0)
-}
-
-/// Convierte epoch en segundos a fecha civil UTC.
-///
-/// Implementa el algoritmo inverso de dias-desde-civil, para no arrastrar una
-/// dependencia de fechas solo para nombrar un fichero.
-fn civil_from_epoch(secs: i64) -> (i64, u32, u32, u32, u32, u32) {
-    let days = secs.div_euclid(86_400);
-    let rest = secs.rem_euclid(86_400);
-
-    let hour = (rest / 3_600) as u32;
-    let minute = ((rest % 3_600) / 60) as u32;
-    let second = (rest % 60) as u32;
-
-    // Dias desde 1970-01-01 a dias desde 0000-03-01.
-    let shifted = days + 719_468;
-    let era = if shifted >= 0 {
-        shifted
-    } else {
-        shifted - 146_096
-    } / 146_097;
-
-    let day_of_era = shifted - era * 146_097;
-    let year_of_era =
-        (day_of_era - day_of_era / 1_460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
-    let mut year = year_of_era + era * 400;
-    let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
-    let month_prime = (5 * day_of_year + 2) / 153;
-
-    let day = (day_of_year - (153 * month_prime + 2) / 5 + 1) as u32;
-    let month = if month_prime < 10 {
-        month_prime + 3
-    } else {
-        month_prime - 9
-    } as u32;
-
-    if month <= 2 {
-        year += 1;
-    }
-
-    (year, month, day, hour, minute, second)
-}
-
-/// Marca de tiempo legible para nombres de fichero: `20261010-153427`.
-fn timestamp_label(secs: i64) -> String {
-    let (year, month, day, hour, minute, second) = civil_from_epoch(secs);
-    format!("{year:04}{month:02}{day:02}-{hour:02}{minute:02}{second:02}")
-}
-
-/// Deja solo `[a-z0-9-]` en un texto, para usarlo dentro de un nombre de fichero.
-///
-/// Los separadores (espacios, barras, puntos) se convierten en guion en lugar
-/// de desaparecer: `"antes de importar"` produce `antes-de-importar` y no
-/// `antesdeimportar`, que es mucho mas legible en un listado de copias.
-fn sanitize(text: &str) -> String {
-    let limpio: String = text
-        .to_lowercase()
-        .chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() || c == '-' {
-                c
-            } else {
-                '-'
-            }
-        })
-        .collect();
-
-    // Colapsar guiones seguidos y recortar los sobrantes de los extremos.
-    let colapsado: String = limpio
-        .split('-')
-        .filter(|trozo| !trozo.is_empty())
-        .collect::<Vec<_>>()
-        .join("-");
-
-    let recortado: String = colapsado.chars().take(24).collect();
-
-    if recortado.is_empty() {
-        "manual".to_string()
-    } else {
-        recortado
-    }
-}
-
-/// Comprueba que un nombre de fichero es seguro y no escapa del directorio.
-///
-/// Es la unica defensa frente a `../`: sin esto, `list_backups` +
-/// `stage_backup` permitirian tocar cualquier fichero del disco.
-fn es_nombre_seguro(nombre: &str) -> bool {
-    if nombre.is_empty() || nombre.len() > 120 {
-        return false;
-    }
-
-    if !nombre.ends_with(".db") {
-        return false;
-    }
-
-    if nombre.contains("..") {
-        return false;
-    }
-
-    nombre
-        .chars()
-        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.')
-}
-
-/// Epoch en milisegundos de un fichero, o el actual si no se puede leer.
-fn created_ms(metadata: &fs::Metadata) -> u128 {
-    metadata
-        .created()
-        .or(metadata.modified())
-        .ok()
-        .and_then(|tiempo| tiempo.duration_since(UNIX_EPOCH).ok())
-        .map(|d| d.as_millis())
-        .unwrap_or_else(now_ms)
 }
 
 // ---------------------------------------------------------------------------
@@ -446,63 +311,21 @@ fn database_info(app: tauri::AppHandle) -> Result<DatabaseInfo, String> {
 }
 
 // ---------------------------------------------------------------------------
-// Copias de seguridad
+// Traer una base de datos de otra carpeta
 // ---------------------------------------------------------------------------
 
-/// Crea una copia de la base de datos dentro del directorio de la app.
+/// Nombres de los ficheros de copia que dejo la version anterior.
 ///
-/// `reason` solo se usa para nombrar la copia: se sanea antes de tocar el
-/// sistema de ficheros, asi que no puede inyectar rutas.
+/// Son copias de seguridad de cuando eran ficheros sueltos en `backups/`. La
+/// app ya no las crea asi, pero alguien las puede tener de antes, y perderlas
+/// sin avisar seria tirar abajo el historico de esa persona.
+///
+/// El nombre se valida igual que entonces: solo `[a-z0-9-_.]` y `.db` al final,
+/// y en ningun caso puede contener `..` ni una barra, asi que no hay forma de
+/// sacar nada de su carpeta.
 #[tauri::command]
-fn create_backup(app: tauri::AppHandle, reason: String) -> Result<BackupInfo, String> {
-    let origen = database_file(&app)?;
-
-    if !origen.is_file() {
-        return Err("Todavia no hay base de datos que respaldar.".to_string());
-    }
-
-    let destino_dir = backups_dir(&app)?;
-    fs::create_dir_all(&destino_dir)
-        .map_err(|error| format!("No se pudo crear {}: {error}", destino_dir.display()))?;
-
-    let segundos = (now_ms() / 1_000) as i64;
-    let etiqueta = timestamp_label(segundos);
-    let sufijo = sanitize(&reason);
-
-    // Dos copias en el mismo segundo no pueden compartir nombre.
-    let mut nombre = format!("steam-keys-{etiqueta}-{sufijo}.db");
-    let mut intento = 2;
-    while destino_dir.join(&nombre).exists() {
-        nombre = format!("steam-keys-{etiqueta}-{sufijo}-{intento}.db");
-        intento += 1;
-    }
-
-    let destino = destino_dir.join(&nombre);
-
-    fs::copy(&origen, &destino).map_err(|error| {
-        format!(
-            "No se pudo copiar {} a {}: {error}",
-            origen.display(),
-            destino.display()
-        )
-    })?;
-
-    rotar(&destino_dir);
-
-    let metadata = fs::metadata(&destino).map_err(|error| error.to_string())?;
-
-    Ok(BackupInfo {
-        name: nombre,
-        path: destino.to_string_lossy().to_string(),
-        size_bytes: metadata.len(),
-        created_at_ms: created_ms(&metadata),
-    })
-}
-
-/// Lista las copias de seguridad, de la mas reciente a la mas antigua.
-#[tauri::command]
-fn list_backups(app: tauri::AppHandle) -> Result<Vec<BackupInfo>, String> {
-    let dir = backups_dir(&app)?;
+fn legacy_backups(app: tauri::AppHandle) -> Result<Vec<String>, String> {
+    let dir = config_dir(&app)?.join(LEGACY_BACKUPS_DIR);
 
     if !dir.is_dir() {
         return Ok(Vec::new());
@@ -511,47 +334,58 @@ fn list_backups(app: tauri::AppHandle) -> Result<Vec<BackupInfo>, String> {
     let entradas =
         fs::read_dir(&dir).map_err(|error| format!("No se pudo leer {}: {error}", dir.display()))?;
 
-    let mut backups: Vec<BackupInfo> = entradas
+    let mut nombres: Vec<String> = entradas
         .filter_map(|entrada| {
             let entrada = entrada.ok()?;
             let nombre = entrada.file_name().to_string_lossy().to_string();
 
-            if !es_nombre_seguro(&nombre) {
-                return None;
+            if es_nombre_legible(&nombre) && entrada.path().is_file() {
+                Some(nombre)
+            } else {
+                None
             }
-
-            let metadata = entrada.metadata().ok()?;
-
-            Some(BackupInfo {
-                name: nombre,
-                path: entrada.path().to_string_lossy().to_string(),
-                size_bytes: metadata.len(),
-                created_at_ms: created_ms(&metadata),
-            })
         })
         .collect();
 
-    // El nombre empieza por la marca de tiempo, asi que ordenar por nombre es
-    // equivalente a ordenar por fecha.
-    backups.sort_by(|a, b| b.name.cmp(&a.name));
+    // De mas reciente a mas antigua, como el listado de toda la vida.
+    nombres.sort();
+    nombres.reverse();
 
-    Ok(backups)
+    Ok(nombres)
 }
 
-/// Deja una copia preparada para que el frontend la pueda abrir con SQL.
+/// Si un nombre de la carpeta de copias antiguas es aceptable.
 ///
-/// No se copia encima de la base de datos viva: la app mantiene la conexion
-/// abierta, y sustituir el fichero por debajo dejaria a SQLite con una
-/// referencia obsoleta. En su lugar se deposita en el directorio de la app
-/// como `restore-candidate.db`, y el frontend lo lee con su propia conexion y
-/// fusiona las filas.
+/// Mismo criterio que usaba el listado de ficheros, y por el mismo motivo: es
+/// lo unico que impide que un nombre con `..` convierta esto en una manera de
+/// leer cualquier fichero del disco.
+fn es_nombre_legible(nombre: &str) -> bool {
+    !nombre.is_empty()
+        && nombre.len() <= 120
+        && nombre.ends_with(".db")
+        && !nombre.contains("..")
+        && nombre
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.')
+}
+
+/// Deposita una copia antigua en un temporal y devuelve la ruta con que abrirla.
+///
+/// Es el camino que hace posible traer el historico de la version anterior:
+/// esas copias son ficheros `.db` completos, y para meterlas en la tabla
+/// `backups` hay que abrirlas. Rust solo copia y devuelve la ruta; el motor que
+/// las consulta es el del plugin de SQL, desde el frontend.
+///
+/// El temporal se llama igual que el de `adopt_database` a proposito: las dos
+/// operaciones son de instants distintos y nunca a la vez, y compartir el
+/// nombre evita dejar un segundo temporal por ahi.
 #[tauri::command]
-fn stage_backup(app: tauri::AppHandle, name: String) -> Result<String, String> {
-    if !es_nombre_seguro(&name) {
+fn stage_legacy_backup(app: tauri::AppHandle, name: String) -> Result<String, String> {
+    if !es_nombre_legible(&name) {
         return Err("Nombre de copia no valido.".to_string());
     }
 
-    let origen = backups_dir(&app)?.join(&name);
+    let origen = config_dir(&app)?.join(LEGACY_BACKUPS_DIR).join(&name);
 
     if !origen.is_file() {
         return Err(format!("La copia {name} ya no existe."));
@@ -562,11 +396,24 @@ fn stage_backup(app: tauri::AppHandle, name: String) -> Result<String, String> {
     fs::copy(&origen, &destino)
         .map_err(|error| format!("No se pudo preparar la copia: {error}"))?;
 
-    // Ruta **absoluta**, a diferencia de antes. Devolver solo el nombre del
-    // fichero hacia que el plugin lo resolviera contra su carpeta por defecto,
-    // que en modo portable no es donde esta la copia: se abriria una base
-    // vacia y la restauracion perderia todo.
+    // Ruta **absoluta**. Devolver solo el nombre hacia que el plugin lo
+    // resolviera contra su carpeta por defecto, que en modo portable no es
+    // donde esta el temporal: se abriria una base vacia y la migracion
+    // traeria cero claves sin decir nada.
     Ok(format!("sqlite:{}", destino.to_string_lossy()))
+}
+
+/// Borra el temporal de la copia preparada.
+#[tauri::command]
+fn discard_staged_backup(app: tauri::AppHandle) -> Result<(), String> {
+    let staged = config_dir(&app)?.join(STAGED_FILE_NAME);
+
+    if staged.exists() {
+        fs::remove_file(&staged)
+            .map_err(|error| format!("No se pudo borrar la copia preparada: {error}"))?;
+    }
+
+    Ok(())
 }
 
 /// Adopta una base de datos venida de otra carpeta.
@@ -638,65 +485,6 @@ fn comprobar_sqlite(ruta: &Path) -> Result<(), String> {
     Ok(())
 }
 
-/// Borra la copia preparada tras usarla.
-#[tauri::command]
-fn discard_staged_backup(app: tauri::AppHandle) -> Result<(), String> {
-    let staged = config_dir(&app)?.join(STAGED_FILE_NAME);
-
-    if staged.exists() {
-        fs::remove_file(&staged)
-            .map_err(|error| format!("No se pudo borrar la copia preparada: {error}"))?;
-    }
-
-    Ok(())
-}
-
-/// Borra una copia concreta del historial de respaldos.
-#[tauri::command]
-fn delete_backup(app: tauri::AppHandle, name: String) -> Result<(), String> {
-    if !es_nombre_seguro(&name) {
-        return Err("Nombre de copia no valido.".to_string());
-    }
-
-    let destino = backups_dir(&app)?.join(&name);
-
-    if !destino.is_file() {
-        return Err(format!("La copia {name} ya no existe."));
-    }
-
-    fs::remove_file(&destino).map_err(|error| format!("No se pudo borrar {name}: {error}"))
-}
-
-/// Conserva solo las `MAX_BACKUPS` copias mas recientes.
-fn rotar(dir: &Path) {
-    let Ok(entradas) = fs::read_dir(dir) else {
-        return;
-    };
-
-    let mut nombres: Vec<String> = entradas
-        .filter_map(|entrada| {
-            let nombre = entrada.ok()?.file_name().to_string_lossy().to_string();
-
-            if es_nombre_seguro(&nombre) {
-                Some(nombre)
-            } else {
-                None
-            }
-        })
-        .collect();
-
-    if nombres.len() <= MAX_BACKUPS {
-        return;
-    }
-
-    nombres.sort();
-    nombres.reverse();
-
-    for sobra in nombres.into_iter().skip(MAX_BACKUPS) {
-        let _ = fs::remove_file(dir.join(sobra));
-    }
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -709,12 +497,10 @@ pub fn run() {
             database_path,
             data_directory,
             database_info,
-            create_backup,
-            list_backups,
-            stage_backup,
-            adopt_database,
+            legacy_backups,
+            stage_legacy_backup,
             discard_staged_backup,
-            delete_backup
+            adopt_database
         ])
         .run(tauri::generate_context!())
         .expect("error al iniciar la aplicacion");
@@ -859,64 +645,21 @@ mod tests {
     fn un_fichero_que_no_existe_se_rechaza() {
         assert!(comprobar_sqlite(Path::new("/no/existe/este/fichero.db")).is_err());
     }
-
     #[test]
-    fn el_nombre_de_copia_debe_ser_seguro() {
-        assert!(es_nombre_seguro("steam-keys-20261010-153427-manual.db"));
-        assert!(es_nombre_seguro("copia-2.db"));
+    fn los_nombres_de_copia_antigua_se_filtran() {
+        assert!(es_nombre_legible("steam-keys-20261010-153427-manual.db"));
+        assert!(es_nombre_legible("copia-2.db"));
 
-        // Escapes de directorio.
-        assert!(!es_nombre_seguro("../../etc/passwd"));
-        assert!(!es_nombre_seguro("..\\..\\windows\\system32"));
-        assert!(!es_nombre_seguro("cosas/../otra.db"));
-        assert!(!es_nombre_seguro(".."));
+        // Escapes de directorio: es lo que impide leer ficheros de fuera.
+        assert!(!es_nombre_legible("../../etc/passwd"));
+        assert!(!es_nombre_legible("..\\..\\windows\\system32"));
+        assert!(!es_nombre_legible("cosas/../otra.db"));
+        assert!(!es_nombre_legible(".."));
 
         // Extension y formato.
-        assert!(!es_nombre_seguro("notas.txt"));
-        assert!(!es_nombre_seguro(""));
-        assert!(!es_nombre_seguro("con espacio.db"));
-    }
-
-    #[test]
-    fn la_marca_de_tiempo_usa_formato_compacto() {
-        // Los valores esperados se sacaron de `date -u -d @<epoch>`.
-        assert_eq!(timestamp_label(1_789_566_867), "20260916-135427");
-        assert_eq!(timestamp_label(0), "19700101-000000");
-    }
-
-    #[test]
-    fn las_fechas_civiles_son_correctas() {
-        assert_eq!(civil_from_epoch(0), (1970, 1, 1, 0, 0, 0));
-        assert_eq!(civil_from_epoch(1_789_566_867), (2026, 9, 16, 13, 54, 27));
-
-        // Cruce de ano, en las dos direcciones.
-        assert_eq!(civil_from_epoch(1_735_689_600), (2025, 1, 1, 0, 0, 0));
-        assert_eq!(civil_from_epoch(1_735_689_599), (2024, 12, 31, 23, 59, 59));
-
-        // 2000 es bisiesto: el 29 de febrero tiene que existir.
-        assert_eq!(civil_from_epoch(951_782_400), (2000, 2, 29, 0, 0, 0));
-
-        // Epoch negativo, para que el algoritmo no falle antes de 1970.
-        assert_eq!(civil_from_epoch(-1), (1969, 12, 31, 23, 59, 59));
-    }
-
-    #[test]
-    fn el_sufijo_se_sanea() {
-        // Los separadores se convierten en guion, no desaparecen.
-        assert_eq!(sanitize("Antes de importar"), "antes-de-importar");
-        assert_eq!(sanitize("con/caracteres:raros"), "con-caracteres-raros");
-
-        // Ni espacios repetidos ni guiones de sobra.
-        assert_eq!(sanitize("  doble  espacio  "), "doble-espacio");
-        assert_eq!(sanitize("a---b"), "a-b");
-
-        // Recorte a 24 caracteres.
-        assert_eq!(sanitize("abcdefghijklmnopqrstuvwxyz012345").len(), 24);
-
-        // Sin nada aprovechable.
-        assert_eq!(sanitize(""), "manual");
-        assert_eq!(sanitize("!!!"), "manual");
-        assert_eq!(sanitize("///"), "manual");
+        assert!(!es_nombre_legible("notas.txt"));
+        assert!(!es_nombre_legible(""));
+        assert!(!es_nombre_legible("con espacio.db"));
     }
 
     #[test]

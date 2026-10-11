@@ -226,9 +226,27 @@ Lo que el parser **no** puede inventar:
 
 ## Persistencia
 
-La colección vive en **SQLite**, en un `steam-keys.db` **junto al ejecutable**
-(modo portable), con las copias en `backups/` al lado. Sobrevive a cerrar la
-app.
+Todo vive en **un solo fichero**, `steam-keys.db`, **junto al ejecutable** (modo
+portable): las claves, los ajustes y también las copias de seguridad. Sobrevive
+a cerrar la app.
+
+| | |
+|---|---|
+| Windows | La carpeta donde este el `.exe` |
+| macOS | La carpeta que contiene el `.app` (nunca dentro: esta firmado) |
+| Linux | La carpeta que contiene el binario o el `.AppImage` |
+
+**Si mueves el programa, mueve también `steam-keys.db`.** Es todo. Los ficheros
+de una versión anterior y la carpeta `backups/` **no se mueven ni se borran**: la
+app lee las copias de allí una vez y las trae dentro de la base de datos, pero
+las deja donde estaban.
+
+El panel de datos dice siempre dónde está el fichero y si está en modo portable.
+
+> **Si la carpeta no se puede escribir**, la app vuelve a la de configuración del
+> sistema (`%APPDATA%\<identificador>\` en Windows) y arranca igualmente. Es lo
+> que pasa al instalarla en `Program Files` o en `/Applications`, donde no hay
+> quien escriba sin permisos de administrador.
 
 **No se crea hasta que hay algo que guardar.** La primera vez la app mira si el
 fichero está —sin abrirlo, porque abrirlo ya lo crearía— y, si no está, enseña
@@ -236,22 +254,16 @@ un aviso con los dos caminos reales: traer el `steam-keys.db` de la carpeta de
 origen (si lo que has copiado ha sido solo el ejecutable), o empezar de cero. El
 fichero aparece en cuanto añades o importas la primera clave.
 
-Funciona igual en Windows, macOS y Linux, con una salvedad por plataforma:
+### Las copias de seguridad
 
-| Sistema | Dónde acaba |
-|---|---|
-| Windows | La carpeta donde este el `.exe` |
-| macOS | La carpeta que contiene el `.app` (nunca dentro: esta firmado) |
-| Linux | La carpeta que contiene el binario o el `.AppImage` |
+Son **filas de la propia base de datos**, no ficheros sueltos. No es un detalle
+cosmético: si cada copia guardase el `.db` entero, incluiría las copias
+anteriores y el tamaño se doblaría en cada una —con diez copias, una base de
+156 KB pasaría a 156 MB—. Guardando las filas, el crecimiento es lineal.
 
-**Si mueves el programa, mueve también `steam-keys.db` y `backups/`.** Si no, las
-claves se quedan en la carpeta antigua. El panel de datos dice siempre dónde
-está el fichero y si está en modo portable.
-
-> **Si la carpeta no se puede escribir**, la app vuelve a la de configuración del
-> sistema (`%APPDATA%\<identificador>\` en Windows) y arranca igualmente. Es lo
-> que pasa al instalarla en `Program Files` o en `/Applications`, donde no hay
-> quien escriba sin permisos de administrador.
+Se conservan las 10 más recientes, y se crean solas antes de cada importación o
+restauración. Restaurar nunca borra: solo añade claves o las devuelve a como
+estaban.
 
 ### La base de datos de desarrollo
 

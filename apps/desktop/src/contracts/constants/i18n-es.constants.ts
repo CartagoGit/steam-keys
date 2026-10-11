@@ -325,6 +325,7 @@ export const ES: TranslationTable = Object.freeze({
   'storage.data.location': 'Ubicacion',
   'storage.backups.none': 'Todavia no hay copias. Se crean solas antes de cada importacion o restauracion, y tambien puedes pulsar «Copiar ahora».',
   'storage.backups.desktopOnly': 'Las copias de seguridad son una funcion de la app de escritorio. Aqui no hay ninguna.',
+  'storage.backups.keys': '{0} claves',
   'storage.backups.keep': 'Se guardan las 10 copias mas recientes en la carpeta «backups» junto a la base de datos, y se crean solas antes de cada importacion o restauracion.',
   'storage.refresh': 'Actualizar',
   'storage.restoreTitle': 'Restaurar {0}',
@@ -346,5 +347,5 @@ export const ES: TranslationTable = Object.freeze({
   'footer.count': '{0} de {1} claves',
   'platform.unknown': 'Sin determinar',
   'storage.portable.title': 'Modo portable',
-  'storage.portable.text': 'Las claves estan en un .db al lado del programa, no en tu carpeta de usuario. Si mueves el ejecutable a otra carpeta, mueve tambien steam-keys.db y la carpeta backups, o te quedaras sin la coleccion.',
+  'storage.portable.text': 'Las claves y las copias estan en un solo fichero, steam-keys.db, al lado del programa y no en tu carpeta de usuario. Si mueves el ejecutable a otra carpeta, mueve tambien ese fichero, o te quedaras sin la coleccion.',
 });

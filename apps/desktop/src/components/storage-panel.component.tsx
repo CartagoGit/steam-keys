@@ -284,7 +284,9 @@ export function StoragePanel({ onClose, onChanged, notify }: IStoragePanelProps)
                             {describeBackup(backup, locale)}
                           </p>
                           <p className="truncate text-[11px] text-t4">
-                            {backup.name} · {formatBytes(backup.sizeBytes)}
+                            {backup.rowCount >= 0
+                              ? `${t('storage.backups.keys', [backup.rowCount])} · ${formatBytes(backup.sizeBytes)}`
+                              : formatBytes(backup.sizeBytes)}
                           </p>
                         </div>
                         <button
@@ -494,7 +496,7 @@ function describeBackup(backup: IBackup, locale: AppLocale): string {
     minute: '2-digit',
   });
 
-  const motivo = backup.name.replace(/^steam-keys-[\d-]+-/, '').replace(/\.db$/, '');
+  const motivo = backup.reason.trim() !== '' ? backup.reason : 'manual';
 
   return `${sello} · ${motivo.replace(/-/g, ' ')}`;
 }

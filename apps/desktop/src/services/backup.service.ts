@@ -1,75 +1,61 @@
-import { invoke } from '@tauri-apps/api/core';
-import SqliteDatabase from '@tauri-apps/plugin-sql';
-
-import { isTauri } from '@/helpers/runtime.helper';
+import { isBrowserPreview } from '@/helpers/runtime.helper';
 import { RestoreMode } from '@/contracts/enums/restore-mode.enum';
 import { StorageHealth } from '@/contracts/enums/storage-health.enum';
 import { KeyPlatform } from '@/contracts/enums/key-platform.enum';
-import { GAME_KEY_COLUMNS } from '@/helpers/map-row.helper';
 import { mergeKeysFromBackup } from '@/helpers/merge-keys.helper';
+import { backupRepository } from '@/repositories/backup.repository';
 import type { IDatabaseClient } from '@/contracts/interfaces/database.interface';
 import type {
   IBackup,
   IRestoreSummary,
 } from '@/contracts/interfaces/backup.interface';
-import type { IGameKeyRow } from '@/contracts/interfaces/import-summary.interface';
-
-/** Lo que devuelve el comando `list_backups` de Rust. */
-interface IBackupRaw {
-  name: string;
-  path: string;
-  size_bytes: number;
-  created_at_ms: number;
-}
 
 /**
  * Copias de seguridad y salud de la base de datos.
  *
- * Solo funciona dentro de Tauri: en el navegador no hay ficheros que respaldar,
- * y `localStorage` ya se comporta como un almacen persistente.
+   * Las copias viven **dentro** de la propia base de datos, en la tabla
+   * `backups`, y por eso son SQL y no ficheros: de ahi que no haga falta ni un
+   * comando de Rust para crearlas ni para leerlas, y que restaurarlas no sea
+   * montar una segunda conexion SQLite sobre un temporal.
+ *
+   * La salud de la base de datos sigue siendo una pregunta para el motor, porque
+   * `PRAGMA integrity_check` no tiene equivalente en el puente de desarrollo.
  */
 export const backupService = {
-  /** `true` si hay un motor real sobre el que trabajar. */
+  /**
+   * `true` si hay un motor real sobre el que trabajar.
+   *
+   * Antes era "solo dentro de Tauri", porque las copias eran ficheros y en el
+   * navegador no habia donde ponerlos. Ahora que son filas de la tabla
+   * `backups`, funcionan en cualquier sitio donde haya un motor de verdad: la
+   * app de escritorio **y** el puente de desarrollo.
+   */
   available(): boolean {
-    return isTauri();
+    return !isBrowserPreview();
   },
 
   /** Crea una copia de seguridad y la devuelve. */
-  async create(reason: string): Promise<IBackup> {
-    const raw = await invoke<IBackupRaw>('create_backup', { reason });
-
-    return {
-      name: raw.name,
-      path: raw.path,
-      sizeBytes: raw.size_bytes,
-      createdAtMs: raw.created_at_ms,
-    };
+  async create(db: IDatabaseClient, reason: string): Promise<IBackup> {
+    return backupRepository.create(db, reason);
   },
 
   /** Copias existentes, de la mas reciente a la mas antigua. */
-  async list(): Promise<readonly IBackup[]> {
-    const raw = await invoke<IBackupRaw[]>('list_backups');
-
-    return raw.map((item) => ({
-      name: item.name,
-      path: item.path,
-      sizeBytes: item.size_bytes,
-      createdAtMs: item.created_at_ms,
-    }));
+  async list(db: IDatabaseClient): Promise<readonly IBackup[]> {
+    return backupRepository.list(db);
   },
 
   /** Borra una copia concreta. */
-  async remove(name: string): Promise<void> {
-    await invoke('delete_backup', { name });
+  async remove(db: IDatabaseClient, name: string): Promise<void> {
+    await backupRepository.remove(db, name);
   },
 
   /**
    * Restaura una copia sin perder lo que ya hay.
    *
-   * Nunca se copia el fichero encima de la base de datos viva: la app tiene la
-   * conexion abierta y SQLite se quedaria con una referencia obsoleta. En su
-   * lugar la copia se deposita como `restore-candidate.db`, se abre con su
-   * propia conexion, se leen las filas y se fusionan en la base de datos real.
+   * **Nunca borra.** Restaurar solo puede anadir claves o devolverlas a como
+   * estaban. Antes la copia era un fichero `.db` aparte que habia que abrir con
+   * su propia conexion; ahora es un JSON dentro de esta misma base de datos, y
+   * se pasa tal cual a `mergeKeysFromBackup`.
    *
    * @param name    Nombre de la copia.
    * @param mode    `fusionar` solo añade lo que falta; `sobrescribir` ademas
@@ -80,31 +66,15 @@ export const backupService = {
     name: string,
     mode: RestoreMode,
   ): Promise<IRestoreSummary> {
-    const connection = await invoke<string>('stage_backup', { name });
+    const filas = await backupRepository.rowsOf(db, name);
 
-    try {
-      const copia = await SqliteDatabase.load(connection);
-
-      try {
-        const filas = await copia.select<IGameKeyRow[]>(
-          `SELECT ${GAME_KEY_COLUMNS} FROM game_keys`,
-        );
-
-        return await mergeKeysFromBackup(db, filas, mode);
-      } finally {
-        // Se cierra siempre: dejar conexiones abiertas bloquea el fichero.
-        await copia.close().catch(() => undefined);
-      }
-    } finally {
-      // La copia preparada se borra pase lo que pase.
-      await invoke('discard_staged_backup').catch(() => undefined);
-    }
+    return mergeKeysFromBackup(db, filas, mode);
   },
 
   /**
    * Comprueba la integridad del fichero con `PRAGMA integrity_check`.
    *
-   * Detecta corrupcion antes de queyel usuario descubra que ha perdido claves.
+   * Detecta corrupcion antes de que el usuario descubra que ha perdido claves.
    */
   async checkHealth(db: IDatabaseClient): Promise<{
     health: StorageHealth;

@@ -34,7 +34,12 @@ import { gameKeyService } from '@/services/game-key.service';
 import { settingsService, DEFAULT_SETTINGS } from '@/services/settings.service';
 import { storageService } from '@/services/storage.service';
 import { inspectStartup } from '@/services/startup.service';
+import {
+  legacyBackupsMigrated,
+  migrateLegacyBackups,
+} from '@/services/legacy-backups.service';
 import { FirstRun } from '@/components/first-run.component';
+import { getDatabaseClient } from '@/repositories/repository.factory';
 import { steamService, SteamError, resolveSteamId } from '@/services/steam.service';
 import {
   getStorageMode,
@@ -303,6 +308,37 @@ export function App() {
     };
 
     void cargar();
+  }, [arranque]);
+
+  /**
+   * Trae las copias de seguridad que dejaron la version anterior.
+   *
+   * Hasta hace poco eran ficheros sueltos en una carpeta `backups/`; ahora son
+   * filas de la tabla `backups`. Esta tarea las pasa de una cosa a la otra, una
+   * sola vez, y **no borra los ficheros**: se quedan donde estaban por si algo
+   * sale mal.
+   *
+   * Va despues de cargar los ajustes porque es quien fija la marca de "ya no
+   * hace falta hacerlo"; si se hiciera antes, un fallo al guardar los ajustes
+   * dejaria la migracion sin marcar y se repetiria en cada arranque.
+   */
+  useEffect(() => {
+    if (arranque?.database !== 'ready') return;
+
+    const migrar = async (): Promise<void> => {
+      try {
+        const db = await getDatabaseClient();
+
+        if (await legacyBackupsMigrated(db)) return;
+
+        await migrateLegacyBackups(db);
+      } catch {
+        // Sin carpeta de copias antiguas, o sin permisos para leerla: no hay
+        // nada que hacer y la app sigue con lo que hay.
+      }
+    };
+
+    void migrar();
   }, [arranque]);
 
   // --------------------------------------------------------------- filtros ---
