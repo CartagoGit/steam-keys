@@ -1,5 +1,7 @@
 import { Icon } from './icon.component';
 import { useT } from '@/context/locale.context';
+import { LOCALE_BCP47 } from '@/contracts/constants/locale.constants';
+import { formatShortDate } from '@/helpers/format-date.helper';
 import type { ISteamOwnedGame, SteamAccountStatus } from '@/contracts/interfaces/steam-account.interface';
 
 /**
@@ -25,14 +27,17 @@ export function SteamGamesTable({
   onRefresh: () => void;
   busy: boolean;
 }) {
-  const { t } = useT();
+  const { t, locale } = useT();
 
   const ordenados = [...juegos].sort((a, b) => {
     if (b.playtimeForever !== a.playtimeForever) {
       return b.playtimeForever - a.playtimeForever;
     }
 
-    return a.name.localeCompare(b.name, 'es');
+    // Se ordena con el idioma de la app, no con 'es' fijo: en alemán la E y la A
+    // no se ordenan igual, y con castellano la lista salia en orden distinto al
+    // que el usuario tiene delante.
+    return a.name.localeCompare(b.name, LOCALE_BCP47[locale]);
   });
 
   return (
@@ -48,7 +53,7 @@ export function SteamGamesTable({
         {cuenta.sincronizadoAt ? (
           <span className="text-[11px] text-t4">
             {t('settings.steam.syncedAt', [
-              new Date(cuenta.sincronizadoAt).toLocaleDateString('es'),
+              formatShortDate(cuenta.sincronizadoAt, locale),
             ])}
           </span>
         ) : null}

@@ -48,8 +48,7 @@ export function KeyRow({
   ownedOnSteam = false,
   tags = [],
 }: IKeyRowProps) {
-  const { t } = useT();
-  const { locale } = useT();
+  const { t, locale } = useT();
 
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -103,7 +102,7 @@ export function KeyRow({
         type="checkbox"
         checked={selected}
         onChange={() => onToggleSelect?.(entry)}
-        aria-label={`Seleccionar ${entry.title}`}
+        aria-label={t('row.select', [entry.title])}
         className="h-4 w-4 shrink-0 cursor-pointer rounded border-line-strong accent-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       />
 
@@ -166,7 +165,7 @@ export function KeyRow({
                 className="inline-flex shrink-0 items-center gap-1 rounded-full bg-info/15 px-1.5 py-0.5 text-[10px] text-info ring-1 ring-info/30"
               >
                 <Icon name="check" size={9} />
-                En Steam
+                {t('row.onSteam')}
               </span>
             ) : null}
           </div>
@@ -181,7 +180,7 @@ export function KeyRow({
             {entry.addedOn ? (
               <span className="inline-flex items-center gap-1">
                 <Icon name="calendar" size={11} />
-                {formatShortDate(entry.addedOn)}
+                {formatShortDate(entry.addedOn, locale)}
               </span>
             ) : null}
             {tags.length > 0 ? (

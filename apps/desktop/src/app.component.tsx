@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { translate } from '@/helpers/i18n.helper';
+import { setCurrentLocale, translate } from '@/helpers/i18n.helper';
 import { LocaleContext, useT, type ITranslator } from './context/locale.context';
 
 import { BulkStatusDialog } from './components/bulk-status-dialog.component';
@@ -150,7 +150,21 @@ export function App() {
    * El idioma en pantalla, para que los componentes hijos traduzcan ya con el
    * idioma bueno desde el primer render y no un fotograma tarde.
    */
-  const [idioma, setIdioma] = useState<AppLocale>(DEFAULT_SETTINGS.locale);
+  const [idioma, cambiarIdioma] = useState<AppLocale>(DEFAULT_SETTINGS.locale);
+
+  /**
+   * Unico punto por el que cambia el idioma.
+   *
+   * Ademas de avisar a los componentes, deja el idioma fijado **globalmente**.
+   * Lo necesitan los sitios que estan fuera del arbol de React y que aun asi
+   * enseñan texto al usuario: sobre todo los titulos de las ventanas nativas de
+   * ficheros. Si cada quien guardase el idioma por su cuenta habria tres
+   * respuestas distintas a la pregunta de en que idioma estamos.
+   */
+  const setIdioma = useCallback((siguiente: AppLocale): void => {
+    setCurrentLocale(siguiente);
+    cambiarIdioma(siguiente);
+  }, []);
 
   const t = useMemo<ITranslator>(
     () => ({
@@ -240,6 +254,8 @@ export function App() {
 
       // El idioma sale aqui, y no de los ajustes, porque todavia no hay ajustes
       // que leer: estan dentro de la base de datos que estamos comprobando.
+      // `setIdioma` deja ademas fijado el idioma global, que es lo que permite
+      // traducir los textos de fuera del arbol de React.
       setIdioma(estado.locale);
       setArranque(estado);
     };

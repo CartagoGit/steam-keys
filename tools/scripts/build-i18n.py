@@ -16,6 +16,15 @@ BASE = pathlib.Path(__file__).resolve().parents[2] / 'apps/desktop/src/contracts
 TRADUCCIONES = {}
 
 TRADUCCIONES['fr'] = {
+ 'file.filter.text': 'Texte',
+ 'data.title': 'Donnees et sauvegardes',
+ 'data.subtitle': 'Ou vit ta collection et comment la recuperer si quelque chose tourne mal.',
+ 'storage.created': 'Sauvegarde creee : {0}',
+ 'storage.restored': '{0} cles restaurees : {1} ajoutees, {2} mises a jour, {3} inchangees.',
+ 'file.pick.title': 'Choisis le fichier TXT avec tes cles',
+ 'file.save.title': 'Enregistrer la liste des cles',
+ 'row.select': 'Selectionner {0}',
+ 'row.onSteam': 'Sur Steam',
  'storage.portable.title': 'Mode portable',
  'storage.portable.text': 'Tes cles et tes sauvegardes sont dans un seul fichier, steam-keys.db, a cote du programme et pas dans ton dossier utilisateur. Si tu deplaces l executable, deplace aussi ce fichier, sinon tu perdras ta collection.', 'storage.backups.keys': '{0} cles',
  'platform.unknown': 'Non determinee',
@@ -250,6 +259,15 @@ TRADUCCIONES['fr'] = {
 }
 
 TRADUCCIONES['pt'] = {
+ 'file.filter.text': 'Ficheiros',
+ 'data.title': 'Dados e copias de seguranca',
+ 'data.subtitle': 'Onde vive a tua colecao e como recupera-la se algo correr mal.',
+ 'storage.created': 'Copia criada: {0}',
+ 'storage.restored': '{0} chaves restauradas: {1} novas, {2} atualizadas, {3} sem mudanca.',
+ 'file.pick.title': 'Escolhe o ficheiro TXT com as tuas chaves',
+ 'file.save.title': 'Guardar a lista de chaves',
+ 'row.select': 'Selecionar {0}',
+ 'row.onSteam': 'Na Steam',
  'storage.portable.title': 'Modo portatil',
  'storage.portable.text': 'As tuas chaves e as tuas copias estao num unico ficheiro, steam-keys.db, ao lado do programa e nao na tua pasta de utilizador. Se moveres o executavel para outra pasta, move tambem esse ficheiro, ou ficas sem a colecao.', 'storage.backups.keys': '{0} chaves',
  'platform.unknown': 'Nao determinada',
@@ -485,6 +503,15 @@ TRADUCCIONES['pt'] = {
 }
 
 TRADUCCIONES['de'] = {
+ 'file.filter.text': 'Text',
+ 'data.title': 'Daten und Sicherungen',
+ 'data.subtitle': 'Wo deine Sammlung liegt und wie du sie zuruckholst, wenn etwas schiefgeht.',
+ 'storage.created': 'Sicherung erstellt: {0}',
+ 'storage.restored': '{0} Schlussel wiederhergestellt: {1} neu, {2} aktualisiert, {3} unveraendert.',
+ 'file.pick.title': 'Wahle die TXT-Datei mit deinen Schlusseln',
+ 'file.save.title': 'Schlusselliste speichern',
+ 'row.select': '{0} auswahlen',
+ 'row.onSteam': 'In Steam',
  'storage.portable.title': 'Tragbarer Modus',
  'storage.portable.text': 'Deine Keys und deine Sicherungen liegen in einer einzigen Datei, steam-keys.db, neben dem Programm und nicht in deinem Benutzerordner. Wenn du die Programmdatei verschiebst, verschiebe diese Datei mit, sonst bleibt die Sammlung zurueck.', 'storage.backups.keys': '{0} Keys',
  'platform.unknown': 'Nicht ermittelt',

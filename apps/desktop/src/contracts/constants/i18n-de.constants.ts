@@ -188,6 +188,17 @@ export const DE: TranslationTable = Object.freeze({
   'toast.recipient': 'Du musst sagen, an wen er verschenkt wurde.',
   'toast.nothingSelected': 'Nichts ausgewaehlt.',
   'data.close': 'Daten schliessen',
+  'data.title': 'Daten und Sicherungen',
+  'data.subtitle':
+    'Wo deine Sammlung liegt und wie du sie zuruckholst, wenn etwas schiefgeht.',
+  'storage.created': 'Sicherung erstellt: {0}',
+  'storage.restored':
+    '{0} Schlussel wiederhergestellt: {1} neu, {2} aktualisiert, {3} unveraendert.',
+  'file.pick.title': 'Wahle die TXT-Datei mit deinen Schlusseln',
+  'file.save.title': 'Schlusselliste speichern',
+  'file.filter.text': 'Text',
+  'row.select': '{0} auswahlen',
+  'row.onSteam': 'In Steam',
   'bulk.blocked.notOwned': 'Du hast sie nicht mehr: sie laesst sich nicht nochmal verschenken',
   'bulk.blocked.needRecipient': 'Es fehlt noch, an wen du sie gegeben hast',
   'gift.count.one': '1 Schluessel ausgewaehlt',

@@ -10,25 +10,12 @@ import {
   supportsBackups,
 } from '@/helpers/runtime.helper';
 import { storageService } from '@/services/storage.service';
+import { formatBytes } from '@/helpers/format-bytes.helper';
+import { formatDateTime } from '@/helpers/format-date.helper';
 import { Button } from './ui.component';
 import { Icon } from './icon.component';
 import { useT } from '@/context/locale.context';
 import { AppLocale } from '@/contracts/enums/app-locale.enum';
-
-/**
- * Codigo de idioma para formatear la fecha de una copia de seguridad.
- *
- * Antes estaba fijo en `es-ES`, asi que una copia llamada
- * "2026-03-04-18-30-manual" salia con la fecha en castellano y con el formato
- * de dia/mes/ano español aunque la app estuviera en ingles. Va por idioma.
- */
-const IDIOMA_FECHA: Readonly<Record<AppLocale, string>> = Object.freeze({
-  [AppLocale.Es]: 'es-ES',
-  [AppLocale.En]: 'en-GB',
-  [AppLocale.Fr]: 'fr-FR',
-  [AppLocale.Pt]: 'pt-PT',
-  [AppLocale.De]: 'de-DE',
-});
 import type {
   IBackup,
   IRestoreSummary,
@@ -78,7 +65,7 @@ export function StoragePanel({ onClose, onChanged, notify }: IStoragePanelProps)
     setWorking(true);
     try {
       const creada = await storageService.backupNow(BackupReason.Manual);
-      notify(`Copia creada: ${creada.name}`, 'success');
+      notify(t('storage.created', [creada.name]), 'success');
       await refresh();
     } catch (cause) {
       notify(
@@ -115,8 +102,12 @@ export function StoragePanel({ onClose, onChanged, notify }: IStoragePanelProps)
       );
 
       notify(
-        `Restauradas ${resumen.total} claves: ${resumen.inserted} nuevas, ` +
-          `${resumen.updated} actualizadas, ${resumen.skipped} sin cambios.`,
+        t('storage.restored', [
+          resumen.total,
+          resumen.inserted,
+          resumen.updated,
+          resumen.skipped,
+        ]),
         'success',
       );
 
@@ -145,10 +136,10 @@ export function StoragePanel({ onClose, onChanged, notify }: IStoragePanelProps)
         <header className="flex items-center justify-between border-b border-line px-5 py-4">
           <div>
             <h2 className="text-base font-semibold text-t1">
-              Datos y copias de seguridad
+              {t('data.title')}
             </h2>
             <p className="text-xs text-t4">
-              Donde vive tu coleccion y como recuperarla si algo sale mal.
+              {t('data.subtitle')}
             </p>
           </div>
           <button
@@ -483,30 +474,12 @@ function Dato({ label, value, ayuda }: IDatoProps) {
   );
 }
 
-/** Nombre legible de una copia a partir de su fecha y su sufijo. */
+/** Nombre legible de una copia a partir de su fecha y su motivo. */
 function describeBackup(backup: IBackup, locale: AppLocale): string {
-  const fecha = new Date(backup.createdAtMs);
+  if (Number.isNaN(new Date(backup.createdAtMs).getTime())) return backup.name;
 
-  if (Number.isNaN(fecha.getTime())) return backup.name;
-
-  const sello = fecha.toLocaleString(IDIOMA_FECHA[locale], {
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-
-  const motivo = backup.reason.trim() !== '' ? backup.reason : 'manual';
+  const sello = formatDateTime(backup.createdAtMs, locale);
+  const motivo = backup.reason.trim() !== '' ? backup.reason : BackupReason.Manual;
 
   return `${sello} · ${motivo.replace(/-/g, ' ')}`;
-}
-
-/** Tamano legible en KB o MB. */
-function formatBytes(bytes: number): string {
-  if (bytes <= 0) return '—';
-
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }

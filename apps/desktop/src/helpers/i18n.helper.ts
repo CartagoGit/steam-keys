@@ -40,6 +40,39 @@ export function translate(
   return interpolate(key, args);
 }
 
+/**
+ * Idioma con el que se esta pintando la pantalla ahora mismo.
+ *
+ * Es una variable de modulo a proposito, y es lo unico aqui que no sea una
+ * funcion pura. Sin ella los servicios no tienen forma de hablar el idioma del
+ * usuario: el traductor vive en un contexto de React, asi que un `service` solo
+ * puede usar `useT()` si se convierte en componente, y si no, escribe el texto
+ * en castellano y se acaba viendo en ingles.
+ *
+ * Donde realmente hace falta son los titulos de las ventanas nativas del
+ * sistema —el `open()` y el `save()` del plugin de dialogo—: esos textos los ve
+ * el usuario siempre, en cualquier idioma, y nadie los puede formatear.
+ *
+ * Se fija en un unico sitio, la app, al arrancar y cada vez que cambia, de modo
+ * que cualquier punto de entrada lo consulta.
+ */
+let idiomaActual: AppLocale = DEFAULT_LOCALE;
+
+/** Fija el idioma global. Lo llama la app, y solo ella. */
+export function setCurrentLocale(locale: AppLocale): void {
+  idiomaActual = locale;
+}
+
+/** El idioma global, para codigo que esta fuera del arbol de React. */
+export function currentLocale(): AppLocale {
+  return idiomaActual;
+}
+
+/** Traduce con el idioma global. Para codigo fuera de React. */
+export function t(clave: TranslationKey, args?: TranslationArgs): string {
+  return translate(idiomaActual, clave, args);
+}
+
 /** Idioma que el navegador pide, si esta entre los que soportamos. */
 export function detectLocale(candidatos: readonly string[]): AppLocale {
   for (const candidato of candidatos) {

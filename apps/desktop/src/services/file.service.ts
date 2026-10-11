@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import { isTauri } from '@/helpers/runtime.helper';
+import { t } from '@/helpers/i18n.helper';
 import type { IDatabaseInfo } from '@/contracts/interfaces/backup.interface';
 
 /**
@@ -16,14 +17,14 @@ import type { IDatabaseInfo } from '@/contracts/interfaces/backup.interface';
  */
 export const fileService = {
   /** Abre el dialogo nativo y devuelve el texto del fichero elegido. */
-  async pickTextFile(title = 'Selecciona el TXT de keys'): Promise<string | null> {
+  async pickTextFile(title = t('file.pick.title')): Promise<string | null> {
     if (!isTauri()) return pickFileInBrowser();
 
     const selected = await open({
       title,
       multiple: false,
       directory: false,
-      filters: [{ name: 'Texto', extensions: ['txt', 'text', 'md'] }],
+      filters: [{ name: t('file.filter.text'), extensions: ['txt', 'text', 'md'] }],
     });
 
     if (typeof selected !== 'string') return null;
@@ -35,7 +36,7 @@ export const fileService = {
   async saveTextFile(
     suggestedName: string,
     contents: string,
-    title = 'Guardar listado de keys',
+    title = t('file.save.title'),
   ): Promise<string | null> {
     if (!isTauri()) {
       downloadInBrowser(suggestedName, contents);
@@ -45,7 +46,7 @@ export const fileService = {
     const target = await save({
       title,
       defaultPath: suggestedName,
-      filters: [{ name: 'Texto', extensions: ['txt'] }],
+      filters: [{ name: t('file.filter.text'), extensions: ['txt'] }],
     });
 
     if (!target) return null;

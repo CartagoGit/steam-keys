@@ -328,8 +328,17 @@ export const EN: TranslationTable = Object.freeze({
     'Status: {0}. {1} Click to change it.',
   'row.forRecipient':
     'to {0}',
+  'row.select': 'Select {0}',
+  'row.onSteam': 'On Steam',
   'data.close':
     'Close data',
+  'data.title': 'Data and backups',
+  'data.subtitle': 'Where your collection lives and how to get it back if something goes wrong.',
+  'storage.created': 'Backup created: {0}',
+  'storage.restored': 'Restored {0} keys: {1} added, {2} updated, {3} unchanged.',
+  'file.pick.title': 'Choose the TXT file with your keys',
+  'file.save.title': 'Save the list of keys',
+  'file.filter.text': 'Text',
   'bulk.blocked.notOwned': 'You do not have it any more: giving it away again is not possible',
   'bulk.blocked.needRecipient': 'You still have to say who you gave it to',
   'gift.count.one': '1 key selected',

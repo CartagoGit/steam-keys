@@ -240,10 +240,23 @@ export const ES: TranslationTable = Object.freeze({
 
   // -------------------------------------------------------------- datos ---
   'data.close': 'Cerrar datos',
+  'data.title': 'Datos y copias de seguridad',
+  'data.subtitle': 'Onde vive tu coleccion y como recuperarla si algo sale mal.',
+
+  // ------------------------------------------------------ copia y restauro ---
+  'storage.created': 'Copia creada: {0}',
+  'storage.restored': 'Restauradas {0} claves: {1} nuevas, {2} actualizadas, {3} sin cambios.',
+
+  // ------------------------------------------------------------- ficheros ---
+  'file.pick.title': 'Selecciona el TXT de keys',
+  'file.save.title': 'Guardar listado de keys',
+  'file.filter.text': 'Texto',
 
   // ------------------------------------------------------ estado vacio ---
 
   // --------------------------------------------------------------- pie ---
+  'row.select': 'Seleccionar {0}',
+  'row.onSteam': 'En Steam',
   'bulk.blocked.notOwned': 'Ya no la tienes: regalarla otra vez no es posible',
   'bulk.blocked.needRecipient': 'Falta decir a quien se la regalaste',
   'gift.count.one': '1 clave seleccionada',

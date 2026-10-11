@@ -1,4 +1,5 @@
 import { AppLocale } from '../enums/app-locale.enum';
+import { AppTheme } from '../enums/app-theme.enum';
 
 /**
  * Idiomas con etiqueta propia.
@@ -28,20 +29,44 @@ export const LOCALE_META: Readonly<
 export const LOCALE_FLAG_SIZE = 22;
 
 /**
+ * Codigo BCP 47 de cada idioma, para `Intl`.
+ *
+ * Vive aqui y no en un componente porque lo necesitan todos los que formatean
+ * una fecha: el panel de datos, la tabla de juegos de Steam y el helper de
+ * fechas. Cuando estaba dentro de `storage-panel`, los demas componentes no
+ * tenian donde mirar y acababan escribiendo `'es'` a mano.
+ *
+ * El ingles es `en-GB` y no `en-US` a proposito: con `en-US` el 2 de marzo sale
+ * `3/2/2026`, y en una coleccion europea ese orden se lee al reves. Los demas
+ * idiomas usan su codigo real de region.
+ */
+export const LOCALE_BCP47: Readonly<Record<AppLocale, string>> = Object.freeze({
+  [AppLocale.Es]: 'es-ES',
+  [AppLocale.En]: 'en-GB',
+  [AppLocale.Fr]: 'fr-FR',
+  [AppLocale.Pt]: 'pt-PT',
+  [AppLocale.De]: 'de-DE',
+});
+
+/**
  * Etiquetas de los temas, en el idioma de cada traduccion.
  *
  * Se dejan en ingles a proposito: son las que aparecen asi en Windows, en
  * macOS y en Linux, y traducirlas desorienta mas que ayudar. El tema se elige
  * casi siempre por como se ve, no por como se lee su nombre.
+ *
+ * El tipo es `Record<AppTheme, string>` y no `Record<string, string>` para que
+ * borrar o renombrar un tema en el enum rompa aqui, en vez de dejar una
+ * etiqueta huerfana que el selector ya no enseña.
  */
-export const THEME_LABELS: Readonly<Record<string, string>> = Object.freeze({
-  system: 'System',
-  dark: 'Dark',
-  midnight: 'Midnight',
-  forest: 'Forest',
-  nord: 'Nord',
-  contrast: 'Contrast',
-  light: 'Light',
-  paper: 'Paper',
-  berry: 'Berry',
+export const THEME_LABELS: Readonly<Record<AppTheme, string>> = Object.freeze({
+  [AppTheme.System]: 'System',
+  [AppTheme.Dark]: 'Dark',
+  [AppTheme.Midnight]: 'Midnight',
+  [AppTheme.Forest]: 'Forest',
+  [AppTheme.Nord]: 'Nord',
+  [AppTheme.Contrast]: 'Contrast',
+  [AppTheme.Light]: 'Light',
+  [AppTheme.Paper]: 'Paper',
+  [AppTheme.Berry]: 'Berry',
 });
