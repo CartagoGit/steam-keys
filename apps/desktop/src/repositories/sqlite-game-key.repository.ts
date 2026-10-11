@@ -3,7 +3,13 @@ import {
   mapRowToGameKey,
   touchTimestamp,
 } from '@/helpers/map-row.helper';
-import { normalizeKey, serializeTags } from '@/helpers/normalize-text.helper';
+import { sqlPlaceholders } from '@/helpers/sql.helper';
+import {
+  keyFingerprint,
+  normalizeKey,
+  serializeTags,
+} from '@/helpers/normalize-text.helper';
+import { KeyPlatform } from '@/contracts/enums/key-platform.enum';
 import { KeySource } from '@/contracts/enums/key-source.enum';
 import { KeyStatus } from '@/contracts/enums/key-status.enum';
 import type { IDatabaseClient, IGameKeyRepository } from '@/contracts/interfaces/database.interface';
@@ -62,7 +68,7 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
       [
         input.title.trim(),
         keyValue,
-        input.platform ?? 'steam',
+        input.platform ?? KeyPlatform.Steam,
         input.status ?? KeyStatus.Available,
         KeySource.Manual,
         input.giftedTo ?? null,
@@ -115,7 +121,7 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
   async removeMany(ids: readonly number[]): Promise<void> {
     if (ids.length === 0) return;
 
-    const placeholders = ids.map((_, index) => `$${index + 1}`).join(', ');
+    const placeholders = sqlPlaceholders(ids.length);
     await this.db.execute(`DELETE FROM game_keys WHERE id IN (${placeholders})`, [...ids]);
   }
 
@@ -136,10 +142,13 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
   async setStatusMany(ids: readonly number[], status: KeyStatus): Promise<void> {
     if (ids.length === 0) return;
 
-    const placeholders = ids.map((_, index) => `$${index + 2}`).join(', ');
+    // Los ids empiezan en el 3 porque antes ya hay dos valores fijos: el estado
+    // y el sello. Con el 2, `updated_at` y el primer id compartian marcador.
+    const placeholders = sqlPlaceholders(ids.length, 3);
+
     await this.db.execute(
-      `UPDATE game_keys SET status = $1, updated_at = $1 WHERE id IN (${placeholders})`,
-      [status, ...ids],
+      `UPDATE game_keys SET status = $1, updated_at = $2 WHERE id IN (${placeholders})`,
+      [status, touchTimestamp(), ...ids],
     );
   }
 
@@ -155,12 +164,15 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
     if (entries.length === 0) return;
 
     const ids = entries.map((entry) => entry.id);
-    const idPlaceholders = ids.map((_, index) => `$${index + 2}`).join(', ');
+    const idPlaceholders = sqlPlaceholders(ids.length, 2);
+
+    // Los destinatarios van detras de los ids, que ocupan del 2 al 1+ids.length.
+    const casosDesde = ids.length + 2;
 
     const cases = entries
       .map(
         (_, index) =>
-          `WHEN ${index + 1} THEN $${entries.length + index + 2}`,
+          `WHEN ${index + 1} THEN $${casosDesde + index}`,
       )
       .join(' ');
 
@@ -192,15 +204,21 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
    * reconstruye el string entero. Se hace en una sola sentencia y no en un
    * bucle porque pueden ser cientos las claves que se cambian de golpe y cada
    * viaje de ida y vuelta cuesta.
+   *
+   * El texto lo arma `serializeTags`, como en el resto de escrituras: unirlo a
+   * mano aqui dejaba las etiquetas con espacios y sin pasar por el limpiado, de
+   * modo que la misma columna guardaba dos formatos distintos.
    */
   async setTagsMany(ids: readonly number[], tags: readonly string[]): Promise<void> {
     if (ids.length === 0) return;
 
-    const placeholders = ids.map((_, index) => `$${index + 2}`).join(', ');
+    // Igual que en `setStatusMany`: dos valores fijos antes, asi que los ids
+    // empiezan en el 3.
+    const placeholders = sqlPlaceholders(ids.length, 3);
 
     await this.db.execute(
       `UPDATE game_keys SET tags = $1, updated_at = $2 WHERE id IN (${placeholders})`,
-      [tags.join(', '), touchTimestamp(), ...ids],
+      [serializeTags(tags), touchTimestamp(), ...ids],
     );
   }
 
@@ -238,10 +256,10 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
     let inserted = 0;
     let alreadyInDb = 0;
 
-    const existing = new Set((await this.listKeyValues()).map(keyFingerprintOf));
+    const existing = new Set((await this.listKeyValues()).map(keyFingerprint));
 
     for (const row of rows) {
-      const fingerprint = keyFingerprintOf(row.keyValue);
+      const fingerprint = keyFingerprint(row.keyValue);
       if (existing.has(fingerprint)) {
         alreadyInDb += 1;
         continue;
@@ -281,9 +299,4 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
       alreadyInDb,
     };
   }
-}
-
-/** Comparacion insensible a guiones y mayusculas. */
-function keyFingerprintOf(value: string): string {
-  return normalizeKey(value).replace(/[^A-Z0-9]/g, '');
 }

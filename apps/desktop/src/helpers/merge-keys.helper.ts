@@ -1,6 +1,9 @@
 import { RestoreMode } from '@/contracts/enums/restore-mode.enum';
-import { normalizeKey } from './normalize-text.helper';
-import { parseTags, serializeTags } from './normalize-text.helper';
+import {
+  normalizeKey,
+  parseTags,
+  serializeTags,
+} from './normalize-text.helper';
 import type { IDatabaseClient } from '@/contracts/interfaces/database.interface';
 import type { IRestoreSummary } from '@/contracts/interfaces/backup.interface';
 import type { IGameKeyRow } from '@/contracts/interfaces/import-summary.interface';

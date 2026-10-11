@@ -62,7 +62,7 @@ export function formatKeyLine(key: IGameKey): string {
 
   // Marcador de estado al inicio de la linea. El `-` es el marcador original
   // de "regalada"; los demas los anade el exportador para no perder estados.
-  const marker = STATUS_MARKERS_REVERSE[key.status] ?? (key.status === 'gifted' ? '-' : '');
+  const marker = STATUS_MARKERS_REVERSE[key.status] ?? (key.status === KeyStatus.Gifted ? '-' : '');
   if (marker) parts.push(marker);
 
   parts.push(key.title);
