@@ -13,7 +13,9 @@ import {
   parseLegacyTxt,
 } from '@/helpers/parse-legacy-txt.helper';
 import { KEY_PLATFORM_META } from '@/contracts/constants/key-platform.constants';
-import { KEY_STATUS_META } from '@/contracts/constants/key-status.constants';
+import { ES } from '@/contracts/constants/i18n.constants';
+import { statusMeta } from '@/contracts/constants/key-status.constants';
+import type { KeyStatus } from '@/contracts/enums/key-status.enum';
 import {
   INSTRUCTION_PATTERN,
   PLATFORM_HINT_PATTERN,
@@ -70,8 +72,11 @@ for (const entry of result.entries) {
   byStatus.set(entry.status, (byStatus.get(entry.status) ?? 0) + 1);
 }
 for (const [status, count] of byStatus) {
+  // El estado, por su tabla y no por la clave cruda: el script imprime en el
+  // idioma por defecto y asi sale como el texto de la aplicacion. `statusMeta`
+  // ademas no revienta con un estado que el enum no conozca.
   log(
-    `  ${(KEY_STATUS_META[status as keyof typeof KEY_STATUS_META]?.label ?? status).padEnd(18)} ${String(count).padStart(4)}`,
+    `  ${statusMeta(status as KeyStatus, ES).label.padEnd(18)} ${String(count).padStart(4)}`,
   );
 }
 

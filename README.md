@@ -169,16 +169,17 @@ Todos están en el `package.json` de la raíz.
 | `bun run build:linux:docker` | AppImage autocontenido (desde Linux) |
 | `bun run build:macos` | `.dmg` + `.app` (solo en un Mac) |
 | `bun test` | Tests (parser, export, round-trip, puente) |
-| `bun run typecheck` | TypeScript estricto |
+| `bun run typecheck` | TypeScript estricto (app **y** scripts) |
 | `bun run import` | Importa el TXT (simula por defecto) |
 | `bun run import -- --force` | Importa de verdad |
 | `bun run export` | Exporta la BD a `build/steam-keys-export.txt` |
 | `bun run db:path` | Dónde está la base de datos y cuántas claves tiene |
 | `bun run db:reset -- --force` | Borra la base de datos |
-| `bun run backup:list` | Copias de seguridad guardadas |
+| `bun run backup:list` | Copias de seguridad, de la más reciente a la más antigua |
 | `bun run backup:now -- motivo` | Crea una copia de seguridad |
 | `bun run backup:prune -- 5` | Deja solo las 5 más recientes |
-| `bun run backup:restore -- nombre` | Prepara una copia para restaurar |
+| `bun run backup:restore -- nombre` | Fusiona una copia con lo que hay (nunca borra) |
+| `bun run backup:restore -- nombre sobrescribir` | Además actualiza el estado de las claves que ya existían |
 | `bun run mask` | Copia del TXT **sin claves**, segura para compartir |
 | `bun run audit` | Busca claves reales en el índice **y en el historial** de git |
 | `bun run inspect:format` | Mapa del formato del TXT original |
@@ -277,8 +278,8 @@ Para mirar tus claves de verdad desde el navegador:
 STEAM_KEYS_DB_PATH=dist/steam-keys.db bun run dev
 ````
 
-Los scripts de consola (`bun run db:path`, `db:backup`, …) miran `dist/` por
-defecto. Para trabajar sobre otra copia:
+Los scripts de consola (`bun run db:path`, `backup:list`, `import`, …) miran
+`dist/` por defecto. Para trabajar sobre otra copia:
 
 ````bash
 STEAM_KEYS_DATA_DIR=/mnt/usb/steam-keys bun run db:path

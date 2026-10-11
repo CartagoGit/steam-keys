@@ -24,7 +24,7 @@
  * Nunca se invoca desde la aplicacion: solo desde el servidor de desarrollo,
  * y solo en `bun run dev`. En el build de produccion no existe.
  */
-import { Database } from 'bun:sqlite';
+import { Database, type SQLQueryBindings } from 'bun:sqlite';
 import { existsSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
@@ -51,7 +51,7 @@ async function leerEntrada(): Promise<string> {
 
   const trozos: Buffer[] = [];
 
-  for await (const trozo of Bun.stdin.stream()) {
+  for await (const trozo of Bun.stdin.stream() as unknown as AsyncIterable<Uint8Array>) {
     trozos.push(Buffer.from(trozo));
   }
 
@@ -144,7 +144,12 @@ async function principal(): Promise<void> {
         const db = abrirLectura();
 
         try {
-          const filas = db.query(peticion.sql).all(...(peticion.binds ?? [])) as unknown[];
+          // El puente acepta lo que mande el navegador y solo reenvia el `bind` a
+          // SQLite. `SQLQueryBindings` es la union de lo que Bun acepta de verdad;
+          // el enunciado llega como `unknown[]` porque viene por JSON, y el motor
+          // es quien avisa si se le pasa algo que no sea un valor.
+          const binds = (peticion.binds ?? []) as SQLQueryBindings[];
+          const filas = db.query(peticion.sql).all(...binds) as unknown[];
           responder({ ok: true, rows: filas });
         } finally {
           db.close();

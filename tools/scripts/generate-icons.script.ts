@@ -221,7 +221,7 @@ function drawIcon(): Uint8Array {
  * - La llave se dibuja un poco mas grande dentro del lienzo, porque en un
  *   favicon no hay margen que desperdiciar: cada pixel cuenta.
  */
-function drawFavicon(size: number): Uint8Array {
+function drawFavicon(_size: number): Uint8Array {
   const canvas = createCanvas(SIZE);
 
   // ---------------------------------------------------------- fondo ---

@@ -204,11 +204,15 @@ export const backupRepository = {
    * segundo se distinguen con un sufijo, y en texto `copia-10` va antes que
    * `copia-9`: la rotacion borraria la copia equivocada. Por `creado_ms` tampoco,
    * porque dos copias pueden caer en el mismo milisegundo.
+   *
+   * @param limite Cuantas conservar. `MAX_BACKUPS` es lo que se queda la app;
+   *   lo demas lo pasa quien rota a mano, que es el `backup:prune` de la
+   *   terminal. El orden de borrado es el mismo en los dos casos.
    */
-  async rotate(db: IDatabaseClient): Promise<void> {
+  async rotate(db: IDatabaseClient, limite: number = MAX_BACKUPS): Promise<void> {
     const sobrantes = await db.select<{ nombre: string }>(
       `SELECT nombre FROM ${TABLE_BACKUPS} ORDER BY rowid DESC LIMIT -1 OFFSET $1`,
-      [MAX_BACKUPS],
+      [limite],
     );
 
     for (const sobra of sobrantes) {

@@ -13,7 +13,7 @@ import { Database } from 'bun:sqlite';
 
 import { exportKeysToLegacyTxt } from '@/helpers/export-legacy-txt.helper';
 import { mapRowToGameKey } from '@/helpers/map-row.helper';
-import { GAME_KEY_COLUMNS, TABLE_GAME_KEYS, type IGameKeyRow } from '@/contracts';
+import { GAME_KEY_COLUMNS, TABLE_GAME_KEYS, type IGameKey, type IGameKeyRow } from '@/contracts';
 import { databasePath } from './support/db-path.helper';
 
 const DB_PATH = databasePath();

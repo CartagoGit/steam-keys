@@ -38,7 +38,7 @@ const shapes = new Map<string, number>();
 lines.forEach((raw) => {
   const t = raw.trim();
   const m = t.match(KEY_RE);
-  if (!m || m.index === 0) return;
+  if (!m || m.index === undefined || m.index === 0) return;
   const before = t.slice(Math.max(0, m.index - 4), m.index);
   const shape = JSON.stringify(before);
   shapes.set(shape, (shapes.get(shape) ?? 0) + 1);

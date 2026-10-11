@@ -28,8 +28,8 @@ import {
   parseTags,
 } from '@/helpers/normalize-text.helper';
 import { TABLE_GAME_KEYS } from '@/contracts/constants/db-schema.constants';
+import type { IParsedEntry } from '@/contracts';
 import { databasePath } from './support/db-path.helper';
-import type { KeyStatus } from '@/contracts/enums/key-status.enum';
 
 const args = process.argv.slice(2);
 const force = args.includes('--force') || args.includes('-f');
@@ -37,6 +37,9 @@ const dryRun = args.includes('--dry-run') || (!force && !args.includes('--yes'))
 
 const TXT_PATH = join(import.meta.dir, '..', '..', 'original', 'steam-keys.txt');
 const DB_PATH = databasePath();
+
+/** Lo que el TXT dice de una clave: lo unico que se compara con la fila. */
+type IParseada = Pick<IParsedEntry, 'status' | 'tags'>;
 
 /** Una fila de la base de datos con lo justo para saber que cambiar. */
 interface IRow {
@@ -81,10 +84,12 @@ const db = new Database(DB_PATH);
 const parsed = parseLegacyTxt(raw);
 
 const rows = db
-  .query<IRow, []>('SELECT id, title, key_value, status, tags FROM game_keys')
+  .query<IRow, []>(
+    `SELECT id, title, key_value, status, tags FROM ${TABLE_GAME_KEYS}`,
+  )
   .all();
 
-const porClave = new Map<string, IParsed>();
+const porClave = new Map<string, IParseada>();
 
 for (const entry of parsed.entries) {
   porClave.set(keyFingerprint(entry.keyValue), {
@@ -106,10 +111,7 @@ for (const row of rows) {
     continue;
   }
 
-  const actuales = (row.tags ?? '')
-    .split(',')
-    .map((tag) => tag.trim())
-    .filter((tag) => tag.length > 0);
+  const actuales = parseTags(row.tags);
 
   // Las etiquetas del TXT que aun no estan en la clave. Se comparan en minuscula
   // porque la app las guarda normalizadas asi.

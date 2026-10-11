@@ -39,7 +39,7 @@ const DB_PATH = databasePath();
 const sourcePath = args.find((arg) => !arg.startsWith('-')) ?? TXT_PATH;
 
 /** Lee el TXT de entrada. */
-function readSource(): string {
+async function readSource(): Promise<string> {
   if (!existsSync(sourcePath)) {
     throw new Error(`No existe el fichero de entrada: ${sourcePath}`);
   }
