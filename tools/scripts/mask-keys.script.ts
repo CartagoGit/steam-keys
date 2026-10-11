@@ -13,7 +13,7 @@
 import { existsSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
-import { maskKey } from '../../apps/desktop/src/helpers/mask-key.helper';
+import { maskKey } from '@/helpers/mask-key.helper';
 
 const args = process.argv.slice(2);
 const positional = args.filter((arg) => !arg.startsWith('-'));

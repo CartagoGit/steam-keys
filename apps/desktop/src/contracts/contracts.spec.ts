@@ -30,6 +30,14 @@ const BARRIL_LIMPIO = /from '@\/contracts';/;
 /** Carpeta que hay que recorrer: `apps/desktop/src`. */
 const SRC = `${import.meta.dir}/..`;
 
+/** Raiz del repositorio, dos niveles por encima de `src/contracts`. */
+const REPO = `${SRC}/../../..`;
+
+/** Los scripts de linea de comandos, que hablan con la misma base de datos. */
+const TOOLS: readonly string[] = [
+  ...new Bun.Glob('tools/scripts/**/*.ts').scanSync({ cwd: REPO }),
+].sort();
+
 /**
  * Ficheros de la app, ordenados, sin los del propio modulo de contratos.
  *
@@ -100,4 +108,21 @@ describe('los contratos se importan desde el barril', () => {
 
     expect(derivados).toEqual([]);
   });
-});
+  test('tampoco en los scripts de tools, que escriben SQL contra la misma base', async () => {
+    // Los scripts de `tools/scripts/` llegan al codigo de la app por el alias
+    // `@/`, que el `tsconfig.json` de la raiz ya declara para ellos. Durante
+    // mucho tiempo fueron la excepcion: veintisiete imports por
+    // `../../apps/desktop/src/...`, y un `import-txt.script.ts` que escribia su
+    // propio `INSERT` y un `export-txt.script.ts` con su propio `SELECT` y su
+    // propio mapeo de filas. Los dos habrian podido importar el repositorio y
+    // no lo hacian, y a la app le anadia una columna sin que se enterara nadie.
+    const culpables: string[] = [];
+
+    for (const ruta of TOOLS) {
+      const codigo = await Bun.file(`${REPO}/${ruta}`).text();
+
+      if (codigo.includes('../../apps/desktop/')) culpables.push(ruta);
+    }
+
+    expect(culpables).toEqual([]);
+  });});

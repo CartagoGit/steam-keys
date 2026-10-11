@@ -12,12 +12,20 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { Database } from 'bun:sqlite';
 
-import { parseLegacyTxt } from '../../apps/desktop/src/helpers/parse-legacy-txt.helper';
-import { maskKey } from '../../apps/desktop/src/helpers/mask-key.helper';
-import { normalizeKey, serializeTags } from '../../apps/desktop/src/helpers/normalize-text.helper';
-import { SCHEMA_STATEMENTS } from '../../apps/desktop/src/contracts/constants/db-schema.constants';
-import { KeySource } from '../../apps/desktop/src/contracts/enums/key-source.enum';
-import { KeyStatus } from '../../apps/desktop/src/contracts/enums/key-status.enum';
+import { parseLegacyTxt } from '@/helpers/parse-legacy-txt.helper';
+import { maskKey } from '@/helpers/mask-key.helper';
+import {
+  keyFingerprint,
+  normalizeKey,
+  serializeTags,
+} from '@/helpers/normalize-text.helper';
+import {
+  GAME_KEY_WRITE_COLUMNS,
+  SCHEMA_STATEMENTS,
+  TABLE_GAME_KEYS,
+} from '@/contracts/constants/db-schema.constants';
+import { KeySource } from '@/contracts/enums/key-source.enum';
+import { KeyStatus } from '@/contracts/enums/key-status.enum';
 import { databasePath } from './support/db-path.helper';
 
 const args = process.argv.slice(2);
@@ -52,10 +60,22 @@ function openDatabase(): Database {
 const raw = await readSource();
 const db = openDatabase();
 
-const existingRows = db.query<{ key_value: string }, []>('SELECT key_value FROM game_keys').all();
-const existing = new Set(existingRows.map((row) => fingerprint(row.key_value)));
+const existingRows = db.query<{ key_value: string }, []>(`SELECT key_value FROM ${TABLE_GAME_KEYS}`).all();
+const existing = new Set(existingRows.map((row) => keyFingerprint(row.key_value)));
 
-const parsed = parseLegacyTxt(raw, { existingKeys: [...existing] });
+// Se parsea **sin** filtrar por lo que hay en la base y se reparte aqui. Antes
+// se le pasaba `existingKeys` y el recuento salia contradictorio: con la base
+// llena el script anunciava "Claves detectadas: 0" y a continuacion "duplicadas
+// TXT: 472", que parece un fichero vacio con 472 lineas sin parsear. El motivo
+// es que `entries` ya venia sin las que estaban en la base, y `duplicates`
+// mezclaba dos cosas distintas —repetidas dentro del TXT y ya guardadas— sin
+// decir cual era cual. Repartiendo aqui las dos se cuentan bien y se ve de
+// verdad cuanto hay nuevo.
+const parsed = parseLegacyTxt(raw);
+
+// ---------------------------------------------------------------- simulacion --
+const toInsert = parsed.entries.filter((entry) => !existing.has(keyFingerprint(entry.keyValue)));
+const alreadyInDb = parsed.entries.length - toInsert.length;
 
 console.log('=====================================================');
 console.log(' Importacion de claves');
@@ -64,14 +84,11 @@ console.log('Origen   :', sourcePath);
 console.log('Base BD  :', DB_PATH);
 console.log('');
 
-// ---------------------------------------------------------------- simulacion --
-const toInsert = parsed.entries.filter((entry) => !existing.has(fingerprint(entry.keyValue)));
-const alreadyInDb = parsed.entries.length - toInsert.length;
-
-console.log('Claves detectadas   :', parsed.entries.length);
+console.log('Claves en el TXT     :', parsed.stats.parsedLines);
 console.log('  a insertar       :', toInsert.length);
 console.log('  ya en la base    :', alreadyInDb);
-console.log('  duplicadas TXT   :', parsed.stats.duplicates);
+console.log('  repetidas TXT    :', parsed.stats.duplicates);
+console.log('Lineas sin clave    :', parsed.stats.skippedLines);
 console.log('Incidencias         :', parsed.issues.length);
 console.log('');
 
@@ -107,13 +124,17 @@ if (dryRun) {
 }
 
 // ------------------------------------------------------------------- escritura --
+// Las columnas salen de la lista del esquema, no de una copia escrita aqui. Es
+// la misma lista que usa el `INSERT` de la app: si el esquema gana una columna
+// y este script se queda con la suya, importa la fila con el valor por defecto y
+// no dice nada. Los nombres van con `$` delante porque `bun:sqlite` los trata
+// como parametros con nombre, que es lo que evita tener que numerarlos.
 const insert = db.prepare(`
-  INSERT OR IGNORE INTO game_keys
-    (title, key_value, platform, status, source, gifted_to, parent_title,
-     note, tags, added_on, created_at, updated_at)
+  INSERT OR IGNORE INTO ${TABLE_GAME_KEYS}
+    (${GAME_KEY_WRITE_COLUMNS.join(', ')})
   VALUES
     ($title, $keyValue, $platform, $status, $source, $giftedTo, $parentTitle,
-     $note, $tags, $addedOn, datetime('now'), datetime('now'))
+     $note, $tags, $addedOn, NULL, datetime('now'), datetime('now'))
 `);
 
 let inserted = 0;
@@ -137,16 +158,12 @@ db.transaction(() => {
   }
 })();
 
-const total = db.query<{ total: number }, []>('SELECT COUNT(*) AS total FROM game_keys').get();
+const total = db.query<{ total: number }, []>(`SELECT COUNT(*) AS total FROM ${TABLE_GAME_KEYS}`).get();
 
 console.log('=====================================================');
 console.log(` Insertadas ${inserted} claves. Total en la base: ${total?.total ?? 0}`);
 console.log('=====================================================');
 
 db.close();
-
-function fingerprint(value: string): string {
-  return normalizeKey(value).replace(/[^A-Z0-9]/g, '');
-}
 
 export { KeyStatus };

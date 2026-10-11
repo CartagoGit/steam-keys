@@ -1,6 +1,5 @@
-import { GAME_KEY_COLUMNS } from '@/helpers/map-row.helper';
 import { formatFileStamp } from '@/helpers/format-date.helper';
-import { MAX_BACKUPS, TABLE_BACKUPS, TABLE_GAME_KEYS, type BackupReason, type IBackup, type IDatabaseClient, type IGameKeyRow } from '@/contracts';
+import { MAX_BACKUPS, GAME_KEY_COLUMNS, TABLE_BACKUPS, TABLE_GAME_KEYS, type BackupReason, type IBackup, type IDatabaseClient, type IGameKeyRow } from '@/contracts';
 
 import { readBackupReason } from '@/helpers/settings.helper';
 /**

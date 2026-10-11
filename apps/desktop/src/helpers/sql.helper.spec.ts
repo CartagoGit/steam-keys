@@ -5,7 +5,7 @@ import {
   GAME_KEY_COLUMNS,
   GAME_KEY_INSERT_SIZE,
   GAME_KEY_WRITE_COLUMNS,
-} from './map-row.helper';
+} from '@/contracts';
 
 /**
  * Tests de los marcadores de posicion de SQL.

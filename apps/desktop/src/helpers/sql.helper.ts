@@ -18,8 +18,11 @@
  * Por eso los ids empiezan donde toca, explicito, y no con un `+ 2` repetido
  * en cada llamada.
  */
-import { TABLE_GAME_KEYS } from '@/contracts';
-import { GAME_KEY_INSERT_SIZE, GAME_KEY_WRITE_COLUMNS } from '@/helpers/map-row.helper';
+import {
+  GAME_KEY_INSERT_SIZE,
+  GAME_KEY_WRITE_COLUMNS,
+  TABLE_GAME_KEYS,
+} from '@/contracts';
 
 /**
  * Lista de marcadores para un `IN (...)`.

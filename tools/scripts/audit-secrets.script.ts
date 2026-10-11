@@ -14,7 +14,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { extractKeyToken } from '../../apps/desktop/src/helpers/parse-legacy-txt.helper';
+import { extractKeyToken } from '@/helpers/parse-legacy-txt.helper';
 
 const ROOT = join(import.meta.dir, '..', '..');
 const ORIGINAL = join(ROOT, 'original', 'steam-keys.txt');

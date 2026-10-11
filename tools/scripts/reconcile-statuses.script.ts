@@ -21,11 +21,15 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { Database } from 'bun:sqlite';
 
-import { parseLegacyTxt } from '../../apps/desktop/src/helpers/parse-legacy-txt.helper';
-import { maskKey } from '../../apps/desktop/src/helpers/mask-key.helper';
-import { keyFingerprint } from '../../apps/desktop/src/helpers/normalize-text.helper';
+import { parseLegacyTxt } from '@/helpers/parse-legacy-txt.helper';
+import { maskKey } from '@/helpers/mask-key.helper';
+import {
+  keyFingerprint,
+  parseTags,
+} from '@/helpers/normalize-text.helper';
+import { TABLE_GAME_KEYS } from '@/contracts/constants/db-schema.constants';
 import { databasePath } from './support/db-path.helper';
-import type { KeyStatus } from '../../apps/desktop/src/contracts/enums/key-status.enum';
+import type { KeyStatus } from '@/contracts/enums/key-status.enum';
 
 const args = process.argv.slice(2);
 const force = args.includes('--force') || args.includes('-f');
@@ -182,7 +186,7 @@ if (dryRun) {
 }
 
 const cambiar = db.prepare(
-  `UPDATE game_keys
+  `UPDATE ${TABLE_GAME_KEYS}
       SET status = ?,
           tags   = ?,
           updated_at = datetime('now')
@@ -194,14 +198,11 @@ const cambiar = db.prepare(
 // sitio y no se sabria cuales se quedaron sin aplicar.
 const aplicar = db.transaction((lista: readonly IChange[]) => {
   for (const cambio of lista) {
-    const actuales = (
+    const actuales = parseTags(
       db
-        .query<{ tags: string }, [number]>('SELECT tags FROM game_keys WHERE id = ?')
-        .get(cambio.id)?.tags ?? ''
-    )
-      .split(',')
-      .map((tag) => tag.trim())
-      .filter((tag) => tag.length > 0);
+        .query<{ tags: string }, [number]>(`SELECT tags FROM ${TABLE_GAME_KEYS} WHERE id = ?`)
+        .get(cambio.id)?.tags,
+    );
 
     // Se anaden a las que ya habia, nunca se reemplazan: las que se hayan
     // puesto a mano se quedan.

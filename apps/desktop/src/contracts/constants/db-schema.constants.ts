@@ -97,6 +97,50 @@ export const TABLE_GAME_KEYS = 'game_keys';
 export const TABLE_APP_SETTINGS = 'app_settings';
 export const TABLE_BACKUPS = 'backups';
 
+/**
+ * Columnas de `game_keys` que se escriben, en el orden del esquema.
+ *
+ * Es la **unica** lista de columnas de la tabla, y de ella salen las dos que se
+ * usan en SQL: la del `SELECT` —la de `GAME_KEY_COLUMNS`, con `id` delante— y la
+ * del `INSERT`. Escribir las dos a mano hacia que se separen: se anade una
+ * columna al `INSERT` y el `SELECT` se queda sin ella, o al reves, y en los dos
+ * casos la fila se lee a medias sin que nada falle.
+ *
+ * Va aqui y no junto a quien la usa porque este fichero **es** el esquema: el
+ * DDL de arriba, los nombres de tabla y las columnas de `game_keys` son la misma
+ * verdad y tienen que estar en el mismo sitio. Los scripts de `tools/scripts/`
+ * escriben SQL contra esta base y llegan aqui por el alias `@/`, asi que leen
+ * exactamente la misma lista que la app. Cuando se escribia la lista en cada
+ * consumidor —el alta, la importacion masiva, la restauracion y el importador
+ * de linea de comandos— cualquier columna nueva se anadia en unos sitios y no
+ * en otros, y la fila se guardaba con el valor por defecto sin decir nada.
+ *
+ * Van todas, tambien las que la entrada no trae —`last_used_at`—: el `INSERT` es
+ * uno solo para todas las rutas que escriben, y las que no tienen ese valor
+ * pasan `null`, que es lo que la columna admitia antes.
+ */
+export const GAME_KEY_WRITE_COLUMNS = [
+  'title',
+  'key_value',
+  'platform',
+  'status',
+  'source',
+  'gifted_to',
+  'parent_title',
+  'note',
+  'tags',
+  'added_on',
+  'last_used_at',
+  'created_at',
+  'updated_at',
+] as const;
+
+/** Cuantos valores lleva la lista de valores de un `INSERT` de `game_keys`. */
+export const GAME_KEY_INSERT_SIZE = GAME_KEY_WRITE_COLUMNS.length;
+
+/** Columnas en el orden en que las devuelve `SELECT *`. */
+export const GAME_KEY_COLUMNS = ['id', ...GAME_KEY_WRITE_COLUMNS].join(', ');
+
 /** Indices que se consultan para buscar rapido. */
 export const SEARCHABLE_COLUMNS: readonly string[] = [
   'title',

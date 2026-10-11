@@ -29,7 +29,7 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 import { devDatabasePath } from './support/db-path.helper';
-import { SCHEMA_STATEMENTS } from '../../apps/desktop/src/contracts/constants/db-schema.constants';
+import { SCHEMA_STATEMENTS } from '@/contracts/constants/db-schema.constants';
 
 /** Una sentencia que hay que ejecutar contra la base de datos. */
 interface IPeticion {

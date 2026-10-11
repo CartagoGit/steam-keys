@@ -28,6 +28,9 @@ export { KEY_STATUS_META, statusMeta } from './key-status.constants';
 export type { IStatusMeta, IStatusMetaResuelta } from './key-status.constants';
 
 export {
+  GAME_KEY_COLUMNS,
+  GAME_KEY_INSERT_SIZE,
+  GAME_KEY_WRITE_COLUMNS,
   MAX_BACKUPS,
   SCHEMA_STATEMENTS,
   SEARCHABLE_COLUMNS,

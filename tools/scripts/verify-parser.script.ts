@@ -11,15 +11,15 @@ import { join } from 'node:path';
 import {
   extractKeyToken,
   parseLegacyTxt,
-} from '../../apps/desktop/src/helpers/parse-legacy-txt.helper';
-import { KEY_PLATFORM_META } from '../../apps/desktop/src/contracts/constants/key-platform.constants';
-import { KEY_STATUS_META } from '../../apps/desktop/src/contracts/constants/key-status.constants';
+} from '@/helpers/parse-legacy-txt.helper';
+import { KEY_PLATFORM_META } from '@/contracts/constants/key-platform.constants';
+import { KEY_STATUS_META } from '@/contracts/constants/key-status.constants';
 import {
   INSTRUCTION_PATTERN,
   PLATFORM_HINT_PATTERN,
-} from '../../apps/desktop/src/contracts/constants/legacy-format.constants';
-import { maskKey } from '../../apps/desktop/src/helpers/mask-key.helper';
-import type { IParsedEntry } from '../../apps/desktop/src/contracts/interfaces/parsed-entry.interface';
+} from '@/contracts/constants/legacy-format.constants';
+import { maskKey } from '@/helpers/mask-key.helper';
+import type { IParsedEntry } from '@/contracts/interfaces/parsed-entry.interface';
 
 const TXT_PATH = join(import.meta.dir, '..', '..', 'original', 'steam-keys.txt');
 

@@ -1,9 +1,9 @@
 import { invoke } from '@tauri-apps/api/core';
 import SqliteDatabase from '@tauri-apps/plugin-sql';
 
-import { GAME_KEY_COLUMNS } from '@/helpers/map-row.helper';
 import {
   BackupReason,
+  GAME_KEY_COLUMNS,
   TABLE_APP_SETTINGS,
   TABLE_BACKUPS,
   TABLE_GAME_KEYS,

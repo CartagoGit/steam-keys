@@ -11,13 +11,10 @@ import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { Database } from 'bun:sqlite';
 
-import { exportKeysToLegacyTxt } from '../../apps/desktop/src/helpers/export-legacy-txt.helper';
-import { parseTags } from '../../apps/desktop/src/helpers/normalize-text.helper';
-import { KeyPlatform } from '../../apps/desktop/src/contracts/enums/key-platform.enum';
-import { KeySource } from '../../apps/desktop/src/contracts/enums/key-source.enum';
-import { KeyStatus } from '../../apps/desktop/src/contracts/enums/key-status.enum';
+import { exportKeysToLegacyTxt } from '@/helpers/export-legacy-txt.helper';
+import { mapRowToGameKey } from '@/helpers/map-row.helper';
+import { GAME_KEY_COLUMNS, TABLE_GAME_KEYS, type IGameKeyRow } from '@/contracts';
 import { databasePath } from './support/db-path.helper';
-import type { IGameKey } from '../../apps/desktop/src/contracts/interfaces/game-key.interface';
 
 const DB_PATH = databasePath();
 const args = process.argv.slice(2);
@@ -30,31 +27,19 @@ if (!existsSync(DB_PATH)) {
 
 const db = new Database(DB_PATH, { readonly: true });
 
+// La lista de columnas y el paso de fila a clave son los de la app, no una copia
+// de aqui. Este script estaba escribiendo su propio `SELECT` y su propio mapeo
+// campo a campo, y por eso exportar podia perder lo que la app si guardaba: una
+// columna nueva se anadia al repositorio y aqui se seguia escribiendo el mismo
+// `SELECT` de antes, sin avisar.
 const rows = db
-  .query<Record<string, string | null>, []>(
-    `SELECT id, title, key_value, platform, status, source, gifted_to,
-            parent_title, note, tags, added_on, last_used_at, created_at, updated_at
-       FROM game_keys
+  .query<IGameKeyRow, []>(
+    `SELECT ${GAME_KEY_COLUMNS} FROM ${TABLE_GAME_KEYS}
       ORDER BY title COLLATE NOCASE ASC`,
   )
   .all();
 
-const keys: IGameKey[] = rows.map((row) => ({
-  id: Number(row.id),
-  title: row.title ?? '',
-  keyValue: row.key_value ?? '',
-  platform: (row.platform as KeyPlatform) ?? KeyPlatform.Steam,
-  status: (row.status as KeyStatus) ?? KeyStatus.Available,
-  source: (row.source as KeySource) ?? KeySource.Manual,
-  giftedTo: row.gifted_to,
-  parentTitle: row.parent_title,
-  note: row.note,
-  tags: parseTags(row.tags),
-  addedOn: row.added_on,
-  lastUsedAt: row.last_used_at,
-  createdAt: row.created_at ?? '',
-  updatedAt: row.updated_at ?? '',
-}));
+const keys = rows.map(mapRowToGameKey);
 
 const target = args[0] ?? join(import.meta.dir, '..', '..', 'build', 'steam-keys-export.txt');
 
