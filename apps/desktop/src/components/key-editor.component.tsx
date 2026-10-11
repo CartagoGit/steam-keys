@@ -1,16 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { platformLabel } from '@/contracts/constants/key-platform.constants';
-import { statusMeta } from '@/contracts/constants/key-status.constants';
-import { KEY_PLATFORM_VALUES, KeyPlatform } from '@/contracts/enums/key-platform.enum';
-import { KEY_STATUS_VALUES, KeyStatus } from '@/contracts/enums/key-status.enum';
+import { KEY_PLATFORM_VALUES, KEY_STATUS_VALUES, KeyPlatform, KeyStatus, TRANSLATIONS, platformLabel, statusMeta, type IGameKey, type IGameKeyDraft } from '@/contracts';
 import { Button, Field, INPUT_CLASS, SELECT_CLASS } from './ui.component';
 import { Icon } from './icon.component';
 import { useT } from '@/context/locale.context';
-import { TRANSLATIONS } from '@/contracts/constants/i18n.constants';
-import type {
-  IGameKey,
-  IGameKeyDraft,
-} from '@/contracts/interfaces/game-key.interface';
 
 export interface IKeyEditorProps {
   /** `null` para crear una key nueva. */

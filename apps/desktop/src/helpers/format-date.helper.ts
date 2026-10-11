@@ -1,6 +1,4 @@
-import { DATE_HEADER_PATTERN } from '@/contracts/constants/legacy-format.constants';
-import { LOCALE_BCP47 } from '@/contracts/constants/locale.constants';
-import { AppLocale } from '@/contracts/enums/app-locale.enum';
+import { AppLocale, DATE_HEADER_PATTERN, LOCALE_BCP47 } from '@/contracts';
 
 /**
  * Fechas, en un solo sitio.

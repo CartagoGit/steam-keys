@@ -81,6 +81,22 @@ export const SCHEMA_STATEMENTS: readonly string[] = [
 /** Cuantas copias de seguridad se conservan como maximo. */
 export const MAX_BACKUPS = 10;
 
+/**
+ * Nombres de tabla, junto al DDL que las crea.
+ *
+ * Van aqui porque el nombre de una tabla aparece en cada sentencia que la
+ * toca, y de cinco ficheros a la vez: repositorios, servicios y el puente.
+ * Escritos a mano, un `CREATE TABLE backups` anadido al esquema no llegaria a
+ * las consultas, y el fallo sale como `no such table`, que no senala el sitio
+ * donde esta la diferencia.
+ *
+ * Son para el SQL. El DDL de arriba los lleva escritos dentro porque ahi no hay
+ * forma de concatenar una constante sin perder la sentencia legible.
+ */
+export const TABLE_GAME_KEYS = 'game_keys';
+export const TABLE_APP_SETTINGS = 'app_settings';
+export const TABLE_BACKUPS = 'backups';
+
 /** Indices que se consultan para buscar rapido. */
 export const SEARCHABLE_COLUMNS: readonly string[] = [
   'title',

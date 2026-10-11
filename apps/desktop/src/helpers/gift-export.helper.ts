@@ -1,4 +1,4 @@
-import type { IGameKey } from '@/contracts/interfaces/game-key.interface';
+import type { IGameKey } from '@/contracts';
 
 /**
  * Genera el TXT para regalar una seleccion de claves.

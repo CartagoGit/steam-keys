@@ -1,10 +1,5 @@
 import { steamGet } from './steam-http.service';
-import type {
-  ISteamOwnedGame,
-  ISteamStoreApp,
-  MatchConfidence,
-} from '@/contracts/interfaces/steam-account.interface';
-import type { IGameKey } from '@/contracts/interfaces/game-key.interface';
+import type { IGameKey, ISteamOwnedGame, ISteamStoreApp, MatchConfidence } from '@/contracts';
 
 const WEB_API = 'https://api.steampowered.com';
 const STORE_API = 'https://store.steampowered.com/api';

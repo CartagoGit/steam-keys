@@ -1,6 +1,4 @@
-import { DEFAULT_LOCALE, APP_LOCALE_VALUES } from '@/contracts/enums/app-locale.enum';
-import { APP_THEME_VALUES, AppTheme } from '@/contracts/enums/app-theme.enum';
-import type { AppLocale } from '@/contracts/enums/app-locale.enum';
+import { APP_LOCALE_VALUES, APP_THEME_VALUES, AppTheme, DEFAULT_LOCALE, type AppLocale } from '@/contracts';
 
 /**
  * Lectura y escritura de valores en la tabla de ajustes.

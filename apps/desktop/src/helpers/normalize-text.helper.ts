@@ -1,11 +1,4 @@
-import {
-  ANNOTATION_SEPARATOR,
-  GIFT_MARKER_PATTERN,
-  PARENT_ANNOTATION_PREFIX,
-  PLATFORM_ANNOTATION_PREFIX,
-  STATUS_MARKERS,
-  TITLE_NOISE_PATTERN,
-} from '@/contracts/constants/legacy-format.constants';
+import { ANNOTATION_SEPARATOR, GIFT_MARKER_PATTERN, PARENT_ANNOTATION_PREFIX, PLATFORM_ANNOTATION_PREFIX, STATUS_MARKERS, TITLE_NOISE_PATTERN } from '@/contracts';
 
 /** Marcadores de estado al inicio de linea: `- ! ~ ?`, en racha o no. */
 const LEADING_STATUS_MARKER = new RegExp(

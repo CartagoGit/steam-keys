@@ -1,14 +1,5 @@
-import { APP_NAME } from '@/contracts/constants/app.constants';
-import {
-  ANNOTATION_SEPARATOR,
-  PARENT_ANNOTATION_PREFIX,
-  PLATFORM_ANNOTATION_PREFIX,
-  STATUS_MARKERS,
-} from '@/contracts/constants/legacy-format.constants';
-import { KeyPlatform } from '@/contracts/enums/key-platform.enum';
-import { KeyStatus } from '@/contracts/enums/key-status.enum';
+import { ANNOTATION_SEPARATOR, APP_NAME, KeyPlatform, KeyStatus, PARENT_ANNOTATION_PREFIX, PLATFORM_ANNOTATION_PREFIX, STATUS_MARKERS, type IGameKey } from '@/contracts';
 import { parseTags, serializeTags } from '@/helpers/normalize-text.helper';
-import type { IGameKey } from '@/contracts/interfaces/game-key.interface';
 
 /** Inversa de `STATUS_MARKERS`, para escribir el estado en el TXT. */
 const STATUS_MARKERS_REVERSE: Readonly<Record<KeyStatus, string>> = Object.freeze(

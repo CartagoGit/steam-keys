@@ -1,5 +1,5 @@
 import { Icon } from './icon.component';
-import type { IconName } from '@/contracts/interfaces/icon-name.interface';
+import type { IconName } from '@/contracts';
 import type { ReactNode } from 'react';
 
 export interface IChipProps {

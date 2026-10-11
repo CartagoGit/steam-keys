@@ -1,8 +1,7 @@
 import { Icon } from './icon.component';
 import { useT } from '@/context/locale.context';
-import { LOCALE_BCP47 } from '@/contracts/constants/locale.constants';
+import { LOCALE_BCP47, type ISteamOwnedGame, type SteamAccountStatus } from '@/contracts';
 import { formatShortDate } from '@/helpers/format-date.helper';
-import type { ISteamOwnedGame, SteamAccountStatus } from '@/contracts/interfaces/steam-account.interface';
 
 /**
  * Tabla de juegos de Steam.

@@ -6,8 +6,7 @@ import {
   interpolate,
   translate,
 } from './i18n.helper';
-import { AppLocale, APP_LOCALE_VALUES, DEFAULT_LOCALE } from '@/contracts/enums/app-locale.enum';
-import { TRANSLATIONS } from '@/contracts/constants/i18n.constants';
+import { APP_LOCALE_VALUES, AppLocale, DEFAULT_LOCALE, TRANSLATIONS } from '@/contracts';
 import { baseKeys } from './i18n.helper';
 
 describe('interpolar valores', () => {

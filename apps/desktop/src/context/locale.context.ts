@@ -1,8 +1,6 @@
 import { createContext, useContext } from 'react';
-import { DEFAULT_LOCALE } from '@/contracts/enums/app-locale.enum';
+import { DEFAULT_LOCALE, type AppLocale, type TranslationArgs } from '@/contracts';
 import { translate } from '@/helpers/i18n.helper';
-import type { TranslationArgs } from '@/contracts/constants/i18n.constants';
-import type { AppLocale } from '@/contracts/enums/app-locale.enum';
 
 /**
  * El traductor, disponible en todo el arbol.

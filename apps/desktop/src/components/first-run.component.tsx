@@ -4,7 +4,7 @@ import { Icon } from '@/components/icon.component';
 import { useT } from '@/context/locale.context';
 import { fileService } from '@/services/file.service';
 import { basename } from '@/helpers/path.helper';
-import { DB_FILE_NAME } from '@/contracts/constants/app.constants';
+import { DB_FILE_NAME } from '@/contracts';
 
 interface IFirstRunProps {
   /** Donde estara la base de datos, para poder nombrarla en el aviso. */

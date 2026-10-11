@@ -1,14 +1,7 @@
 import { isBrowserPreview } from '@/helpers/runtime.helper';
-import { RestoreMode } from '@/contracts/enums/restore-mode.enum';
-import { StorageHealth } from '@/contracts/enums/storage-health.enum';
-import { KeyPlatform } from '@/contracts/enums/key-platform.enum';
+import { KeyPlatform, RestoreMode, StorageHealth, type IBackup, type IDatabaseClient, type IRestoreSummary } from '@/contracts';
 import { mergeKeysFromBackup } from '@/helpers/merge-keys.helper';
 import { backupRepository } from '@/repositories/backup.repository';
-import type { IDatabaseClient } from '@/contracts/interfaces/database.interface';
-import type {
-  IBackup,
-  IRestoreSummary,
-} from '@/contracts/interfaces/backup.interface';
 
 /**
  * Copias de seguridad y salud de la base de datos.

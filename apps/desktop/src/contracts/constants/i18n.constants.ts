@@ -1,6 +1,11 @@
 import type { AppLocale } from '../enums/app-locale.enum';
 import { ES } from './i18n-es.constants';
 
+// El castellano se reexporta desde aqui para que quien monte una tabla de
+// traducciones no tenga que saber en que fichero esta cada idioma: todos salen
+// por el mismo sitio.
+export { ES };
+
 /**
  * Mensajes de la interfaz, indexados por clave.
  *

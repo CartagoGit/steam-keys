@@ -2,7 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import { isTauri } from '@/helpers/runtime.helper';
 import { t } from '@/helpers/i18n.helper';
-import type { IDatabaseInfo } from '@/contracts/interfaces/backup.interface';
+import type { IDatabaseInfo } from '@/contracts';
 
 /**
  * Lectura y escritura de ficheros de texto.

@@ -1,5 +1,4 @@
-import { StorageMode } from '@/contracts/enums/storage-mode.enum';
-import type { TranslationKey } from '@/contracts/constants/i18n.constants';
+import { StorageMode, type TranslationKey } from '@/contracts';
 
 export { StorageMode };
 

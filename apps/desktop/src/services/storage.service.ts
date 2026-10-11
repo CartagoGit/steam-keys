@@ -1,7 +1,4 @@
-import { BackupReason } from '@/contracts/enums/backup-reason.enum';
-import { KeyPlatform } from '@/contracts/enums/key-platform.enum';
-import { RestoreMode } from '@/contracts/enums/restore-mode.enum';
-import { StorageHealth } from '@/contracts/enums/storage-health.enum';
+import { BackupReason, KeyPlatform, RestoreMode, StorageHealth, type IBackup, type IRestoreSummary, type IStorageInfo } from '@/contracts';
 import { backupService } from '@/services/backup.service';
 import { fileService } from '@/services/file.service';
 import { gameKeyService } from '@/services/game-key.service';
@@ -11,11 +8,6 @@ import {
 } from '@/helpers/runtime.helper';
 import { getRepository } from '@/repositories/repository.factory';
 import { tauriDatabaseClient } from '@/services/tauri-database.service';
-import type {
-  IBackup,
-  IRestoreSummary,
-  IStorageInfo,
-} from '@/contracts/interfaces/backup.interface';
 
 /**
  * Fachada de almacenamiento: donde viven los datos, si estan sanos y como

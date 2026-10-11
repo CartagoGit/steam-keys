@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, mock, test } from 'bun:test';
 
-import type { IDatabaseClient } from '@/contracts/interfaces/database.interface';
-import type { IGameKeyRow } from '@/contracts/interfaces/import-summary.interface';
+import type { IDatabaseClient, IGameKeyRow } from '@/contracts';
 
 /**
  * Tests de la traida de las copias antiguas.

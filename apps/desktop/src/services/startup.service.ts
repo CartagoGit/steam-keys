@@ -1,7 +1,7 @@
 import { fileService } from '@/services/file.service';
 import { browserLocale } from '@/helpers/i18n.helper';
 import { getStorageMode, isTauri, StorageMode } from '@/helpers/runtime.helper';
-import type { AppLocale } from '@/contracts/enums/app-locale.enum';
+import type { AppLocale } from '@/contracts';
 
 /**
  * Que pasa con los datos al arrancar.

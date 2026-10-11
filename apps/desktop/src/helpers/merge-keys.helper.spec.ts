@@ -1,12 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 
 import { mergeKeysFromBackup } from './merge-keys.helper';
-import { RestoreMode } from '@/contracts/enums/restore-mode.enum';
-import { KeyPlatform } from '@/contracts/enums/key-platform.enum';
-import { KeySource } from '@/contracts/enums/key-source.enum';
-import { KeyStatus } from '@/contracts/enums/key-status.enum';
-import type { IDatabaseClient } from '@/contracts/interfaces/database.interface';
-import type { IGameKeyRow } from '@/contracts/interfaces/import-summary.interface';
+import { KeyPlatform, KeySource, KeyStatus, RestoreMode, type IDatabaseClient, type IGameKeyRow } from '@/contracts';
 
 /**
  * Cliente falso que responde a las dos consultas que usa la fusion.

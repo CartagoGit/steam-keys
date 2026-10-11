@@ -6,8 +6,7 @@ import {
   readTheme,
   serializeSetting,
 } from './settings.helper';
-import { APP_LOCALE_VALUES, AppLocale, DEFAULT_LOCALE } from '@/contracts/enums/app-locale.enum';
-import { APP_THEME_VALUES, AppTheme } from '@/contracts/enums/app-theme.enum';
+import { APP_LOCALE_VALUES, APP_THEME_VALUES, AppLocale, AppTheme, DEFAULT_LOCALE } from '@/contracts';
 
 /**
  * Conversion entre los valores de la tabla de ajustes y los del resto de la

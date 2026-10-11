@@ -1,6 +1,5 @@
 import { DEV_BRIDGE_PATH, DEV_BRIDGE_TOKEN_HEADER } from '../../dev-bridge.contract';
-import { SCHEMA_STATEMENTS } from '@/contracts/constants/db-schema.constants';
-import type { IDatabaseClient } from '@/contracts/interfaces/database.interface';
+import { SCHEMA_STATEMENTS, type IDatabaseClient } from '@/contracts';
 import type { BridgeOperation, IBridgeResponse } from '../../dev-bridge.contract';
 
 /**

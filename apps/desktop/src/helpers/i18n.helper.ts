@@ -1,10 +1,4 @@
-import { TRANSLATIONS } from '@/contracts/constants/i18n.constants';
-import { DEFAULT_LOCALE } from '@/contracts/enums/app-locale.enum';
-import type {
-  TranslationArgs,
-  TranslationKey,
-} from '@/contracts/constants/i18n.constants';
-import type { AppLocale } from '@/contracts/enums/app-locale.enum';
+import { DEFAULT_LOCALE, TRANSLATIONS, type AppLocale, type TranslationArgs, type TranslationKey } from '@/contracts';
 
 /** Sustituye los marcadores `{0}`, `{1}`… por los argumentos dados. */
 export function interpolate(

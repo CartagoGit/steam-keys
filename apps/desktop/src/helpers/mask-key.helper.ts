@@ -1,4 +1,4 @@
-import { MASK_VISIBLE_CHARS } from '@/contracts/constants/app.constants';
+import { MASK_VISIBLE_CHARS } from '@/contracts';
 
 /**
  * Enmascara una clave dejando visibles solo los primeros y ultimos caracteres.

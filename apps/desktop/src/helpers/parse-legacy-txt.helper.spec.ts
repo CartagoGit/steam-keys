@@ -1,8 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { parseLegacyTxt } from './parse-legacy-txt.helper';
-import { KeyPlatform } from '@/contracts/enums/key-platform.enum';
-import { KeyStatus } from '@/contracts/enums/key-status.enum';
-import { ParsedIssueReason } from '@/contracts/enums/parsed-issue-reason.enum';
+import { KeyPlatform, KeyStatus, ParsedIssueReason } from '@/contracts';
 
 /**
  * Fixtures totalmente sinteticos. Estas claves no existen: estan elegidas para

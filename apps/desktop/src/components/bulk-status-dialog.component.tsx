@@ -1,13 +1,9 @@
 import { useMemo, useState } from 'react';
-import { statusMeta } from '@/contracts/constants/key-status.constants';
-import { KEY_STATUS_VALUES, KeyStatus } from '@/contracts/enums/key-status.enum';
+import { KEY_STATUS_VALUES, KeyStatus, TRANSLATIONS, statusMeta, type IGameKey, type Translator } from '@/contracts';
 import { Icon } from './icon.component';
 import { Modal } from './modal.component';
 import { Button } from './ui.component';
 import { useT } from '@/context/locale.context';
-import { TRANSLATIONS } from '@/contracts/constants/i18n.constants';
-import type { Translator } from '@/contracts/constants/i18n.constants';
-import type { IGameKey } from '@/contracts/interfaces/game-key.interface';
 
 /** Como queda el reparto al aplicar un estado a una seleccion. */
 export interface IBulkStatusPreview {

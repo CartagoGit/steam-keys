@@ -9,20 +9,7 @@ import {
   normalizeKey,
   serializeTags,
 } from '@/helpers/normalize-text.helper';
-import { KeyPlatform } from '@/contracts/enums/key-platform.enum';
-import { KeySource } from '@/contracts/enums/key-source.enum';
-import { KeyStatus } from '@/contracts/enums/key-status.enum';
-import type { IDatabaseClient, IGameKeyRepository } from '@/contracts/interfaces/database.interface';
-import type {
-  IGameKey,
-  IGameKeyDraft,
-  IGameKeyInput,
-} from '@/contracts/interfaces/game-key.interface';
-import type {
-  IGameKeyRow,
-  IImportRow,
-  IImportSummary,
-} from '@/contracts/interfaces/import-summary.interface';
+import { KeyPlatform, KeySource, KeyStatus, type IDatabaseClient, type IGameKey, type IGameKeyDraft, type IGameKeyInput, type IGameKeyRepository, type IGameKeyRow, type IImportRow, type IImportSummary } from '@/contracts';
 
 /**
  * Repositorio de keys sobre SQLite.

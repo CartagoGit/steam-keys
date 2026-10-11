@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { IconName } from '@/contracts/interfaces/icon-name.interface';
+import type { IconName } from '@/contracts';
 
 export type { IconName };
 

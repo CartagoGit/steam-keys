@@ -5,8 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { backupRepository } from './backup.repository';
-import { SCHEMA_STATEMENTS } from '@/contracts/constants/db-schema.constants';
-import type { IDatabaseClient } from '@/contracts/interfaces/database.interface';
+import { SCHEMA_STATEMENTS, type IDatabaseClient } from '@/contracts';
 
 /**
  * Tests de las copias de seguridad dentro de la base de datos.

@@ -3,8 +3,7 @@ import { describe, expect, test } from 'bun:test';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { APP_LOCALE_VALUES, AppLocale } from '@/contracts/enums/app-locale.enum';
-import { TRANSLATIONS } from '@/contracts/constants/i18n.constants';
+import { APP_LOCALE_VALUES, AppLocale, TRANSLATIONS } from '@/contracts';
 
 /**
  * Que no se cuele texto en castellano dentro de los componentes.

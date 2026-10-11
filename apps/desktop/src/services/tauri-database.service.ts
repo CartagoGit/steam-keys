@@ -1,6 +1,4 @@
-import { SCHEMA_STATEMENTS } from '@/contracts/constants/db-schema.constants';
-import { DB_FILE_NAME } from '@/contracts/constants/app.constants';
-import type { IDatabaseClient } from '@/contracts/interfaces/database.interface';
+import { DB_FILE_NAME, SCHEMA_STATEMENTS, type IDatabaseClient } from '@/contracts';
 import SqliteDatabase from '@tauri-apps/plugin-sql';
 import { invoke } from '@tauri-apps/api/core';
 

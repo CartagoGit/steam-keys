@@ -1,12 +1,9 @@
-import { RestoreMode } from '@/contracts/enums/restore-mode.enum';
+import { RestoreMode, type IDatabaseClient, type IGameKeyRow, type IRestoreSummary } from '@/contracts';
 import {
   normalizeKey,
   parseTags,
   serializeTags,
 } from './normalize-text.helper';
-import type { IDatabaseClient } from '@/contracts/interfaces/database.interface';
-import type { IRestoreSummary } from '@/contracts/interfaces/backup.interface';
-import type { IGameKeyRow } from '@/contracts/interfaces/import-summary.interface';
 
 /**
  * Fusiona las filas de una copia de seguridad en la base de datos viva.

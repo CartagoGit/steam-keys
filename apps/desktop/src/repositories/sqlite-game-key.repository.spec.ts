@@ -5,11 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { SqliteGameKeyRepository } from './sqlite-game-key.repository';
-import { SCHEMA_STATEMENTS } from '@/contracts/constants/db-schema.constants';
-import { KeyPlatform } from '@/contracts/enums/key-platform.enum';
-import { KeySource } from '@/contracts/enums/key-source.enum';
-import { KeyStatus } from '@/contracts/enums/key-status.enum';
-import type { IDatabaseClient } from '@/contracts/interfaces/database.interface';
+import { KeyPlatform, KeySource, KeyStatus, SCHEMA_STATEMENTS, type IDatabaseClient } from '@/contracts';
 
 /**
  * Tests del repositorio de claves contra un SQLite de verdad.

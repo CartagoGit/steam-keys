@@ -3,10 +3,7 @@ import { describe, expect, test } from 'bun:test';
 import { parseLegacyTxt } from './parse-legacy-txt.helper';
 import { exportKeysToLegacyTxt, formatKeyLine } from './export-legacy-txt.helper';
 import { extractAnnotations } from './normalize-text.helper';
-import { KeyPlatform } from '@/contracts/enums/key-platform.enum';
-import { KeyStatus } from '@/contracts/enums/key-status.enum';
-import { KeySource } from '@/contracts/enums/key-source.enum';
-import type { IGameKey } from '@/contracts/interfaces/game-key.interface';
+import { KeyPlatform, KeySource, KeyStatus, type IGameKey } from '@/contracts';
 
 /** Fixtures sinteticas: ninguna de estas claves existe. */
 const KEY_A = 'MQ7RT-29XKL-ZPN84';

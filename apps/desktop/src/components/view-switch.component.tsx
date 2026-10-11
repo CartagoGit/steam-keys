@@ -1,8 +1,7 @@
-import { AppView } from '@/contracts/enums/app-view.enum';
+import { AppView, type SteamAccountStatus } from '@/contracts';
 import { Icon } from './icon.component';
 import { Button } from './ui.component';
 import { useT } from '@/context/locale.context';
-import type { SteamAccountStatus } from '@/contracts/interfaces/steam-account.interface';
 
 export interface IViewSwitchProps {
   view: AppView;

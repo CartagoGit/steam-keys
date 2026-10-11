@@ -1,12 +1,5 @@
 import { useMemo, useState } from 'react';
-import { AppLocale } from '@/contracts/enums/app-locale.enum';
-import {
-  APP_THEME_SWATCHES,
-  APP_THEME_VALUES,
-  AppTheme,
-} from '@/contracts/enums/app-theme.enum';
-import { THEME_LABELS } from '@/contracts/constants/locale.constants';
-import { STEAM_API_KEY_URL } from '@/contracts/constants/app.constants';
+import { APP_THEME_SWATCHES, APP_THEME_VALUES, AppLocale, AppTheme, STEAM_API_KEY_URL, THEME_LABELS, type IAppSettings, type SteamAccountStatus } from '@/contracts';
 import { Icon } from './icon.component';
 import { LocaleSelect } from './locale-select.component';
 import { Modal } from './modal.component';
@@ -20,8 +13,6 @@ import {
 } from './ui.component';
 import { useT } from '@/context/locale.context';
 import { normalizarClaveApi, normalizarIdSteam } from '@/helpers/steam-input.helper';
-import type { IAppSettings } from '@/contracts/interfaces/app-settings.interface';
-import type { SteamAccountStatus } from '@/contracts/interfaces/steam-account.interface';
 
 export interface ISettingsDialogProps {
   settings: IAppSettings;

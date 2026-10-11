@@ -1,23 +1,13 @@
-import { KEY_PLATFORM_META, platformLabel } from '@/contracts/constants/key-platform.constants';
-import { statusMeta } from '@/contracts/constants/key-status.constants';
-import { SEARCH_SHORTCUT } from '@/contracts/constants/app.constants';
-import { KEY_PLATFORM_VALUES, KeyPlatform } from '@/contracts/enums/key-platform.enum';
-import { KEY_STATUS_VALUES, KeyStatus } from '@/contracts/enums/key-status.enum';
-import { KeySort } from '@/contracts/enums/key-sort.enum';
+import { AppView, KEY_PLATFORM_META, KEY_PLATFORM_VALUES, KEY_STATUS_VALUES, KeyKind, KeyPlatform, KeyScope, KeySort, KeyStatus, SEARCH_SHORTCUT, TRANSLATIONS, platformLabel, statusMeta, type IKeyFilter, type IKeyStats, type SteamAccountStatus } from '@/contracts';
 import { Icon } from './icon.component';
 import { Button, INPUT_CLASS, SELECT_CLASS } from './ui.component';
 import { Chip, ChipGroup } from './chip.component';
 import { Segmented } from './segmented.component';
 import { ViewSwitch } from './view-switch.component';
 import { useT } from '@/context/locale.context';
-import { TRANSLATIONS } from '@/contracts/constants/i18n.constants';
-import { KeyKind, KeyScope } from '@/contracts/enums/key-scope.enum';
-import { AppView } from '@/contracts/enums/app-view.enum';
 import {
   statusesUsables,
 } from '@/helpers/filter-keys.helper';
-import type { IKeyFilter, IKeyStats } from '@/contracts/interfaces/key-filter.interface';
-import type { SteamAccountStatus } from '@/contracts/interfaces/steam-account.interface';
 
 export interface IToolbarProps {
   filter: IKeyFilter;

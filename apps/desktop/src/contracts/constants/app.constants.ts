@@ -45,3 +45,13 @@ export const GRID_MIN_WIDTH_PX = 320;
 
 /** Extension de los ficheros de texto que la app puede exportar. */
 export const EXPORT_FILE_NAME = 'steam-keys-export.txt';
+
+/**
+ * Prefijo de las claves que la app guarda en `localStorage`.
+ *
+ * Solo se usa en el navegador, cuando no hay SQLite: el puente de desarrollo y
+ * los dos adaptadores en memoria. Esta aqui y no en cada uno de ellos porque
+ * los tres tenian su propia constante con el mismo nombre y el prefijo a mano, y
+ * cambiarlo exigia acordarse de los tres.
+ */
+export const STORAGE_KEY_PREFIX = 'steam-keys';

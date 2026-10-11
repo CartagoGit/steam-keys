@@ -1,10 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 
 import { buildGiftTxt, giftFileName } from './gift-export.helper';
-import type { IGameKey } from '@/contracts/interfaces/game-key.interface';
-import { KeyPlatform } from '@/contracts/enums/key-platform.enum';
-import { KeySource } from '@/contracts/enums/key-source.enum';
-import { KeyStatus } from '@/contracts/enums/key-status.enum';
+import { KeyPlatform, KeySource, KeyStatus, type IGameKey } from '@/contracts';
 
 /** Clave de mentira con el titulo que se le pase. */
 function claveFalsa(id: number, title: string, keyValue: string): IGameKey {

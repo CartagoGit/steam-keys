@@ -8,7 +8,7 @@ import {
   resolveSteamId,
   similarity,
 } from './steam.service';
-import type { ISteamOwnedGame } from '@/contracts/interfaces/steam-account.interface';
+import type { ISteamOwnedGame } from '@/contracts';
 
 /** Juego de Steam de mentira. */
 function juego(appId: number, name: string, isDlc = false): ISteamOwnedGame {

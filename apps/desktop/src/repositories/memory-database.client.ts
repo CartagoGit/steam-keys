@@ -1,6 +1,4 @@
-import { SCHEMA_STATEMENTS } from '@/contracts/constants/db-schema.constants';
-import type { IDatabaseClient } from '@/contracts/interfaces/database.interface';
-import type { IAppSettings } from '@/contracts/interfaces/app-settings.interface';
+import { SCHEMA_STATEMENTS, type IAppSettings, type IDatabaseClient } from '@/contracts';
 
 const STORAGE_KEY = 'steam-keys:settings';
 

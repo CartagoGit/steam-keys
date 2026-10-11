@@ -1,18 +1,6 @@
-import { KeyPlatform } from '@/contracts/enums/key-platform.enum';
-import { KeySource } from '@/contracts/enums/key-source.enum';
-import { KeyStatus } from '@/contracts/enums/key-status.enum';
+import { KeyPlatform, KeySource, KeyStatus, type IGameKey, type IGameKeyDraft, type IGameKeyInput, type IGameKeyRepository, type IImportRow, type IImportSummary } from '@/contracts';
 import { keyFingerprint, serializeTags } from '@/helpers/normalize-text.helper';
 import { nowSqliteTimestamp } from '@/helpers/format-date.helper';
-import type { IGameKeyRepository } from '@/contracts/interfaces/database.interface';
-import type {
-  IGameKey,
-  IGameKeyDraft,
-  IGameKeyInput,
-} from '@/contracts/interfaces/game-key.interface';
-import type {
-  IImportRow,
-  IImportSummary,
-} from '@/contracts/interfaces/import-summary.interface';
 
 /**
  * Repositorio en memoria para trabajar en el navegador.

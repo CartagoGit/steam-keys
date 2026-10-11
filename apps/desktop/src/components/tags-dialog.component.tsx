@@ -1,15 +1,9 @@
 import { useMemo, useState } from 'react';
-import {
-  cleanTag,
-  normalizeTag,
-  suggestionsFor,
-} from '@/contracts/constants/tag.constants';
-import { KeyPlatform } from '@/contracts/enums/key-platform.enum';
+import { KeyPlatform, cleanTag, normalizeTag, suggestionsFor, type IGameKey } from '@/contracts';
 import { Icon } from './icon.component';
 import { Modal } from './modal.component';
 import { Button, INPUT_CLASS } from './ui.component';
 import { useT } from '@/context/locale.context';
-import type { IGameKey } from '@/contracts/interfaces/game-key.interface';
 
 export interface ITagsDialogProps {
   /** Las claves seleccionadas. */

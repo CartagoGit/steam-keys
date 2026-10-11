@@ -8,10 +8,7 @@ import {
   podarSeleccion,
   siblingsOf,
 } from './selection.helper';
-import { KeyStatus } from '@/contracts/enums/key-status.enum';
-import { KeyPlatform } from '@/contracts/enums/key-platform.enum';
-import { KeySource } from '@/contracts/enums/key-source.enum';
-import type { IGameKey } from '@/contracts/interfaces/game-key.interface';
+import { KeyPlatform, KeySource, KeyStatus, type IGameKey } from '@/contracts';
 
 /** Clave de mentira con el estado que se le pase. */
 function clave(id: number, status: KeyStatus, title = `Juego ${id}`): IGameKey {

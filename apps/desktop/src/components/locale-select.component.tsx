@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { Icon } from './icon.component';
-import { APP_LOCALE_VALUES, AppLocale } from '@/contracts/enums/app-locale.enum';
-import { LOCALE_FLAG_SIZE, LOCALE_META } from '@/contracts/constants/locale.constants';
+import { APP_LOCALE_VALUES, AppLocale, LOCALE_FLAG_SIZE, LOCALE_META } from '@/contracts';
 
 export interface ILocaleSelectProps {
   /** Idioma que esta puesto ahora mismo. */

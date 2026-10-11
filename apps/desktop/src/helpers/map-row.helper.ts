@@ -1,10 +1,6 @@
-import { KeyPlatform } from '@/contracts/enums/key-platform.enum';
-import { KeySource } from '@/contracts/enums/key-source.enum';
-import { KeyStatus } from '@/contracts/enums/key-status.enum';
+import { KeyPlatform, KeySource, KeyStatus, type IGameKey, type IGameKeyRow } from '@/contracts';
 import { parseTags } from '@/helpers/normalize-text.helper';
 import { nowSqliteTimestamp } from '@/helpers/format-date.helper';
-import type { IGameKeyRow } from '@/contracts/interfaces/import-summary.interface';
-import type { IGameKey } from '@/contracts/interfaces/game-key.interface';
 
 /** Convierte una fila cruda de SQLite en la entidad de dominio. */
 export function mapRowToGameKey(row: IGameKeyRow): IGameKey {

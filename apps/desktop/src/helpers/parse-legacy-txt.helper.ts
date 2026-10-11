@@ -1,36 +1,4 @@
-import {
-  ACTIVATE_NOTE_PATTERN,
-  ALPHANUMERIC_KEY_PATTERN,
-  BATTLENET_KEY_PATTERN,
-  BLOCK_CLOSE_PATTERN,
-  BLOCK_OPEN_PATTERN,
-  DECORATIVE_PATTERN,
-  GIFT_MARKER_PATTERN,
-  GIVEAWAY_END_PATTERN,
-  GIVEAWAY_START_PATTERN,
-  GIVEAWAY_TAG,
-  HUMBLE_URL_KEY_PATTERN,
-  INSTRUCTION_PATTERN,
-  PLATFORM_HINT_PATTERN,
-  RECIPIENT_MAX_WORDS,
-  RECIPIENT_PATTERN,
-  REDEEM_MARKER_PATTERN,
-  SECTION_MARKER_PATTERN,
-  STATUS_MARKERS,
-  STEAM_KEY_PATTERN,
-} from '@/contracts/constants/legacy-format.constants';
-import { KeyPlatform } from '@/contracts/enums/key-platform.enum';
-import { KeyStatus } from '@/contracts/enums/key-status.enum';
-import { ParsedIssueReason } from '@/contracts/enums/parsed-issue-reason.enum';
-import { ParsedKeyKind } from '@/contracts/enums/parsed-key-kind.enum';
-import type {
-  IParseOptions,
-  IParseResult,
-  IParseStats,
-  IParsedEntry,
-  IParsedIssue,
-  IParsedKeyToken,
-} from '@/contracts/interfaces/parsed-entry.interface';
+import { ACTIVATE_NOTE_PATTERN, ALPHANUMERIC_KEY_PATTERN, BATTLENET_KEY_PATTERN, BLOCK_CLOSE_PATTERN, BLOCK_OPEN_PATTERN, DECORATIVE_PATTERN, GIFT_MARKER_PATTERN, GIVEAWAY_END_PATTERN, GIVEAWAY_START_PATTERN, GIVEAWAY_TAG, HUMBLE_URL_KEY_PATTERN, INSTRUCTION_PATTERN, KeyPlatform, KeyStatus, PLATFORM_HINT_PATTERN, ParsedIssueReason, ParsedKeyKind, RECIPIENT_MAX_WORDS, RECIPIENT_PATTERN, REDEEM_MARKER_PATTERN, SECTION_MARKER_PATTERN, STATUS_MARKERS, STEAM_KEY_PATTERN, type IParseOptions, type IParseResult, type IParseStats, type IParsedEntry, type IParsedIssue, type IParsedKeyToken } from '@/contracts';
 import {
   inferPlatformFromKeyShape,
   platformFromHint,

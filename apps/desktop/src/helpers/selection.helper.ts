@@ -1,6 +1,4 @@
-import { KeyStatus } from '@/contracts/enums/key-status.enum';
-import { normalizeTag } from '@/contracts/constants/tag.constants';
-import type { IGameKey } from '@/contracts/interfaces/game-key.interface';
+import { KeyStatus, normalizeTag, type IGameKey } from '@/contracts';
 
 /**
  * Como de utilizable es una clave para la accion que se le pide.

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 
 import { basename } from '@/helpers/path.helper';
-import { DB_FILE_NAME } from '@/contracts/constants/app.constants';
+import { DB_FILE_NAME } from '@/contracts';
 
 /**
  * Tests de la comprobacion del primer arranque.

@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { BackupReason } from '@/contracts/enums/backup-reason.enum';
-import { RestoreMode } from '@/contracts/enums/restore-mode.enum';
-import { StorageHealth } from '@/contracts/enums/storage-health.enum';
+import { AppLocale, BackupReason, RestoreMode, StorageHealth, type IBackup, type IRestoreSummary, type IStorageInfo } from '@/contracts';
 import {
   getStorageMode,
   STORAGE_MODE_LABEL,
@@ -15,12 +13,6 @@ import { formatDateTime } from '@/helpers/format-date.helper';
 import { Button } from './ui.component';
 import { Icon } from './icon.component';
 import { useT } from '@/context/locale.context';
-import { AppLocale } from '@/contracts/enums/app-locale.enum';
-import type {
-  IBackup,
-  IRestoreSummary,
-  IStorageInfo,
-} from '@/contracts/interfaces/backup.interface';
 
 export interface IStoragePanelProps {
   onClose: () => void;

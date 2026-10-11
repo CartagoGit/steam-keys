@@ -2,10 +2,8 @@ import { beforeEach, describe, expect, test } from 'bun:test';
 
 import { parseLegacyTxt } from './parse-legacy-txt.helper';
 import { serializeTags } from './normalize-text.helper';
-import { KeySource } from '@/contracts/enums/key-source.enum';
-import { KeyStatus } from '@/contracts/enums/key-status.enum';
+import { KeySource, KeyStatus, type IImportRow } from '@/contracts';
 import { MemoryGameKeyRepository } from '@/repositories/memory-game-key.repository';
-import type { IImportRow } from '@/contracts/interfaces/import-summary.interface';
 
 /**
  * Almacen en memoria que sustituye a `localStorage`, para poder ejercitar la

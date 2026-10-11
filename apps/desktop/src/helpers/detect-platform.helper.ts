@@ -1,4 +1,4 @@
-import { KeyPlatform } from '@/contracts/enums/key-platform.enum';
+import { KeyPlatform } from '@/contracts';
 
 /**
  * Deduce la plataforma a partir de la *forma* de la clave.

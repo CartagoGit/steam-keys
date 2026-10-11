@@ -18,18 +18,11 @@ import { TagsDialog } from './components/tags-dialog.component';
 import { Toolbar } from './components/toolbar.component';
 import { Button } from './components/ui.component';
 
-import { PAGE_SIZE, SEARCH_SHORTCUT } from '@/contracts/constants/app.constants';
-import { AppView, DEFAULT_VIEW } from '@/contracts/enums/app-view.enum';
-import { KeyKind, KeyScope } from '@/contracts/enums/key-scope.enum';
-import { KeySort } from '@/contracts/enums/key-sort.enum';
-import { KeyStatus } from '@/contracts/enums/key-status.enum';
+import { AppView, DEFAULT_VIEW, KeyKind, KeyScope, KeySort, KeyStatus, PAGE_SIZE, SEARCH_SHORTCUT, mergeTags, removeTags, type AppLocale, type IAppSettings, type IGameKey, type IGameKeyDraft, type IImportSummary, type IKeyFilter, type ISteamOwnedGame, type SteamAccountStatus, type TranslationArgs, type Translator } from '@/contracts';
 import { computeStats, emptyFilter, filterKeys, sortKeys } from '@/helpers/filter-keys.helper';
 import { analyzeSelection, claveGrupo, groupByTitle, podarSeleccion, type SelectAction } from '@/helpers/selection.helper';
-import { mergeTags, removeTags } from '@/contracts/constants/tag.constants';
 import { useKeepMounted } from '@/helpers/use-exit-animation.helper';
-import type { TranslationArgs, Translator } from '@/contracts/constants/i18n.constants';
 import type { IStartup } from '@/services/startup.service';
-import type { AppLocale } from '@/contracts/enums/app-locale.enum';
 import { gameKeyService } from '@/services/game-key.service';
 import { settingsService, DEFAULT_SETTINGS } from '@/services/settings.service';
 import { storageService } from '@/services/storage.service';
@@ -46,17 +39,6 @@ import {
   STORAGE_MODE_LABEL,
   STORAGE_MODE_NOTICE,
 } from '@/helpers/runtime.helper';
-import type {
-  IGameKey,
-  IGameKeyDraft,
-} from '@/contracts/interfaces/game-key.interface';
-import type { IKeyFilter } from '@/contracts/interfaces/key-filter.interface';
-import type { IImportSummary } from '@/contracts/interfaces/import-summary.interface';
-import type { IAppSettings } from '@/contracts/interfaces/app-settings.interface';
-import type {
-  ISteamOwnedGame,
-  SteamAccountStatus,
-} from '@/contracts/interfaces/steam-account.interface';
 
 /** Ciclo de estados al pulsar sobre la pastilla de una fila. */
 const STATUS_CYCLE: readonly KeyStatus[] = [

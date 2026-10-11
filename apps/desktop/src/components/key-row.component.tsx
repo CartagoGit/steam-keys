@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { KEY_PLATFORM_META, platformLabel } from '@/contracts/constants/key-platform.constants';
-import { statusMeta } from '@/contracts/constants/key-status.constants';
+import { KEY_PLATFORM_META, TRANSLATIONS, platformLabel, statusMeta, type IGameKey } from '@/contracts';
 import { formatShortDate } from '@/helpers/format-date.helper';
 import { maskKey } from '@/helpers/mask-key.helper';
 import { copyToClipboard } from '@/helpers/clipboard.helper';
@@ -8,8 +7,6 @@ import { isGiftable } from '@/helpers/selection.helper';
 import { Badge } from './ui.component';
 import { Icon } from './icon.component';
 import { useT } from '@/context/locale.context';
-import { TRANSLATIONS } from '@/contracts/constants/i18n.constants';
-import type { IGameKey } from '@/contracts/interfaces/game-key.interface';
 
 export interface IKeyRowProps {
   entry: IGameKey;

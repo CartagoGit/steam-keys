@@ -3,7 +3,7 @@ import { Icon } from './icon.component';
 import { Modal } from './modal.component';
 import { Button, INPUT_CLASS } from './ui.component';
 import { useT } from '@/context/locale.context';
-import type { IGameKey } from '@/contracts/interfaces/game-key.interface';
+import type { IGameKey } from '@/contracts';
 
 /** Cuántos títulos se enseñan antes de resumir con un "y N más". */
 const MAX_TITULOS = 6;

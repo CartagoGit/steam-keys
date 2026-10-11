@@ -1,7 +1,7 @@
 import { Button } from './ui.component';
 import { Icon } from './icon.component';
 import { useT } from '@/context/locale.context';
-import type { IImportSummary } from '@/contracts/interfaces/import-summary.interface';
+import type { IImportSummary } from '@/contracts';
 
 export interface IImportPreviewProps {
   /** Nombre del fichero de origen, solo informativo. */

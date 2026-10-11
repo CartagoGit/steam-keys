@@ -1,14 +1,5 @@
-import { GIFTABLE_STATUSES } from '@/contracts/enums/key-status.enum';
-import { KeyPlatform } from '@/contracts/enums/key-platform.enum';
-import { KeyKind, KeyScope } from '@/contracts/enums/key-scope.enum';
-import { KeySort } from '@/contracts/enums/key-sort.enum';
-import { KeyStatus } from '@/contracts/enums/key-status.enum';
+import { GIFTABLE_STATUSES, KeyKind, KeyPlatform, KeyScope, KeySort, KeyStatus, type IGameKey, type IKeyFilter, type IKeyStats } from '@/contracts';
 import { keyFingerprint } from '@/helpers/normalize-text.helper';
-import type { IGameKey } from '@/contracts/interfaces/game-key.interface';
-import type {
-  IKeyFilter,
-  IKeyStats,
-} from '@/contracts/interfaces/key-filter.interface';
 
 /**
  * Filtro por defecto: solo las claves que siguen disponibles.

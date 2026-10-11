@@ -1,11 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 
 import { previewBulkStatus } from './bulk-status-dialog.component';
-import { KeyStatus } from '@/contracts/enums/key-status.enum';
-import { AppLocale } from '@/contracts/enums/app-locale.enum';
+import { AppLocale, KeyStatus, type IGameKey, type Translator } from '@/contracts';
 import { translate } from '@/helpers/i18n.helper';
-import type { Translator } from '@/contracts/constants/i18n.constants';
-import type { IGameKey } from '@/contracts/interfaces/game-key.interface';
 
 /**
  * Traductor en castellano, que es el idioma de origen.

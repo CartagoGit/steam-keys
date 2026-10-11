@@ -1,8 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 
 import { STORAGE_MODE_LABEL, STORAGE_MODE_NOTICE, StorageMode } from './runtime.helper';
-import { APP_LOCALE_VALUES, AppLocale } from '@/contracts/enums/app-locale.enum';
-import { TRANSLATIONS } from '@/contracts/constants/i18n.constants';
+import { APP_LOCALE_VALUES, AppLocale, TRANSLATIONS } from '@/contracts';
 import { translate } from './i18n.helper';
 
 /**

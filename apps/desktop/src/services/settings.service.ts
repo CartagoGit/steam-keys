@@ -1,5 +1,4 @@
-import { DEFAULT_LOCALE } from '@/contracts/enums/app-locale.enum';
-import { AppTheme } from '@/contracts/enums/app-theme.enum';
+import { AppTheme, DEFAULT_LOCALE, type IAppSettings, type ISettingRow } from '@/contracts';
 import { getDatabaseClient } from '@/repositories/repository.factory';
 import {
   readBool,
@@ -7,10 +6,6 @@ import {
   readTheme,
   serializeSetting,
 } from '@/helpers/settings.helper';
-import type {
-  IAppSettings,
-  ISettingRow,
-} from '@/contracts/interfaces/app-settings.interface';
 
 /** Ajustes por defecto: los de una instalacion nueva, sin tocar nada. */
 export const DEFAULT_SETTINGS: IAppSettings = Object.freeze({

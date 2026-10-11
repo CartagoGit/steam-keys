@@ -2,8 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import SqliteDatabase from '@tauri-apps/plugin-sql';
 
 import { GAME_KEY_COLUMNS } from '@/helpers/map-row.helper';
-import type { IDatabaseClient } from '@/contracts/interfaces/database.interface';
-import type { IGameKeyRow } from '@/contracts/interfaces/import-summary.interface';
+import type { IDatabaseClient, IGameKeyRow } from '@/contracts';
 
 /**
  * Trae las copias de seguridad de la version anterior, que eran ficheros.

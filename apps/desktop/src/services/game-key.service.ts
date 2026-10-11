@@ -3,19 +3,8 @@ import { parseLegacyTxt } from '@/helpers/parse-legacy-txt.helper';
 import { exportKeysToLegacyTxt } from '@/helpers/export-legacy-txt.helper';
 import { buildGiftTxt, giftFileName } from '@/helpers/gift-export.helper';
 import { serializeTags } from '@/helpers/normalize-text.helper';
-import { KeySource } from '@/contracts/enums/key-source.enum';
+import { EXPORT_FILE_NAME, KeySource, type IGameKey, type IGameKeyDraft, type IGameKeyInput, type IGameKeyRepository, type IImportRow, type IImportSummary } from '@/contracts';
 import { fileService } from '@/services/file.service';
-import { EXPORT_FILE_NAME } from '@/contracts/constants/app.constants';
-import type { IGameKeyRepository } from '@/contracts/interfaces/database.interface';
-import type {
-  IGameKey,
-  IGameKeyDraft,
-  IGameKeyInput,
-} from '@/contracts/interfaces/game-key.interface';
-import type {
-  IImportRow,
-  IImportSummary,
-} from '@/contracts/interfaces/import-summary.interface';
 
 /**
  * Fachada de la aplicacion: todo lo que la UI necesita hacer con las keys.

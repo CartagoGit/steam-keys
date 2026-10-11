@@ -1,7 +1,5 @@
 import { GAME_KEY_COLUMNS } from '@/helpers/map-row.helper';
-import { MAX_BACKUPS } from '@/contracts/constants/db-schema.constants';
-import type { IDatabaseClient } from '@/contracts/interfaces/database.interface';
-import type { IGameKeyRow } from '@/contracts/interfaces/import-summary.interface';
+import { MAX_BACKUPS, type IDatabaseClient, type IGameKeyRow } from '@/contracts';
 
 /**
  * Copias de seguridad guardadas dentro de la propia base de datos.

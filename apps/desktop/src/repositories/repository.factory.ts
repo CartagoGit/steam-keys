@@ -2,10 +2,7 @@ import { MemoryGameKeyRepository } from '@/repositories/memory-game-key.reposito
 import { SqliteGameKeyRepository } from '@/repositories/sqlite-game-key.repository';
 import { tauriDatabaseClient } from '@/services/tauri-database.service';
 import { getStorageMode, StorageMode } from '@/helpers/runtime.helper';
-import type {
-  IDatabaseClient,
-  IGameKeyRepository,
-} from '@/contracts/interfaces/database.interface';
+import type { IDatabaseClient, IGameKeyRepository } from '@/contracts';
 
 let instancia: IGameKeyRepository | null = null;
 let modoDetectado: StorageMode | null = null;
