@@ -1,4 +1,4 @@
-import { KeyPlatform, KeySource, KeyStatus, type IGameKey, type IGameKeyDraft, type IGameKeyInput, type IGameKeyRepository, type IImportRow, type IImportSummary } from '@/contracts';
+import { KeyPlatform, KeySource, KeyStatus, STORAGE_KEY_PREFIX, type IGameKey, type IGameKeyDraft, type IGameKeyInput, type IGameKeyRepository, type IImportRow, type IImportSummary } from '@/contracts';
 import { keyFingerprint, normalizeKey, parseTags, serializeTags } from '@/helpers/normalize-text.helper';
 import { nowSqliteTimestamp } from '@/helpers/format-date.helper';
 
@@ -199,7 +199,16 @@ export class MemoryGameKeyRepository implements IGameKeyRepository {
   }
 }
 
-const STORAGE_KEY = 'steam-keys:memory-repository';
+/**
+ * Clave de `localStorage` de las claves.
+ *
+ * Sale de `STORAGE_KEY_PREFIX` y no esta escrita a mano: `memory-database.client`
+ * guarda los ajustes en `steam-keys:settings` y aqui las claves en
+ * `steam-keys:memory-repository`, y el prefijo tenia que cambiar en los dos a
+ * la vez. Los datos ya guardados con la escritura anterior se siguen leyendo:
+ * el valor es identico.
+ */
+const STORAGE_KEY = `${STORAGE_KEY_PREFIX}:memory-repository`;
 
 function loadFromStorage(): IGameKey[] {
   if (typeof localStorage === 'undefined') return [];

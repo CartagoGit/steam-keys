@@ -15,10 +15,6 @@ import { KeyStatus } from '../enums/key-status.enum';
  */
 export const STEAM_KEY_PATTERN = /\b[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}\b/i;
 
-/** URL de Humble Bundle que lleva la clave en la query o en la ruta. */
-export const HUMBLE_URL_PATTERN =
-  /https?:\/\/[^\s]*humblebundle\.com[^\s]*/gi;
-
 /** Parametro `key=` dentro de una URL de Humble (gift, downloads, etc.). */
 export const HUMBLE_URL_KEY_PATTERN = /(?:\?|\/gift\?)[^#\s]*key=([A-Za-z0-9_-]{8,})/i;
 

@@ -140,12 +140,3 @@ export const GAME_KEY_INSERT_SIZE = GAME_KEY_WRITE_COLUMNS.length;
 
 /** Columnas en el orden en que las devuelve `SELECT *`. */
 export const GAME_KEY_COLUMNS = ['id', ...GAME_KEY_WRITE_COLUMNS].join(', ');
-
-/** Indices que se consultan para buscar rapido. */
-export const SEARCHABLE_COLUMNS: readonly string[] = [
-  'title',
-  'key_value',
-  'gifted_to',
-  'note',
-  'parent_title',
-];

@@ -1,0 +1,162 @@
+import { describe, expect, test } from 'bun:test';
+
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+
+/**
+ * Exportaciones que nadie usa.
+ *
+ * Sin esto, el codigo muerto se acumula sin ruido: un helper escrito para una
+ * idea que luego se implemento de otra manera se queda, con sus tests, dando la
+ * impresion de que trabaja. En esta app habia veinte, entre ellas una funcion
+ * de emparejado con la biblioteca de Steam entera y sus cinco tests, que desde
+ * hacia tiempo no llamaba nadie porque la pantalla resolvia lo mismo con una
+ * comparacion de igualdad.
+ *
+ * Que se pueda fiar depende de **que se cuenta como uso**. Un nombre que solo
+ * aparece en su declaracion y en el barril no lo usa nadie. Uno que aparece en
+ * un `import`, en una llamada o como prop de JSX si.
+ *
+ * Lo que este guard NO puede ver, y por eso no lo declara muerto:
+ * - **Interfaces y tipos**: se exportan a menudo para dejar escrito un
+ *   contrato aunque el consumidor aun no exista.
+ * - **Nombres de tres letras o menos**: `t` casa con media aplicacion.
+ * - **Lo que se pasa por indireccion** (una funcion recibida como prop).
+ */
+
+const RAIZ = join(new URL('.', import.meta.url).pathname, '..');
+
+interface IFuente {
+  ruta: string;
+  /** Sin comentarios: un nombre que solo aparece en uno no es un uso. */
+  limpio: string;
+  /** `true` si es un barril, donde los nombres son referencias y no codigo. */
+  esBarril: boolean;
+}
+
+/** Todo el codigo de la app: `.ts` y `.tsx`, tests incluidos. */
+function fuentes(): IFuente[] {
+  const salida: IFuente[] = [];
+
+  const visitar = (dir: string): void => {
+    for (const nombre of readdirSync(dir)) {
+      const ruta = join(dir, nombre);
+
+      if (statSync(ruta).isDirectory()) visitar(ruta);
+      else if (ruta.endsWith('.ts') || ruta.endsWith('.tsx')) {
+        const relativa = ruta.slice(`${RAIZ}/`.length);
+        salida.push({
+          ruta: relativa,
+          limpio: readFileSync(ruta, 'utf8')
+            .replace(/\/\*[\s\S]*?\*\//g, '')
+            .replace(/^\s*\/\/.*$/gm, ''),
+          esBarril: relativa.endsWith('index.ts'),
+        });
+      }
+    }
+  };
+
+  visitar(RAIZ);
+
+  return salida;
+}
+
+/**
+ * Declaraciones que exportan un valor con nombre.
+ *
+ * Una linea por declaracion. Los `export function` con la firma partida en
+ * varias lineas no se detectan: preferible tolerar un falso negativo a montar
+ * un analizador de AST dentro de un test.
+ */
+const DECLARA = /^\s*export\s+(?:async\s+)?(function|const|class)\s+([A-Za-z_$][\w$]*)/gm;
+
+/**
+ * Cuantas veces sale el nombre en el codigo, **sin contar su declaracion ni el
+ * barril**.
+ *
+ * Un `export { X }` del indice es una referencia, no un uso: reexportar algo
+ * que nadie llama deja igual de muerto al simbolo, pero con mas codigo alrededor.
+ */
+function usosFueraDeLaDeclaracion(nombre: string, en: readonly IFuente[]): number {
+  const patron = new RegExp(`\\b${nombre}\\b`, 'g');
+
+  return en.reduce((total, fuente) => {
+    // El barril solo mueve el nombre de sitio; no lo llama nadie.
+    if (fuente.esBarril) return total;
+
+    const apariciones = (fuente.limpio.match(patron) ?? []).length;
+
+    // Una aparicion es la propia declaracion.
+    const esSuPropiaDeclaracion = new RegExp(
+      `export (?:const|function|class) ${nombre}\\b`,
+    ).test(fuente.limpio)
+      ? 1
+      : 0;
+
+    return total + apariciones - esSuPropiaDeclaracion;
+  }, 0);
+}
+
+describe('codigo muerto', () => {
+  const todos = fuentes();
+
+  test('no hay constantes ni funciones exportadas sin usar', () => {
+    const muertas: string[] = [];
+
+    for (const fuente of todos) {
+      if (fuente.esBarril) continue;
+
+      DECLARA.lastIndex = 0;
+
+      let encontrado: RegExpExecArray | null;
+
+      while ((encontrado = DECLARA.exec(fuente.limpio)) !== null) {
+        const tipo = encontrado[1];
+        const nombre = encontrado[2];
+
+        if (!nombre) continue;
+
+        // Con tres letras o menos el patron `\\bnombre\\b` colisiona con media
+        // aplicacion: `t` es la funcion de traduccion, no cualquier letra suelta.
+        if (nombre.length <= 3) continue;
+
+        // Un hook se llama desde JSX, donde aparece como `<useLocale>` y el
+        // patron `\bnombre\b` no casa porque va pegado a la etiqueta. Es codigo
+        // vivo y no hay forma de distinguirlo por el nombre: se acepta el
+        // prefijo de React como senal de que hay un consumidor.
+        if (nombre.startsWith('use') && tipo === 'function') continue;
+
+        if (usosFueraDeLaDeclaracion(nombre, todos) === 0) {
+          muertas.push(`${fuente.ruta}: ${nombre} (${tipo})`);
+        }
+      }
+    }
+
+    expect(muertas).toEqual([]);
+  });
+
+  test('los barrels no reexportan nada que ya no exista', () => {
+    const rotos: string[] = [];
+
+    for (const fuente of todos) {
+      if (!fuente.esBarril) continue;
+      if (!/^export\s*\{/m.test(fuente.limpio)) continue;
+
+      for (const [, nombre] of fuente.limpio.matchAll(/^\s*([A-Za-z_$][\w$]*),?$/gm)) {
+        if (!nombre) continue;
+
+        const existe = todos.some(
+          (otro) =>
+            !otro.esBarril &&
+            new RegExp(
+              `export (?:const|function|class|interface|type|enum) ${nombre}\\b`,
+            ).test(otro.limpio),
+        );
+
+        if (!existe) rotos.push(`${fuente.ruta}: ${nombre}`);
+      }
+    }
+
+    expect(rotos).toEqual([]);
+  });
+});

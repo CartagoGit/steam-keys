@@ -95,8 +95,3 @@ export function isPersistent(): boolean {
 export function supportsBackups(): boolean {
   return isPersistent();
 }
-
-/** `true` si solo hay `localStorage` detrás. */
-export function isBrowserPreview(): boolean {
-  return getStorageMode() === StorageMode.Memory;
-}

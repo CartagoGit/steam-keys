@@ -435,3 +435,31 @@ export function bestCandidate(
     puntuaciones,
   };
 }
+
+/**
+ * Similitud a partir de la cual se dice «ya lo tienes».
+ *
+ * El valor sale de `confidenceFor`: `exact` es 0.97 o mas, y `likely` es 0.85
+ * cuando ademas hay un solo candidato. Se eligen esos dos y se descarta `loose`
+ * a proposito.
+ *
+ * `loose` empieza en 0.70, y ahi entran cosas que **no** son el mismo juego:
+ * «Portal» contra «Portal 2» se puntua en 0.75, igual que «Half-Life» contra
+ * «Half-Life 2». Marcar esas como propias seria lo peor que puede hacer este
+ * badge: dice que la clave sobra, y el usuario la regala y pierde el juego.
+ *
+ * 0.85 sube justo con las diferencias de verdad:
+ * - «World War III Black Gold» contra «World War 3 Black Gold» → 1.00, porque
+ *   `normalizeForMatch` escribe los numeros romanos como digitos.
+ * - «Broken Sword 1: Shadow of the Templars - Director's Cut» contra
+ *   «Broken Sword: Shadow of the Templars - Director's Cut» → 0.96
+ *
+ * Sin la conversion de romanos el primer caso se queda en 0.84, a una centesima
+ * del umbral. Por eso la conversion esta en `normalizeForMatch` y no aqui.
+ */
+export const PROPIO_MINIMO: MatchConfidence[] = ['exact', 'likely'];
+
+/** `true` si esta confianza alcanza para marcar el juego como propio. */
+export function cuentaComoPropio(confianza: MatchConfidence): boolean {
+  return PROPIO_MINIMO.includes(confianza);
+}

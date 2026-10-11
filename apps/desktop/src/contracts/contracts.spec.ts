@@ -33,20 +33,32 @@ const SRC = `${import.meta.dir}/..`;
 /** Raiz del repositorio, dos niveles por encima de `src/contracts`. */
 const REPO = `${SRC}/../../..`;
 
+/**
+ * Quita los comentarios antes de buscar imports.
+ *
+ * Sin esto, escribir «esto se importa desde `@/contracts`» en el comentario que
+ * explica por qué un fichero **no** importa del barril lo marca como culpable.
+ * Los comentarios hablan de imports; el codigo es el que los hace.
+ */
+function sinComentarios(codigo: string): string {
+  return codigo.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+}
+
 /** Los scripts de linea de comandos, que hablan con la misma base de datos. */
 const TOOLS: readonly string[] = [
   ...new Bun.Glob('tools/scripts/**/*.ts').scanSync({ cwd: REPO }),
 ].sort();
 
 /**
- * Ficheros de la app, ordenados, sin los del propio modulo de contratos.
+ * Ficheros de la app, ordenados.
  *
- * El modulo entero se excluye a proposito: los barrels hacen `export *` de si
- * mismos y los tests los comparan contra si mismos, asi que no son un caso que
- * pueda romperse.
+ * Del modulo de contratos solo se excluyen los `index.ts` —los barrels hacen
+ * `export *` de si mismos y compararlos contra si mismos no comprueba nada—.
+ * El resto **si** entra: `constants/tag.constants.ts` importaba
+ * `@/contracts/enums/key-platform.enum` por ruta profunda, y no habia quien lo
+ * viera porque el filtro Apartaba el modulo entero.
  */
 const FUENTES: readonly string[] = [...new Bun.Glob('**/*.ts').scanSync({ cwd: SRC })]
-  .filter((ruta) => !ruta.startsWith('contracts/'))
   .filter((ruta) => !ruta.endsWith('.spec.ts'))
   .filter((ruta) => !ruta.endsWith('/index.ts'))
   .sort();
@@ -84,7 +96,7 @@ describe('los contratos se importan desde el barril', () => {
     const culpables: string[] = [];
 
     for (const ruta of FUENTES) {
-      const codigo = await Bun.file(`${SRC}/${ruta}`).text();
+      const codigo = sinComentarios(await Bun.file(`${SRC}/${ruta}`).text());
 
       if (RUTA_PROFUNDA.test(codigo)) culpables.push(ruta);
     }
@@ -96,7 +108,7 @@ describe('los contratos se importan desde el barril', () => {
     const derivados: string[] = [];
 
     for (const ruta of FUENTES) {
-      const codigo = await Bun.file(`${SRC}/${ruta}`).text();
+      const codigo = sinComentarios(await Bun.file(`${SRC}/${ruta}`).text());
 
       // `@/contracts/index`, `@/contracts/` y `@/contracts` son el mismo modulo
       // escritos de tres maneras. Con tres formas, un `grep` por el barril

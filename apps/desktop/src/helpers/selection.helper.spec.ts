@@ -8,7 +8,6 @@ import {
   isExpirable,
   isGiftable,
   podarSeleccion,
-  siblingsOf,
 } from './selection.helper';
 import { KeyPlatform, KeySource, KeyStatus, type IGameKey } from '@/contracts';
 
@@ -237,16 +236,6 @@ describe('varias claves del mismo juego', () => {
     const grupo = [...mapa.values()].find((g) => g.total === 2);
     expect(grupo).toBeDefined();
     expect(grupo?.available).toBe(1);
-  });
-
-  test('cuenta las Hermanas de una clave', () => {
-    const todas = [
-      clave(1, KeyStatus.Available, 'Cities: Skylines - Snowfall'),
-      clave(2, KeyStatus.Redeemed, 'Cities: Skylines - Snowfall'),
-    ];
-
-    expect(siblingsOf(todas[0]!, todas)).toBe(2);
-    expect(siblingsOf(todas[0]!, [todas[0]!])).toBe(1);
   });
 });
 

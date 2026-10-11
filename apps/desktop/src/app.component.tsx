@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { pluralKey, setCurrentLocale, translate } from '@/helpers/i18n.helper';
 import { normalizeForMatch } from '@/helpers/match-title.helper';
+import { buildOwnershipIndex, ownershipCandidates } from '@/helpers/match-owned.helper';
 import { LocaleContext, useT, type ITranslator } from './context/locale.context';
 
 import { BulkStatusDialog } from './components/bulk-status-dialog.component';
@@ -19,7 +20,7 @@ import { TagsDialog } from './components/tags-dialog.component';
 import { Toolbar } from './components/toolbar.component';
 import { Button } from './components/ui.component';
 
-import { AppTheme, AppView, DEFAULT_VIEW, KEY_STATUS_VALUES, StorageMode, KeyScope, KeySort, KeyStatus, PAGE_SIZE, SEARCH_SHORTCUT, mergeTags, removeTags, type AppLocale, type IAppSettings, type IGameKey, type IGameKeyDraft, type IImportSummary, type IKeyFilter, type ISteamOwnedGame, type SteamAccountStatus, type TranslationArgs, type Translator } from '@/contracts';
+import { AppTheme, AppView, DEFAULT_VIEW, KEY_STATUS_VALUES, KeyPlatform, StorageMode, KeyScope, KeySort, KeyStatus, PAGE_SIZE, SEARCH_SHORTCUT, mergeTags, removeTags, type AppLocale, type IAppSettings, type IGameKey, type IGameKeyDraft, type IImportSummary, type IKeyFilter, type ISteamOwnedGame, type SteamAccountStatus, type TranslationArgs, type Translator } from '@/contracts';
 import { computeStats, emptyFilter, filterKeys, sortKeys } from '@/helpers/filter-keys.helper';
 import { analyzeSelection, claveGrupo, groupByTitle, isGiftable, podarSeleccion, type SelectAction } from '@/helpers/selection.helper';
 import { useKeepMounted } from '@/helpers/use-exit-animation.helper';
@@ -34,7 +35,7 @@ import {
 } from '@/services/legacy-backups.service';
 import { FirstRun } from '@/components/first-run.component';
 import { getDatabaseClient } from '@/repositories/repository.factory';
-import { steamService, SteamError, resolveSteamId } from '@/services/steam.service';
+import { steamService, SteamError, resolveSteamId, bestCandidate, cuentaComoPropio } from '@/services/steam.service';
 import {
   getStorageMode,
   STORAGE_MODE_LABEL,
@@ -399,15 +400,56 @@ export function App() {
   /** Cuantas claves comparten cada titulo, para el contador de la fila. */
   const groups = useMemo(() => groupByTitle(keys), [keys]);
 
-  /** Los nombres de los juegos que ya tienes en la cuenta de Steam. */
-  const ownedNames = useMemo(
-    () => new Set(owned.map((juego) => normalizeForMatch(juego.name))),
-    [owned],
-  );
+  /**
+   * Las claves cuyo juego ya esta en la cuenta de Steam.
+   *
+   * Se calcula una sola vez y en bloque, y no por fila: el badge lo consulta
+   * cuatrocientas veces en cada render, y cada consulta era una comparacion.
+   *
+   * Antes era solo igualdad de nombre normalizado, y eso falla en cuanto Steam
+   * escribe el titulo de otra manera que el TXT de origen: «World War 3: Black
+   * Gold» contra «World War III Black Gold», «Broken Sword 1: … - Director's
+   * Cut» contra «Broken Sword: …». Son la misma clave sin coincidencia, y el
+   * badge no aparecia justo en las que mas duele.
+   *
+   * El indice por palabra inicial evita comparar cada titulo contra toda la
+   * biblioteca, y el umbral de `bestCandidate` evita lo contrario: que un
+   * «Portal» se tome por el «Portal 2» que tienes.
+   */
+  const propios = useMemo(() => {
+    if (owned.length === 0) return new Set<string>();
+
+    const indice = buildOwnershipIndex(owned);
+    const exactos = new Set(owned.map((juego) => normalizeForMatch(juego.name)));
+    const encontrados = new Set<string>();
+
+    for (const clave of keys) {
+      // Solo las claves de Steam: una de Battle.net no la tiene una cuenta de
+      // Steam ni por error.
+      if (clave.platform !== KeyPlatform.Steam) continue;
+
+      const normalizado = normalizeForMatch(clave.title);
+
+      if (exactos.has(normalizado)) {
+        encontrados.add(normalizado);
+        continue;
+      }
+
+      const candidatos = ownershipCandidates(clave.title, indice);
+
+      if (candidatos.length === 0) continue;
+
+      const { confianza } = bestCandidate(clave.title, candidatos);
+
+      if (cuentaComoPropio(confianza)) encontrados.add(normalizado);
+    }
+
+    return encontrados;
+  }, [keys, owned]);
 
   const esPropio = useCallback(
-    (title: string): boolean => ownedNames.has(normalizeForMatch(title)),
-    [ownedNames],
+    (title: string): boolean => propios.has(normalizeForMatch(title)),
+    [propios],
   );
 
   // ----------------------------------------------------------- seleccion ---

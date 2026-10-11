@@ -244,13 +244,3 @@ export function groupByTitle(keys: readonly IGameKey[]): ReadonlyMap<string, IGr
 
   return mapa;
 }
-
-/** Numero de claves que comparten titulo con esta. 1 si esta sola. */
-export function siblingsOf(
-  entry: IGameKey,
-  todas: readonly IGameKey[],
-): number {
-  const clave = claveGrupo(entry.title);
-
-  return todas.filter((key) => claveGrupo(key.title) === clave).length;
-}

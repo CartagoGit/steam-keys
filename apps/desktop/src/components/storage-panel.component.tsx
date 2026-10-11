@@ -10,7 +10,7 @@ import {
 } from '@/helpers/runtime.helper';
 import { storageService } from '@/services/storage.service';
 import { formatBytes } from '@/helpers/format-bytes.helper';
-import { formatDateTime } from '@/helpers/format-date.helper';
+import { formatDateTime, formatRelativeDate } from '@/helpers/format-date.helper';
 import { Button } from './ui.component';
 import { Icon } from './icon.component';
 import { useT } from '@/context/locale.context';
@@ -264,7 +264,10 @@ export function StoragePanel({ onClose, onChanged, notify }: IStoragePanelProps)
                       >
                         <Icon name="package" size={15} className="text-t4" />
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-xs font-medium text-t1">
+                          <p
+                            className="truncate text-xs font-medium text-t1"
+                            title={formatDateTime(backup.createdAtMs, locale)}
+                          >
                             {describeBackup(backup, locale, t)}
                           </p>
                           <p className="truncate text-[11px] text-t4">
@@ -468,17 +471,20 @@ function Dato({ label, value, ayuda }: IDatoProps) {
 }
 
 /**
- * Nombre legible de una copia: su fecha y su motivo, los dos ya traducidos.
+ * Nombre legible de una copia: cuando se hizo y por que.
  *
  * El motivo antes se sacaba con `reason.replace(/-/g, ' ')`, deshaciendo el
  * saneo del nombre. Eso es perder el dato por el camino —un motivo que contenga
  * un guion de verdad se parte mal— y ademas salia siempre en castellano. Ahora
  * `reason` es un `BackupReason` y se traduce con su clave.
+ *
+ * El sello va en **relativo** («hace 5 minutos», «hace 3 meses») y no en fecha
+ * absoluta porque la pregunta que uno se hace al mirar una copia es «¿es
+ * reciente?», no «¿qué dia cae?». La fecha exacta sigue ahi, en el tooltip,
+ * para cuando hace falta.
  */
 function describeBackup(backup: IBackup, locale: AppLocale, t: Translator): string {
   if (Number.isNaN(new Date(backup.createdAtMs).getTime())) return backup.name;
 
-  const sello = formatDateTime(backup.createdAtMs, locale);
-
-  return `${sello} · ${t(BACKUP_REASON_LABEL[backup.reason])}`;
+  return `${formatRelativeDate(backup.createdAtMs, locale)} · ${t(BACKUP_REASON_LABEL[backup.reason])}`;
 }

@@ -19,9 +19,6 @@ export const DB_FILE_NAME = 'steam-keys.db';
 /** Numero de entradas que se pintan por pagina antes de recortar la lista. */
 export const PAGE_SIZE = 200;
 
-/** Retardo del buscador, en milisegundos. */
-export const SEARCH_DEBOUNCE_MS = 180;
-
 /** Atajo de teclado para enfocar el buscador. */
 export const SEARCH_SHORTCUT = '/';
 
@@ -39,9 +36,6 @@ export const STEAM_API_KEY_URL = 'https://steamcommunity.com/dev/apikey';
  * La clave se enmascara por defecto; solo se revela bajo demanda.
  */
 export const MASK_VISIBLE_CHARS = 4;
-
-/** Teclas por fila en la vista de rejilla compacta. */
-export const GRID_MIN_WIDTH_PX = 320;
 
 /** Extension de los ficheros de texto que la app puede exportar. */
 export const EXPORT_FILE_NAME = 'steam-keys-export.txt';

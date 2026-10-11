@@ -57,12 +57,45 @@ const SUFIJOS: readonly string[] = Object.freeze([
 ]);
 
 /**
- * Deja un nombre comparable: sin acentos, sin puntuacion y sin coletilla de
- * edicion.
+ * Numerales romanos que salen como palabra entera, y su equivalente.
+ *
+ * Steam escribe «World War III» y el TXT de origen «World War 3»: el mismo
+ * juego con dos escrituras. Sin esto, los dos titulos se puntuan en 0.84 —justo
+ * por debajo del umbral de «ya lo tienes»— y el badge no aparece.
+ *
+ * Bajar el umbral para que entren no es una opcion: «Dead Space» contra
+ * «Dead Space 2» puntua 0.83, a menos de una centesima. Convertir el numero
+ * separa los dos casos de verdad en lugar de acercarlos.
+ *
+ * Solo se sustituyen los que estan escritos **completos** y con los simbolos
+ * de arriba del valor: «Civilization IV» se normaliza, «I Am Alive» no, porque
+ * `i` a secas es la primera persona y no un uno.
+ */
+const ROMANOS: Readonly<Record<string, string>> = Object.freeze({
+  ii: '2',
+  iii: '3',
+  iv: '4',
+  v: '5',
+  vi: '6',
+  vii: '7',
+  viii: '8',
+  ix: '9',
+  x: '10',
+  xi: '11',
+  xii: '12',
+  xiii: '13',
+  xiv: '14',
+  xv: '15',
+});
+
+/**
+ * Deja un nombre comparable: sin acentos, sin puntuacion, sin coletilla de
+ * edicion y con los numeros romanos escritos como digitos.
  *
  * "Middle-earth: Shadow of Mordor GOTY Edition" pasa a ser
  * `"middle earth shadow of mordor"`, que ya se parece a lo que Steam llama al
- * juego base.
+ * juego base. "World War III Black Gold" pasa a ser `"world war 3 black gold"`,
+ * que es como lo escribe el TXT de origen.
  */
 export function normalizeForMatch(title: string): string {
   let limpio = normalizeTag(title);
@@ -73,5 +106,9 @@ export function normalizeForMatch(title: string): string {
     }
   }
 
-  return limpio.replace(/[^a-z0-9]+/g, ' ').replace(/\s{2,}/g, ' ').trim();
+  return limpio
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+    .replace(/\b[a-z]+\b/g, (palabra) => ROMANOS[palabra] ?? palabra);
 }

@@ -1,11 +1,19 @@
 import {
   SCHEMA_STATEMENTS,
+  STORAGE_KEY_PREFIX,
   TABLE_APP_SETTINGS,
   type IAppSettings,
   type IDatabaseClient,
 } from '@/contracts';
 
-const STORAGE_KEY = 'steam-keys:settings';
+/**
+ * Clave de `localStorage` de los ajustes.
+ *
+ * Sale de `STORAGE_KEY_PREFIX` y no esta escrita a mano: `memory-game-key.repository`
+ * guarda las claves en `steam-keys:memory-repository` y aqui los ajustes en
+ * `steam-keys:settings`, y el prefijo tenia que cambiar en los dos a la vez.
+ */
+const STORAGE_KEY = `${STORAGE_KEY_PREFIX}:settings`;
 
 /**
  * Cliente de base de datos en memoria, para el navegador sin Tauri.
@@ -102,17 +110,6 @@ function bindToString(value: unknown): string {
   if (typeof value === 'boolean') return value ? '1' : '0';
   if (value === null || value === undefined) return '';
   return String(value);
-}
-
-/** Borra los ajustes guardados. Solo para tests. */
-export function clearMemorySettings(): void {
-  if (typeof localStorage === 'undefined') return;
-
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // Nada que hacer: si no se puede escribir, tampoco se puede borrar.
-  }
 }
 
 /** Tipo auxiliar para quien necesite leer el almacen sin el cliente. */

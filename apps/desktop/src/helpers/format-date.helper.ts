@@ -45,40 +45,38 @@ function pad(value: number): string {
   return value.toString().padStart(2, '0');
 }
 
-/** Convierte a `Date`, o `null` si no hay fecha o no se puede leer. */
-function aFecha(iso: string | null | undefined): Date | null {
-  if (!iso) return null;
+/**
+ * Convierte a `Date`, o `null` si no hay fecha o no se puede leer.
+ *
+ * Acepta **numero o texto** porque las fechas llegan de dos sitios distintos y
+ * los dos estan en el tipo: de la base de datos como `YYYY-MM-DD HH:MM:SS`, y
+ * de `IBackup.createdAtMs`, que es un epoch en milisegundos porque la lista de
+ * copias ordena por el. Aceptar solo texto obligaba a convertir en el punto de
+ * uso, y fue justo ahi donde `formatRelativeDate` empezo a no compilar.
+ */
+function aFecha(valor: string | number | null | undefined): Date | null {
+  // 0 es epoch. `!valor` se lo comeria y devolveria «sin fecha» sin avisar.
+  if (valor === null || valor === undefined || valor === '') return null;
 
-  const fecha = new Date(iso);
+  const fecha = new Date(valor);
+
   return Number.isNaN(fecha.getTime()) ? null : fecha;
 }
 
+/** Tipo de lo que se le puede pasar a los formateadores. */
+type Fecha = string | number | null | undefined;
+
 /** Fecha corta: `22/01/2025` en castellano, `22/01/2025` en ingles. */
 export function formatShortDate(
-  iso: string | null | undefined,
+  valor: Fecha,
   locale: AppLocale,
 ): string {
-  const fecha = aFecha(iso);
+  const fecha = aFecha(valor);
   if (!fecha) return SIN_FECHA;
 
   return new Intl.DateTimeFormat(LOCALE_BCP47[locale], {
     day: '2-digit',
     month: '2-digit',
-    year: 'numeric',
-  }).format(fecha);
-}
-
-/** Fecha larga: `22 de enero de 2025`, `22 January 2025`, `22. Januar 2025`. */
-export function formatLongDate(
-  iso: string | null | undefined,
-  locale: AppLocale,
-): string {
-  const fecha = aFecha(iso);
-  if (!fecha) return SIN_FECHA;
-
-  return new Intl.DateTimeFormat(LOCALE_BCP47[locale], {
-    day: 'numeric',
-    month: 'long',
     year: 'numeric',
   }).format(fecha);
 }
@@ -98,11 +96,11 @@ export function formatDateTime(ms: number, locale: AppLocale): string {
 
 /** Cuanto lleva: `hace 3 meses`, `3 months ago`, `il y a 3 mois`. */
 export function formatRelativeDate(
-  iso: string | null | undefined,
+  valor: Fecha,
   locale: AppLocale,
   ahora: Date = new Date(),
 ): string {
-  const fecha = aFecha(iso);
+  const fecha = aFecha(valor);
   if (!fecha) return SIN_FECHA;
 
   const relativo = new Intl.RelativeTimeFormat(LOCALE_BCP47[locale], {

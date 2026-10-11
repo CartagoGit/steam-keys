@@ -1,4 +1,12 @@
-import { KeyPlatform } from '@/contracts/enums/key-platform.enum';
+/**
+ * Importacion **relativa** a proposito, y no `@/contracts`.
+ *
+ * Este fichero vive dentro del propio modulo de contratos. Pasando por el
+ * barril se importaria el modulo que este fichero esta exportando, que es un
+ * ciclo; bajando al sibling directo se evita. Los dos ficheros son pares: un
+ * enum y las constantes que se apoyan en el.
+ */
+import { KeyPlatform } from '../enums/key-platform.enum';
 
 /**
  * Etiquetas automaticas por plataforma.
