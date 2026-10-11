@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { KEY_PLATFORM_META } from '@/contracts/constants/key-platform.constants';
-import { KEY_STATUS_META } from '@/contracts/constants/key-status.constants';
+import { platformLabel } from '@/contracts/constants/key-platform.constants';
+import { statusMeta } from '@/contracts/constants/key-status.constants';
 import { KEY_PLATFORM_VALUES, KeyPlatform } from '@/contracts/enums/key-platform.enum';
 import { KEY_STATUS_VALUES, KeyStatus } from '@/contracts/enums/key-status.enum';
 import { Button, Field, INPUT_CLASS, SELECT_CLASS } from './ui.component';
 import { Icon } from './icon.component';
 import { useT } from '@/context/locale.context';
+import { TRANSLATIONS } from '@/contracts/constants/i18n.constants';
 import type {
   IGameKey,
   IGameKeyDraft,
@@ -32,7 +33,7 @@ const EMPTY_DRAFT: IGameKeyDraft = {
 
 /** Formulario de alta y edicion. */
 export function KeyEditor({ entry, onSave, onClose }: IKeyEditorProps) {
-  const { t } = useT();
+  const { t, locale } = useT();
 
   const [draft, setDraft] = useState<IGameKeyDraft>(EMPTY_DRAFT);
   const [tagsText, setTagsText] = useState('');
@@ -77,7 +78,7 @@ export function KeyEditor({ entry, onSave, onClose }: IKeyEditorProps) {
     event.preventDefault();
 
     if (draft.title.trim().length === 0 || draft.keyValue.trim().length === 0) {
-      setError('El nombre del juego y la clave son obligatorios.');
+      setError(t('editor.needBoth'));
       return;
     }
 
@@ -87,7 +88,7 @@ export function KeyEditor({ entry, onSave, onClose }: IKeyEditorProps) {
     try {
       await onSave({ ...draft, tags: parsedTags });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'No se pudo guardar.');
+      setError(cause instanceof Error ? cause.message : t('editor.saveError'));
       setSaving(false);
     }
   };
@@ -106,12 +107,12 @@ export function KeyEditor({ entry, onSave, onClose }: IKeyEditorProps) {
         <header className="flex items-center justify-between border-b border-line px-5 py-4">
           <div>
             <h2 className="text-base font-semibold text-t1">
-              {entry ? 'Editar key' : 'Nueva key'}
+              {entry ? t('editor.editTitle') : t('editor.newTitle')}
             </h2>
             <p className="text-xs text-t4">
               {entry
-                ? 'Los cambios se guardan en tu base de datos local.'
-                : 'Anade una clave a tu coleccion.'}
+                ? t('editor.editHint')
+                : t('editor.newHint')}
             </p>
           </div>
           <button
@@ -156,7 +157,7 @@ export function KeyEditor({ entry, onSave, onClose }: IKeyEditorProps) {
             >
               {KEY_PLATFORM_VALUES.map((platform) => (
                 <option key={platform} value={platform}>
-                  {KEY_PLATFORM_META[platform].label}
+                  {platformLabel(platform, TRANSLATIONS[locale])}
                 </option>
               ))}
             </select>
@@ -170,7 +171,7 @@ export function KeyEditor({ entry, onSave, onClose }: IKeyEditorProps) {
             >
               {KEY_STATUS_VALUES.map((status) => (
                 <option key={status} value={status}>
-                  {KEY_STATUS_META[status].label}
+                  {statusMeta(status, TRANSLATIONS[locale]).label}
                 </option>
               ))}
             </select>
@@ -229,10 +230,10 @@ export function KeyEditor({ entry, onSave, onClose }: IKeyEditorProps) {
 
         <footer className="flex justify-end gap-2 border-t border-line px-5 py-3">
           <Button variant="ghost" onClick={onClose}>
-            Cancelar
+            {t('action.cancel')}
           </Button>
           <Button type="submit" variant="primary" disabled={saving} icon="check">
-            {entry ? 'Guardar cambios' : 'Anadir key'}
+            {entry ? t('editor.save') : t('editor.add')}
           </Button>
         </footer>
       </form>

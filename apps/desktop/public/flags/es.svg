@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 16" width="24" height="16" role="img" aria-label="Espana">
+  <rect width="24" height="16" fill="#c60b1e"/>
+  <rect y="4" width="24" height="8" fill="#ffc400"/>
+  <!-- Escudo, simplificado al tamano de una bandera de 24 px: los detalles
+       pequenos no se ven y solo ensucian. Es lo que se distingue a
+       este tamano: las tres bandas. -->
+  <rect x="9.5" y="5" width="5" height="6" rx="0.6" fill="#ad1519" opacity="0.9"/>
+</svg>

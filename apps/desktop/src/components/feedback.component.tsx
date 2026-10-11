@@ -1,4 +1,5 @@
 import { Icon, type IconName } from './icon.component';
+import { useT } from '@/context/locale.context';
 import { Modal } from './modal.component';
 
 export type ToastTone = 'info' | 'success' | 'error';
@@ -61,6 +62,8 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: IConfirmProps) {
+  const { t } = useT();
+
   return (
     <Modal open onClose={onCancel} size="sm" label={title}>
       <div className="p-5">
@@ -80,7 +83,7 @@ export function ConfirmDialog({
             onClick={onCancel}
             className="rounded-lg px-3.5 py-2 text-sm text-t2 transition hover:bg-hover"
           >
-            Cancelar
+            {t('action.cancel')}
           </button>
           <button
             type="button"

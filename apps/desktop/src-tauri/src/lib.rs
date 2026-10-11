@@ -583,7 +583,7 @@ mod tests {
     #[test]
     fn las_rutas_de_steam_pasan_el_filtro() {
         assert!(es_ruta_permitida("api.steampowered.com/ISteamUser/GetOwnedGames"));
-        assert!(es_ruta_permitida("steamcommunity.com/id/cartagonova/?xml=1"));
+        assert!(es_ruta_permitida("steamcommunity.com/id/mi-perfil/?xml=1"));
 
         // Sin barra detras: es solo el dominio.
         assert!(es_ruta_permitida("api.steampowered.com"));

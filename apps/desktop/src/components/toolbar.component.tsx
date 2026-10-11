@@ -1,5 +1,5 @@
-import { KEY_PLATFORM_META } from '@/contracts/constants/key-platform.constants';
-import { KEY_STATUS_META } from '@/contracts/constants/key-status.constants';
+import { KEY_PLATFORM_META, platformLabel } from '@/contracts/constants/key-platform.constants';
+import { statusMeta } from '@/contracts/constants/key-status.constants';
 import { SEARCH_SHORTCUT } from '@/contracts/constants/app.constants';
 import { KEY_PLATFORM_VALUES, KeyPlatform } from '@/contracts/enums/key-platform.enum';
 import { KEY_STATUS_VALUES, KeyStatus } from '@/contracts/enums/key-status.enum';
@@ -10,6 +10,7 @@ import { Chip, ChipGroup } from './chip.component';
 import { Segmented } from './segmented.component';
 import { ViewSwitch } from './view-switch.component';
 import { useT } from '@/context/locale.context';
+import { TRANSLATIONS } from '@/contracts/constants/i18n.constants';
 import { KeyKind, KeyScope } from '@/contracts/enums/key-scope.enum';
 import { AppView } from '@/contracts/enums/app-view.enum';
 import {
@@ -73,7 +74,7 @@ export function Toolbar({
   onOpenStorage,
   onOpenSettings,
 }: IToolbarProps) {
-  const { t } = useT();
+  const { t, locale } = useT();
 
   const togglePlatform = (platform: KeyPlatform): void => {
     const next = filter.platforms.includes(platform)
@@ -290,7 +291,7 @@ export function Toolbar({
                   active={active}
                   icon={meta.icon}
                   onClick={() => togglePlatform(platform)}
-                  title={`${meta.label} — ${count}`}
+                  title={`${platformLabel(platform, TRANSLATIONS[locale])} — ${count}`}
                 />
               );
             })}
@@ -303,7 +304,7 @@ export function Toolbar({
             disabledTitle={t('filter.status.locked')}
           >
             {KEY_STATUS_VALUES.map((status) => {
-              const meta = KEY_STATUS_META[status];
+              const meta = statusMeta(status, TRANSLATIONS[locale]);
               const active = filter.statuses.includes(status);
 
               return (

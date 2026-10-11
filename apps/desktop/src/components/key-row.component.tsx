@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { KEY_PLATFORM_META } from '@/contracts/constants/key-platform.constants';
-import { KEY_STATUS_META } from '@/contracts/constants/key-status.constants';
+import { KEY_PLATFORM_META, platformLabel } from '@/contracts/constants/key-platform.constants';
+import { statusMeta } from '@/contracts/constants/key-status.constants';
 import { formatShortDate } from '@/helpers/format-date.helper';
 import { maskKey } from '@/helpers/mask-key.helper';
 import { copyToClipboard } from '@/helpers/clipboard.helper';
@@ -8,6 +8,7 @@ import { isGiftable } from '@/helpers/selection.helper';
 import { Badge } from './ui.component';
 import { Icon } from './icon.component';
 import { useT } from '@/context/locale.context';
+import { TRANSLATIONS } from '@/contracts/constants/i18n.constants';
 import type { IGameKey } from '@/contracts/interfaces/game-key.interface';
 
 export interface IKeyRowProps {
@@ -48,11 +49,13 @@ export function KeyRow({
   tags = [],
 }: IKeyRowProps) {
   const { t } = useT();
+  const { locale } = useT();
+
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const platform = KEY_PLATFORM_META[entry.platform];
-  const status = KEY_STATUS_META[entry.status];
+  const status = statusMeta(entry.status, TRANSLATIONS[locale]);
   const giftable = isGiftable(entry);
 
   const handleCopy = async (): Promise<void> => {
@@ -128,7 +131,7 @@ export function KeyRow({
             <h3 className="truncate text-sm font-medium text-t1">{entry.title}</h3>
 
             <span
-              title={platform.label}
+              title={platformLabel(entry.platform, TRANSLATIONS[locale])}
               className="inline-flex shrink-0 items-center gap-1 rounded bg-hover px-1.5 py-0.5 text-[10px] text-t3"
             >
               <Icon name={platform.icon} size={10} />

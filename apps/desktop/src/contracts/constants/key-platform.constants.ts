@@ -1,8 +1,18 @@
 import { KeyPlatform } from '../enums/key-platform.enum';
 import type { IconName } from '../interfaces/icon-name.interface';
+import type { TranslationKey, TranslationTable } from './i18n.constants';
 
 export interface IPlatformMeta {
-  label: string;
+  /**
+   * Nombre de la plataforma, o **clave de traduccion** si hay que traducirlo.
+   *
+   * Casi todas son nombres propios que no se traducen ("Steam", "Blade &
+   * Soul"), pero "Sin determinar" si lo es y estaba escrito aqui en
+   * castellano: salia "Sin determinar" en medio de una lista en portugues.
+   * Por eso el campo admite las dos cosas, igual que hacia
+   * `statusMeta()` con los estados.
+   */
+  label: string | TranslationKey;
   /** Nombre corto para chips y badges. */
   short: string;
   /** Colores del badge. */
@@ -56,10 +66,24 @@ export const KEY_PLATFORM_META: Readonly<Record<KeyPlatform, IPlatformMeta>> = O
     inSteam: false,
   },
   [KeyPlatform.Unknown]: {
-    label: 'Sin determinar',
+    label: 'platform.unknown',
     short: '?',
     tone: 'bg-slate-500/15 text-slate-300 ring-slate-500/30',
     icon: 'help',
     inSteam: false,
   },
 });
+/**
+ * Nombre de la plataforma ya traducido, o su clave si no hay que traducirla.
+ *
+ * Los nombres propios se devuelven tal cual porque no tienen traduccion: si no
+ * fueran un caso especial habria que meter los siete en el diccionario, y el
+ * casteellano de "Steam" en el diccionario castellano seria absurdo.
+ */
+export function platformLabel(platform: KeyPlatform, tabla: TranslationTable): string {
+  const { label } = KEY_PLATFORM_META[platform];
+
+  // `in tabla` no estrecha el tipo, asi que se comprueba con `undefined`: una
+  // clave presente siempre tiene texto, y una ausente devuelve undefined.
+  return tabla[label] ?? label;
+}

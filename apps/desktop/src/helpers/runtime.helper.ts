@@ -1,23 +1,33 @@
 import { StorageMode } from '@/contracts/enums/storage-mode.enum';
+import type { TranslationKey } from '@/contracts/constants/i18n.constants';
 
 export { StorageMode };
 
-/** Texto corto para cada modo, mostrado en la interfaz. */
-export const STORAGE_MODE_LABEL: Readonly<Record<StorageMode, string>> = Object.freeze({
-  [StorageMode.Tauri]: 'App de escritorio',
-  [StorageMode.DevBridge]: 'Desarrollo (BD real)',
-  [StorageMode.Memory]: 'Vista previa en navegador',
-});
+/**
+ * Texto corto para cada modo, mostrado en la interfaz.
+ *
+ * Guarda **claves de traduccion**, no texto. Antes era el texto en castellano
+ * y por eso el aviso de abajo salia en castellano con la app puesta en otros
+ * idiomas.
+ *
+ * Que el tipo sea `string` no obliga a nada: no compila como red de seguridad
+ * para esto. La obligacion la cumple el test de traduccion, que revisa que
+ * estas claves existan en los cinco diccionarios.
+ */
+export const STORAGE_MODE_LABEL: Readonly<Record<StorageMode, TranslationKey>> =
+  Object.freeze({
+    [StorageMode.Tauri]: 'storage.mode.desktop',
+    [StorageMode.DevBridge]: 'storage.mode.devBridge',
+    [StorageMode.Memory]: 'storage.mode.memory',
+  });
 
-/** Aviso de cada modo sobre lo que sobrevive y lo que no. */
-export const STORAGE_MODE_NOTICE: Readonly<Record<StorageMode, string>> = Object.freeze({
-  [StorageMode.Tauri]:
-    'Las claves estan en tu disco, en una base de datos SQLite, con copias de seguridad automaticas.',
-  [StorageMode.DevBridge]:
-    'Estás viendo la base de datos real a través del puente de desarrollo. Lo que edites aquí se guarda en ella.',
-  [StorageMode.Memory]:
-    'Vista previa en navegador: los datos viven en localStorage y se pierden si limpias los datos del navegador.',
-});
+/** Aviso de cada modo sobre lo que sobrevive y lo que no. Tambien con claves. */
+export const STORAGE_MODE_NOTICE: Readonly<Record<StorageMode, TranslationKey>> =
+  Object.freeze({
+    [StorageMode.Tauri]: 'storage.notice.desktop',
+    [StorageMode.DevBridge]: 'storage.notice.devBridge',
+    [StorageMode.Memory]: 'storage.notice.memory',
+  });
 
 /**
  * Deteccion del entorno de ejecucion.

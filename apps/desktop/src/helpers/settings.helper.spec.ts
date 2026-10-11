@@ -106,12 +106,17 @@ describe('leer el idioma', () => {
     expect(readLocale(undefined)).toBe(DEFAULT_LOCALE);
   });
 
-  test('fr, pt y ca se guardan aunque esten a medio traducir', () => {
-    // A proposito: si aqui se devolviera el castellano, el selector no podria
-    // ofrecer esos idiomas sin traducirlos enteros antes. Se guardan y la
-    // traduccion que falte cae al castellano al resolver cada clave.
-    expect(readLocale(AppLocale.Fr)).toBe(AppLocale.Fr);
-    expect(readLocale(AppLocale.Pt)).toBe(AppLocale.Pt);
-    expect(readLocale(AppLocale.Ca)).toBe(AppLocale.Ca);
+  test('todos los idiomas de la lista se guardan', () => {
+    // Se guardan tal cual. Si un idioma esta a medio traducir, la clave que
+    // falte cae al castellano al resolverla, pero el ajuste no se pierde.
+    for (const locale of APP_LOCALE_VALUES) {
+      expect(readLocale(locale)).toBe(locale);
+    }
+  });
+
+  test('la lista de idiomas cubre todos los del enum', () => {
+    // Si alguien añade un idioma al enum y olvida la lista, el selector deja de
+    // ofrecerlo sin avisar. Aqui solo queda como constante.
+    expect(APP_LOCALE_VALUES).toEqual(Object.values(AppLocale));
   });
 });

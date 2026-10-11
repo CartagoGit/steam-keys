@@ -2,7 +2,20 @@ import { describe, expect, test } from 'bun:test';
 
 import { previewBulkStatus } from './bulk-status-dialog.component';
 import { KeyStatus } from '@/contracts/enums/key-status.enum';
+import { AppLocale } from '@/contracts/enums/app-locale.enum';
+import { translate } from '@/helpers/i18n.helper';
+import type { Translator } from '@/contracts/constants/i18n.constants';
 import type { IGameKey } from '@/contracts/interfaces/game-key.interface';
+
+/**
+ * Traductor en castellano, que es el idioma de origen.
+ *
+ * Se pasa a mano porque `previewBulkStatus` es una funcion pura: no monta nada y
+ * por eso se puede probar sin React. El reparto no depende del idioma, asi que
+ * probarlo en el de origen cubre las mismas ramas que probarlo en los otros
+ * cuatro.
+ */
+const en: Translator = (clave, args) => translate(AppLocale.Es, clave, args);
 
 /**
  * El reparto que enseña el dialogo de cambiar el estado en bloque.
@@ -31,7 +44,7 @@ describe('cambiar el estado de varias claves a la vez', () => {
       clave(2, KeyStatus.Available, { giftedTo: 'Luis' }),
     ];
 
-    const p = previewBulkStatus(seleccion, KeyStatus.Gifted);
+    const p = previewBulkStatus(seleccion, KeyStatus.Gifted, en);
 
     expect(p.cambian.map((k) => k.id)).toEqual([1, 2]);
     expect(p.bloqueadas).toEqual([]);
@@ -43,7 +56,7 @@ describe('cambiar el estado de varias claves a la vez', () => {
       clave(2, KeyStatus.Available),
     ];
 
-    const p = previewBulkStatus(seleccion, KeyStatus.Gifted);
+    const p = previewBulkStatus(seleccion, KeyStatus.Gifted, en);
 
     expect(p.cambian.map((k) => k.id)).toEqual([1]);
     expect(p.bloqueadas).toHaveLength(1);
@@ -59,7 +72,7 @@ describe('cambiar el estado de varias claves a la vez', () => {
       clave(4, KeyStatus.Expired),
     ];
 
-    const p = previewBulkStatus(seleccion, KeyStatus.Expired);
+    const p = previewBulkStatus(seleccion, KeyStatus.Expired, en);
 
     expect(p.cambian.map((k) => k.id)).toEqual([1, 2, 3]);
     // La que ya estaba caducada no se toca: no hay nada que cambiar, y cuenta
@@ -77,7 +90,7 @@ describe('cambiar el estado de varias claves a la vez', () => {
       clave(3, KeyStatus.Redeemed),
     ];
 
-    const p = previewBulkStatus(seleccion, KeyStatus.Available);
+    const p = previewBulkStatus(seleccion, KeyStatus.Available, en);
 
     expect(p.cambian.map((k) => k.id)).toEqual([1]);
     expect(p.bloqueadas.map((b) => b.key.id)).toEqual([2, 3]);
@@ -86,7 +99,7 @@ describe('cambiar el estado de varias claves a la vez', () => {
   test('marcar disponible una seleccion ya disponible no cambia nada', () => {
     const seleccion = [clave(1, KeyStatus.Available), clave(2, KeyStatus.Available)];
 
-    const p = previewBulkStatus(seleccion, KeyStatus.Available);
+    const p = previewBulkStatus(seleccion, KeyStatus.Available, en);
 
     expect(p.cambian).toHaveLength(0);
     expect(p.iguales).toHaveLength(2);
@@ -104,7 +117,7 @@ describe('cambiar el estado de varias claves a la vez', () => {
     ];
 
     for (const estado of Object.values(KeyStatus)) {
-      const p = previewBulkStatus(seleccion, estado);
+      const p = previewBulkStatus(seleccion, estado, en);
 
       expect(p.cambian.length + p.iguales.length + p.bloqueadas.length).toBe(
         seleccion.length,
@@ -113,7 +126,7 @@ describe('cambiar el estado de varias claves a la vez', () => {
   });
 
   test('una seleccion vacia no propone nada', () => {
-    const p = previewBulkStatus([], KeyStatus.Expired);
+    const p = previewBulkStatus([], KeyStatus.Expired, en);
 
     expect(p.cambian).toEqual([]);
     expect(p.iguales).toEqual([]);

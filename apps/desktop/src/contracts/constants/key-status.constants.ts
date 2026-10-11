@@ -1,12 +1,33 @@
 import { KeyStatus } from '../enums/key-status.enum';
 import type { IconName } from '../interfaces/icon-name.interface';
+import type { TranslationTable } from './i18n.constants';
 
+/**
+ * Los colores van con los colores **semanticos** (`bg-ok`, `text-warn`…) y no
+ * con tonos fijos de la rampa de Tailwind.
+ *
+ * Con `bg-emerald-500/15 text-emerald-300` la pastilla se ve bien en los temas
+ * oscuros y se lava en los claros: un verde claro sobre un crema no se lee.
+ * Cada tema declara sus propios tonos de estado en `styles/index.css`, asi que
+ * aqui solo se dice que papel juega cada estado y el color lo pone el tema.
+ *
+ * Lo unico que **no** vive aqui son las etiquetas: ver `statusMeta`.
+ */
 export interface IStatusMeta {
-  label: string;
+  /** Clave de traduccion de la etiqueta. */
+  labelKey: string;
+  /** Clave de traduccion de la explicacion corta. */
+  hintKey: string;
   tone: string;
   icon: IconName;
-  /** Descripcion corta para el tooltip. */
+}
+
+/** El estado ya resuelto en el idioma que hay en pantalla. */
+export interface IStatusMetaResuelta {
+  label: string;
   hint: string;
+  tone: string;
+  icon: IconName;
 }
 
 /**
@@ -20,33 +41,55 @@ export interface IStatusMeta {
  */
 export const KEY_STATUS_META: Readonly<Record<KeyStatus, IStatusMeta>> = Object.freeze({
   [KeyStatus.Available]: {
-    label: 'Disponible',
+    labelKey: 'status.available',
+    hintKey: 'status.hint.available',
     tone: 'bg-ok/15 text-ok ring-ok/30',
     icon: 'gift',
-    hint: 'La tengo yo, todavia regalable.',
   },
   [KeyStatus.Gifted]: {
-    label: 'Regalada',
+    labelKey: 'status.gifted',
+    hintKey: 'status.hint.gifted',
     tone: 'bg-hover text-t3 ring-line',
     icon: 'hand',
-    hint: 'Ya se la he dado a alguien.',
   },
   [KeyStatus.Redeemed]: {
-    label: 'Canjeada',
+    labelKey: 'status.redeemed',
+    hintKey: 'status.hint.redeemed',
     tone: 'bg-info/15 text-info ring-info/30',
     icon: 'check',
-    hint: 'Activada por mi.',
   },
   [KeyStatus.Expired]: {
-    label: 'Caducada',
+    labelKey: 'status.expired',
+    hintKey: 'status.hint.expired',
     tone: 'bg-danger/15 text-danger ring-danger/30',
     icon: 'alert',
-    hint: 'La fecha limite de activacion ya paso.',
   },
   [KeyStatus.Unknown]: {
-    label: 'Por revisar',
+    labelKey: 'status.unknown',
+    hintKey: 'status.hint.unknown',
     tone: 'bg-warn/15 text-warn ring-warn/30',
     icon: 'help',
-    hint: 'No consta cuando caduca o si se puede comprobar.',
   },
 });
+
+/**
+ * Los mismos metadatos, pero ya traducidos.
+ *
+ * Antes las etiquetas estaban escritas aqui en espanol y ningun componente las
+ * traducía, asi que la pastilla de estado de cada fila —la cosa que mas se lee
+ * de la app— salia siempre en espanol, incluso en la version inglesa. Las
+ * claves viven en el diccionario y por aqui solo se resuelven.
+ */
+export function statusMeta(
+  status: KeyStatus,
+  t: TranslationTable,
+): IStatusMetaResuelta {
+  const meta = KEY_STATUS_META[status];
+
+  return {
+    label: t[meta.labelKey] ?? meta.labelKey,
+    hint: t[meta.hintKey] ?? meta.hintKey,
+    tone: meta.tone,
+    icon: meta.icon,
+  };
+}

@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react';
-import { KEY_STATUS_META } from '@/contracts/constants/key-status.constants';
+import { statusMeta } from '@/contracts/constants/key-status.constants';
 import { KEY_STATUS_VALUES, KeyStatus } from '@/contracts/enums/key-status.enum';
 import { Icon } from './icon.component';
 import { Modal } from './modal.component';
 import { Button } from './ui.component';
 import { useT } from '@/context/locale.context';
+import { TRANSLATIONS } from '@/contracts/constants/i18n.constants';
+import type { Translator } from '@/contracts/constants/i18n.constants';
 import type { IGameKey } from '@/contracts/interfaces/game-key.interface';
 
 /** Como queda el reparto al aplicar un estado a una seleccion. */
@@ -48,20 +50,25 @@ export interface IBulkStatusDialogProps {
  * tocarlas y cuantas no se pueden.
  */
 
-/** Motivo por el que una clave no puede pasar a un estado. */
-function motivoBloqueo(estado: KeyStatus, entry: IGameKey): string | null {
+/**
+ * Motivo por el que una clave no puede pasar a un estado.
+ *
+ * Devuelve **texto ya traducido**, no la clave: quien pinta esto es el dialogo,
+ * y el dialogo tiene el idioma a mano. Se le pasa `t` en vez de leer un
+ * contexto para que esta funcion siga siendo pura y se pueda probar sin montar
+ * nada.
+ */
+function motivoBloqueo(estado: KeyStatus, entry: IGameKey, t: Translator): string | null {
   if (entry.status === estado) return null;
 
   switch (estado) {
     case KeyStatus.Available:
       // Volver a disponible solo tiene sentido para una clave caducada: si ya
       // se regaló o se canjeó, la verdad es que ya no se tiene.
-      return entry.status === KeyStatus.Expired
-        ? null
-        : 'Ya no la tienes: regalarla otra vez no es posible';
+      return entry.status === KeyStatus.Expired ? null : t('bulk.blocked.notOwned');
 
     case KeyStatus.Gifted:
-      return entry.giftedTo ? null : 'Falta decir a quien se la regalaste';
+      return entry.giftedTo ? null : t('bulk.blocked.needRecipient');
 
     case KeyStatus.Redeemed:
     case KeyStatus.Expired:
@@ -75,10 +82,17 @@ function motivoBloqueo(estado: KeyStatus, entry: IGameKey): string | null {
   }
 }
 
-/** Reparte la seleccion segun lo que ocurriria si se aplicase `estado`. */
+/**
+ * Reparte la seleccion segun lo que ocurriria si se aplicase `estado`.
+ *
+ * `t` es obligatorio y va el ultimo porque es quien decide el idioma en que
+ * salen los motivos: sin el, esta funcion devolveria castellano en una app
+ * puesta en frances, que es el fallo que se estaba intentando quitar.
+ */
 export function previewBulkStatus(
   entries: readonly IGameKey[],
   estado: KeyStatus,
+  t: Translator,
 ): IBulkStatusPreview {
   const cambian: IGameKey[] = [];
   const iguales: IGameKey[] = [];
@@ -90,7 +104,7 @@ export function previewBulkStatus(
       continue;
     }
 
-    const motivo = motivoBloqueo(estado, entry);
+    const motivo = motivoBloqueo(estado, entry, t);
 
     if (motivo === null) cambian.push(entry);
     else bloqueadas.push({ key: entry, motivo });
@@ -116,15 +130,21 @@ export function BulkStatusDialog({
   onApply,
   onClose,
 }: IBulkStatusDialogProps) {
-  const { t } = useT();
+  const { t, locale } = useT();
 
   const [estado, setEstado] = useState<KeyStatus>(KeyStatus.Available);
   const [ocupado, setOcupado] = useState(false);
   /** Cuantas cambiaron de verdad, o `null` si todavia no se ha aplicado. */
   const [aplicadas, setAplicadas] = useState<number | null>(null);
 
-  const preview = useMemo(() => previewBulkStatus(entries, estado), [entries, estado]);
-  const meta = KEY_STATUS_META[estado];
+  // `locale` va en las dependencias porque `t` cambia de identidad al cambiar el
+  // idioma: sin el, cambiar de idioma no recalcularia el reparto y los motivos
+  // seguirian en castellano hasta que se abriera el dialogo otra vez.
+  const preview = useMemo(
+    () => previewBulkStatus(entries, estado, t),
+    [entries, estado, t, locale],
+  );
+  const meta = statusMeta(estado, TRANSLATIONS[locale]);
 
   const aplicar = async (): Promise<void> => {
     setOcupado(true);
@@ -169,7 +189,7 @@ export function BulkStatusDialog({
         */}
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {KEY_STATUS_VALUES.map((valor) => {
-            const info = KEY_STATUS_META[valor];
+            const info = statusMeta(valor, TRANSLATIONS[locale]);
             const activo = estado === valor;
 
             return (

@@ -24,6 +24,17 @@ export type TranslationTable = Readonly<Record<TranslationKey, string>>;
  */
 export type TranslationArgs = readonly (string | number)[];
 
+/**
+ * La funcion que traduce una clave.
+ *
+ * Vive aqui y no en `useT()` porque hay codigo que necesita traducir **fuera**
+ * de un componente: el reparto del dialogo de estados, por ejemplo, se calcula
+ * en una funcion pura que se prueba sin montar nada. Al tiparla con este
+ * alias, tanto `t()` de un componente como la que se pasa a mano encajan sin
+ * haber que repetir la firma.
+ */
+export type Translator = (clave: TranslationKey, args?: TranslationArgs) => string;
+
 export const EN: TranslationTable = Object.freeze({
   // ------------------------------------------------------------- generic ---
   'action.save': 'Save',
@@ -38,10 +49,8 @@ export const EN: TranslationTable = Object.freeze({
   'app.title': 'Steam Keys',
   'app.subtitle': '{0} available of {1}',
   'search.placeholder': 'Search by game, key, recipient or note…',
-  'search.shortcut': '/',
 
   // ------------------------------------------------------------ toolbar ---
-  'toolbar.filters': 'Filters',
   'toolbar.sort': 'Sort by',
   'toolbar.export': 'Export',
   'toolbar.import': 'Import',
@@ -54,8 +63,6 @@ export const EN: TranslationTable = Object.freeze({
   'sort.platform': 'By platform',
   'filter.platform': 'Platform',
   'filter.status': 'Status',
-  'filter.onlyGiftable': 'Available only',
-  'filter.onlyAddOns': 'DLC only',
 
   // -------------------------------------------------------------- scope ---
   'filter.scope.label': 'Status',
@@ -71,26 +78,16 @@ export const EN: TranslationTable = Object.freeze({
   'filter.status.locked':
     'With “Available only” you are already seeing the keys that are neither gifted nor redeemed, so filtering by status at the same time does nothing.',
   'filter.reset': 'Clear search and filters',
-  'filter.platform.hint': 'Filters by the store the key is redeemed on',
-  'filter.status.hint': 'Filters by what each key has been through',
 
   // ---------------------------------------------------------- selection ---
   'select.one': '1 selected',
   'select.many': '{0} selected',
   'select.all': 'Select all',
-  'select.none': 'Clear',
-  'select.availableOnly': 'Available only',
   'select.export': 'Export as gift',
   'select.markGifted': 'Mark gifted',
-  'select.markExpired': 'Mark expired',
   'select.tags': 'Tags',
 
   // ----------------------------------------------------------- tooltips ---
-  'why.export': 'Only available keys can be gifted. Turn on “Available only” to exclude the rest.',
-  'why.gifted': 'A gifted key cannot be given away again. Turn on “Available only” to exclude the rest.',
-  'why.expired': 'Select at least one key that is not already gifted or redeemed.',
-  'why.tags': 'Select at least one key first.',
-  'why.noSelection': 'Nothing selected.',
 
   // ---------------------------------------------------------- status ---
   'status.available': 'Available',
@@ -105,32 +102,18 @@ export const EN: TranslationTable = Object.freeze({
   'status.hint.unknown': 'Not sure when it expires.',
 
   // -------------------------------------------------------- empty state ---
-  'empty.search.title': 'No results',
-  'empty.search.body': 'Try a different search or remove a filter.',
-  'empty.search.action': 'Clear filters',
-  'empty.none.title': 'No keys yet',
-  'empty.none.body': 'Import your TXT or add a key by hand.',
-  'empty.none.import': 'Import TXT',
-  'empty.none.add': 'Add a key',
 
   // --------------------------------------------------------- footer ---
   'footer.count': '{0} of {1} keys',
-  'footer.giftable': '· {0} giftable',
 
   // -------------------------------------------------------- tags modal ---
   'tags.title': 'Tags',
-  'tags.subtitle': '{0} key(s) will be changed',
   'tags.new': 'New tag',
-  'tags.add': 'Add',
-  'tags.empty': 'No tags in the collection yet.',
-  'tags.apply': 'Apply to selected',
-  'tags.hint': 'Keys that do not have a tag get it. Keys that have it keep it.',
 
   // ------------------------------------------------------ settings ---
   'settings.title': 'Settings',
   'settings.tab.appearance': 'Appearance',
   'settings.tab.account': 'Steam account',
-  'settings.tab.data': 'Data',
   'settings.theme': 'Theme',
   'settings.language': 'Language',
   'settings.apiKey': 'Steam Web API key',
@@ -138,24 +121,14 @@ export const EN: TranslationTable = Object.freeze({
     'Free, and stored only on this computer: it is never sent anywhere.',
   'settings.apiKey.link': 'Get a new key',
   'settings.apiKey.placeholder': 'Paste your key here',
-  'settings.steamId': 'Steam ID',
+  'settings.apiKey.show': 'Show key',
+  'settings.apiKey.hide': 'Hide key',
   'settings.steam.link': 'Connect',
-  'settings.steam.unlink': 'Disconnect',
   'settings.steam.linked': 'Connected as {0}',
   'settings.steam.notLinked': 'Not connected',
   'settings.steam.syncedAt': 'Last synced {0}',
-  'settings.steam.never': 'never',
   'settings.steam.visibility':
     'Your Steam profile must be public for the app to see your library.',
-  'settings.saved': 'Settings saved.',
-  'settings.keySaved': 'Key saved.',
-  'settings.keyForgotten': 'Key removed.',
-  'settings.steam.error.missingKey': 'Enter the API key first.',
-  'settings.steam.error.badId': 'The Steam ID must be 17 digits starting with 7656119.',
-  'settings.steam.error.private':
-    'The library came back empty. Check that your profile is public.',
-  'settings.steam.error.http': 'Steam did not answer. Try again in a moment.',
-  'settings.steam.error.link': 'Could not connect the account.',
 
   // --------------------------------------------------------- library ---
   'view.label': 'Collection',
@@ -166,17 +139,11 @@ export const EN: TranslationTable = Object.freeze({
   'library.playtimeShort': 'Played',
   'library.playtime': '{0} h played',
   'library.notPlayed': 'Never played',
-  'library.installed': 'Installed',
   'library.owned': 'Owned',
 
   // ------------------------------------------------------- owned games ---
-  'owned.why': 'You already own this game',
   'owned.owned': 'Owned',
-  'owned.installed': 'Installed',
-  'owned.played': '{0} h played',
-  'owned.never': 'Never played',
   'owned.dlc': 'DLC',
-  'owned.verified': 'Verified',
   'owned.unverified': 'Not matched yet',
 
   // ------------------------------------------------------------ toasts ---
@@ -193,18 +160,6 @@ export const EN: TranslationTable = Object.freeze({
   'toast.nothingSelected': 'Nothing selected.',
 
   // ------------------------------------------------------ review score ---
-  'review.label': 'Reviews',
-  'review.recent': 'Last 30 days',
-  'review.allTime': 'All time',
-  'review.veryPositive': 'Very Positive',
-  'review.positive': 'Positive',
-  'review.mixed': 'Mixed',
-  'review.negative': 'Negative',
-  'review.veryNegative': 'Very Negative',
-  'review.unknown': 'No reviews',
-  'review.metacritic': 'Metacritic {0}',
-  'review.noData': 'No data yet',
-
 
   'action.edit':
     'Edit',
@@ -236,24 +191,12 @@ export const EN: TranslationTable = Object.freeze({
     'Change status',
   'select.groupOrganize':
     'Organise',
-  'select.markAllGifted':
-    'Mark as gifted',
   'select.exportHint':
     'Save the selected keys to a TXT file to gift them',
   'select.giftedHint':
     'Mark the selected keys as already gifted and say who to',
-  'select.expiredHint':
-    'Mark the selected keys as expired',
   'select.tagsHint':
     'Change the tags of the selected keys',
-  'select.blockedCount':
-    'Turn on "Only available" to leave those {0} out',
-  'select.blockedOne':
-    'Turn on "Only available" to leave that one out',
-  'select.blockedNone':
-    'Turn on "Only available" to act on the selection',
-  'select.blockedExpired':
-    'They were already all expired',
   'bulk.title':
     'Change status',
   'bulk.subtitle':
@@ -264,10 +207,6 @@ export const EN: TranslationTable = Object.freeze({
     'Change status',
   'bulk.pending':
     '{0} keys become {1}',
-  'bulk.unchanged':
-    '{0} were already {1}',
-  'bulk.skipped':
-    '{0} cannot become {1}: {2}',
   'bulk.done':
     'Status changed on {0} keys.',
   'bulk.none':
@@ -298,14 +237,8 @@ export const EN: TranslationTable = Object.freeze({
     'Add the tag to the selection',
   'tags.applyHint':
     'Apply these tags to all the selected keys',
-  'editor.new':
-    'Add key',
-  'editor.edit':
-    'Edit key',
   'editor.title':
     'Game',
-  'editor.titleHint':
-    'The game name as it appears on Steam.',
   'editor.titlePlaceholder':
     'Celeste, Hollow Knight, Half-Life 2…',
   'editor.key':
@@ -342,14 +275,8 @@ export const EN: TranslationTable = Object.freeze({
     'Separated by commas.',
   'editor.tagsPlaceholder':
     'humble, dlc, promo',
-  'editor.needKey':
-    'The key cannot be empty.',
-  'editor.needTitle':
-    'The game cannot be empty.',
   'gift.title':
     'Mark as gifted',
-  'gift.hint':
-    'Who each key was given to. Without a name the status is not changed.',
   'gift.placeholder':
     'Name of whoever gets it',
   'import.title':
@@ -368,10 +295,6 @@ export const EN: TranslationTable = Object.freeze({
     'Already gifted',
   'import.giftedHint':
     'The TXT marked them with a leading dash',
-  'import.confirm':
-    'Import',
-  'import.cancel':
-    'Cancel',
   'row.dlc':
     'Add-on content from another game',
   'row.owned':
@@ -388,50 +311,124 @@ export const EN: TranslationTable = Object.freeze({
     'Status: {0}. {1} Click to change it.',
   'row.forRecipient':
     'to {0}',
-  'data.title':
-    'Data',
-  'data.subtitle':
-    'Backup, restore and delete',
-  'data.export':
-    'Export backup',
-  'data.import':
-    'Restore backup',
-  'data.delete':
-    'Delete everything',
-  'data.deleteConfirm':
-    'This cannot be undone. Are you sure?',
   'data.close':
     'Close data',
-  'data.size':
-    'Size',
-  'data.path':
-    'Path',
-  'data.copy':
-    'Copy path',
-  'data.copied':
-    'Path copied.',
-  'footer.games':
-    '{0} games on Steam',
-  'footer.shortcutSearch':
-    'search',
-  'footer.shortcutNew':
-    'new',
-  'footer.showing':
-    'Showing {0} of {1}. Narrow the search to see the rest.',
+  'bulk.blocked.notOwned': 'You do not have it any more: giving it away again is not possible',
+  'bulk.blocked.needRecipient': 'You still have to say who you gave it to',
+  'gift.count.one': '1 key selected',
+  'gift.count.many': '{0} keys selected',
+  'gift.action': 'Mark as gifted',
+  'gift.needRecipient': 'Type who you are giving it to first',
+  'import.none': 'Nothing to import',
+  'import.apply': 'Import {0} keys',
+  'tags.count.one': '1 key will change',
+  'tags.count.many': '{0} keys will change',
+  'editor.needBoth': 'The game name and the key are both required.',
+  'editor.saveError': 'Could not save.',
+  'editor.editTitle': 'Edit key',
+  'editor.newTitle': 'New key',
+  'editor.editHint': 'Changes are saved to your local database.',
+  'editor.newHint': 'Add a key to your collection.',
+  'editor.save': 'Save changes',
+  'editor.add': 'Add key',
+  'storage.error.read': 'Could not read the state.',
+  'storage.error.backup': 'Could not create the copy.',
+  'storage.deleted': 'Copy deleted.',
+  'storage.error.delete': 'Could not delete it.',
+  'storage.error.restore': 'Could not restore it.',
+  'storage.unexpected': 'The database is not behaving as expected.',
+  'storage.corrupted': 'SQLite has reported an integrity problem.',
+  'storage.corruptedTitle': 'The database is damaged',
+  'storage.backupNow': 'Create a copy now',
+  'storage.desktopOnly': 'Available in the desktop app only',
+  'storage.copyNow': 'Copy now',
+  'storage.restoring': 'Restoring…',
+  'storage.restore': 'Restore',
+  'storage.mode.desktop': 'Desktop app',
+  'storage.mode.devBridge': 'Development (real database)',
+  'storage.mode.memory': 'Preview in the browser',
+  'storage.notice.desktop': 'Your keys are on your disk, in a SQLite database, with automatic backups.',
+  'storage.notice.devBridge': 'You are looking at the real database through the development bridge. Anything you edit here is saved to it.',
+  'storage.notice.memory': 'Preview in the browser: the data lives in localStorage and is lost if you clear the browser data.',
+  'app.loadFailed': 'Could not read the collection.',
+  'app.nothingSelected': 'Nothing selected.',
+  'app.saveFailed': 'Could not save.',
+  'app.needApiKey': 'The API key is needed first.',
+  'app.keyForgotten': 'Key removed.',
+  'app.readFileFailed': 'Could not read the file.',
+  'app.importFailed': 'The import failed.',
+  'app.exportFailed': 'The export failed.',
+  'app.syncFailed': 'The sync failed.',
+  'app.markFailed': 'Could not mark them.',
+  'app.tagsFailed': 'Could not change the tags.',
+  'app.fileFailed': 'Could not save the file.',
+  'app.saved': 'Key updated.',
+  'app.created': 'Key added.',
+  'app.deleted': 'Key deleted.',
+  'app.noFile': 'No file was saved.',
+  'app.needRecipient': 'You have to say who you gave it to.',
+  'app.exportOne': '1 key saved in {0}',
+  'app.exportMany': '{0} keys saved in {1}',
+  'app.giftedOne': '1 key gifted to {0}.',
+  'app.giftedMany': '{0} keys gifted to {1}.',
+  'app.expiredOne': '1 key marked as expired.',
+  'app.expiredMany': '{0} keys marked as expired.',
+  'app.tagsOne': 'Tag updated on 1 key.',
+  'app.tagsMany': 'Tags updated on {0} keys.',
+  'app.libraryOne': '1 game in your library.',
+  'app.libraryMany': '{0} games in your library.',
+  'app.importedOne': '1 key imported',
+  'app.importedMany': '{0} keys imported',
+  'app.importedDupes': ' ({0} already there)',
+  'app.exported': '{0} keys exported.',
+  'app.synced': 'Library synced: {0} games.',
+  'storage.checking': 'Checking…',
+  'storage.section.storage': 'Storage',
+  'storage.section.backups': 'Backups',
+  'storage.data.keys': 'Keys stored',
+  'storage.data.size': 'File size',
+  'storage.data.where': 'Storage',
+  'storage.data.whereHint': 'Where your keys are being stored right now.',
+  'storage.data.unknown': 'To review',
+  'storage.data.unknownHint': 'Keys whose platform could not be determined.',
+  'storage.data.location': 'Location',
+  'storage.backups.none': 'No backups yet. They are made automatically before each import or restore, and you can also press «Copy now».',
+  'storage.backups.desktopOnly': 'Backups are a desktop app feature. There are none here.',
+  'storage.backups.keep': 'The 10 most recent copies are kept in the «backups» folder next to the database, and they are made automatically before each import or restore.',
+  'storage.refresh': 'Refresh',
+  'storage.restoreTitle': 'Restore {0}',
+  'storage.restoreHint': 'A copy of the current state is made before anything is applied, so this can be undone too.',
+  'storage.merge.title': 'Only add what is missing',
+  'storage.merge.text': 'Recovers the keys you do not have. Leaves the existing ones alone.',
+  'storage.overwrite.title': 'Add and update statuses',
+  'storage.overwrite.text': 'It also puts every key back the way it was in the copy. Useful if you changed statuses by mistake.',
+  'storage.restoreSafe': 'Neither option deletes keys: restoring never shrinks your collection.',
+  'row.delete': 'Delete key',
+  'app.linkFailed': 'Could not link the account.',
+  'gift.hint': 'Mark the selected keys as already gifted',
+  'select.markExpired': 'Mark as expired',
+  'footer.giftable': '· {0} giftable',
+  'footer.games': '{0} games on Steam',
+  'footer.shortcutSearch': 'search',
+  'footer.shortcutNew': 'new',
+  'footer.showing': 'Showing {0} of {1}. Narrow the search to see the rest.',
+  'platform.unknown': 'Undetermined',
 });
 
 /**
- * Traducciones que faltan en un idioma.
+ * Los demas idiomas viven en su propio fichero.
  *
- * No es un error: `t()` cae en la clave (español) cuando aqui no hay nada. Se
- * deja el diccionario explicito y vacio para que quede a la vista que queda por
- * hacer, en vez de dejar una constante ausente que parece un olvido.
+ * Cada uno esta **completo**, y eso es una condicion, no una aspiracion: `t()`
+ * cae en la clave cuando falta algo, asi que un diccionario a medio hacer se ve
+ * en pantalla como un idioma que no hace nada, que es peor que no ofrecerlo.
+ * El selector deja de ser una lista de opciones y pasa a ser una trampa.
+ *
+ * Por eso `APP_LOCALE_VALUES` solo lista los que estan completos, y por eso el
+ * test de cobertura obliga a que cada idioma tenga todas las claves de `ES`.
  */
-export const FR: TranslationTable = Object.freeze({});
-
-export const PT: TranslationTable = Object.freeze({});
-
-export const CA: TranslationTable = Object.freeze({});
+import { DE } from './i18n-de.constants';
+import { FR } from './i18n-fr.constants';
+import { PT } from './i18n-pt.constants';
 
 /** Tabla de cada idioma, incluido el de origen. */
 export const TRANSLATIONS: Readonly<Record<AppLocale, TranslationTable>> =
@@ -440,5 +437,5 @@ export const TRANSLATIONS: Readonly<Record<AppLocale, TranslationTable>> =
     en: EN,
     fr: FR,
     pt: PT,
-    ca: CA,
+    de: DE,
   });

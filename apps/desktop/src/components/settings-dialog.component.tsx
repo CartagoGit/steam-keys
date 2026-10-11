@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react';
-import { APP_LOCALE_VALUES, AppLocale } from '@/contracts/enums/app-locale.enum';
+import { AppLocale } from '@/contracts/enums/app-locale.enum';
 import {
   APP_THEME_SWATCHES,
   APP_THEME_VALUES,
   AppTheme,
 } from '@/contracts/enums/app-theme.enum';
-import { LOCALE_META, THEME_LABELS } from '@/contracts/constants/locale.constants';
+import { THEME_LABELS } from '@/contracts/constants/locale.constants';
 import { STEAM_API_KEY_URL } from '@/contracts/constants/app.constants';
 import { Icon } from './icon.component';
+import { LocaleSelect } from './locale-select.component';
 import { Modal } from './modal.component';
 import {
   Badge,
@@ -18,6 +19,7 @@ import {
   PasswordInput,
 } from './ui.component';
 import { useT } from '@/context/locale.context';
+import { normalizarClaveApi, normalizarIdSteam } from '@/helpers/steam-input.helper';
 import type { IAppSettings } from '@/contracts/interfaces/app-settings.interface';
 import type { SteamAccountStatus } from '@/contracts/interfaces/steam-account.interface';
 
@@ -123,11 +125,21 @@ export function SettingsDialog({
     setError(null);
 
     try {
-      setError(await onLinkSteam(apiKey.trim(), steamId.trim()));
+      setError(await onLinkSteam(normalizarClaveApi(apiKey), normalizarIdSteam(steamId)));
     } finally {
       setOcupado(false);
     }
   };
+
+  /**
+   * Al conectar se limpian los dos campos antes de mandarlos.
+   *
+   * Aunque ya se limpian al escribir, se vuelven a limpiar aqui porque es el
+   * ultimo punto antes de que el valor llegue a la base de datos, y la regla
+   * que vale es "lo que se guarda es lo que habia escrito". Si alguien pega
+   * desde otro sitio y el valor llega con espacios por una via que no pasa por
+   * el campo, aqui sigue cogiendose.
+   */
 
   const olvidar = async (): Promise<void> => {
     setOcupado(true);
@@ -238,18 +250,11 @@ export function SettingsDialog({
             </Field>
 
             <Field label={t('settings.language')} hint={t('settings.language.hint')}>
-              <select
+              <LocaleSelect
                 value={idioma}
-                onChange={(event) => void cambiarIdioma(event.target.value as AppLocale)}
-                className={INPUT_CLASS}
-                aria-label={t('settings.language')}
-              >
-                {APP_LOCALE_VALUES.map((valor) => (
-                  <option key={valor} value={valor}>
-                    {LOCALE_META[valor]?.label ?? valor}
-                  </option>
-                ))}
-              </select>
+                onChange={(valor) => void cambiarIdioma(valor)}
+                label={t('settings.language')}
+              />
             </Field>
           </div>
         ) : (
@@ -314,7 +319,9 @@ export function SettingsDialog({
             >
               <PasswordInput
                 value={apiKey}
-                onChange={setApiKey}
+                onChange={(valor) => setApiKey(normalizarClaveApi(valor))}
+                labelVisible={t('settings.apiKey.show')}
+                labelHidden={t('settings.apiKey.hide')}
                 placeholder={t('settings.apiKey.placeholder')}
               />
             </Field>
@@ -323,7 +330,7 @@ export function SettingsDialog({
               <input
                 type="text"
                 value={steamId}
-                onChange={(event) => setSteamId(event.target.value)}
+                onChange={(event) => setSteamId(normalizarIdSteam(event.target.value))}
                 placeholder={t('settings.steamId.placeholder')}
                 autoComplete="off"
                 spellCheck={false}
@@ -349,11 +356,11 @@ export function SettingsDialog({
                 variant="primary"
                 icon="refresh"
                 onClick={() => void conectar()}
-                disabled={ocupado || !cuentaValida || apiKey.trim().length === 0}
+                disabled={ocupado || !cuentaValida || apiKey.length === 0}
                 title={
                   !cuentaValida
                     ? t('settings.steam.needId')
-                    : apiKey.trim().length === 0
+                    : apiKey.length === 0
                       ? t('settings.steam.needKey')
                       : t('settings.steam.link')
                 }

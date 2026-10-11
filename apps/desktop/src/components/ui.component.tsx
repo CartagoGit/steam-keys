@@ -160,10 +160,15 @@ export interface IPasswordInputProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
-  /** Texto del boton cuando la clave esta tapada. */
-  labelVisible?: string;
+  /**
+   * Texto del boton cuando la clave esta tapada. Es obligatorio, y no lleva
+   * valor por defecto a proposito: es el texto del boton, se ve en pantalla, y
+   * un valor por defecto en castellano sale siempre en castellano en los cinco
+   * idiomas. Quien lo usa tiene que traerlo ya traducido.
+   */
+  labelVisible: string;
   /** Texto del boton cuando la clave esta a la vista. */
-  labelHidden?: string;
+  labelHidden: string;
 }
 
 /**
@@ -179,8 +184,8 @@ export function PasswordInput({
   value,
   onChange,
   placeholder,
-  labelVisible = 'Ver la clave',
-  labelHidden = 'Ocultar la clave',
+  labelVisible,
+  labelHidden,
 }: IPasswordInputProps) {
   const [visible, setVisible] = useState(false);
 

@@ -11,12 +11,21 @@ import { AppLocale } from '../enums/app-locale.enum';
 export const LOCALE_META: Readonly<
   Record<AppLocale, { label: string; flag: string }>
 > = Object.freeze({
-  [AppLocale.Es]: { label: 'Español', flag: 'ES' },
-  [AppLocale.En]: { label: 'English', flag: 'EN' },
-  [AppLocale.Fr]: { label: 'Français', flag: 'FR' },
-  [AppLocale.Pt]: { label: 'Português', flag: 'PT' },
-  [AppLocale.Ca]: { label: 'Català', flag: 'CA' },
+  [AppLocale.Es]: { label: 'Espanol', flag: '/flags/es.svg' },
+  [AppLocale.En]: { label: 'English', flag: '/flags/en.svg' },
+  [AppLocale.Fr]: { label: 'Francais', flag: '/flags/fr.svg' },
+  [AppLocale.Pt]: { label: 'Portugues', flag: '/flags/pt.svg' },
+  [AppLocale.De]: { label: 'Deutsch', flag: '/flags/de.svg' },
 });
+
+/**
+ * Ancho de cada bandera. La altura sale de la proporcion real (3:2).
+ *
+ * 22 px y no mas porque a tamano pequeno una bandera solo se distingue por el
+ * color dominante, y a partir de 30 px empiezan a dominar el campo y ya parece
+ * una coleccion de sellos en vez de un selector de idioma.
+ */
+export const LOCALE_FLAG_SIZE = 22;
 
 /**
  * Etiquetas de los temas, en el idioma de cada traduccion.

@@ -51,12 +51,12 @@ export function GiftDialog({
           <div>
             <h2 className="flex items-center gap-2 text-sm font-semibold text-t1">
               <Icon name="hand" size={16} className="text-ok" />
-              Marcar como regaladas
+              {t('gift.title')}
             </h2>
             <p className="mt-0.5 text-[11px] text-t4">
               {entries.length === 1
-                ? '1 clave seleccionada'
-                : `${entries.length} claves seleccionadas`}
+                ? t('gift.count.one')
+                : t('gift.count.many', [entries.length])}
             </p>
           </div>
 
@@ -109,7 +109,7 @@ export function GiftDialog({
 
         <footer className="flex justify-end gap-2 border-t border-line px-5 py-3">
           <Button variant="ghost" onClick={onCancel}>
-            Cancelar
+            {t('action.cancel')}
           </Button>
           <Button
             variant="primary"
@@ -118,11 +118,11 @@ export function GiftDialog({
             disabled={!habilitado}
             title={
               habilitado
-                ? 'Marcar las claves seleccionadas como regaladas'
-                : 'Escribe primero a quién se lo regalas'
+                ? t('gift.hint')
+                : t('gift.needRecipient')
             }
           >
-            Marcar regaladas
+            {t('gift.action')}
           </Button>
         </footer>
     </Modal>

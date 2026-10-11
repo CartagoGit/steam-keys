@@ -27,7 +27,7 @@ import { computeStats, emptyFilter, filterKeys, sortKeys } from '@/helpers/filte
 import { analyzeSelection, claveGrupo, groupByTitle, podarSeleccion, type SelectAction } from '@/helpers/selection.helper';
 import { mergeTags, removeTags } from '@/contracts/constants/tag.constants';
 import { useKeepMounted } from '@/helpers/use-exit-animation.helper';
-import type { TranslationArgs } from '@/contracts/constants/i18n.constants';
+import type { TranslationArgs, Translator } from '@/contracts/constants/i18n.constants';
 import type { AppLocale } from '@/contracts/enums/app-locale.enum';
 import { gameKeyService } from '@/services/game-key.service';
 import { settingsService, DEFAULT_SETTINGS } from '@/services/settings.service';
@@ -143,6 +143,20 @@ export function App() {
     [idioma],
   );
 
+  /**
+   * Traducir desde aqui, sin `useT()`.
+   *
+   * Este componente es el que **provee** el contexto de idioma, asi que no
+   * puede consumirlo: seria pedir un valor a si mismo. Como es quien tiene
+   * `idioma` a mano, traduce directamente. Antes no traducia nada y por eso
+   * toda la vista principal (avisos, pie de pagina, avisos de error) salia en
+   * castellano con la app en cualquier otro idioma.
+   */
+  const traducir = useCallback<Translator>(
+    (clave, args) => translate(idioma, clave, args),
+    [idioma],
+  );
+
   const [owned, setOwned] = useState<readonly ISteamOwnedGame[]>([]);
   const [cuenta, setCuenta] = useState<SteamAccountStatus>({
     conectado: false,
@@ -192,7 +206,7 @@ export function App() {
       setKeys(await gameKeyService.list());
     } catch (cause) {
       notify(
-        cause instanceof Error ? cause.message : 'No se pudo leer la coleccion.',
+        cause instanceof Error ? cause.message : traducir('app.loadFailed'),
         'error',
       );
     } finally {
@@ -370,7 +384,7 @@ export function App() {
   /** El texto que explica por que un boton esta apagado. */
   const motivo = useCallback(
     (action: SelectAction): string | undefined => {
-      if (selectedKeys.length === 0) return 'No hay nada seleccionado.';
+      if (selectedKeys.length === 0) return traducir('app.nothingSelected');
 
       return facts.blocked.find((bloqueo) => bloqueo.action === action)?.message;
     },
@@ -474,7 +488,7 @@ export function App() {
   const handleSave = async (draft: IGameKeyDraft): Promise<void> => {
     if (editing) {
       await gameKeyService.update(editing.id, draft);
-      notify('Key actualizada.', 'success');
+      notify(traducir('app.saved'), 'success');
     } else {
       await gameKeyService.create({
         title: draft.title,
@@ -487,7 +501,7 @@ export function App() {
         tags: draft.tags,
         addedOn: draft.addedOn,
       });
-      notify('Key anadida.', 'success');
+      notify(traducir('app.created'), 'success');
     }
 
     setEditorOpen(false);
@@ -500,7 +514,7 @@ export function App() {
 
     await gameKeyService.remove(deleting.id);
     setDeleting(null);
-    notify('Key eliminada.', 'success');
+    notify(traducir('app.deleted'), 'success');
     await reload();
   };
 
@@ -552,7 +566,7 @@ export function App() {
 
     // El aviso va **ademas** del mensaje del dialogo, no en vez de el: el
     // dialogo se puede cerrar sin leer y el cambio ya esta hecho.
-    notify(t.t('bulk.done', [aplicables.length]), 'success');
+    notify(traducir('bulk.done', [aplicables.length]), 'success');
 
     return aplicables.length;
   };
@@ -580,17 +594,19 @@ export function App() {
       const resultado = await gameKeyService.exportGiftSelection(actionableKeys);
 
       if (resultado === null) {
-        notify('No se guardo ningun fichero.', 'info');
+        notify(traducir('app.noFile'), 'info');
         return;
       }
 
       notify(
-        `${resultado.total} ${resultado.total === 1 ? 'clave guardada' : 'claves guardadas'} en ${resultado.path}`,
+        resultado.total === 1
+          ? traducir('app.exportOne', [resultado.path])
+          : traducir('app.exportMany', [resultado.total, resultado.path]),
         'success',
       );
     } catch (cause) {
       notify(
-        cause instanceof Error ? cause.message : 'No se pudo guardar el fichero.',
+        cause instanceof Error ? cause.message : traducir('app.fileFailed'),
         'error',
       );
     } finally {
@@ -604,7 +620,7 @@ export function App() {
     // El boton ya esta apagado si va vacio; esto es la segunda red, por si
     // alguien llega aqui por el teclado o por una llamada directa.
     if (limpio.length === 0) {
-      notify('Hay que decir a quien se lo has regalado.', 'error');
+      notify(traducir('app.needRecipient'), 'error');
       return;
     }
 
@@ -623,13 +639,15 @@ export function App() {
       setGiftDialogOpen(false);
 
       notify(
-        `${total} ${total === 1 ? 'clave regalada' : 'claves regaladas'} a ${limpio}.`,
+        total === 1
+          ? traducir('app.giftedOne', [limpio])
+          : traducir('app.giftedMany', [total, limpio]),
         'success',
       );
       await reload();
     } catch (cause) {
       notify(
-        cause instanceof Error ? cause.message : 'No se pudieron marcar.',
+        cause instanceof Error ? cause.message : traducir('app.markFailed'),
         'error',
       );
     } finally {
@@ -658,13 +676,15 @@ export function App() {
       setExpireDialogOpen(false);
 
       notify(
-        `${total} ${total === 1 ? 'clave caducada' : 'claves caducadas'}.`,
+        total === 1
+          ? traducir('app.expiredOne')
+          : traducir('app.expiredMany', [total]),
         'success',
       );
       await reload();
     } catch (cause) {
       notify(
-        cause instanceof Error ? cause.message : 'No se pudieron marcar.',
+        cause instanceof Error ? cause.message : traducir('app.markFailed'),
         'error',
       );
     } finally {
@@ -699,13 +719,15 @@ export function App() {
       setTagsOpen(false);
 
       notify(
-        `Etiquetas actualizadas en ${total} ${total === 1 ? 'clave' : 'claves'}.`,
+        total === 1
+          ? traducir('app.tagsOne')
+          : traducir('app.tagsMany', [total]),
         'success',
       );
       await reload();
     } catch (cause) {
       notify(
-        cause instanceof Error ? cause.message : 'No se pudieron cambiar las etiquetas.',
+        cause instanceof Error ? cause.message : traducir('app.tagsFailed'),
         'error',
       );
     } finally {
@@ -730,7 +752,7 @@ export function App() {
 
       return null;
     } catch (cause) {
-      return cause instanceof Error ? cause.message : 'No se pudieron guardar.';
+      return cause instanceof Error ? cause.message : traducir('app.saveFailed');
     }
   };
 
@@ -739,7 +761,7 @@ export function App() {
     steamId: string,
   ): Promise<string | null> => {
     if (apiKey.trim().length === 0) {
-      return 'Antes hay que poner la clave de la API.';
+      return traducir('app.needApiKey');
     }
 
     setBusy(true);
@@ -771,7 +793,9 @@ export function App() {
       });
 
       notify(
-        `${juegos.length} ${juegos.length === 1 ? 'juego' : 'juegos'} en tu biblioteca.`,
+        juegos.length === 1
+          ? traducir('app.libraryOne')
+          : traducir('app.libraryMany', [juegos.length]),
         'success',
       );
 
@@ -782,7 +806,7 @@ export function App() {
         return cause.message;
       }
 
-      return 'No se ha podido conectar la cuenta.';
+      return traducir('app.linkFailed');
     } finally {
       setBusy(false);
     }
@@ -799,7 +823,7 @@ export function App() {
       sincronizadoAt: null,
       perfilPrivado: false,
     });
-    notify('Clave borrada.', 'info');
+    notify(traducir('app.keyForgotten'), 'info');
   };
 
   // --------------------------------------------------------- importacion ---
@@ -822,7 +846,7 @@ export function App() {
       setStagedImport({ fileName: 'steam-keys.txt', contents, preview });
     } catch (cause) {
       notify(
-        cause instanceof Error ? cause.message : 'No se pudo leer el fichero.',
+        cause instanceof Error ? cause.message : traducir('app.readFileFailed'),
         'error',
       );
     } finally {
@@ -840,8 +864,12 @@ export function App() {
       const result = await storageService.commitImport(stagedImport.contents);
 
       notify(
-        `Importadas ${result.inserted} claves` +
-          (result.alreadyInDb > 0 ? ` (${result.alreadyInDb} ya estaban)` : ''),
+        (result.inserted === 1
+          ? traducir('app.importedOne')
+          : traducir('app.importedMany', [result.inserted])) +
+          (result.alreadyInDb > 0
+            ? traducir('app.importedDupes', [result.alreadyInDb])
+            : ''),
         'success',
       );
 
@@ -849,7 +877,7 @@ export function App() {
       await reload();
     } catch (cause) {
       notify(
-        cause instanceof Error ? cause.message : 'La importacion fallo.',
+        cause instanceof Error ? cause.message : traducir('app.importFailed'),
         'error',
       );
     } finally {
@@ -862,9 +890,9 @@ export function App() {
       const result = await gameKeyService.exportToDialog();
       if (!result) return;
 
-      notify(`Exportadas ${result.total} claves.`, 'success');
+      notify(traducir('app.exported', [result.total]), 'success');
     } catch (cause) {
-      notify(cause instanceof Error ? cause.message : 'La exportacion fallo.', 'error');
+      notify(cause instanceof Error ? cause.message : traducir('app.exportFailed'), 'error');
     }
   };
 
@@ -907,10 +935,10 @@ export function App() {
       }));
 
       await settingsService.set('steamSyncedAt', new Date().toISOString());
-      notify(`Biblioteca sincronizada: ${juegos.length} juegos.`, 'success');
+      notify(traducir('app.synced', [juegos.length]), 'success');
     } catch (cause) {
       notify(
-        cause instanceof Error ? cause.message : 'La sincronizacion fallo.',
+        cause instanceof Error ? cause.message : traducir('app.syncFailed'),
         'error',
       );
     } finally {
@@ -985,8 +1013,7 @@ export function App() {
 
             {visible.length > page.length ? (
               <p className="mt-4 text-center text-xs text-t4">
-                Mostrando {page.length} de {visible.length}. Afina la busqueda para ver el
-                resto.
+                {traducir('footer.showing', [page.length, visible.length])}
               </p>
             ) : null}
           </>
@@ -996,30 +1023,30 @@ export function App() {
       <footer className="flex shrink-0 items-center justify-between border-t border-line bg-surface-1 px-4 py-2 text-[11px] text-t4">
         {vista === AppView.Games ? (
           <span>
-            {cuenta.juegos} juegos en Steam
+            {traducir('footer.games', [cuenta.juegos])}
             {cuenta.steamId ? ` · ${cuenta.steamId}` : ''}
           </span>
         ) : (
         <span>
-          {visible.length} de {keys.length} claves
-          {stats.available > 0 ? ` · ${stats.available} regalables` : ''}
+          {traducir('footer.count', [visible.length, keys.length])}
+          {stats.available > 0 ? traducir('footer.giftable', [stats.available]) : ''}
         </span>
         )}
         <span className="flex items-center gap-3">
           <span
-            title={STORAGE_MODE_NOTICE[getStorageMode()]}
+            title={traducir(STORAGE_MODE_NOTICE[getStorageMode()])}
             className={[
               'flex items-center gap-1.5',
               getStorageMode() === 'memory' ? 'text-warn' : 'text-t4',
             ].join(' ')}
           >
             <Icon name="package" size={12} />
-            {STORAGE_MODE_LABEL[getStorageMode()]}
+            {traducir(STORAGE_MODE_LABEL[getStorageMode()])}
           </span>
           <span>
             <kbd className="rounded border border-white/10 px-1 py-0.5">{SEARCH_SHORTCUT}</kbd>{' '}
-            buscar ·{' '}
-            <kbd className="rounded border border-white/10 px-1 py-0.5">N</kbd> nueva
+            {traducir('footer.shortcutSearch')} ·{' '}
+            <kbd className="rounded border border-white/10 px-1 py-0.5">N</kbd> {traducir('footer.shortcutNew')}
           </span>
         </span>
       </footer>
@@ -1067,7 +1094,7 @@ export function App() {
 
       {deleting ? (
         <ConfirmDialog
-          title="Eliminar key"
+          title={traducir('row.delete')}
           message={`Se eliminara "${deleting.title}" de tu coleccion. Esto no se puede deshacer.`}
           confirmLabel="Eliminar"
           onConfirm={handleDelete}
@@ -1113,7 +1140,7 @@ export function App() {
 
       {expireVivo ? (
         <ConfirmDialog
-          title="Marcar como caducadas"
+          title={traducir('select.markExpired')}
           message={
             facts.expirable === 1
               ? `"${selectedKeys.find((key) => key.status !== KeyStatus.Expired)?.title}" quedara como caducada y saldra de la lista de disponibles. Puedes cambiarlo luego con el toggle de estado.`

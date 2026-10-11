@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 16" width="24" height="16" role="img" aria-label="Reino Unido">
+  <clipPath id="uk-clip">
+    <rect width="24" height="16" rx="1.5"/>
+  </clipPath>
+  <g clip-path="url(#uk-clip)">
+    <rect width="24" height="16" fill="#012169"/>
+    <!-- Aspa de San Andres -->
+    <path d="M0 0 24 16M24 0 0 16" stroke="#fff" stroke-width="3.2"/>
+    <!-- Aspa de San Andres en rojo, desplazada: es lo que hace la union jack
+         reconocible. Sin este paso parece una cruz suiza. -->
+    <path d="M0 0 24 16M24 0 0 16" stroke="#c8102e" stroke-width="1.6"
+          clip-path="polygon(0 0, 0 8, 24 8, 24 0)"/>
+    <path d="M0 16 24 0M24 16 0 0" stroke="#c8102e" stroke-width="1.6"
+          clip-path="polygon(0 8, 0 16, 24 16, 24 8)"/>
+    <!-- Cruz de San Jorge -->
+    <path d="M12 0v16M0 8h24" stroke="#fff" stroke-width="5.4"/>
+    <path d="M12 0v16M0 8h24" stroke="#c8102e" stroke-width="3"/>
+  </g>
+</svg>

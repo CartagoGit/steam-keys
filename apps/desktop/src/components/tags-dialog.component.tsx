@@ -95,8 +95,8 @@ export function TagsDialog({
             </h2>
             <p className="mt-0.5 text-[11px] text-t4">
               {entries.length === 1
-                ? 'Se cambiara 1 clave'
-                : `Se cambiaran ${entries.length} claves`}
+                ? t('tags.count.one')
+                : t('tags.count.many', [entries.length])}
             </p>
           </div>
 
@@ -176,7 +176,7 @@ export function TagsDialog({
 
           <div className="flex shrink-0 gap-2">
             <Button variant="ghost" onClick={onCancel}>
-              Cancelar
+              {t('action.cancel')}
             </Button>
             <Button
               variant="primary"

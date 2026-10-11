@@ -106,7 +106,7 @@ export function ImportPreview({
 
         <footer className="flex justify-end gap-2 border-t border-line px-5 py-3">
           <Button variant="ghost" onClick={onCancel}>
-            Cancelar
+            {t('action.cancel')}
           </Button>
           <Button
             variant="primary"
@@ -115,8 +115,8 @@ export function ImportPreview({
             disabled={preview.skipped === 0}
           >
             {preview.skipped === 0
-              ? 'Nada que importar'
-              : `Importar ${preview.skipped} claves`}
+              ? t('import.none')
+              : t('import.apply', [preview.skipped])}
           </Button>
         </footer>
       </div>
