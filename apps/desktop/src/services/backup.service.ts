@@ -1,5 +1,5 @@
 import { isBrowserPreview } from '@/helpers/runtime.helper';
-import { KeyPlatform, RestoreMode, StorageHealth, type IBackup, type IDatabaseClient, type IRestoreSummary } from '@/contracts';
+import { KeyPlatform, RestoreMode, StorageHealth, TABLE_GAME_KEYS, type IBackup, type IDatabaseClient, type IRestoreSummary } from '@/contracts';
 import { mergeKeysFromBackup } from '@/helpers/merge-keys.helper';
 import { backupRepository } from '@/repositories/backup.repository';
 
@@ -107,7 +107,7 @@ export const backupService = {
   /** Cuenta las claves pendientes de revisar por plataforma. */
   async countUnknownPlatform(db: IDatabaseClient): Promise<number> {
     const filas = await db.select<{ total: number }>(
-      'SELECT COUNT(*) AS total FROM game_keys WHERE platform = $1',
+      `SELECT COUNT(*) AS total FROM ${TABLE_GAME_KEYS} WHERE platform = $1`,
       [KeyPlatform.Unknown],
     );
 

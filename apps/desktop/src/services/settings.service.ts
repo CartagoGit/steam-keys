@@ -48,7 +48,9 @@ export const settingsService = {
     let filas: readonly ISettingRow[];
 
     try {
-      filas = await db.select<ISettingRow>('SELECT key, value FROM app_settings');
+      filas = await db.select<ISettingRow>(
+        `SELECT key, value FROM ${TABLE_APP_SETTINGS}`,
+      );
     } catch {
       // Una base de datos de una version anterior puede no tener la tabla. No
       // es motivo para dejar la app en blanco: se usan los valores por defecto

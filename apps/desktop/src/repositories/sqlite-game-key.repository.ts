@@ -27,7 +27,7 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
 
   async listAll(): Promise<readonly IGameKey[]> {
     const rows = await this.db.select<IGameKeyRow>(
-      `SELECT ${GAME_KEY_COLUMNS} FROM game_keys
+      `SELECT ${GAME_KEY_COLUMNS} FROM ${TABLE_GAME_KEYS}
        ORDER BY COALESCE(added_on, created_at) DESC, title COLLATE NOCASE ASC`,
     );
 
@@ -36,7 +36,7 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
 
   async getById(id: number): Promise<IGameKey | null> {
     const rows = await this.db.select<IGameKeyRow>(
-      `SELECT ${GAME_KEY_COLUMNS} FROM game_keys WHERE id = $1`,
+      `SELECT ${GAME_KEY_COLUMNS} FROM ${TABLE_GAME_KEYS} WHERE id = $1`,
       [id],
     );
 
@@ -48,7 +48,7 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
     const keyValue = normalizeKey(input.keyValue);
 
     await this.db.execute(
-      `INSERT INTO game_keys
+      `INSERT INTO ${TABLE_GAME_KEYS}
          (title, key_value, platform, status, source, gifted_to, parent_title,
           note, tags, added_on, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11)`,
@@ -75,7 +75,7 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
 
   async update(id: number, draft: IGameKeyDraft): Promise<IGameKey> {
     await this.db.execute(
-      `UPDATE game_keys SET
+      `UPDATE ${TABLE_GAME_KEYS} SET
          title = $1, key_value = $2, platform = $3, status = $4,
          gifted_to = $5, parent_title = $6, note = $7, tags = $8,
          added_on = $9, updated_at = $10
@@ -102,19 +102,19 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
   }
 
   async remove(id: number): Promise<void> {
-    await this.db.execute('DELETE FROM game_keys WHERE id = $1', [id]);
+    await this.db.execute(`DELETE FROM ${TABLE_GAME_KEYS} WHERE id = $1`, [id]);
   }
 
   async removeMany(ids: readonly number[]): Promise<void> {
     if (ids.length === 0) return;
 
     const placeholders = sqlPlaceholders(ids.length);
-    await this.db.execute(`DELETE FROM game_keys WHERE id IN (${placeholders})`, [...ids]);
+    await this.db.execute(`DELETE FROM ${TABLE_GAME_KEYS} WHERE id IN (${placeholders})`, [...ids]);
   }
 
   async setStatus(id: number, status: KeyStatus): Promise<void> {
     await this.db.execute(
-      'UPDATE game_keys SET status = $1, updated_at = $2 WHERE id = $3',
+      `UPDATE ${TABLE_GAME_KEYS} SET status = $1, updated_at = $2 WHERE id = $3`,
       [status, touchTimestamp(), id],
     );
   }
@@ -134,7 +134,7 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
     const placeholders = sqlPlaceholders(ids.length, 3);
 
     await this.db.execute(
-      `UPDATE game_keys SET status = $1, updated_at = $2 WHERE id IN (${placeholders})`,
+      `UPDATE ${TABLE_GAME_KEYS} SET status = $1, updated_at = $2 WHERE id IN (${placeholders})`,
       [status, touchTimestamp(), ...ids],
     );
   }
@@ -180,7 +180,7 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
 
   async markUsed(id: number, usedAt?: string): Promise<void> {
     await this.db.execute(
-      'UPDATE game_keys SET last_used_at = $1, updated_at = $2 WHERE id = $3',
+      `UPDATE ${TABLE_GAME_KEYS} SET last_used_at = $1, updated_at = $2 WHERE id = $3`,
       [usedAt ?? touchTimestamp(), touchTimestamp(), id],
     );
   }
@@ -205,14 +205,14 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
     const placeholders = sqlPlaceholders(ids.length, 3);
 
     await this.db.execute(
-      `UPDATE game_keys SET tags = $1, updated_at = $2 WHERE id IN (${placeholders})`,
+      `UPDATE ${TABLE_GAME_KEYS} SET tags = $1, updated_at = $2 WHERE id IN (${placeholders})`,
       [serializeTags(tags), touchTimestamp(), ...ids],
     );
   }
 
   async findByKey(keyValue: string): Promise<IGameKey | null> {
     const rows = await this.db.select<IGameKeyRow>(
-      `SELECT ${GAME_KEY_COLUMNS} FROM game_keys WHERE key_value = $1`,
+      `SELECT ${GAME_KEY_COLUMNS} FROM ${TABLE_GAME_KEYS} WHERE key_value = $1`,
       [normalizeKey(keyValue)],
     );
 
@@ -222,7 +222,7 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
 
   async countAll(): Promise<number> {
     const rows = await this.db.select<{ total: number }>(
-      'SELECT COUNT(*) AS total FROM game_keys',
+      `SELECT COUNT(*) AS total FROM ${TABLE_GAME_KEYS}`,
     );
 
     return rows[0]?.total ?? 0;
@@ -230,7 +230,7 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
 
   async listKeyValues(): Promise<readonly string[]> {
     const rows = await this.db.select<{ key_value: string }>(
-      'SELECT key_value FROM game_keys',
+      `SELECT key_value FROM ${TABLE_GAME_KEYS}`,
     );
 
     return rows.map((row) => row.key_value);
@@ -255,7 +255,7 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
       existing.add(fingerprint);
 
       const affected = await this.db.execute(
-        `INSERT OR IGNORE INTO game_keys
+        `INSERT OR IGNORE INTO ${TABLE_GAME_KEYS}
            (title, key_value, platform, status, source, gifted_to, parent_title,
             note, tags, added_on, created_at, updated_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11)`,

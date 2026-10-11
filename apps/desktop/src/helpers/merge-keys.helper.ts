@@ -1,4 +1,4 @@
-import { RestoreMode, type IDatabaseClient, type IGameKeyRow, type IRestoreSummary } from '@/contracts';
+import { RestoreMode, TABLE_GAME_KEYS, type IDatabaseClient, type IGameKeyRow, type IRestoreSummary } from '@/contracts';
 import {
   normalizeKey,
   parseTags,
@@ -28,7 +28,7 @@ export async function mergeKeysFromBackup(
     const clave = normalizeKey(fila.key_value);
 
     const existentes = await db.select<{ id: number }>(
-      'SELECT id FROM game_keys WHERE key_value = $1',
+      `SELECT id FROM ${TABLE_GAME_KEYS} WHERE key_value = $1`,
       [clave],
     );
 
@@ -36,7 +36,7 @@ export async function mergeKeysFromBackup(
 
     if (id === undefined) {
       await db.execute(
-        `INSERT INTO game_keys
+        `INSERT INTO ${TABLE_GAME_KEYS}
            (title, key_value, platform, status, source, gifted_to, parent_title,
             note, tags, added_on, last_used_at, created_at, updated_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $12)`,
@@ -61,7 +61,7 @@ export async function mergeKeysFromBackup(
 
     if (mode === RestoreMode.Sobrescribir) {
       await db.execute(
-        `UPDATE game_keys SET
+        `UPDATE ${TABLE_GAME_KEYS} SET
            title = $1, platform = $2, status = $3, gifted_to = $4,
            parent_title = $5, note = $6, tags = $7, added_on = $8,
            last_used_at = $9, updated_at = $10

@@ -1,5 +1,6 @@
 import { steamGet } from './steam-http.service';
 import type { IGameKey, ISteamOwnedGame, ISteamStoreApp, MatchConfidence } from '@/contracts';
+import { normalizeForMatch } from '@/helpers/match-title.helper';
 
 const WEB_API = 'https://api.steampowered.com';
 const STORE_API = 'https://store.steampowered.com/api';
@@ -318,33 +319,6 @@ async function pedirJson<T>(url: string): Promise<T> {
  * "Snowfall" es un DLC con appid propio. Quitar estas palabras reduce el ruido,
  * pero no lo elimina, y por eso el resultado lleva confianza.
  */
-const SUFIJOS: readonly string[] = Object.freeze([
-  'game of the year edition',
-  'game of the year',
-  'definitive edition',
-  'definitive',
-  'complete edition',
-  'ultimate edition',
-  'ultimate',
-  'gold edition',
-  'gold',
-  'collectors edition',
-  'deluxe edition',
-  'deluxe',
-  'limited edition',
-  'extended edition',
-  'anniversary edition',
-  'remastered edition',
-  'goty edition',
-  'goty',
-  'enhanced edition',
-  'director s cut',
-  'directors cut',
-  'theatrical cut',
-  'final cut',
-  'game of the year  edition',
-]);
-
 /**
  * Quita la coletilla de edicion de un nombre y lo deja comparable.
  *
@@ -354,21 +328,6 @@ const SUFIJOS: readonly string[] = Object.freeze([
  * Skylines" son el mismo juego escritos de dos formas y sale mas a cuenta
  * compararlos asi que puntuando cada letra.
  */
-export function normalizeTitle(title: string): string {
-  let limpio = title.toLowerCase().trim();
-
-  for (const sufijo of SUFIJOS) {
-    if (limpio.endsWith(sufijo) && limpio.length > sufijo.length) {
-      limpio = limpio.slice(0, -sufijo.length).trim();
-    }
-  }
-
-  return limpio
-    .replace(/[^a-z0-9]+/g, ' ')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
-}
-
 /**
  * Que tan parecidas son dos cadenas, de 0 a 1.
  *
@@ -378,8 +337,8 @@ export function normalizeTitle(title: string): string {
  * falsos positivos en titulos cortos.
  */
 export function similarity(a: string, b: string): number {
-  const x = normalizeTitle(a);
-  const y = normalizeTitle(b);
+  const x = normalizeForMatch(a);
+  const y = normalizeForMatch(b);
 
   if (x === y) return 1;
   if (x.length === 0 || y.length === 0) return 0;
@@ -482,7 +441,7 @@ export function keysMatching(
   keys: readonly IGameKey[],
   title: string,
 ): readonly IGameKey[] {
-  const objetivo = normalizeTitle(title);
+  const objetivo = normalizeForMatch(title);
 
-  return keys.filter((key) => normalizeTitle(key.title) === objetivo);
+  return keys.filter((key) => normalizeForMatch(key.title) === objetivo);
 }

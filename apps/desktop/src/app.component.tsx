@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { setCurrentLocale, translate } from '@/helpers/i18n.helper';
+import { normalizeForMatch } from '@/helpers/match-title.helper';
 import { LocaleContext, useT, type ITranslator } from './context/locale.context';
 
 import { BulkStatusDialog } from './components/bulk-status-dialog.component';
@@ -398,13 +399,13 @@ export function App() {
 
   /** Los nombres de los juegos que ya tienes en la cuenta de Steam. */
   const ownedNames = useMemo(
-    () => new Set(owned.map((juego) => normalizar(juego.name))),
+    () => new Set(owned.map((juego) => normalizeForMatch(juego.name))),
     [owned],
   );
 
   const esPropio = useCallback(
     (title: string): boolean => {
-      const objetivo = normalizar(title);
+      const objetivo = normalizeForMatch(title);
 
       // Se busca tal cual primero: un DLC con su propio appid esta en la
       // biblioteca aunque el juego base no este.
@@ -412,7 +413,7 @@ export function App() {
 
       // Y luego quitando la coletilla de edicion, porque "GOTY Edition" y la
       // edicion normal son el mismo juego y solo se compra una.
-      const limpio = normalizar(stripEdition(title));
+      const limpio = normalizeForMatch(title);
       return limpio.length > 0 && ownedNames.has(limpio);
     },
     [ownedNames],
@@ -1277,22 +1278,7 @@ function isAvailable(entry: IGameKey): boolean {
 }
 
 /** Minusculas, sin acentos y sin puntuacion, para comparar nombres. */
-function normalizar(texto: string): string {
-  return texto
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
-}
-
 /** Quita la coletilla de edicion de un titulo. */
-function stripEdition(titulo: string): string {
-  return titulo.replace(
-    /\s*[:\-–—]?\s*(game of the year|goty|definitive|complete|ultimate|gold|collector'?s?|deluxe|limited|extended|anniversary|remastered)\s*edition\s*$/i,
-    '',
-  );
-}
 
 /** Las etiquetas que aparecen en todas las claves seleccionadas. */
 function etiquetasComunes(entries: readonly IGameKey[]): readonly string[] {

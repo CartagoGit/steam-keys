@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'bun:test';
+import { normalizeForMatch } from '@/helpers/match-title.helper';
 
 import {
   bestCandidate,
   confidenceFor,
   levenshtein,
-  normalizeTitle,
   resolveSteamId,
   similarity,
 } from './steam.service';
@@ -61,23 +61,45 @@ describe('averiguar el ID de Steam', () => {
 
 describe('normalizar el titulo quitando la edicion', () => {
   test('quita el GOTY', () => {
-    expect(normalizeTitle('Middle-earth: Shadow of Mordor GOTY Edition')).toBe(
+    expect(normalizeForMatch('Middle-earth: Shadow of Mordor GOTY Edition')).toBe(
       'middle earth shadow of mordor',
     );
   });
 
   test('quita el Definitive', () => {
-    expect(normalizeTitle('Terraria Definitive Edition')).toBe('terraria');
+    expect(normalizeForMatch('Terraria Definitive Edition')).toBe('terraria');
   });
 
   test('deja intacto lo que no lleva coletilla', () => {
-    expect(normalizeTitle('Cities: Skylines - Snowfall')).toBe(
+    expect(normalizeForMatch('Cities: Skylines - Snowfall')).toBe(
       'cities skylines snowfall',
     );
   });
 
   test('no se come el juego cuando la coletilla es el titulo entero', () => {
-    expect(normalizeTitle('Definitive Edition')).toBe('definitive edition');
+    expect(normalizeForMatch('Definitive Edition')).toBe('definitive edition');
+  });
+
+  // Antes el servicio **no** quitaba acentos y la app si, con dos
+  // implementaciones distintas. Con una sola, los dos caminos coinciden: es el
+  // caso de "Pokemon" contra "Pokémon", que antes no se emparejaban al buscar
+  // en la biblioteca de Steam.
+  test('los acentos no impiden reconocer el mismo juego', () => {
+    expect(normalizeForMatch('Pokémon')).toBe(normalizeForMatch('Pokemon'));
+    expect(normalizeForMatch('Pokémon Lets Go Pikachu')).toBe(
+      normalizeForMatch('Pokemon Lets Go Pikachu'),
+    );
+  });
+
+  test('la coletilla de edicion se quita con o sin puntuacion delante', () => {
+    // El caso por el que existia la falta: una clave con la coletilla contra un
+    // juego que la lista de Steam no la trae.
+    expect(normalizeForMatch('Middle-earth: Shadow of Mordor GOTY Edition')).toBe(
+      normalizeForMatch('Middle-earth: Shadow of Mordor'),
+    );
+    expect(normalizeForMatch("Shadow of Mordor - Collector's Edition")).toBe(
+      normalizeForMatch('Shadow of Mordor'),
+    );
   });
 });
 
