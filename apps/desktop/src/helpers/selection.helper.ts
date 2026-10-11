@@ -1,4 +1,5 @@
 import { KeyStatus } from '@/contracts/enums/key-status.enum';
+import { KEY_STATUS_META } from '@/contracts/constants/key-status.constants';
 import { normalizeTag } from '@/contracts/constants/tag.constants';
 import type { IGameKey } from '@/contracts/interfaces/game-key.interface';
 
@@ -121,14 +122,20 @@ function messageToggle(): string {
 }
 
 function messageMixed(noRegalables: readonly IGameKey[]): string {
-  const estados = new Set(noRegalables.map((key) => key.status));
-  const nombres = [...estados].join(', ');
+  const estados = [...new Set(noRegalables.map((key) => KEY_STATUS_META[key.status].label))];
 
-  if (estados.size === 1) {
-    return `Hay ${noRegalables.length} claves ${nombres} en la seleccion. Solo se pueden regalar las disponibles.`;
+  if (estados.length === 1) {
+    // El plural va con la etiqueta del estado: "3 claves regaladas" y no
+    // "3 claves Regalada", que es lo que suena mal al leerlo. Las etiquetas
+    // llegan en mayuscula porque son las de las pastillas, y aqui van en
+    // minuscula porque van metidas en medio de la frase.
+    const etiqueta = (estados[0] ?? '').toLowerCase();
+    const plural = etiqueta.endsWith('a') ? `${etiqueta}s` : etiqueta;
+
+    return `Hay ${noRegalables.length} claves ${plural} en la seleccion. Solo se pueden regalar las disponibles.`;
   }
 
-  return `La seleccion mezcla estados (${nombres}). Activa «Solo disponibles» para dejar fuera el resto.`;
+  return `La seleccion mezcla estados (${estados.join(', ')}). Activa «Solo disponibles» para dejar fuera el resto.`;
 }
 
 /**
@@ -146,12 +153,25 @@ export interface IGroupInfo {
   available: number;
 }
 
+/** Clave con la que se agrupan los titulos, comparable entre si. */
+export function claveGrupo(title: string): string {
+  return normalizeTag(title)
+    // `&` y `and` son la misma cosa escrita de dos maneras, y en los titulos
+    // viejos alternan: "Knights of Pen and Paper" y "Pen & Paper" son el mismo
+    // juego y deben caer en el mismo grupo.
+    .replace(/\band\b/g, '&')
+    // `+ 1` y `+1` tampoco son dos juegos distintos.
+    .replace(/\s*([+])\s*/g, ' $1 ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 /** Cuenta las claves por titulo, sin distinguir mayusculas ni acentos. */
 export function groupByTitle(keys: readonly IGameKey[]): ReadonlyMap<string, IGroupInfo> {
   const mapa = new Map<string, IGroupInfo>();
 
   for (const key of keys) {
-    const clave = normalizeTag(key.title);
+    const clave = claveGrupo(key.title);
     const actual = mapa.get(clave);
 
     if (!actual) {
@@ -183,7 +203,7 @@ export function siblingsOf(
   entry: IGameKey,
   todas: readonly IGameKey[],
 ): number {
-  const clave = normalizeTag(entry.title);
+  const clave = claveGrupo(entry.title);
 
-  return todas.filter((key) => normalizeTag(key.title) === clave).length;
+  return todas.filter((key) => claveGrupo(key.title) === clave).length;
 }

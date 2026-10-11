@@ -3,12 +3,15 @@ import { APP_LOCALE_VALUES, AppLocale } from '@/contracts/enums/app-locale.enum'
 import { APP_THEME_VALUES, AppTheme } from '@/contracts/enums/app-theme.enum';
 import { LOCALE_META, THEME_LABELS } from '@/contracts/constants/locale.constants';
 import { Icon } from './icon.component';
-import { Badge, Button, Field, INPUT_CLASS } from './ui.component';
+import { Modal } from './modal.component';
+import { Badge, Button, Field, INPUT_CLASS, PasswordInput } from './ui.component';
 import type { IAppSettings } from '@/contracts/interfaces/app-settings.interface';
 import type { SteamAccountStatus } from '@/contracts/interfaces/steam-account.interface';
 
 export interface ISettingsDialogProps {
   settings: IAppSettings;
+  /** `false` reproduce la animacion de salida antes de desaparecer. */
+  open?: boolean;
   /** Estado actual de la conexion con Steam, para mostrarlo. */
   cuenta: SteamAccountStatus;
   /** Guarda los ajustes. Puede fallar y entonces devuelve un mensaje. */
@@ -31,6 +34,7 @@ type SettingsTab = 'appearance' | 'account';
  */
 export function SettingsDialog({
   settings,
+  open = true,
   cuenta,
   onSave,
   onLinkSteam,
@@ -48,7 +52,12 @@ export function SettingsDialog({
   const [ocupado, setOcupado] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
 
-  const cuentaValida = useMemo(() => /^7656119\d{10}$/.test(steamId.trim()), [steamId]);
+  const cuentaValida = useMemo(
+    () =>
+      /^7656119\d{10}$/.test(steamId.trim()) ||
+      /^[a-z0-9._-]{2,32}$/i.test(steamId.trim()),
+    [steamId],
+  );
 
   const guardar = async (): Promise<void> => {
     setOcupado(true);
@@ -76,13 +85,8 @@ export function SettingsDialog({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
-    >
-      <div className="animate-fade-in flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-surface-1 shadow-2xl ring-1 ring-white/10">
-        <header className="flex items-center justify-between border-b border-line px-5 py-4">
+    <Modal open={open} onClose={onClose} size="lg" label="Ajustes">
+      <header className="flex items-center justify-between border-b border-line px-5 py-4">
           <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-100">
             <Icon name="settings" size={16} className="text-slate-400" />
             Ajustes
@@ -191,28 +195,24 @@ export function SettingsDialog({
                 label="Clave de la API de Steam"
                 hint="Gratuita, en steamcommunity.com/dev/apikey. Se guarda solo en este ordenador y no se envia a ningun sitio."
               >
-                <input
-                  type="password"
+                <PasswordInput
                   value={apiKey}
-                  onChange={(event) => setApiKey(event.target.value)}
+                  onChange={setApiKey}
                   placeholder="Pega aqui tu clave"
-                  autoComplete="off"
-                  spellCheck={false}
-                  className={INPUT_CLASS}
                 />
               </Field>
 
               <Field
-                label="ID de Steam"
-                hint="Tu numero de 17 cifras, empieza por 7656119. Sale en la URL de tu perfil."
+                label="ID o nombre de perfil de Steam"
+                hint="Vale cualquiera de los dos: tu numero de 17 cifras o el nombre que sale en la direccion de tu perfil."
               >
                 <input
                   type="text"
                   value={steamId}
                   onChange={(event) => setSteamId(event.target.value)}
-                  placeholder="7656119…"
-                  inputMode="numeric"
+                  placeholder="7656119… o cartagonova"
                   autoComplete="off"
+                  spellCheck={false}
                   className={INPUT_CLASS}
                 />
               </Field>
@@ -237,7 +237,7 @@ export function SettingsDialog({
                   disabled={ocupado || !cuentaValida || apiKey.trim().length === 0}
                   title={
                     !cuentaValida
-                      ? 'El ID de Steam son 17 cifras empezando por 7656119'
+                      ? 'Pon tu ID de 17 cifras o el nombre de tu perfil de Steam'
                       : apiKey.trim().length === 0
                         ? 'Hace falta la clave de la API'
                         : 'Conectar la cuenta y traer la biblioteca'
@@ -263,7 +263,6 @@ export function SettingsDialog({
             </div>
           )}
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

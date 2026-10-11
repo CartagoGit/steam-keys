@@ -9,13 +9,20 @@ import type {
   IKeyStats,
 } from '@/contracts/interfaces/key-filter.interface';
 
-/** Filtro vacio: no restringe nada. */
+/**
+ * Filtro vacio: no restringe nada **salvo el estado**.
+ *
+ * "Solo disponibles" viene activado a proposito. Con cuatrocientas claves de
+ * las que mas de la mitad ya se han regalado, el estado util por defecto es el
+ * de "las que aun tengo en la mano": es lo que se puede regalar o canjear, y
+ * lo demas se consulta cuando hace falta viendo el filtro de estado.
+ */
 export function emptyFilter(): IKeyFilter {
   return {
     search: '',
     platforms: [],
     statuses: [],
-    onlyGiftable: false,
+    onlyGiftable: true,
     onlyAddOns: false,
   };
 }

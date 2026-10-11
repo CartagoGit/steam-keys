@@ -1,10 +1,14 @@
 import {
+  ACTIVATE_NOTE_PATTERN,
   ALPHANUMERIC_KEY_PATTERN,
   BATTLENET_KEY_PATTERN,
   BLOCK_CLOSE_PATTERN,
   BLOCK_OPEN_PATTERN,
   DECORATIVE_PATTERN,
   GIFT_MARKER_PATTERN,
+  GIVEAWAY_END_PATTERN,
+  GIVEAWAY_START_PATTERN,
+  GIVEAWAY_TAG,
   HUMBLE_URL_KEY_PATTERN,
   INSTRUCTION_PATTERN,
   PLATFORM_HINT_PATTERN,
@@ -60,6 +64,8 @@ interface IParserState {
   inBlock: boolean;
   /** Juego padre del bloque `{ ... }`. */
   blockParent: string | null;
+  /** Numero de la ronda de regalos en curso, o 0 si no hay ninguna. */
+  giveawaySession: number;
 }
 
 function createState(): IParserState {
@@ -72,6 +78,7 @@ function createState(): IParserState {
     orphanNote: null,
     inBlock: false,
     blockParent: null,
+    giveawaySession: 0,
   };
 }
 
@@ -172,6 +179,16 @@ export function parseLegacyTxt(raw: string, options: IParseOptions = {}): IParse
   let skippedLines = 0;
   let duplicates = 0;
 
+  /**
+   * Claves que se han visto dentro de una ronda de regalos, con su numero.
+   *
+   * Se acumulan aparte porque una clave puede aparecer primero como parte de la
+   * coleccion y luego repetirse dentro del bloque de la ronda. La segunda vez
+   * es la que dice que se regaló, asi que la ronda se guarda y se aplica al
+   * final sobre la entrada que ya existe.
+   */
+  const giveawayEntries: { fingerprint: string; session: number }[] = [];
+
   const addIssue = (
     sourceLine: number,
     rawLine: string,
@@ -245,6 +262,37 @@ export function parseLegacyTxt(raw: string, options: IParseOptions = {}): IParse
     const token = extractKeyToken(line);
     const hasKey = token !== null;
 
+    // --------------------------------------- inicio de ronda de regalos ---
+    // `................. 3 Sesion de regalos....................`
+    //
+    // Va **antes** del marcador generico de seccion, que tambien casa con
+    // esta linea: si se comprobara despues, `giveawaySession` se quedaria a 0
+    // y las claves de la ronda saldrian como disponibles, que es justo lo que
+    // pasaba.
+    const inicioRonda = GIVEAWAY_START_PATTERN.exec(line);
+
+    if (inicioRonda && !hasKey) {
+      state.giveawaySession = Number(inicioRonda[1]) || 0;
+      state.noteContext = `Sesion de regalos ${state.giveawaySession}`;
+      state.redeemMode = false;
+      state.orphanTitle = null;
+      state.orphanNote = null;
+      skippedLines += 1;
+      continue;
+    }
+
+    // ------------------------------------------ fin de ronda de regalos ---
+    // `.................FIN 3 Sesion de regalos....................`
+    if (GIVEAWAY_END_PATTERN.test(line) && !hasKey) {
+      state.giveawaySession = 0;
+      state.noteContext = null;
+      state.redeemMode = false;
+      state.orphanTitle = null;
+      state.orphanNote = null;
+      skippedLines += 1;
+      continue;
+    }
+
     // --------------------------------------- "4 Sesion de regalos ..." ---
     // Solo cuenta como encabezado si la linea NO trae clave: si la trae, es una
     // entrada normal cuya nota puede mencionar una sesion de regalos.
@@ -261,6 +309,20 @@ export function parseLegacyTxt(raw: string, options: IParseOptions = {}): IParse
     if (REDEEM_MARKER_PATTERN.test(line) && !hasKey) {
       state.noteContext = line.replace(/[\s\-<>]+$/, '').trim();
       state.redeemMode = true;
+      state.orphanTitle = null;
+      state.orphanNote = null;
+      skippedLines += 1;
+      continue;
+    }
+
+    // ------------------------------ otras notas de "ACTIVAR ..." --------
+    // `ACTIVAR Con el juego base - TODAS SON DLCS ->>>` y parecidas: es una
+    // instruccion, no una seccion de canjeadas. Se anota como nota y sobre
+    // todo **apaga** el modo canjeado, porque lo que venga despues ya no
+    // pertenece a la seccion de "ACTIVAR YO".
+    if (ACTIVATE_NOTE_PATTERN.test(line) && !hasKey) {
+      state.noteContext = line.replace(/[\s\-<>]+$/, '').trim();
+      state.redeemMode = false;
       state.orphanTitle = null;
       state.orphanNote = null;
       skippedLines += 1;
@@ -330,6 +392,19 @@ export function parseLegacyTxt(raw: string, options: IParseOptions = {}): IParse
     const fingerprint = keyFingerprint(keyValue);
     if (dedupe && seen.has(fingerprint)) {
       duplicates += 1;
+
+      // Aunque la clave este repetida, si esta dentro de una ronda de regalos
+      // hay que dejarlo anotado: en el TXT la clave se lista primero como
+      // parte de la coleccion y luego se repite dentro del bloque de la ronda,
+      // que es lo que dice de verdad que se regaló. Sin esto, las claves de las
+      // rondas salen como disponibles, que es justo el error que seatiosó.
+      if (state.giveawaySession > 0) {
+        giveawayEntries.push({
+          fingerprint,
+          session: state.giveawaySession,
+        });
+      }
+
       addIssue(
         sourceLine,
         line,
@@ -414,9 +489,21 @@ export function parseLegacyTxt(raw: string, options: IParseOptions = {}): IParse
     }
 
     // ------------------------------------------------------- estado ---
+    // Una clave dentro de una ronda de regalos esta regalada por definicion,
+    // aunque no lleve el guion inicial: el guion marca "esta se la he dado a
+    // alguien concreto" y la ronda marca "estas se las di en la ronda".
+    const inGiveaway = state.giveawaySession > 0;
+
+    if (inGiveaway) {
+      giveawayEntries.push({
+        fingerprint: keyFingerprint(keyValue),
+        session: state.giveawaySession,
+      });
+    }
+
     const status =
       explicitStatus ??
-      (gifted
+      (inGiveaway || gifted
         ? KeyStatus.Gifted
         : state.redeemMode
           ? KeyStatus.Redeemed
@@ -452,6 +539,44 @@ export function parseLegacyTxt(raw: string, options: IParseOptions = {}): IParse
     // Limpia el contexto de lineas sueltas: ya se han consumido.
     state.orphanTitle = null;
     state.orphanNote = null;
+  }
+
+  // ------------------------------------------------ rondas de regalos ---
+  // Se aplican al final, ya recorridas todas las lineas, porque una clave
+  // puede haberse listado antes de la ronda y solo quedar claro que se regaló
+  // cuando se repite dentro del bloque. Aqui se corrige el estado de esas
+  // entradas y se les anade la etiqueta que las distingue.
+  //
+  // No se pisa un estado mas avanzado: una clave que ya estaba canjeada se
+  // queda canjeada. La ronda solo convierte "disponible" en "regalada".
+  const porHuella = new Map<string, number>();
+
+  for (const item of giveawayEntries) {
+    porHuella.set(item.fingerprint, item.session);
+  }
+
+  if (porHuella.size > 0) {
+    for (let i = 0; i < entries.length; i += 1) {
+      const entry = entries[i];
+      if (!entry) continue;
+
+      const sesion = porHuella.get(keyFingerprint(entry.keyValue ?? ''));
+      if (sesion === undefined) continue;
+
+      const yaRegalada =
+        entry.status === KeyStatus.Gifted || entry.status === KeyStatus.Redeemed;
+
+      const etiqueta = `${GIVEAWAY_TAG}-${sesion}`;
+      const tags = entry.tags ?? [];
+      const nuevosTags = tags.includes(etiqueta) ? tags : [...tags, etiqueta];
+
+      entries[i] = {
+        ...entry,
+        status: yaRegalada ? entry.status : KeyStatus.Gifted,
+        gifted: entry.gifted || yaRegalada,
+        tags: nuevosTags,
+      };
+    }
   }
 
   const byPlatform: Record<string, number> = {};

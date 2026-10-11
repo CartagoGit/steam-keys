@@ -181,6 +181,77 @@ fn created_ms(metadata: &fs::Metadata) -> u128 {
 }
 
 // ---------------------------------------------------------------------------
+// Peticiones HTTP a Steam
+// ---------------------------------------------------------------------------
+
+/// Dominios a los que se permite llamar. Lista blanca, no negra: si mañana se
+/// anade alguna otra llamada hay que tocar aqui, y asi no se puede acabar
+/// haciendo una peticion a cualquier sitio por un descuido.
+const STEAM_DOMINIOS: [&str; 2] = ["api.steampowered.com", "steamcommunity.com"];
+
+/// Peticion HTTP GET a Steam y devolucion del cuerpo como texto.
+///
+/// Hace falta porque `steamcommunity.com` **no** envia cabeceras CORS, asi que
+/// el navegador rechaza la peticion antes de que salga. Rust no tiene esa
+/// restriccion, asi que la llamada se hace desde aqui.
+///
+/// No acepta URLs libres: solo `ruta` dentro de los dominios de arriba, y se
+/// comprueba antes de salir, que es lo que evita que este comando se convierta
+/// en un proxy abierto a internet.
+#[tauri::command]
+fn steam_get(ruta: String) -> Result<String, String> {
+    let limpia = ruta.trim();
+
+    if limpia.starts_with("http://") || limpia.starts_with("https://") {
+        return Err("Pasa solo la ruta, sin https://".into());
+    }
+
+    if !es_ruta_permitida(limpia) {
+        return Err("Ese dominio no esta permitido".into());
+    }
+
+    let completa = format!("https://{limpia}");
+
+    let respuesta = ureq::get(&completa)
+        .call()
+        .map_err(|error| format!("Steam no ha contestado: {error}"))?;
+
+    // Steam responde 200 incluso cuando el perfil no existe, con el error
+    // dentro del XML. Aqui solo se distingue el fallo de red, que es lo que
+    // devuelve 4xx o 5xx de verdad.
+    let codigo = respuesta.status();
+
+    if !(200..300).contains(&codigo) {
+        return Err(format!("Steam respondio con el estado {codigo}"));
+    }
+
+    respuesta
+        .into_string()
+        .map_err(|error| format!("No se pudo leer la respuesta de Steam: {error}"))
+}
+
+/// Comprueba que una ruta pertenece a los dominios permitidos.
+///
+/// Vive aparte para poder testearla sin salir a la red, que es donde estan de
+/// verdad los casos raros: una ruta con `@`, con barra invertida o con un
+/// dominio parecido al bueno.
+fn es_ruta_permitida(ruta: &str) -> bool {
+    let Some((dominio, resto)) = ruta.split_once('/') else {
+        return STEAM_DOMINIOS.contains(&ruta);
+    };
+
+    // Un `@` antes del dominio hace que lo que parece el host sea en realidad
+    // las credenciales: `evil.com@api.steampowered.com` pasa a Steam como si
+    // fuera nuestro dominio pero va a otro sitio. Y las barras invertidas
+    // hacen lo mismo en algunos resolvers.
+    if resto.starts_with('@') || dominio.contains('@') || dominio.contains('\\') {
+        return false;
+    }
+
+    STEAM_DOMINIOS.contains(&dominio)
+}
+
+// ---------------------------------------------------------------------------
 // Ficheros del usuario (solo rutas elegidas en un dialogo nativo)
 // ---------------------------------------------------------------------------
 
@@ -431,6 +502,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_sql::Builder::default().build())
         .invoke_handler(tauri::generate_handler![
+            steam_get,
             read_text_file,
             write_text_file,
             database_path,
@@ -506,5 +578,33 @@ mod tests {
         assert_eq!(sanitize(""), "manual");
         assert_eq!(sanitize("!!!"), "manual");
         assert_eq!(sanitize("///"), "manual");
+    }
+
+    #[test]
+    fn las_rutas_de_steam_pasan_el_filtro() {
+        assert!(es_ruta_permitida("api.steampowered.com/ISteamUser/GetOwnedGames"));
+        assert!(es_ruta_permitida("steamcommunity.com/id/cartagonova/?xml=1"));
+
+        // Sin barra detras: es solo el dominio.
+        assert!(es_ruta_permitida("api.steampowered.com"));
+    }
+
+    #[test]
+    fn un_dominio_falso_no_pasa_el_filtro() {
+        // Ni uno parecido, ni uno que lo imite.
+        assert!(!es_ruta_permitida("evil.com/robo"));
+        assert!(!es_ruta_permitida("api.steampowered.com.evil.com/x"));
+        assert!(!es_ruta_permitida("steamcommunity.com.evil.io/x"));
+
+        // El truco clasico: lo que parece el dominio va en las credenciales.
+        assert!(!es_ruta_permitida("evil.com@api.steampowered.com/x"));
+        assert!(!es_ruta_permitida("@evil.com/x"));
+
+        // Barras invertidas, que algunos resolvers leen como separador.
+        assert!(!es_ruta_permitida("evil.com\\@api.steampowered.com/x"));
+
+        // Y las rutas local-files de Tauri, que serian un agujero gigante.
+        assert!(!es_ruta_permitida("file:///etc/passwd"));
+        assert!(!es_ruta_permitida("localhost:8080/x"));
     }
 }

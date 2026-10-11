@@ -6,12 +6,15 @@ import {
 } from '@/contracts/constants/tag.constants';
 import { KeyPlatform } from '@/contracts/enums/key-platform.enum';
 import { Icon } from './icon.component';
+import { Modal } from './modal.component';
 import { Button, INPUT_CLASS } from './ui.component';
 import type { IGameKey } from '@/contracts/interfaces/game-key.interface';
 
 export interface ITagsDialogProps {
   /** Las claves seleccionadas. */
   entries: readonly IGameKey[];
+  /** `false` reproduce la animacion de salida antes de desaparecer. */
+  open?: boolean;
   /** Todas las claves de la coleccion, para saber que etiquetas existen. */
   todas: readonly IGameKey[];
   /** Las etiquetas finales, ya calculadas por quien abre el dialogo. */
@@ -32,6 +35,7 @@ export interface ITagsDialogProps {
  */
 export function TagsDialog({
   entries,
+  open = true,
   todas,
   iniciales,
   plataformas,
@@ -80,13 +84,8 @@ export function TagsDialog({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
-    >
-      <div className="animate-fade-in flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-surface-1 shadow-2xl ring-1 ring-white/10">
-        <header className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
+    <Modal open={open} onClose={onCancel} size="lg" label="Etiquetas">
+      <header className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
           <div>
             <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
               <Icon name="tag" size={15} className="text-blue-400" />
@@ -186,7 +185,6 @@ export function TagsDialog({
             </Button>
           </div>
         </footer>
-      </div>
-    </div>
+    </Modal>
   );
 }

@@ -36,7 +36,7 @@ export const EN: TranslationTable = Object.freeze({
 
   // -------------------------------------------------------------- header ---
   'app.title': 'Steam Keys',
-  'app.subtitle': '{available} available of {total}',
+  'app.subtitle': '{0} available of {1}',
   'search.placeholder': 'Search by game, key, recipient or note…',
   'search.shortcut': '/',
 
@@ -59,7 +59,7 @@ export const EN: TranslationTable = Object.freeze({
 
   // ---------------------------------------------------------- selection ---
   'select.one': '1 selected',
-  'select.many': '{count} selected',
+  'select.many': '{0} selected',
   'select.all': 'Select all',
   'select.none': 'Clear',
   'select.availableOnly': 'Available only',
@@ -97,12 +97,12 @@ export const EN: TranslationTable = Object.freeze({
   'empty.none.add': 'Add a key',
 
   // --------------------------------------------------------- footer ---
-  'footer.count': '{visible} of {total} keys',
-  'footer.giftable': '· {count} giftable',
+  'footer.count': '{0} of {1} keys',
+  'footer.giftable': '· {0} giftable',
 
   // -------------------------------------------------------- tags modal ---
   'tags.title': 'Tags',
-  'tags.subtitle': '{count} key(s) will be changed',
+  'tags.subtitle': '{0} key(s) will be changed',
   'tags.new': 'New tag',
   'tags.add': 'Add',
   'tags.empty': 'No tags in the collection yet.',
@@ -125,9 +125,9 @@ export const EN: TranslationTable = Object.freeze({
   'settings.steamId.placeholder': '7656119…',
   'settings.steam.link': 'Connect',
   'settings.steam.unlink': 'Disconnect',
-  'settings.steam.linked': 'Connected as {id}',
+  'settings.steam.linked': 'Connected as {0}',
   'settings.steam.notLinked': 'Not connected',
-  'settings.steam.syncedAt': 'Last synced {when}',
+  'settings.steam.syncedAt': 'Last synced {0}',
   'settings.steam.never': 'never',
   'settings.steam.visibility':
     'Your Steam profile must be public for the app to see your library.',
@@ -145,7 +145,7 @@ export const EN: TranslationTable = Object.freeze({
   'view.keys': 'Keys',
   'view.games': 'My games',
   'library.empty': 'Connect your Steam account to see your library.',
-  'library.playtime': '{hours} h played',
+  'library.playtime': '{0} h played',
   'library.notPlayed': 'Never played',
   'library.installed': 'Installed',
   'library.owned': 'Owned',
@@ -154,7 +154,7 @@ export const EN: TranslationTable = Object.freeze({
   'owned.why': 'You already own this game',
   'owned.owned': 'Owned',
   'owned.installed': 'Installed',
-  'owned.played': '{hours} h played',
+  'owned.played': '{0} h played',
   'owned.never': 'Never played',
   'owned.dlc': 'DLC',
   'owned.verified': 'Verified',
@@ -164,11 +164,11 @@ export const EN: TranslationTable = Object.freeze({
   'toast.saved': 'Key saved.',
   'toast.created': 'Key added.',
   'toast.deleted': 'Key removed.',
-  'toast.exported': 'Exported {count} keys.',
-  'toast.imported': 'Imported {count} keys.',
-  'toast.gifted': '{count} key(s) gifted to {who}.',
+  'toast.exported': 'Exported {0} keys.',
+  'toast.imported': 'Imported {0} keys.',
+  'toast.gifted': '{0} key(s) gifted to {1}.',
   'toast.expired': '{count} key(s) marked as expired.',
-  'toast.tagsApplied': 'Tags updated on {count} key(s).',
+  'toast.tagsApplied': 'Tags updated on {0} key(s).',
   'toast.noFile': 'No file was saved.',
   'toast.recipient': 'You have to say who it was gifted to.',
   'toast.nothingSelected': 'Nothing selected.',
@@ -183,7 +183,7 @@ export const EN: TranslationTable = Object.freeze({
   'review.negative': 'Negative',
   'review.veryNegative': 'Very Negative',
   'review.unknown': 'No reviews',
-  'review.metacritic': 'Metacritic {score}',
+  'review.metacritic': 'Metacritic {0}',
   'review.noData': 'No data yet',
 });
 

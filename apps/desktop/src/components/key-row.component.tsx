@@ -75,21 +75,29 @@ export function KeyRow({
         giftable ? '' : 'opacity-75',
       ].join(' ')}
       onClick={(event) => {
-        // Los botones de dentro (ojo, copiar, estado, editar…) tienen su propia
-        // accion. Sin este corte, pulsarlos seleccionaria la fila ademas de
-        // hacer lo suyo, que es la sorpresa que hace que la gente deje de usar
-        // la seleccion multiple.
-        if ((event.target as HTMLElement).closest('button')) return;
+        // Los botones de dentro (ojo, copiar, estado, editar…) y la casilla
+        // tienen su propia accion. Sin este corte, pulsarlos seleccionaria la
+        // fila ademas de hacer lo suyo, que es la sorpresa que hace que la
+        // gente deje de usar la seleccion multiple.
+        const objetivo = event.target as HTMLElement;
+
+        if (objetivo.closest('button') || objetivo.closest('input[type=checkbox]')) return;
 
         onToggleSelect?.(entry);
       }}
     >
       {/* --------------------------------------------------------- seleccion */}
+      {/*
+        La casilla no lleva `stopPropagation` en su clic: al pulsar el raton
+        sobre ella el evento sube a la fila y acaba selectingla igualmente.
+        Lo que hace falta es lo contrario: que la fila **no** selectede cuando
+        el objetivo del clic es la propia casilla, que ya se ha encargo de
+        cambiar su estado. Eso lo resuelve el corte del `onClick` de la fila.
+      */}
       <input
         type="checkbox"
         checked={selected}
         onChange={() => onToggleSelect?.(entry)}
-        onClick={(event) => event.stopPropagation()}
         aria-label={`Seleccionar ${entry.title}`}
         className="h-4 w-4 shrink-0 cursor-pointer rounded border-white/20 accent-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
       />

@@ -20,10 +20,7 @@ export interface IToolbarProps {
   onImport: () => void;
   onExport: () => void;
   onOpenStorage: () => void;
-  onToggleFilters: () => void;
-  onToggleGiftMode: () => void;
-  giftMode: boolean;
-  filtersOpen: boolean;
+  onOpenSettings: () => void;
 }
 
 const SORTS: ReadonlyArray<{ value: KeySort; label: string }> = [
@@ -46,13 +43,8 @@ export function Toolbar({
   onImport,
   onExport,
   onOpenStorage,
-  onToggleFilters,
-  onToggleGiftMode,
-  giftMode,
-  filtersOpen,
+  onOpenSettings,
 }: IToolbarProps) {
-  const activeChips = filter.platforms.length + filter.statuses.length;
-
   const togglePlatform = (platform: KeyPlatform): void => {
     const next = filter.platforms.includes(platform)
       ? filter.platforms.filter((item) => item !== platform)
@@ -108,29 +100,24 @@ export function Toolbar({
           ) : null}
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant={giftMode ? 'primary' : 'ghost'}
-            icon="gift"
-            onClick={onToggleGiftMode}
-            title="Seleccionar varios juegos para regalar"
-          >
-            Regalar
-          </Button>
-
-          <Button
-            variant={activeChips > 0 || filtersOpen ? 'subtle' : 'ghost'}
-            icon="filter"
-            onClick={onToggleFilters}
-            title="Filtros por plataforma y estado"
-          >
-            Filtros
-            {activeChips > 0 ? (
-              <span className="rounded-full bg-blue-600 px-1.5 text-[10px] text-white">
-                {activeChips}
-              </span>
-            ) : null}
-          </Button>
+        {/*
+          `flex-wrap` aqui no es cosmetico: sin el, los botones se salen por la
+          derecha al estrechar la ventana y aparece una barra de scroll
+          horizontal en toda la aplicacion. Con el, bajan a la fila siguiente.
+        */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/*
+            El interruptor de "solo disponibles" va aqui y no con los demas
+            filtros porque es el que decide de verdad que se ve: con cuatro
+           cientas claves de las que dos thirds ya no estan disponibles, es el
+            interruptor que se usa a diario y tiene que estar a un clic.
+          */}
+          <Toggle
+            label="Solo disponibles"
+            checked={filter.onlyGiftable}
+            onChange={(checked) => onFilterChange({ onlyGiftable: checked })}
+            title="Oculta las claves ya regaladas, canjeadas o caducadas"
+          />
 
           <div className="relative">
             <select
@@ -168,17 +155,35 @@ export function Toolbar({
             Datos
           </Button>
 
+          <Button
+            variant="ghost"
+            icon="settings"
+            onClick={onOpenSettings}
+            title="Tema, idioma y cuenta de Steam"
+          >
+            Ajustes
+          </Button>
+
           <Button variant="primary" icon="plus" onClick={onCreate}>
             Anadir
           </Button>
         </div>
       </div>
 
-      {filtersOpen ? (
-        <div className="animate-fade-in border-t border-line px-4 py-3">
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-medium tracking-wide text-slate-500 uppercase">
+      {/*
+        Los filtros no se ocultan tras un boton. Escondidos obligaban a dos
+        pulsaciones para cambiar de vista, que es la forma segura de no
+        filtrar nunca y acabar creyendo que la lista ya viene filtrada.
+
+        Todo va en una sola linea que fluye: los chips se agrupan, y si no cabe
+        pasan a la linea siguiente **pegados al principio**. Con un `flex` con
+        `justify-between` lo que pasaba es que los grupos se separaban del
+        todo al repartirse, dejando huecos enormes entre medio.
+      */}
+      <div className="border-t border-line px-4 py-2">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] font-medium tracking-wide text-slate-500 uppercase">
                 Plataforma
               </span>
               {KEY_PLATFORM_VALUES.map((platform) => {
@@ -208,8 +213,8 @@ export function Toolbar({
               })}
             </div>
 
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-medium tracking-wide text-slate-500 uppercase">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] font-medium tracking-wide text-slate-500 uppercase">
                 Estado
               </span>
               {KEY_STATUS_VALUES.map((status) => {
@@ -232,16 +237,12 @@ export function Toolbar({
               })}
             </div>
 
-            <div className="flex items-center gap-4">
-              <Toggle
-                label="Solo regalables"
-                checked={filter.onlyGiftable}
-                onChange={(checked) => onFilterChange({ onlyGiftable: checked })}
-              />
+            <div className="flex flex-wrap items-center gap-3">
               <Toggle
                 label="Solo DLC"
                 checked={filter.onlyAddOns}
                 onChange={(checked) => onFilterChange({ onlyAddOns: checked })}
+                title="Muestra solo las DLC y el contenido adicional"
               />
               <button
                 type="button"
@@ -250,18 +251,18 @@ export function Toolbar({
                     search: '',
                     platforms: [],
                     statuses: [],
-                    onlyGiftable: false,
+                    onlyGiftable: true,
                     onlyAddOns: false,
                   })
                 }
                 className="text-xs text-slate-500 underline-offset-2 hover:text-slate-300 hover:underline"
+                title="Quitar busqueda y filtros de plataforma y estado"
               >
-                Limpiar filtros
+                Limpiar
               </button>
             </div>
           </div>
         </div>
-      ) : null}
     </header>
   );
 }
@@ -270,18 +271,26 @@ interface IToggleProps {
   label: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
+  /** Explicacion de que hace, al pasar el raton. */
+  title?: string;
 }
 
-function Toggle({ label, checked, onChange }: IToggleProps) {
+function Toggle({ label, checked, onChange, title }: IToggleProps) {
   return (
     <button
       type="button"
       onClick={() => onChange(!checked)}
-      className="inline-flex items-center gap-2 text-xs text-slate-400 hover:text-slate-200"
+      title={title}
+      // `role="switch"` y `aria-checked` son lo que hace que un lector de
+      // pantalla diga "activado" en vez de leerte el texto y ya.
+      role="switch"
+      aria-checked={checked}
+      className="inline-flex items-center gap-2 text-xs text-slate-400 hover:text-slate-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
     >
       <span
+        aria-hidden="true"
         className={[
-          'relative h-4 w-7 rounded-full transition-colors',
+          'relative h-4 w-7 shrink-0 rounded-full transition-colors',
           checked ? 'bg-blue-600' : 'bg-surface-3',
         ].join(' ')}
       >

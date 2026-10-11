@@ -61,37 +61,26 @@ export function platformTags(platform: KeyPlatform): readonly string[] {
 }
 
 /**
- * Las etiquetas que ya existen en la coleccion, mas las de la plataforma.
+ * Las etiquetas que tienen sentido para una plataforma dada.
  *
- * La lista de la plataforma va primero de las que ya existen para que las
- * sugiera el navegador en el orden en que mas probable es que se necesiten.
+ * La lista de la plataforma va primero de las que ya existen, porque son las
+ * que mas probable es que hagan falta en ese momento; las que ya hay en la
+ * coleccion se ofrecen despues, por si se quiere filtrar por algo raro.
  */
 export function suggestionsFor(
   platform: KeyPlatform,
   existentes: readonly string[],
 ): readonly string[] {
-  const vistas = new Set(existentes.map(normalizeTag));
   const resultado: string[] = [];
+  const vistas = new Set<string>();
 
-  for (const tag of platformTags(platform)) {
-    if (!vistas.has(normalizeTag(tag))) {
-      resultado.push(tag);
-      vistas.add(normalizeTag(tag));
-    }
-  }
+  for (const tag of [...platformTags(platform), ...ORIGIN_TAGS, ...existentes]) {
+    const clave = normalizeTag(tag);
 
-  for (const tag of ORIGIN_TAGS) {
-    if (!vistas.has(normalizeTag(tag))) {
-      resultado.push(tag);
-      vistas.add(normalizeTag(tag));
-    }
-  }
+    if (clave.length === 0 || vistas.has(clave)) continue;
 
-  for (const tag of existentes) {
-    if (!vistas.has(normalizeTag(tag))) {
-      resultado.push(tag);
-      vistas.add(normalizeTag(tag));
-    }
+    vistas.add(clave);
+    resultado.push(cleanTag(tag));
   }
 
   return resultado;

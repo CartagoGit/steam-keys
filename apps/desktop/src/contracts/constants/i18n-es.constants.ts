@@ -23,7 +23,7 @@ export const ES: TranslationTable = Object.freeze({
 
   // -------------------------------------------------------------- header ---
   'app.title': 'Steam Keys',
-  'app.subtitle': '{available} disponibles de {total}',
+  'app.subtitle': '{0} disponibles de {1}',
   'search.placeholder': 'Buscar por juego, clave, destinatario o nota…',
   'search.shortcut': '/',
 
@@ -46,7 +46,7 @@ export const ES: TranslationTable = Object.freeze({
 
   // ---------------------------------------------------------- selection ---
   'select.one': '1 seleccionada',
-  'select.many': '{count} seleccionadas',
+  'select.many': '{0} seleccionadas',
   'select.all': 'Seleccionar todo',
   'select.none': 'Deseleccionar',
   'select.availableOnly': 'Solo disponibles',
@@ -87,12 +87,12 @@ export const ES: TranslationTable = Object.freeze({
   'empty.none.add': 'Anadir clave',
 
   // ------------------------------------------------------------- footer ---
-  'footer.count': '{visible} de {total} claves',
-  'footer.giftable': '· {count} regalables',
+  'footer.count': '{0} de {1} claves',
+  'footer.giftable': '· {0} regalables',
 
   // --------------------------------------------------------- tags modal ---
   'tags.title': 'Etiquetas',
-  'tags.subtitle': 'Se cambiaran {count} claves',
+  'tags.subtitle': 'Se cambiaran {0} claves',
   'tags.new': 'Etiqueta nueva',
   'tags.add': 'Anadir',
   'tags.empty': 'Todavia no hay etiquetas en la coleccion.',
@@ -116,9 +116,9 @@ export const ES: TranslationTable = Object.freeze({
   'settings.steamId.placeholder': '7656119…',
   'settings.steam.link': 'Conectar',
   'settings.steam.unlink': 'Desconectar',
-  'settings.steam.linked': 'Conectada como {id}',
+  'settings.steam.linked': 'Conectada como {0}',
   'settings.steam.notLinked': 'Sin conectar',
-  'settings.steam.syncedAt': 'Ultima sincronizacion {when}',
+  'settings.steam.syncedAt': 'Ultima sincronizacion {0}',
   'settings.steam.never': 'nunca',
   'settings.steam.visibility':
     'Tu perfil de Steam tiene que ser publico para que la app vea tu biblioteca.',
@@ -137,7 +137,7 @@ export const ES: TranslationTable = Object.freeze({
   'view.keys': 'Claves',
   'view.games': 'Mis juegos',
   'library.empty': 'Conecta tu cuenta de Steam para ver tu biblioteca.',
-  'library.playtime': '{hours} h jugados',
+  'library.playtime': '{0} h jugados',
   'library.notPlayed': 'Sin jugar',
   'library.installed': 'Instalado',
   'library.owned': 'En propiedad',
@@ -146,7 +146,7 @@ export const ES: TranslationTable = Object.freeze({
   'owned.why': 'Ya tienes este juego',
   'owned.owned': 'En propiedad',
   'owned.installed': 'Instalado',
-  'owned.played': '{hours} h jugados',
+  'owned.played': '{0} h jugados',
   'owned.never': 'Sin jugar',
   'owned.dlc': 'DLC',
   'owned.verified': 'Verificado',
@@ -156,11 +156,11 @@ export const ES: TranslationTable = Object.freeze({
   'toast.saved': 'Key actualizada.',
   'toast.created': 'Key anadida.',
   'toast.deleted': 'Key eliminada.',
-  'toast.exported': 'Exportadas {count} claves.',
-  'toast.imported': 'Importadas {count} claves.',
-  'toast.gifted': '{count} claves regaladas a {who}.',
+  'toast.exported': 'Exportadas {0} claves.',
+  'toast.imported': 'Importadas {0} claves.',
+  'toast.gifted': '{0} claves regaladas a {1}.',
   'toast.expired': '{count} claves marcadas como caducadas.',
-  'toast.tagsApplied': 'Etiquetas actualizadas en {count} claves.',
+  'toast.tagsApplied': 'Etiquetas actualizadas en {0} claves.',
   'toast.noFile': 'No se guardo ningun fichero.',
   'toast.recipient': 'Hay que decir a quien se lo has regalado.',
   'toast.nothingSelected': 'No hay nada seleccionado.',
@@ -175,6 +175,6 @@ export const ES: TranslationTable = Object.freeze({
   'review.negative': 'Negativas',
   'review.veryNegative': 'Muy negativas',
   'review.unknown': 'Sin resenas',
-  'review.metacritic': 'Metacritic {score}',
+  'review.metacritic': 'Metacritic {0}',
   'review.noData': 'Todavia sin datos',
 });

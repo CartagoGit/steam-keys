@@ -29,6 +29,7 @@
     "test": "bun test",
     "test:watch": "bun test --watch",
     "import": "bun tools/scripts/import-txt.script.ts",
+    "reconcile": "bun tools/scripts/reconcile-statuses.script.ts",
     "import:dry": "bun tools/scripts/import-txt.script.ts --dry-run",
     "export": "bun tools/scripts/export-txt.script.ts",
     "inspect:format": "bun tools/scripts/inspect-text-format.script.ts",

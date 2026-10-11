@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Icon, type IconName } from './icon.component';
 
 export interface IBadgeProps {
@@ -105,3 +105,60 @@ export const INPUT_CLASS =
   'placeholder:text-slate-600 transition focus:bg-surface-3 focus:ring-2 focus:ring-blue-500/60 focus:outline-none';
 
 export const SELECT_CLASS = `${INPUT_CLASS} appearance-none cursor-pointer`;
+
+export interface IPasswordInputProps {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  /** Texto del boton cuando la clave esta tapada. */
+  labelVisible?: string;
+  /** Texto del boton cuando la clave esta a la vista. */
+  labelHidden?: string;
+}
+
+/**
+ * Campo de clave con el boton de mostrar y ocultar.
+ *
+ * El boton va **dentro** del input y no al lado porque si va fuera, el texto se
+ * acorta y la clave se ve cortada justo por el medio, que es justo el sitio
+ * donde no quieres que alguien mire. Ademas al ser un boton dentro del campo
+ * hay que impedir que el clic se convierta en "el campo pierde el foco", que
+ * es lo que hace un label por defecto.
+ */
+export function PasswordInput({
+  value,
+  onChange,
+  placeholder,
+  labelVisible = 'Ver la clave',
+  labelHidden = 'Ocultar la clave',
+}: IPasswordInputProps) {
+  const [visible, setVisible] = useState(false);
+
+  return (
+    <div className="relative">
+      <input
+        type={visible ? 'text' : 'password'}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        autoComplete="off"
+        spellCheck={false}
+        className={`${INPUT_CLASS} pr-10 font-mono`}
+      />
+
+      <button
+        type="button"
+        // Sin este `preventDefault`, el clic saca el foco del campo y la
+        // capitalizacion automatica del navegador puede volver a tapar lo
+        // justo que se estaba escribiendo.
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => setVisible((actual) => !actual)}
+        title={visible ? labelHidden : labelVisible}
+        aria-label={visible ? labelHidden : labelVisible}
+        className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-lg text-slate-500 transition hover:text-slate-200 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-400"
+      >
+        <Icon name={visible ? 'eye-off' : 'eye'} size={15} />
+      </button>
+    </div>
+  );
+}

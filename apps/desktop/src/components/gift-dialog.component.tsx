@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Icon } from './icon.component';
+import { Modal } from './modal.component';
 import { Button, INPUT_CLASS } from './ui.component';
 import type { IGameKey } from '@/contracts/interfaces/game-key.interface';
 
@@ -7,22 +8,27 @@ import type { IGameKey } from '@/contracts/interfaces/game-key.interface';
 const MAX_TITULOS = 6;
 
 export interface IGiftDialogProps {
-  entries: readonly IGameKey[];
-  onConfirm: (destinatario: string) => void;
+  entries: readonly IGameKey[];  /** `false` reproduce la animacion de salida antes de desaparecer. */
+  open?: boolean;  onConfirm: (destino: string) => void;
   onCancel: () => void;
 }
 
 /**
  * Dialogo para decir a quien se han regalado las claves seleccionadas.
  *
- * El destinatario es obligatorio: una clave regalada sin saber a quien se le
+ * El destino es obligatorio: una clave regalada sin saber a quien se le
  * dio no sirve de nada dentro de tres meses, asi que el boton no se habilita
  * hasta que hay algo escrito.
  */
-export function GiftDialog({ entries, onConfirm, onCancel }: IGiftDialogProps) {
-  const [destinatario, setDestinatario] = useState('');
+export function GiftDialog({
+  entries,
+  open = true,
+  onConfirm,
+  onCancel,
+}: IGiftDialogProps) {
+  const [destino, setDestinatario] = useState('');
 
-  const habilitado = destinario.trim().length > 0;
+  const habilitado = destino.trim().length > 0;
 
   const titulos = useMemo(
     () => [...new Set(entries.map((entry) => entry.title))],
@@ -33,13 +39,13 @@ export function GiftDialog({ entries, onConfirm, onCancel }: IGiftDialogProps) {
   const resto = titulos.length - visibles.length;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
+    <Modal
+      open={open}
+      onClose={onCancel}
+      size="md"
+      label="Marcar como regaladas"
     >
-      <div className="animate-fade-in w-full max-w-md overflow-hidden rounded-2xl bg-surface-1 shadow-2xl ring-1 ring-white/10">
-        <header className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
+      <header className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
           <div>
             <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-100">
               <Icon name="hand" size={16} className="text-emerald-400" />
@@ -85,10 +91,10 @@ export function GiftDialog({ entries, onConfirm, onCancel }: IGiftDialogProps) {
           <input
             type="text"
             autoFocus
-            value={destinatario}
+            value={destino}
             onChange={(event) => setDestinatario(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key === 'Enter' && habilitado) onConfirm(destinatario);
+              if (event.key === 'Enter' && habilitado) onConfirm(destino);
             }}
             placeholder="Nombre de quien lo recibe"
             className={INPUT_CLASS}
@@ -106,7 +112,7 @@ export function GiftDialog({ entries, onConfirm, onCancel }: IGiftDialogProps) {
           <Button
             variant="primary"
             icon="hand"
-            onClick={() => onConfirm(destinatario)}
+            onClick={() => onConfirm(destino)}
             disabled={!habilitado}
             title={
               habilitado
@@ -117,7 +123,6 @@ export function GiftDialog({ entries, onConfirm, onCancel }: IGiftDialogProps) {
             Marcar regaladas
           </Button>
         </footer>
-      </div>
-    </div>
+    </Modal>
   );
 }

@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
 import { Icon, type IconName } from './icon.component';
+import { Modal } from './modal.component';
 
 export type ToastTone = 'info' | 'success' | 'error';
 
@@ -61,18 +61,9 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: IConfirmProps) {
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') onCancel();
-    };
-
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onCancel]);
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6 backdrop-blur-sm">
-      <div className="animate-scale-in w-full max-w-sm rounded-2xl bg-surface-1 p-5 shadow-2xl ring-1 ring-white/10">
+    <Modal open onClose={onCancel} size="sm" label={title}>
+      <div className="p-5">
         <div className="flex items-start gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-rose-500/15 text-rose-400 ring-1 ring-rose-500/30">
             <Icon name="alert" size={17} />
@@ -100,6 +91,6 @@ export function ConfirmDialog({
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

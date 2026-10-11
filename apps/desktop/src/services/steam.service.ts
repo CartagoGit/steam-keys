@@ -1,3 +1,4 @@
+import { steamGet } from './steam-http.service';
 import type {
   ISteamOwnedGame,
   ISteamStoreApp,
@@ -37,6 +38,83 @@ export class SteamError extends Error {
  * funciona sin cuenta, y la parte que necesita tu permiso se degrada con
  * elegancia si no lo has dado.
  */
+/**
+ * Traduce lo que la persona escribe a un SteamID de 17 cifras.
+ *
+ * Hay dos formas de identificar una cuenta y la gente no sabe cual tiene: el
+ * numero (`76561198023249625`) o el nombre de perfil (`cartagonova`, lo que sale
+ * en la direccion de la web). Admitir las dos evita tener que buscar el numero
+ * a mano, que es el rodeo que hace que la gente se rinda y no conecte la cuenta.
+ *
+ * El nombre se resuelve contra el XML publico del perfil, que **no necesita
+ * clave de API**: asi se puede averiguar el ID antes de tener la clave, y un
+ * nombre mal escrito se detecta aqui con un mensaje claro en vez de devolver
+ * un error de autorizacion mas adelante que no explica nada.
+ */
+export async function resolveSteamId(entrada: string): Promise<string> {
+  const limpio = entrada.trim();
+
+  if (/^7656119\d{10}$/.test(limpio)) return limpio;
+
+  const handle = limpio
+    .replace(/^https?:\/\/steamcommunity\.com\//i, '')
+    .replace(/^id\//i, '')
+    .replace(/[/?#].*$/, '')
+    .trim();
+
+  // Un SteamID de 32 digitos es el de la API v2 y tambien vale, pero no hay
+  // conversion publica fiable de uno a otro, asi que se pasa sin tocar.
+  if (/^\d{32}$/.test(handle)) return handle;
+
+  if (!/^[a-z0-9._-]{2,32}$/i.test(handle)) {
+    throw new SteamError(
+      'Eso no parece un ID de Steam ni un nombre de perfil.',
+      'idInvalido',
+    );
+  }
+
+let cuerpo: string;
+
+try {
+    // La peticion va por Rust cuando se puede: `steamcommunity.com` no manda
+    // cabeceras CORS y el navegador la rechazaria antes de salir.
+    cuerpo = await steamGet(
+      `steamcommunity.com/id/${encodeURIComponent(handle)}/?xml=1`,
+    );
+  } catch (cause) {
+    throw new SteamError(
+      cause instanceof Error
+        ? `No se pudo consultar Steam: ${cause.message}`
+        : 'No se pudo contactar con Steam.',
+      'http',
+    );
+  }
+
+  // Steam **no** devuelve un 404 cuando el perfil no existe: responde con un
+  // 200 y el error va dentro del propio XML. Sin mirar esto, un nombre mal
+  // escrito se cuela como si fuera bueno y el fallo aparece mas tarde como
+  // una biblioteca vacia, que no explica nada.
+  const error = /<error><!\[CDATA\[([^\]]+)\]\]><\/error>/.exec(cuerpo)?.[1];
+
+  if (error) {
+    throw new SteamError(
+      `No hay ningun perfil con el nombre "${handle}".`,
+      'idInvalido',
+    );
+  }
+
+  const id = /<steamID64>(\d{17})<\/steamID64>/.exec(cuerpo)?.[1];
+
+  if (!id) {
+    throw new SteamError(
+      `No se pudo leer el ID del perfil "${handle}".`,
+      'idInvalido',
+    );
+  }
+
+  return id;
+}
+
 export const steamService = {
   /** Tu biblioteca. Necesita clave. */
   async getOwnedGames(apiKey: string, steamId: string): Promise<ISteamOwnedGame[]> {
@@ -272,21 +350,27 @@ const SUFIJOS: readonly string[] = Object.freeze([
 ]);
 
 /**
- * Quita la coletilla de edicion de un nombre.
+ * Quita la coletilla de edicion de un nombre y lo deja comparable.
  *
- * "Middle-earth: Shadow of Mordor GOTY Edition" pasa a ser "Middle-earth:
- * Shadow of Mordor", que ya se parece a lo que Steam llama al juego base.
+ * "Middle-earth: Shadow of Mordor GOTY Edition" pasa a ser "middle earth shadow
+ * of mordor", que ya se parece a lo que Steam llama al juego base. De paso se
+ * quitan los signos de puntuacion, porque "Cities: Skylines" y "Cities
+ * Skylines" son el mismo juego escritos de dos formas y sale mas a cuenta
+ * compararlos asi que puntuando cada letra.
  */
 export function normalizeTitle(title: string): string {
   let limpio = title.toLowerCase().trim();
 
   for (const sufijo of SUFIJOS) {
-    if (limpio.endsWith(sufijo)) {
+    if (limpio.endsWith(sufijo) && limpio.length > sufijo.length) {
       limpio = limpio.slice(0, -sufijo.length).trim();
     }
   }
 
-  return limpio.replace(/[\s\-–—:]+$/g, '').replace(/\s{2,}/g, ' ');
+  return limpio
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
 }
 
 /**
@@ -316,7 +400,7 @@ export function levenshtein(a: string, b: string): number {
   if (b.length === 0) return a.length;
 
   let anterior = Array.from({ length: b.length + 1 }, (_, i) => i);
-  let actual = new Array<number>(b.length + 1);
+  let actual = new Array<number>(b.length + 1).fill(0);
 
   for (let i = 1; i <= a.length; i += 1) {
     actual[0] = i;
@@ -325,16 +409,16 @@ export function levenshtein(a: string, b: string): number {
       const coste = a[i - 1] === b[j - 1] ? 0 : 1;
 
       actual[j] = Math.min(
-        actual[j - 1] + 1,
-        anterior[j] + 1,
-        anterior[j - 1] + coste,
+        (actual[j - 1] ?? 0) + 1,
+        (anterior[j] ?? 0) + 1,
+        (anterior[j - 1] ?? 0) + coste,
       );
     }
 
     [anterior, actual] = [actual, anterior];
   }
 
-  return anterior[b.length];
+  return anterior[b.length] ?? a.length;
 }
 
 /** Que confianza merece un emparejamiento segun lo que se parece el nombre. */

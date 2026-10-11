@@ -137,6 +137,86 @@ describe('bloques de DLC entre llaves', () => {
   });
 });
 
+describe('rondas de regalos', () => {
+  const cabecera = (n: number): string =>
+    `................. ${n} Sesion de regalos...........................`;
+
+  const cierre = (n: number): string =>
+    `.................FIN ${n} Sesion de regalos...........................`;
+
+  test('las claves de una ronda quedan como regaladas', () => {
+    const raw = [cabecera(3), '', 'Skyward Collapse - MQ7RT-29XKL-ZPN84', cierre(3)].join('\n');
+
+    const result = parseLegacyTxt(raw);
+    expect(result.entries[0]?.status).toBe(KeyStatus.Gifted);
+  });
+
+  test('la ronda lleva su numero en la etiqueta', () => {
+    const raw = [cabecera(4), '', 'Celeste - MQ7RT-29XKL-ZPN84', cierre(4)].join('\n');
+
+    const result = parseLegacyTxt(raw);
+    expect(result.entries[0]?.tags).toContain('sesion-regalos-4');
+  });
+
+  test('la ronda acaba en su FIN y lo siguiente vuelve a disponible', () => {
+    const raw = [
+      cabecera(5),
+      '',
+      'Celeste - MQ7RT-29XKL-ZPN84',
+      cierre(5),
+      '',
+      'Hollow Knight - B4KMD-58RQW-LNCT3',
+    ].join('\n');
+
+    const result = parseLegacyTxt(raw);
+    const porTitulo = Object.fromEntries(
+      result.entries.map((e) => [e.title, e.status]),
+    );
+
+    expect(porTitulo['Celeste']).toBe(KeyStatus.Gifted);
+    expect(porTitulo['Hollow Knight']).toBe(KeyStatus.Available);
+  });
+
+  test('una clave repetida dentro de la ronda tambien se marca', () => {
+    // Es el caso real del TXT: la clave se lista primero como parte de la
+    // coleccion y se repite dentro del bloque de la ronda. La segunda vez es
+    // la que dice que se regaló.
+    const raw = [
+      'Celeste - MQ7RT-29XKL-ZPN84',
+      '',
+      cabecera(3),
+      '',
+      'Celeste - MQ7RT-29XKL-ZPN84',
+      cierre(3),
+    ].join('\n');
+
+    const result = parseLegacyTxt(raw);
+
+    expect(result.entries).toHaveLength(1);
+    expect(result.entries[0]?.status).toBe(KeyStatus.Gifted);
+    expect(result.entries[0]?.tags).toContain('sesion-regalos-3');
+  });
+
+  test('una clave canjeada no se degrada a regalada por estar en una ronda', () => {
+    const raw = [
+      'ACTIVAR YO ->>>>>',
+      '',
+      'Celeste - MQ7RT-29XKL-ZPN84',
+      cierre(9),
+    ].join('\n');
+
+    const result = parseLegacyTxt(raw);
+    expect(result.entries[0]?.status).toBe(KeyStatus.Redeemed);
+  });
+
+  test('la ronda no pisa el destinatario que ya hubiera', () => {
+    const raw = [cabecera(3), '', 'Celeste - MQ7RT-29XKL-ZPN84', cierre(3)].join('\n');
+
+    const result = parseLegacyTxt(raw);
+    expect(result.entries[0]?.giftedTo).toBeNull();
+  });
+});
+
 describe('cabeceras, notas y zonas de canje', () => {
   test('la cabecera de fecha se asocia a las claves siguientes', () => {
     const raw = ['# 22-01-25', '', 'Celeste - MQ7RT-29XKL-ZPN84'].join('\n');
@@ -155,25 +235,65 @@ describe('cabeceras, notas y zonas de canje', () => {
     expect(result.entries[0]?.status).toBe(KeyStatus.Redeemed);
   });
 
-  test('"ACTIVAR Con el juego base - TODAS SON DLCS" tambien cuenta', () => {
-    // La variante real del TXT, que el patron antiguo no recogia porque solo
-    // buscaba "ACTIVAR CON EL JUEGO BASE" sin el "Con" en minuscula ni el
-    // resto del texto.
+  test('una seccion de canjeadas termina cuando empieza otra nota', () => {
+    // Regresion del TXT real: tras "ACTIVAR YO" no hay ninguna clave, y lo
+    // que viene despues pertenece ya a la seccion siguiente.
+    const raw = [
+      'Dota 2 - MQ7RT-29XKL-ZPN84',
+      '',
+      'ACTIVAR YO ->>>>>',
+      '',
+      'Celeste - B4KMD-58RQW-LNCT3',
+    ].join('\n');
+
+    const result = parseLegacyTxt(raw);
+    const porTitulo = Object.fromEntries(
+      result.entries.map((e) => [e.title, e.status]),
+    );
+
+    expect(porTitulo['Dota 2']).toBe(KeyStatus.Available);
+    expect(porTitulo['Celeste']).toBe(KeyStatus.Redeemed);
+  });
+
+  test('"ACTIVAR Con el juego base" NO marca como canjeada', () => {
+    // Esta linea del TXT original empieza por ACTIVAR pero **no** significa
+    // que las claves esten canjeadas: es una instruccion de como activar las
+    // DLC ("con el juego base"). Marcarlas como canjeadas dejaba 19 DLCs de
+    // Earth Defense Force en el estado equivocado.
     const raw = [
       'ACTIVAR Con el juego base - TODAS SON DLCS ->>>',
       '',
       'EARTH DEFENSE FORCE 4.1',
       '{',
-      'CLAVE-FILTRADA-2',
+      'B4KMD-58RQW-LNCT3',
       '}',
       '',
-      'Desperados 3 - CLAVE-FILTRADA-1',
+      'Desperados 3 - ZR92N-7JDMK-QPW45',
     ].join('\n');
 
     const result = parseLegacyTxt(raw);
 
-    const dlc = result.entries.find((e) => e.keyValue === 'CLAVE-FILTRADA-2');
-    expect(dlc?.status).toBe(KeyStatus.Redeemed);
+    const dlc = result.entries.find((e) => e.keyValue === 'B4KMD-58RQW-LNCT3');
+    expect(dlc?.status).toBe(KeyStatus.Available);
+  });
+
+  test('"ACTIVAR Con el juego base" apaga una seccion de canjeadas anterior', () => {
+    // El TXT real tiene "ACTIVAR YO" y luego, sin ninguna clave entre medias,
+    // "ACTIVAR Con el juego base". Lo que viene despues de la segunda linea
+    // no debe heredar el estado de la primera.
+    const raw = [
+      'ACTIVAR YO ->>>>>',
+      '',
+      'ACTIVAR Con el juego base - TODAS SON DLCS ->>>',
+      '',
+      'EARTH DEFENSE FORCE 4.1',
+      '{',
+      'B4KMD-58RQW-LNCT3',
+      '}',
+    ].join('\n');
+
+    const result = parseLegacyTxt(raw);
+    expect(result.entries[0]?.status).toBe(KeyStatus.Available);
   });
 
   test('el estado canjeada no se desborda al terminar el bloque de DLC', () => {
@@ -185,11 +305,11 @@ describe('cabeceras, notas y zonas de canje', () => {
       '',
       'EARTH DEFENSE FORCE 4.1',
       '{',
-      'CLAVE-FILTRADA-2',
+      'B4KMD-58RQW-LNCT3',
       '}',
       '',
-      'Desperados 3 - CLAVE-FILTRADA-1',
-      'Superhot - CLAVE-FILTRADA-3',
+      'Desperados 3 - ZR92N-7JDMK-QPW45',
+      'Superhot - A7T-9KX-R4Z',
     ].join('\n');
 
     const result = parseLegacyTxt(raw);

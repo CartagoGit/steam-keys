@@ -77,14 +77,43 @@ export const DECORATIVE_PATTERN = /^[\s\-=_*#.~]{3,}$/;
 export const SECTION_MARKER_PATTERN = /(RONDA DE KEYS|Sesion de regalos|sesion de regalos)/i;
 
 /**
- * Notas que indican que las keys siguientes estan gastadas.
+ * Inicio de una ronda de regalos: `................. 3 Sesion de regalos......`
  *
- * El patron es deliberadamente amplio: en el TXT original aparecen
- * `ACTIVAR YO ->>>>>` y `ACTIVAR Con el juego base - TODAS SON DLCS ->>>`, y
- * solo hace falta que empiece por ACTIVAR. Que cierre con flechas, con texto
- * o sin nada no cambia el significado.
+ * El numero de puntos varia entre bloques, asi que se ancla en el texto. El
+ * grupo 1 se queda con el numero de sesion.
  */
-export const REDEEM_MARKER_PATTERN = /^.*\bACTIVAR\b/i;
+export const GIVEAWAY_START_PATTERN = /\.{3,}\s*(\d+)\s*Sesion de regalos\s*\.{3,}/i;
+
+/**
+ * Cierre de una ronda: `.................FIN 3 Sesion de regalos...........`
+ *
+ * Se distingue del inicio por el `FIN`. Sin el, el cierre se confundiria con
+ * una sesion nueva y las claves del final nunca saldrian del bloque.
+ */
+export const GIVEAWAY_END_PATTERN = /\.{3,}\s*FIN\s*\d+\s*Sesion de regalos\s*\.{3,}/i;
+
+/** Etiqueta que se pone a las regaladas en ronda, sin destinatario. */
+export const GIVEAWAY_TAG = 'sesion-regalos';
+
+/**
+ * Nota que indica que las keys siguientes **estan canjeadas por mi**.
+ *
+ * Solo cuenta `ACTIVAR YO`. El TXT tambien trae
+ * `ACTIVAR Con el juego base - TODAS SON DLCS ->>>`, que empieza igual pero
+ * significa otra cosa: que esas DLC hay que activarlas junto con el juego
+ * base, no que ya las hayaactivado. Confundir las dos marcaba como canjeadas
+ * 19 DLCs de Earth Defense Force que no lo estaban.
+ */
+export const REDEEM_MARKER_PATTERN = /^.*\bACTIVAR\s+YO\b/i;
+
+/**
+ * Cualquier otra nota que empiece por ACTIVAR.
+ *
+ * Se comprueba **despues** del anterior, y apaga el modo canjeado: es una
+ * instruccion nueva, asi que lo que venga a partir de aqui ya no arrastra el
+ * estado de la seccion anterior.
+ */
+export const ACTIVATE_NOTE_PATTERN = /^.*\bACTIVAR\b/i;
 
 /** Lineas de instrucciones de Humble: no aportan ninguna clave. */
 export const INSTRUCTION_PATTERN = /\b(INSTRUCCIONES|INSTRUCCION|COMO CANJEAR|CÓMO CANJEAR)\b/i;

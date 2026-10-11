@@ -74,12 +74,90 @@ body {
   }
 }
 
+/*
+ * Las de salida son el espejo de las de entrada. Sin ellas el dialogo
+ * desaparece de golpe: al cerrar se ve como un parpadeo feo en lugar de una
+ * transicion, y sobre todo parece que el programa ha reaccionado de golpe en
+ * vez de haber Processed la peticion.
+ */
+@keyframes fade-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+@keyframes scale-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes backdrop-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
 .animate-fade-in {
   animation: fade-in 0.16s ease-out;
 }
 
 .animate-scale-in {
   animation: scale-in 0.14s ease-out;
+}
+
+.animate-fade-out {
+  animation: fade-out 0.12s ease-in forwards;
+}
+
+.animate-scale-out {
+  animation: scale-out 0.12s ease-in forwards;
+}
+
+.animate-backdrop-in {
+  animation: backdrop-in 0.16s ease-out;
+}
+
+.animate-backdrop-out {
+  animation: backdrop-out 0.12s ease-in forwards;
+}
+
+/*
+ * Quien tenga menos movimiento del que el sistema pide, no ve animaciones.
+ * No es una preferencia menor: con el parkinson o con migrañas, una transicion
+ * de escala en cada dialogo es literalmente molesta.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-scale-in,
+  .animate-fade-out,
+  .animate-scale-out,
+  .animate-backdrop-in,
+  .animate-backdrop-out {
+    animation: none;
+  }
 }
 
 /* ---------------------------------------------------------------- focus */
