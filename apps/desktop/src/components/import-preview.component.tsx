@@ -1,5 +1,6 @@
 import { Button } from './ui.component';
 import { Icon } from './icon.component';
+import { useT } from '@/context/locale.context';
 import type { IImportSummary } from '@/contracts/interfaces/import-summary.interface';
 
 export interface IImportPreviewProps {
@@ -23,6 +24,8 @@ export function ImportPreview({
   onConfirm,
   onCancel,
 }: IImportPreviewProps) {
+  const { t } = useT();
+
   const vacio = preview.skipped === 0 && preview.duplicates === 0;
 
   return (
@@ -32,22 +35,22 @@ export function ImportPreview({
         if (event.target === event.currentTarget) onCancel();
       }}
     >
-      <div className="animate-scale-in w-full max-w-lg overflow-hidden rounded-2xl bg-surface-1 shadow-2xl ring-1 ring-white/10">
+      <div className="animate-scale-in w-full max-w-lg overflow-hidden rounded-2xl bg-surface-1 shadow-2xl ring-1 ring-line">
         <header className="flex items-start gap-3 border-b border-line px-5 py-4">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-600/15 text-blue-400 ring-1 ring-blue-500/25">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-info/15 text-info ring-1 ring-info/25">
             <Icon name="upload" size={17} />
           </div>
           <div className="min-w-0">
-            <h2 className="text-base font-semibold text-slate-100">
+            <h2 className="text-base font-semibold text-t1">
               Importar desde TXT
             </h2>
-            <p className="truncate text-xs text-slate-500">{fileName}</p>
+            <p className="truncate text-xs text-t4">{fileName}</p>
           </div>
         </header>
 
         <div className="px-5 py-4">
           {vacio ? (
-            <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-300 ring-1 ring-amber-500/30">
+            <p className="rounded-lg bg-warn/10 px-3 py-2 text-xs text-warn ring-1 ring-warn/30">
               No hay ninguna clave nueva en este fichero. Puede que ya las
               tuvieras todas importadas.
             </p>
@@ -55,38 +58,38 @@ export function ImportPreview({
 
           <dl className="mt-3 grid grid-cols-2 gap-2">
             <Figures
-              label="A importar"
+              label={t('import.title')}
               value={preview.skipped}
-              tone="text-emerald-300"
-              hint="Claves nuevas que se anaden a la base de datos"
+              tone="text-ok"
+              hint={t('import.titleHint')}
             />
             <Figures
-              label="Ya tenias"
+              label={t('import.duplicates')}
               value={preview.duplicates}
-              tone="text-slate-300"
-              hint="Duplicadas dentro del propio TXT o ya en la base de datos"
+              tone="text-t2"
+              hint={t('import.duplicatesHint')}
             />
             <Figures
-              label="Disponibles"
+              label={t('import.available')}
               value={preview.available}
-              tone="text-emerald-300"
-              hint="Marcadas como regalables"
+              tone="text-ok"
+              hint={t('import.availableHint')}
             />
             <Figures
-              label="Ya regaladas"
+              label={t('import.gifted')}
               value={preview.gifted}
               tone="text-zinc-300"
-              hint="El TXT las marcaba con un guion inicial"
+              hint={t('import.giftedHint')}
             />
           </dl>
 
           {preview.issues > 0 ? (
-            <div className="mt-3 rounded-lg bg-amber-500/10 px-3 py-2 ring-1 ring-amber-500/25">
-              <p className="flex items-center gap-1.5 text-xs font-medium text-amber-300">
+            <div className="mt-3 rounded-lg bg-warn/10 px-3 py-2 ring-1 ring-warn/25">
+              <p className="flex items-center gap-1.5 text-xs font-medium text-warn">
                 <Icon name="info" size={13} />
                 {preview.issues} linea(s) sin interpretar
               </p>
-              <p className="mt-1 text-[11px] leading-relaxed text-amber-200/70">
+              <p className="mt-1 text-[11px] leading-relaxed text-warn-strong/70">
                 Son lineas que el parser no ha sabido convertir en una clave:
                 duplicados, sufijos pegados o claves de plataforma
                 desconocida. Se ignoran; no bloquean la importacion.
@@ -94,7 +97,7 @@ export function ImportPreview({
             </div>
           ) : null}
 
-          <p className="mt-3 flex items-start gap-1.5 text-[11px] leading-relaxed text-slate-500">
+          <p className="mt-3 flex items-start gap-1.5 text-[11px] leading-relaxed text-t4">
             <Icon name="shield" size={12} className="mt-0.5" />
             Antes de escribir se crea una copia de seguridad automatica de tu
             base de datos.
@@ -132,9 +135,9 @@ function Figures({ label, value, tone, hint }: IFiguresProps) {
   return (
     <div
       title={hint}
-      className="rounded-lg bg-surface-2 px-3 py-2 ring-1 ring-white/5"
+      className="rounded-lg bg-surface-2 px-3 py-2 ring-1 ring-line-soft"
     >
-      <dt className="text-[11px] tracking-wide text-slate-500 uppercase">
+      <dt className="text-[11px] tracking-wide text-t4 uppercase">
         {label}
       </dt>
       <dd className={`mt-0.5 text-xl font-semibold tabular-nums ${tone}`}>

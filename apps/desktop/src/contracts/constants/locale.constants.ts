@@ -19,14 +19,20 @@ export const LOCALE_META: Readonly<
 });
 
 /**
- * Etiquetas de los temas.
+ * Etiquetas de los temas, en el idioma de cada traduccion.
  *
- * Se dejan intencionadamente en ingles (`System`, `Dark`, `Light`) porque son
- * las que aparecen asi en Windows, en macOS y en Linux, y traducirlas
- * desorienta mas que ayudar.
+ * Se dejan en ingles a proposito: son las que aparecen asi en Windows, en
+ * macOS y en Linux, y traducirlas desorienta mas que ayudar. El tema se elige
+ * casi siempre por como se ve, no por como se lee su nombre.
  */
 export const THEME_LABELS: Readonly<Record<string, string>> = Object.freeze({
   system: 'System',
   dark: 'Dark',
+  midnight: 'Midnight',
+  forest: 'Forest',
+  nord: 'Nord',
+  contrast: 'Contrast',
   light: 'Light',
+  paper: 'Paper',
+  berry: 'Berry',
 });

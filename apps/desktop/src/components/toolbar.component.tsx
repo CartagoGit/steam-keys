@@ -5,8 +5,18 @@ import { KEY_PLATFORM_VALUES, KeyPlatform } from '@/contracts/enums/key-platform
 import { KEY_STATUS_VALUES, KeyStatus } from '@/contracts/enums/key-status.enum';
 import { KeySort } from '@/contracts/enums/key-sort.enum';
 import { Icon } from './icon.component';
-import { Badge, Button, INPUT_CLASS, SELECT_CLASS } from './ui.component';
+import { Button, INPUT_CLASS, SELECT_CLASS } from './ui.component';
+import { Chip, ChipGroup } from './chip.component';
+import { Segmented } from './segmented.component';
+import { ViewSwitch } from './view-switch.component';
+import { useT } from '@/context/locale.context';
+import { KeyKind, KeyScope } from '@/contracts/enums/key-scope.enum';
+import { AppView } from '@/contracts/enums/app-view.enum';
+import {
+  statusesUsables,
+} from '@/helpers/filter-keys.helper';
 import type { IKeyFilter, IKeyStats } from '@/contracts/interfaces/key-filter.interface';
+import type { SteamAccountStatus } from '@/contracts/interfaces/steam-account.interface';
 
 export interface IToolbarProps {
   filter: IKeyFilter;
@@ -14,8 +24,15 @@ export interface IToolbarProps {
   sort: KeySort;
   busy: boolean;
   searchRef: React.RefObject<HTMLInputElement | null>;
+  /** Que tabla se ve ahora mismo. */
+  view: AppView;
+  /** Estado de la cuenta de Steam, para el selector de vista. */
+  cuenta: SteamAccountStatus;
   onFilterChange: (patch: Partial<IKeyFilter>) => void;
   onSortChange: (sort: KeySort) => void;
+  onViewChange: (view: AppView) => void;
+  /** Abrir los ajustes ya en la pestana de Steam. */
+  onOpenSteamSettings: () => void;
   onCreate: () => void;
   onImport: () => void;
   onExport: () => void;
@@ -23,11 +40,18 @@ export interface IToolbarProps {
   onOpenSettings: () => void;
 }
 
-const SORTS: ReadonlyArray<{ value: KeySort; label: string }> = [
-  { value: KeySort.Reciente, label: 'Mas recientes' },
-  { value: KeySort.Alfabetico, label: 'A - Z' },
-  { value: KeySort.Estado, label: 'Por estado' },
-  { value: KeySort.Plataforma, label: 'Por plataforma' },
+/**
+ * Las opciones de orden, con su clave de traduccion.
+ *
+ * El texto se resuelve al pintar y no al declarar: aqui no hay contexto de
+ * idioma todavia, y una vez translated el boton se queda en el idioma con el
+ * que se abrio la app.
+ */
+const SORTS: ReadonlyArray<{ value: KeySort; clave: string }> = [
+  { value: KeySort.Reciente, clave: 'sort.recent' },
+  { value: KeySort.Alfabetico, clave: 'sort.alpha' },
+  { value: KeySort.Estado, clave: 'sort.status' },
+  { value: KeySort.Plataforma, clave: 'sort.platform' },
 ];
 
 /** Barra superior: buscador, filtros rapidos y acciones. */
@@ -37,14 +61,20 @@ export function Toolbar({
   sort,
   busy,
   searchRef,
+  view,
+  cuenta,
   onFilterChange,
   onSortChange,
+  onViewChange,
+  onOpenSteamSettings,
   onCreate,
   onImport,
   onExport,
   onOpenStorage,
   onOpenSettings,
 }: IToolbarProps) {
+  const { t } = useT();
+
   const togglePlatform = (platform: KeyPlatform): void => {
     const next = filter.platforms.includes(platform)
       ? filter.platforms.filter((item) => item !== platform)
@@ -68,33 +98,57 @@ export function Toolbar({
           apretaba todo hasta que los botones se cortaban a media palabra. */}
       <div className="flex flex-wrap items-center gap-3 px-4 py-3">
         <div className="flex items-center gap-2.5 pr-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600/15 text-blue-400 ring-1 ring-blue-500/25">
-            <Icon name="key" size={18} />
-          </div>
+          {/*
+            El logo de la app, el mismo que va en la barra de tareas y en el
+            favicon. Antes aqui habia un icono de llave dibujado con lineas: se
+            veia bien dentro de la app, pero no era el mismo que aparecia en la
+            barra de tareas, y una app cuyo icono cambia entre la ventana y la
+            barra parece dos apps distintas.
+          */}
+          <img
+            src="/favicon.png"
+            alt=""
+            width={36}
+            height={36}
+            className="h-9 w-9 shrink-0 rounded-lg"
+          />
           <div className="leading-tight">
-            <h1 className="text-sm font-semibold text-slate-100">Steam Keys</h1>
-            <p className="text-[11px] text-slate-500">
-              {stats.available} disponibles de {stats.total}
+            <h1 className="text-sm font-semibold text-t1">{t('app.title')}</h1>
+            <p className="text-[11px] text-t4">
+              {t('app.subtitle', [stats.available, stats.total])}
             </p>
           </div>
         </div>
+
+        {/*
+          El selector de tabla va aqui y no en la fila de filtros porque no es
+          un filtro: cambia de tabla entera. Los filtros dicen que claves se
+          ven, este dice que coleccion.
+        */}
+        <ViewSwitch
+          view={view}
+          onChange={onViewChange}
+          cuenta={cuenta}
+          onOpenSteamSettings={onOpenSteamSettings}
+          claves={stats.total}
+        />
 
         <div className="relative min-w-[14rem] flex-1 max-[900px]:order-last max-[900px]:basis-full">
           <Icon
             name="search"
             size={15}
-            className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-slate-500"
+            className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-t4"
           />
           <input
             ref={searchRef}
             type="search"
             value={filter.search}
-            placeholder="Buscar por juego, clave, destinatario o nota…"
+            placeholder={t('search.placeholder')}
             onChange={(event) => onFilterChange({ search: event.target.value })}
             className={`${INPUT_CLASS} pl-9`}
           />
           {filter.search.length === 0 ? (
-            <kbd className="absolute top-1/2 right-3 -translate-y-1/2 rounded border border-white/10 px-1.5 py-0.5 text-[10px] text-slate-500">
+            <kbd className="absolute top-1/2 right-3 -translate-y-1/2 rounded border border-white/10 px-1.5 py-0.5 text-[10px] text-t4">
               {SEARCH_SHORTCUT}
             </kbd>
           ) : null}
@@ -107,201 +161,184 @@ export function Toolbar({
         */}
         <div className="flex flex-wrap items-center gap-2">
           {/*
-            El interruptor de "solo disponibles" va aqui y no con los demas
-            filtros porque es el que decide de verdad que se ve: con cuatro
-           cientas claves de las que dos thirds ya no estan disponibles, es el
-            interruptor que se usa a diario y tiene que estar a un clic.
+            El interruptor de "solo disponibles" se ha ido al panel de filtros,
+            junto al de tipo. Aqui solo queda lo que no es un filtro de la
+            lista: el buscador, el orden y las acciones.
           */}
-          <Toggle
-            label="Solo disponibles"
-            checked={filter.onlyGiftable}
-            onChange={(checked) => onFilterChange({ onlyGiftable: checked })}
-            title="Oculta las claves ya regaladas, canjeadas o caducadas"
-          />
 
           <div className="relative">
             <select
               value={sort}
               onChange={(event) => onSortChange(event.target.value as KeySort)}
               className={`${SELECT_CLASS} w-40 max-w-[45vw] py-2 pr-8`}
-              aria-label="Ordenar por"
+              aria-label={t('toolbar.sort')}
             >
               {SORTS.map((option) => (
                 <option key={option.value} value={option.value}>
-                  {option.label}
+                  {t(option.clave)}
                 </option>
               ))}
             </select>
           </div>
 
-          <Button variant="ghost" icon="download" onClick={onExport} title="Exportar a TXT">
-            Exportar
+          <Button variant="ghost" icon="download" onClick={onExport} title={t('toolbar.export')}>
+            {t('toolbar.export')}
           </Button>
           <Button
             variant="ghost"
             icon="upload"
             onClick={onImport}
             disabled={busy}
-            title="Importar desde el TXT original"
+            title={t('toolbar.import')}
           >
-            Importar
+            {t('toolbar.import')}
           </Button>
           <Button
             variant="ghost"
             icon="package"
             onClick={onOpenStorage}
-            title="Datos, copias de seguridad y salud de la base de datos"
+            title={t('toolbar.data')}
           >
-            Datos
+            {t('toolbar.data')}
           </Button>
 
           <Button
             variant="ghost"
             icon="settings"
             onClick={onOpenSettings}
-            title="Tema, idioma y cuenta de Steam"
+            title={t('toolbar.settings')}
           >
-            Ajustes
+            {t('toolbar.settings')}
           </Button>
 
           <Button variant="primary" icon="plus" onClick={onCreate}>
-            Anadir
+            {t('toolbar.add')}
           </Button>
         </div>
       </div>
 
       {/*
-        Los filtros no se ocultan tras un boton. Escondidos obligaban a dos
-        pulsaciones para cambiar de vista, que es la forma segura de no
-        filtrar nunca y acabar creyendo que la lista ya viene filtrada.
+        Los filtros solo tienen sentido en la tabla de claves, asi que en la
+        vista de juegos desaparece la fila entera en vez de quedar apagada:
+        para quien esta mirando sus juegos, un filtro de plataforma es ruido.
 
-        Todo va en una sola linea que fluye: los chips se agrupan, y si no cabe
-        pasan a la linea siguiente **pegados al principio**. Con un `flex` con
-        `justify-between` lo que pasaba es que los grupos se separaban del
-        todo al repartirse, dejando huecos enormes entre medio.
+        Y dentro de la tabla de claves no se ocultan tras un boton: escondidos
+        obligaban a dos pulsaciones para cambiar de vista, que es la forma
+        segura de no filtrar nunca y acabar creyendo que la lista ya viene
+        filtrada.
+
+        El orden es por decision, no por costumbre: primero los dos selectores
+        que dicen **que se esta viendo** (estado y tipo), y despues los chips
+        que afinan.
+
+        Con "solo disponibles" activo se apaga **solo el filtro de estado**, y
+        no el de tipo. Son cosas distintas y solo una sobra:
+
+        - Estado: "muestra las regaladas" con el filtro en "solo disponibles"
+          no significa nada. Todo lo visible ya esta disponible, asi que acortar
+          por estado solo puede dar la lista vacia. Por eso se apaga, con el
+          motivo en el tooltip.
+        - Tipo: "solo DLC" con el filtro en "solo disponibles" significa "los
+          DLC que aun tengo", y eso es una consulta de lo mas normal. Se
+          bloqueaba antes solo por simetria con el de estado, y lo unico que
+          conseguia era impedir responderla.
       */}
-      <div className="border-t border-line px-4 py-2">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[10px] font-medium tracking-wide text-slate-500 uppercase">
-                Plataforma
-              </span>
-              {KEY_PLATFORM_VALUES.map((platform) => {
-                const meta = KEY_PLATFORM_META[platform];
-                const active = filter.platforms.includes(platform);
-                const count = stats.byPlatform[platform] ?? 0;
+      {view === AppView.Keys ? (
+      <div className="border-t border-line px-4 py-2.5">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
+          <Segmented
+            options={[
+              { value: KeyScope.All, label: t('filter.scope.all') },
+              { value: KeyScope.Available, label: t('filter.scope.available') },
+            ]}
+            value={filter.scope}
+            onChange={(scope) => onFilterChange({ scope })}
+            tone="emerald"
+            label={t('filter.scope.label')}
+          />
 
-                return (
-                  <button
-                    key={platform}
-                    type="button"
-                    onClick={() => togglePlatform(platform)}
-                    disabled={count === 0}
-                    className={[
-                      'rounded-full transition',
-                      active ? 'ring-2 ring-blue-500/60' : 'opacity-55 hover:opacity-100',
-                      count === 0 ? 'cursor-not-allowed opacity-25' : '',
-                    ].join(' ')}
-                  >
-                    <Badge
-                      label={`${meta.short} ${count}`}
-                      tone={meta.tone}
-                      icon={meta.icon}
-                    />
-                  </button>
-                );
-              })}
-            </div>
+          <Segmented
+            options={[
+              { value: KeyKind.All, label: t('filter.kind.all') },
+              { value: KeyKind.Games, label: t('filter.kind.games') },
+              { value: KeyKind.Dlc, label: t('filter.kind.dlc') },
+            ]}
+            value={filter.kind}
+            onChange={(kind) => onFilterChange({ kind })}
+            tone="amber"
+            label={t('filter.kind.label')}
+          />
 
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[10px] font-medium tracking-wide text-slate-500 uppercase">
-                Estado
-              </span>
-              {KEY_STATUS_VALUES.map((status) => {
-                const meta = KEY_STATUS_META[status];
-                const active = filter.statuses.includes(status);
+          {/*
+            Los chips de plataforma y de estado van en recuadros distintos,
+            cada uno con su titulo: a primera vista los de plataforma son
+            rectangulos azules y los de estado redondos con su punto de color.
+            Antes eran dos hileras de pastillas iguales y no se distinguian
+            sin leer los titulos.
+          */}
+          <ChipGroup label={t('filter.platform')} tone="sky">
+            {KEY_PLATFORM_VALUES.map((platform) => {
+              const meta = KEY_PLATFORM_META[platform];
+              const active = filter.platforms.includes(platform);
+              const count = stats.byPlatform[platform] ?? 0;
 
-                return (
-                  <button
-                    key={status}
-                    type="button"
-                    onClick={() => toggleStatus(status)}
-                    className={[
-                      'rounded-full transition',
-                      active ? 'ring-2 ring-blue-500/60' : 'opacity-55 hover:opacity-100',
-                    ].join(' ')}
-                  >
-                    <Badge label={meta.label} tone={meta.tone} icon={meta.icon} title={meta.hint} />
-                  </button>
-                );
-              })}
-            </div>
+              return (
+                <Chip
+                  key={platform}
+                  label={meta.short}
+                  count={count}
+                  active={active}
+                  icon={meta.icon}
+                  onClick={() => togglePlatform(platform)}
+                  title={`${meta.label} — ${count}`}
+                />
+              );
+            })}
+          </ChipGroup>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <Toggle
-                label="Solo DLC"
-                checked={filter.onlyAddOns}
-                onChange={(checked) => onFilterChange({ onlyAddOns: checked })}
-                title="Muestra solo las DLC y el contenido adicional"
-              />
-              <button
-                type="button"
-                onClick={() =>
-                  onFilterChange({
-                    search: '',
-                    platforms: [],
-                    statuses: [],
-                    onlyGiftable: true,
-                    onlyAddOns: false,
-                  })
-                }
-                className="text-xs text-slate-500 underline-offset-2 hover:text-slate-300 hover:underline"
-                title="Quitar busqueda y filtros de plataforma y estado"
-              >
-                Limpiar
-              </button>
-            </div>
-          </div>
+          <ChipGroup
+            label={t('filter.status')}
+            tone="emerald"
+            disabled={!statusesUsables(filter)}
+            disabledTitle={t('filter.status.locked')}
+          >
+            {KEY_STATUS_VALUES.map((status) => {
+              const meta = KEY_STATUS_META[status];
+              const active = filter.statuses.includes(status);
+
+              return (
+                <Chip
+                  key={status}
+                  label={meta.label}
+                  active={active}
+                  icon={meta.icon}
+                  dot={meta.tone}
+                  onClick={() => toggleStatus(status)}
+                  title={meta.hint}
+                />
+              );
+            })}
+          </ChipGroup>
+
+          <button
+            type="button"
+            onClick={() =>
+              onFilterChange({
+                search: '',
+                scope: KeyScope.Available,
+                kind: KeyKind.All,
+                platforms: [],
+                statuses: [],
+              })
+            }
+            className="ml-auto text-xs text-t4 underline-offset-2 hover:text-t2 hover:underline"
+            title={t('filter.reset')}
+          >
+            {t('action.clear')}
+          </button>
         </div>
+      </div>
+      ) : null}
     </header>
-  );
-}
-
-interface IToggleProps {
-  label: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-  /** Explicacion de que hace, al pasar el raton. */
-  title?: string;
-}
-
-function Toggle({ label, checked, onChange, title }: IToggleProps) {
-  return (
-    <button
-      type="button"
-      onClick={() => onChange(!checked)}
-      title={title}
-      // `role="switch"` y `aria-checked` son lo que hace que un lector de
-      // pantalla diga "activado" en vez de leerte el texto y ya.
-      role="switch"
-      aria-checked={checked}
-      className="inline-flex items-center gap-2 text-xs text-slate-400 hover:text-slate-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
-    >
-      <span
-        aria-hidden="true"
-        className={[
-          'relative h-4 w-7 shrink-0 rounded-full transition-colors',
-          checked ? 'bg-blue-600' : 'bg-surface-3',
-        ].join(' ')}
-      >
-        <span
-          className={[
-            'absolute top-0.5 h-3 w-3 rounded-full bg-white transition-transform',
-            checked ? 'translate-x-3.5' : 'translate-x-0.5',
-          ].join(' ')}
-        />
-      </span>
-      {label}
-    </button>
   );
 }

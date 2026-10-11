@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Icon } from './icon.component';
 import { Modal } from './modal.component';
 import { Button, INPUT_CLASS } from './ui.component';
+import { useT } from '@/context/locale.context';
 import type { IGameKey } from '@/contracts/interfaces/game-key.interface';
 
 /** Cuántos títulos se enseñan antes de resumir con un "y N más". */
@@ -26,6 +27,7 @@ export function GiftDialog({
   onConfirm,
   onCancel,
 }: IGiftDialogProps) {
+  const { t } = useT();
   const [destino, setDestinatario] = useState('');
 
   const habilitado = destino.trim().length > 0;
@@ -43,15 +45,15 @@ export function GiftDialog({
       open={open}
       onClose={onCancel}
       size="md"
-      label="Marcar como regaladas"
+      label={t('gift.title')}
     >
       <header className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
           <div>
-            <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-100">
-              <Icon name="hand" size={16} className="text-emerald-400" />
+            <h2 className="flex items-center gap-2 text-sm font-semibold text-t1">
+              <Icon name="hand" size={16} className="text-ok" />
               Marcar como regaladas
             </h2>
-            <p className="mt-0.5 text-[11px] text-slate-500">
+            <p className="mt-0.5 text-[11px] text-t4">
               {entries.length === 1
                 ? '1 clave seleccionada'
                 : `${entries.length} claves seleccionadas`}
@@ -61,8 +63,8 @@ export function GiftDialog({
           <button
             type="button"
             onClick={onCancel}
-            title="Cerrar"
-            className="rounded-lg p-1.5 text-slate-500 transition hover:bg-white/5 hover:text-slate-200"
+            title={t('action.close')}
+            className="rounded-lg p-1.5 text-t4 transition hover:bg-hover hover:text-t1"
           >
             <Icon name="x" size={16} />
           </button>
@@ -73,18 +75,18 @@ export function GiftDialog({
             {visibles.map((titulo) => (
               <li
                 key={titulo}
-                className="flex items-center gap-2 text-xs text-slate-300"
+                className="flex items-center gap-2 text-xs text-t2"
               >
-                <Icon name="check" size={11} className="shrink-0 text-emerald-500" />
+                <Icon name="check" size={11} className="shrink-0 text-ok" />
                 <span className="truncate">{titulo}</span>
               </li>
             ))}
             {resto > 0 ? (
-              <li className="text-[11px] text-slate-500">y {resto} juego más</li>
+              <li className="text-[11px] text-t4">y {resto} juego más</li>
             ) : null}
           </ul>
 
-          <label className="mb-1.5 block text-[11px] font-medium text-slate-400">
+          <label className="mb-1.5 block text-[11px] font-medium text-t3">
             ¿A quién se lo has regalado?
           </label>
 
@@ -96,11 +98,11 @@ export function GiftDialog({
             onKeyDown={(event) => {
               if (event.key === 'Enter' && habilitado) onConfirm(destino);
             }}
-            placeholder="Nombre de quien lo recibe"
+            placeholder={t('gift.placeholder')}
             className={INPUT_CLASS}
           />
 
-          <p className="mt-2 text-[11px] text-slate-500">
+          <p className="mt-2 text-[11px] text-t4">
             Se guarda con cada clave, para saber a quién se la diste.
           </p>
         </div>

@@ -12,6 +12,10 @@ export type IconName =
   | 'hand'
   | 'shield'
   | 'check'
+  /** Guion: "esto no cambia". */
+  | 'minus'
+  /** Capas apiladas: lo que se aplica a varias filas a la vez. */
+  | 'layers'
   | 'alert'
   | 'help'
   | 'search'

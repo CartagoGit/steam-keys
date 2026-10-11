@@ -5,6 +5,7 @@ import { KEY_PLATFORM_VALUES, KeyPlatform } from '@/contracts/enums/key-platform
 import { KEY_STATUS_VALUES, KeyStatus } from '@/contracts/enums/key-status.enum';
 import { Button, Field, INPUT_CLASS, SELECT_CLASS } from './ui.component';
 import { Icon } from './icon.component';
+import { useT } from '@/context/locale.context';
 import type {
   IGameKey,
   IGameKeyDraft,
@@ -31,6 +32,8 @@ const EMPTY_DRAFT: IGameKeyDraft = {
 
 /** Formulario de alta y edicion. */
 export function KeyEditor({ entry, onSave, onClose }: IKeyEditorProps) {
+  const { t } = useT();
+
   const [draft, setDraft] = useState<IGameKeyDraft>(EMPTY_DRAFT);
   const [tagsText, setTagsText] = useState('');
   const [saving, setSaving] = useState(false);
@@ -98,14 +101,14 @@ export function KeyEditor({ entry, onSave, onClose }: IKeyEditorProps) {
     >
       <form
         onSubmit={handleSubmit}
-        className="animate-scale-in flex max-h-full w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-surface-1 shadow-2xl ring-1 ring-white/10"
+        className="animate-scale-in flex max-h-full w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-surface-1 shadow-2xl ring-1 ring-line"
       >
         <header className="flex items-center justify-between border-b border-line px-5 py-4">
           <div>
-            <h2 className="text-base font-semibold text-slate-100">
+            <h2 className="text-base font-semibold text-t1">
               {entry ? 'Editar key' : 'Nueva key'}
             </h2>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-t4">
               {entry
                 ? 'Los cambios se guardan en tu base de datos local.'
                 : 'Anade una clave a tu coleccion.'}
@@ -114,8 +117,8 @@ export function KeyEditor({ entry, onSave, onClose }: IKeyEditorProps) {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-2 text-slate-500 transition hover:bg-white/5 hover:text-slate-200"
-            title="Cerrar"
+            className="rounded-lg p-2 text-t4 transition hover:bg-hover hover:text-t1"
+            title={t('action.close')}
           >
             <Icon name="x" size={16} />
           </button>
@@ -123,29 +126,29 @@ export function KeyEditor({ entry, onSave, onClose }: IKeyEditorProps) {
 
         <div className="grid gap-4 overflow-y-auto px-5 py-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <Field label="Juego" required>
+            <Field label={t('editor.title')} required>
               <input
                 autoFocus
                 className={INPUT_CLASS}
                 value={draft.title}
                 onChange={(event) => patch({ title: event.target.value })}
-                placeholder="Celeste, Hollow Knight, Half-Life 2…"
+                placeholder={t('editor.titlePlaceholder')}
               />
             </Field>
           </div>
 
           <div className="sm:col-span-2">
-            <Field label="Clave" required hint="Se guarda tal cual la introduces.">
+            <Field label={t('editor.key')} required hint={t('editor.keyHint')}>
               <input
                 className={`${INPUT_CLASS} font-mono`}
                 value={draft.keyValue}
                 onChange={(event) => patch({ keyValue: event.target.value })}
-                placeholder="XXXXX-XXXXX-XXXXX"
+                placeholder={t('editor.keyPlaceholder')}
               />
             </Field>
           </div>
 
-          <Field label="Plataforma">
+          <Field label={t('editor.platform')}>
             <select
               className={SELECT_CLASS}
               value={draft.platform}
@@ -159,7 +162,7 @@ export function KeyEditor({ entry, onSave, onClose }: IKeyEditorProps) {
             </select>
           </Field>
 
-          <Field label="Estado">
+          <Field label={t('editor.status')}>
             <select
               className={SELECT_CLASS}
               value={draft.status}
@@ -173,52 +176,52 @@ export function KeyEditor({ entry, onSave, onClose }: IKeyEditorProps) {
             </select>
           </Field>
 
-          <Field label="Regalada a" hint="Solo si ya la has dado a alguien.">
+          <Field label={t('editor.recipient')} hint={t('editor.recipientHint')}>
             <input
               className={INPUT_CLASS}
               value={draft.giftedTo ?? ''}
               onChange={(event) =>
                 patch({ giftedTo: event.target.value.trim() || null })
               }
-              placeholder="Alberto"
+              placeholder={t('editor.recipientPlaceholder')}
             />
           </Field>
 
-          <Field label="Juego padre" hint="Rellena si es un DLC.">
+          <Field label={t('editor.parent')} hint={t('editor.parentHint')}>
             <input
               className={INPUT_CLASS}
               value={draft.parentTitle ?? ''}
               onChange={(event) =>
                 patch({ parentTitle: event.target.value.trim() || null })
               }
-              placeholder="Half-Life 2"
+              placeholder={t('editor.parentPlaceholder')}
             />
           </Field>
 
           <div className="sm:col-span-2">
-            <Field label="Nota" hint="Promo de origen, fecha, instrucciones…">
+            <Field label={t('editor.note')} hint={t('editor.noteHint')}>
               <input
                 className={INPUT_CLASS}
                 value={draft.note ?? ''}
                 onChange={(event) => patch({ note: event.target.value.trim() || null })}
-                placeholder="Junio 2018 Humble Monthly"
+                placeholder={t('editor.notePlaceholder')}
               />
             </Field>
           </div>
 
           <div className="sm:col-span-2">
-            <Field label="Etiquetas" hint="Separadas por comas.">
+            <Field label={t('editor.tags')} hint={t('editor.tagsHint')}>
               <input
                 className={INPUT_CLASS}
                 value={tagsText}
                 onChange={(event) => setTagsText(event.target.value)}
-                placeholder="humble, dlc, promo"
+                placeholder={t('editor.tagsPlaceholder')}
               />
             </Field>
           </div>
 
           {error ? (
-            <p className="sm:col-span-2 rounded-lg bg-rose-500/10 px-3 py-2 text-xs text-rose-300 ring-1 ring-rose-500/30">
+            <p className="sm:col-span-2 rounded-lg bg-danger/10 px-3 py-2 text-xs text-danger ring-1 ring-danger/30">
               {error}
             </p>
           ) : null}

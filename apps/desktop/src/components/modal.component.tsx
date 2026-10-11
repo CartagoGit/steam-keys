@@ -92,7 +92,7 @@ export function Modal({
   if (!visible) return null;
 
   const clases = [
-    'w-full overflow-hidden rounded-2xl bg-surface-1 shadow-2xl ring-1 ring-white/10',
+    'w-full overflow-hidden rounded-2xl bg-surface-1 shadow-2xl ring-1 ring-line',
     SIZES[size] ?? SIZES.md,
     saliendo ? 'animate-scale-out' : 'animate-scale-in',
   ].join(' ');

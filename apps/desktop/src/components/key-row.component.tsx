@@ -7,6 +7,7 @@ import { copyToClipboard } from '@/helpers/clipboard.helper';
 import { isGiftable } from '@/helpers/selection.helper';
 import { Badge } from './ui.component';
 import { Icon } from './icon.component';
+import { useT } from '@/context/locale.context';
 import type { IGameKey } from '@/contracts/interfaces/game-key.interface';
 
 export interface IKeyRowProps {
@@ -46,6 +47,7 @@ export function KeyRow({
   ownedOnSteam = false,
   tags = [],
 }: IKeyRowProps) {
+  const { t } = useT();
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -70,8 +72,8 @@ export function KeyRow({
         'max-[900px]:[&>*:last-child]:col-span-2',
         'ring-1 transition-colors',
         selected
-          ? 'bg-blue-500/10 ring-blue-500/40 hover:bg-blue-500/15'
-          : 'bg-surface-1 ring-white/5 hover:bg-surface-2 hover:ring-white/10',
+          ? 'bg-info/10 ring-info/40 hover:bg-info/15'
+          : 'bg-surface-1 ring-line-soft hover:bg-surface-2 hover:ring-line',
         giftable ? '' : 'opacity-75',
       ].join(' ')}
       onClick={(event) => {
@@ -99,29 +101,44 @@ export function KeyRow({
         checked={selected}
         onChange={() => onToggleSelect?.(entry)}
         aria-label={`Seleccionar ${entry.title}`}
-        className="h-4 w-4 shrink-0 cursor-pointer rounded border-white/20 accent-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
+        className="h-4 w-4 shrink-0 cursor-pointer rounded border-line-strong accent-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       />
 
       {/* ---------------------------------------------------------- nombre */}
       <div className="flex min-w-0 items-center gap-3">
+        {/*
+          El cuadrado de la izquierda es el **estado**, no la plataforma.
+          Es lo unico que cambia con la vida de la clave: lo primero que uno
+          necesita ver al recorrer la lista es si se puede regalar, y con el
+          icono de plataforma delante habia que leer la pastilla de la derecha
+          en cada fila. La plataforma es fija (casi siempre la misma) y se ha
+          ido a una insignia al lado del titulo, donde no compite.
+        */}
         <div
-          className={[
-            'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
-            platform.tone,
-          ].join(' ')}
-          title={platform.label}
+          className={['flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', status.tone].join(
+            ' ',
+          )}
+          title={`${status.label} — ${status.hint}`}
         >
-          <Icon name={platform.icon} size={16} />
+          <Icon name={status.icon} size={16} />
         </div>
 
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-2">
-            <h3 className="truncate text-sm font-medium text-slate-100">{entry.title}</h3>
+            <h3 className="truncate text-sm font-medium text-t1">{entry.title}</h3>
+
+            <span
+              title={platform.label}
+              className="inline-flex shrink-0 items-center gap-1 rounded bg-hover px-1.5 py-0.5 text-[10px] text-t3"
+            >
+              <Icon name={platform.icon} size={10} />
+              {platform.short}
+            </span>
 
             {entry.parentTitle ? (
               <span
-                title="Contenido adicional de otro juego"
-                className="shrink-0 rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-slate-400"
+                title={t('row.dlc')}
+                className="shrink-0 rounded bg-hover px-1.5 py-0.5 text-[10px] text-t3"
               >
                 DLC
               </span>
@@ -132,8 +149,8 @@ export function KeyRow({
                 contador lo deja claro de un vistazo. */}
             {siblings > 1 ? (
               <span
-                title={`${siblings} claves de este juego en la coleccion`}
-                className="shrink-0 rounded-full bg-slate-500/15 px-1.5 py-0.5 text-[10px] text-slate-400"
+                title={t('row.siblings', [siblings])}
+                className="shrink-0 rounded-full bg-hover px-1.5 py-0.5 text-[10px] text-t3"
               >
                 ×{siblings}
               </span>
@@ -142,8 +159,8 @@ export function KeyRow({
             {/* Cuando la cuenta de Steam ya tiene este juego, la key sobra. */}
             {ownedOnSteam ? (
               <span
-                title="Ya tienes este juego en tu cuenta de Steam"
-                className="inline-flex shrink-0 items-center gap-1 rounded-full bg-sky-500/15 px-1.5 py-0.5 text-[10px] text-sky-300 ring-1 ring-sky-500/30"
+                title={t('row.owned')}
+                className="inline-flex shrink-0 items-center gap-1 rounded-full bg-info/15 px-1.5 py-0.5 text-[10px] text-info ring-1 ring-info/30"
               >
                 <Icon name="check" size={9} />
                 En Steam
@@ -151,10 +168,10 @@ export function KeyRow({
             ) : null}
           </div>
 
-          <div className="mt-0.5 flex items-center gap-2 text-[11px] text-slate-500">
+          <div className="mt-0.5 flex items-center gap-2 text-[11px] text-t4">
             {entry.giftedTo ? (
-              <span className="inline-flex items-center gap-1 text-slate-400">
-                <Icon name="hand" size={11} />para {entry.giftedTo}
+              <span className="inline-flex items-center gap-1 text-t3">
+                <Icon name="hand" size={11} />{t('row.forRecipient', [entry.giftedTo])}
               </span>
             ) : null}
             {entry.note ? <span className="truncate">{entry.note}</span> : null}
@@ -180,11 +197,11 @@ export function KeyRow({
         <button
           type="button"
           onClick={() => setRevealed((value) => !value)}
-          title={revealed ? 'Ocultar clave' : 'Mostrar clave'}
-          className="flex items-center gap-2 rounded-lg bg-surface-2 px-2.5 py-1.5 ring-1 ring-white/10 transition hover:bg-surface-3"
+          title={revealed ? t('row.hideKey') : t('row.showKey')}
+          className="flex items-center gap-2 rounded-lg bg-surface-2 px-2.5 py-1.5 ring-1 ring-line transition hover:bg-surface-3"
         >
-          <Icon name={revealed ? 'eye-off' : 'eye'} size={13} className="text-slate-400" />
-          <code className="font-mono text-xs tracking-wide text-slate-200">
+          <Icon name={revealed ? 'eye-off' : 'eye'} size={13} className="text-t3" />
+          <code className="font-mono text-xs tracking-wide text-t1">
             {revealed ? entry.keyValue : maskKey(entry.keyValue)}
           </code>
         </button>
@@ -192,25 +209,25 @@ export function KeyRow({
         <button
           type="button"
           onClick={handleCopy}
-          title="Copiar clave"
-          className="rounded-lg p-2 text-slate-500 transition hover:bg-white/5 hover:text-slate-200"
+          title={t('row.copyKey')}
+          className="rounded-lg p-2 text-t4 transition hover:bg-hover hover:text-t1"
         >
           <Icon
             name={copied ? 'check-circle' : 'copy'}
             size={15}
-            className={copied ? 'text-emerald-400' : ''}
+            className={copied ? 'text-ok' : ''}
           />
         </button>
 
         <button
           type="button"
           onClick={() => onCycleStatus(entry)}
-          title={`Estado: ${status.label}. ${status.hint} Pulsa para cambiarlo.`}
+          title={t('row.status', [status.label, status.hint])}
           // Sin estas clases, el boton sale con el estilo por defecto del
           // navegador: fondo gris del sistema operativo, sin esquinas redondeadas
           // y sin el espacio de la pastilla. En Windows sobre todo, donde el
           // aspecto por defecto es un marco gris que desentona.
-          className="shrink-0 rounded-full transition hover:brightness-125 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
+          className="shrink-0 rounded-full transition hover:brightness-125 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           <Badge label={status.label} tone={status.tone} icon={status.icon} />
         </button>
@@ -219,16 +236,16 @@ export function KeyRow({
           <button
             type="button"
             onClick={() => onEdit(entry)}
-            title="Editar"
-            className="rounded-lg p-2 text-slate-500 transition hover:bg-white/5 hover:text-slate-200"
+            title={t('action.edit')}
+            className="rounded-lg p-2 text-t4 transition hover:bg-hover hover:text-t1"
           >
             <Icon name="pencil" size={15} />
           </button>
           <button
             type="button"
             onClick={() => onDelete(entry)}
-            title="Eliminar"
-            className="rounded-lg p-2 text-slate-500 transition hover:bg-rose-500/10 hover:text-rose-400"
+            title={t('action.delete')}
+            className="rounded-lg p-2 text-t4 transition hover:bg-danger/10 hover:text-danger"
           >
             <Icon name="trash" size={15} />
           </button>

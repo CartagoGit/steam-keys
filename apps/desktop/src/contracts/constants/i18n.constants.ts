@@ -57,6 +57,23 @@ export const EN: TranslationTable = Object.freeze({
   'filter.onlyGiftable': 'Available only',
   'filter.onlyAddOns': 'DLC only',
 
+  // -------------------------------------------------------------- scope ---
+  'filter.scope.label': 'Status',
+  'filter.scope.all': 'All',
+  'filter.scope.available': 'Available only',
+
+  // --------------------------------------------------------------- kind ---
+  'filter.kind.label': 'Type',
+  'filter.kind.all': 'All',
+  'filter.kind.games': 'Games only',
+  'filter.kind.dlc': 'DLC only',
+
+  'filter.status.locked':
+    'With “Available only” you are already seeing the keys that are neither gifted nor redeemed, so filtering by status at the same time does nothing.',
+  'filter.reset': 'Clear search and filters',
+  'filter.platform.hint': 'Filters by the store the key is redeemed on',
+  'filter.status.hint': 'Filters by what each key has been through',
+
   // ---------------------------------------------------------- selection ---
   'select.one': '1 selected',
   'select.many': '{0} selected',
@@ -118,11 +135,10 @@ export const EN: TranslationTable = Object.freeze({
   'settings.language': 'Language',
   'settings.apiKey': 'Steam Web API key',
   'settings.apiKey.hint':
-    'Free, from steamcommunity.com/dev/apikey. Stored only on this computer.',
+    'Free, and stored only on this computer: it is never sent anywhere.',
+  'settings.apiKey.link': 'Get a new key',
   'settings.apiKey.placeholder': 'Paste your key here',
   'settings.steamId': 'Steam ID',
-  'settings.steamId.hint': 'Your 17-digit number, starting with 7656119.',
-  'settings.steamId.placeholder': '7656119…',
   'settings.steam.link': 'Connect',
   'settings.steam.unlink': 'Disconnect',
   'settings.steam.linked': 'Connected as {0}',
@@ -142,9 +158,12 @@ export const EN: TranslationTable = Object.freeze({
   'settings.steam.error.link': 'Could not connect the account.',
 
   // --------------------------------------------------------- library ---
+  'view.label': 'Collection',
   'view.keys': 'Keys',
   'view.games': 'My games',
   'library.empty': 'Connect your Steam account to see your library.',
+  'library.name': 'Game',
+  'library.playtimeShort': 'Played',
   'library.playtime': '{0} h played',
   'library.notPlayed': 'Never played',
   'library.installed': 'Installed',
@@ -185,6 +204,220 @@ export const EN: TranslationTable = Object.freeze({
   'review.unknown': 'No reviews',
   'review.metacritic': 'Metacritic {0}',
   'review.noData': 'No data yet',
+
+
+  'action.edit':
+    'Edit',
+  'action.delete':
+    'Delete',
+  'action.copy':
+    'Copy',
+  'action.back':
+    'Back',
+  'select.clear':
+    'Clear',
+  'select.giftableOne':
+    '{0} can be gifted',
+  'select.giftableMany':
+    '{0} can be gifted',
+  'select.giftableRest':
+    '· {0} cannot',
+  'select.giftableNone':
+    'None of them can be gifted as they are',
+  'select.untoggleAll':
+    'Clear all',
+  'select.clearAll':
+    'Clear the selection across the list',
+  'select.allHere':
+    'Select everything currently in the list',
+  'select.groupGift':
+    'Gift',
+  'select.groupState':
+    'Change status',
+  'select.groupOrganize':
+    'Organise',
+  'select.markAllGifted':
+    'Mark as gifted',
+  'select.exportHint':
+    'Save the selected keys to a TXT file to gift them',
+  'select.giftedHint':
+    'Mark the selected keys as already gifted and say who to',
+  'select.expiredHint':
+    'Mark the selected keys as expired',
+  'select.tagsHint':
+    'Change the tags of the selected keys',
+  'select.blockedCount':
+    'Turn on "Only available" to leave those {0} out',
+  'select.blockedOne':
+    'Turn on "Only available" to leave that one out',
+  'select.blockedNone':
+    'Turn on "Only available" to act on the selection',
+  'select.blockedExpired':
+    'They were already all expired',
+  'bulk.title':
+    'Change status',
+  'bulk.subtitle':
+    'It will be applied to {0} selected keys',
+  'bulk.hint':
+    'Only the keys that allow that status will change. The rest stay as they are.',
+  'bulk.apply':
+    'Change status',
+  'bulk.pending':
+    '{0} keys become {1}',
+  'bulk.unchanged':
+    '{0} were already {1}',
+  'bulk.skipped':
+    '{0} cannot become {1}: {2}',
+  'bulk.done':
+    'Status changed on {0} keys.',
+  'bulk.none':
+    'None of the selected keys can move to that status.',
+  'settings.steamId.hint':
+    'Either one works. The number is 17 digits and starts with 7656119. The name is whatever comes right after /id/ in your profile URL: if your profile is steamcommunity.com/id/my-game, your name is my-game.',
+  'settings.steamId.placeholder':
+    '76561198023249625 or your name',
+  'settings.steamId.label':
+    'Steam ID or profile name',
+  'settings.steam.linkedOk':
+    'Connected and saved',
+  'settings.steam.games':
+    '{0} games',
+  'settings.steam.forget':
+    'Forget key',
+  'settings.steam.forgetHint':
+    'Delete the API key from the database',
+  'settings.steam.needKey':
+    'The API key is required',
+  'settings.steam.needId':
+    'Enter your Steam ID or your profile name',
+  'settings.theme.hint':
+    'It shows right away. "System" follows your operating system and changes on its own.',
+  'settings.language.hint':
+    'Changes the language of the menus and buttons.',
+  'tags.addHint':
+    'Add the tag to the selection',
+  'tags.applyHint':
+    'Apply these tags to all the selected keys',
+  'editor.new':
+    'Add key',
+  'editor.edit':
+    'Edit key',
+  'editor.title':
+    'Game',
+  'editor.titleHint':
+    'The game name as it appears on Steam.',
+  'editor.titlePlaceholder':
+    'Celeste, Hollow Knight, Half-Life 2…',
+  'editor.key':
+    'Key',
+  'editor.keyHint':
+    'It is saved exactly as you type it.',
+  'editor.keyPlaceholder':
+    'XXXXX-XXXXX-XXXXX',
+  'editor.platform':
+    'Platform',
+  'editor.status':
+    'Status',
+  'editor.recipient':
+    'Gifted to',
+  'editor.recipientHint':
+    'Only if you already gave it away.',
+  'editor.recipientPlaceholder':
+    'Name of whoever gets it',
+  'editor.parent':
+    'Parent game',
+  'editor.parentHint':
+    'Fill it in if it is a DLC.',
+  'editor.parentPlaceholder':
+    'Half-Life 2',
+  'editor.note':
+    'Note',
+  'editor.noteHint':
+    'Source promotion, date, instructions…',
+  'editor.notePlaceholder':
+    'June 2018 Humble Monthly',
+  'editor.tags':
+    'Tags',
+  'editor.tagsHint':
+    'Separated by commas.',
+  'editor.tagsPlaceholder':
+    'humble, dlc, promo',
+  'editor.needKey':
+    'The key cannot be empty.',
+  'editor.needTitle':
+    'The game cannot be empty.',
+  'gift.title':
+    'Mark as gifted',
+  'gift.hint':
+    'Who each key was given to. Without a name the status is not changed.',
+  'gift.placeholder':
+    'Name of whoever gets it',
+  'import.title':
+    'To import',
+  'import.titleHint':
+    'New keys that get added to the database',
+  'import.duplicates':
+    'You already had',
+  'import.duplicatesHint':
+    'Duplicated inside the TXT itself or already in the database',
+  'import.available':
+    'Available',
+  'import.availableHint':
+    'Marked as giftable',
+  'import.gifted':
+    'Already gifted',
+  'import.giftedHint':
+    'The TXT marked them with a leading dash',
+  'import.confirm':
+    'Import',
+  'import.cancel':
+    'Cancel',
+  'row.dlc':
+    'Add-on content from another game',
+  'row.owned':
+    'You already own this game on your Steam account',
+  'row.siblings':
+    '{0} keys of this game in the collection',
+  'row.showKey':
+    'Show key',
+  'row.hideKey':
+    'Hide key',
+  'row.copyKey':
+    'Copy key',
+  'row.status':
+    'Status: {0}. {1} Click to change it.',
+  'row.forRecipient':
+    'to {0}',
+  'data.title':
+    'Data',
+  'data.subtitle':
+    'Backup, restore and delete',
+  'data.export':
+    'Export backup',
+  'data.import':
+    'Restore backup',
+  'data.delete':
+    'Delete everything',
+  'data.deleteConfirm':
+    'This cannot be undone. Are you sure?',
+  'data.close':
+    'Close data',
+  'data.size':
+    'Size',
+  'data.path':
+    'Path',
+  'data.copy':
+    'Copy path',
+  'data.copied':
+    'Path copied.',
+  'footer.games':
+    '{0} games on Steam',
+  'footer.shortcutSearch':
+    'search',
+  'footer.shortcutNew':
+    'new',
+  'footer.showing':
+    'Showing {0} of {1}. Narrow the search to see the rest.',
 });
 
 /**

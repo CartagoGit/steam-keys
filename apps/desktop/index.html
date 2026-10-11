@@ -4,6 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark light" />
+
+    <!--
+      El favicon se declara aqui y no se deja que el navegador lo busque solo:
+      sin esto sale el icono por defecto, que es el de Vite en desarrollo y un
+      cuadrado blanco en el ejecutable. `public/favicon.png` lo copia Vite a
+      `build/` sin tocar nada.
+    -->
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/favicon.png" />
+
     <title>Steam Keys</title>
   </head>
   <body>

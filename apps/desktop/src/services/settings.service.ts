@@ -1,11 +1,16 @@
 import { DEFAULT_LOCALE } from '@/contracts/enums/app-locale.enum';
 import { AppTheme } from '@/contracts/enums/app-theme.enum';
 import { getDatabaseClient } from '@/repositories/repository.factory';
+import {
+  readBool,
+  readLocale,
+  readTheme,
+  serializeSetting,
+} from '@/helpers/settings.helper';
 import type {
   IAppSettings,
   ISettingRow,
 } from '@/contracts/interfaces/app-settings.interface';
-import type { AppLocale } from '@/contracts/enums/app-locale.enum';
 
 /** Ajustes por defecto: los de una instalacion nueva, sin tocar nada. */
 export const DEFAULT_SETTINGS: IAppSettings = Object.freeze({
@@ -15,6 +20,9 @@ export const DEFAULT_SETTINGS: IAppSettings = Object.freeze({
   steamId: '',
   steamLinked: false,
   steamSyncedAt: null,
+  lastScope: 'available',
+  lastKind: 'all',
+  lastView: 'keys',
 });
 
 /**
@@ -50,6 +58,9 @@ export const settingsService = {
       steamId: tabla.get('steamId') ?? DEFAULT_SETTINGS.steamId,
       steamLinked: readBool(tabla.get('steamLinked')),
       steamSyncedAt: tabla.get('steamSyncedAt') || null,
+      lastScope: tabla.get('lastScope') || DEFAULT_SETTINGS.lastScope,
+      lastKind: tabla.get('lastKind') || DEFAULT_SETTINGS.lastKind,
+      lastView: tabla.get('lastView') || DEFAULT_SETTINGS.lastView,
     };
   },
 
@@ -60,7 +71,7 @@ export const settingsService = {
     await db.execute(
       `INSERT INTO app_settings (key, value) VALUES ($1, $2)
          ON CONFLICT (key) DO UPDATE SET value = excluded.value`,
-      [key, serialize(value)],
+      [key, serializeSetting(value)],
     );
   },
 
@@ -72,7 +83,7 @@ export const settingsService = {
       await db.execute(
         `INSERT INTO app_settings (key, value) VALUES ($1, $2)
            ON CONFLICT (key) DO UPDATE SET value = excluded.value`,
-        [key, serialize(value)],
+        [key, serializeSetting(value)],
       );
     }
   },
@@ -82,21 +93,3 @@ export const settingsService = {
     await this.set('steamApiKey', '');
   },
 };
-
-function serialize(value: IAppSettings[keyof IAppSettings]): string {
-  if (typeof value === 'boolean') return value ? '1' : '0';
-  if (value === null || value === undefined) return '';
-  return String(value);
-}
-
-function readBool(value: string | undefined): boolean {
-  return value === '1' || value === 'true';
-}
-
-function readTheme(value: string | undefined): AppTheme {
-  return value === AppTheme.Dark || value === AppTheme.Light ? value : AppTheme.System;
-}
-
-function readLocale(value: string | undefined): AppLocale {
-  return (value ?? DEFAULT_LOCALE) as AppLocale;
-}

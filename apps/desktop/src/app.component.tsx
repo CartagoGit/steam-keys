@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { translate } from '@/helpers/i18n.helper';
+import { LocaleContext, type ITranslator } from './context/locale.context';
 
+import { BulkStatusDialog } from './components/bulk-status-dialog.component';
 import { ConfirmDialog, ToastStack, type IToast, type ToastTone } from './components/feedback.component';
 import { GiftDialog } from './components/gift-dialog.component';
 import { Icon } from './components/icon.component';
@@ -7,19 +10,25 @@ import { ImportPreview } from './components/import-preview.component';
 import { KeyEditor } from './components/key-editor.component';
 import { KeyRow } from './components/key-row.component';
 import { SelectionBar } from './components/selection-bar.component';
-import { SettingsDialog } from './components/settings-dialog.component';
+import { SettingsDialog, type SettingsTab } from './components/settings-dialog.component';
 import { StoragePanel } from './components/storage-panel.component';
+import { SteamGamesTable } from './components/steam-games-table.component';
+import { SteamNotConnected } from './components/view-switch.component';
 import { TagsDialog } from './components/tags-dialog.component';
 import { Toolbar } from './components/toolbar.component';
 import { Button } from './components/ui.component';
 
 import { PAGE_SIZE, SEARCH_SHORTCUT } from '@/contracts/constants/app.constants';
+import { AppView, DEFAULT_VIEW } from '@/contracts/enums/app-view.enum';
+import { KeyKind, KeyScope } from '@/contracts/enums/key-scope.enum';
 import { KeySort } from '@/contracts/enums/key-sort.enum';
 import { KeyStatus } from '@/contracts/enums/key-status.enum';
 import { computeStats, emptyFilter, filterKeys, sortKeys } from '@/helpers/filter-keys.helper';
-import { analyzeSelection, claveGrupo, groupByTitle, type SelectAction } from '@/helpers/selection.helper';
+import { analyzeSelection, claveGrupo, groupByTitle, podarSeleccion, type SelectAction } from '@/helpers/selection.helper';
 import { mergeTags, removeTags } from '@/contracts/constants/tag.constants';
 import { useKeepMounted } from '@/helpers/use-exit-animation.helper';
+import type { TranslationArgs } from '@/contracts/constants/i18n.constants';
+import type { AppLocale } from '@/contracts/enums/app-locale.enum';
 import { gameKeyService } from '@/services/game-key.service';
 import { settingsService, DEFAULT_SETTINGS } from '@/services/settings.service';
 import { storageService } from '@/services/storage.service';
@@ -50,6 +59,22 @@ const STATUS_CYCLE: readonly KeyStatus[] = [
   KeyStatus.Unknown,
 ];
 
+/**
+ * El filtro arranca con lo que se dejo la ultima vez.
+ *
+ * Sin esto, cada vez que se abre la app hay que volver a decidir si se quiere
+ * ver todo o solo lo disponible, y casi siempre es lo mismo de ayer.
+ */
+function initialFilter(cargados: IAppSettings): IKeyFilter {
+  const base = emptyFilter();
+
+  return {
+    ...base,
+    scope: (cargados.lastScope as KeyScope) || base.scope,
+    kind: (cargados.lastKind as KeyKind) || base.kind,
+  };
+}
+
 export function App() {
   const [keys, setKeys] = useState<readonly IGameKey[]>([]);
   const [filter, setFilter] = useState<IKeyFilter>(emptyFilter);
@@ -69,16 +94,55 @@ export function App() {
    */
   const [selection, setSelection] = useState<ReadonlySet<number>>(new Set());
 
-  /** El interruptor que decide si las acciones de regalar son validas. */
-  const [onlyAvailable, setOnlyAvailable] = useState(true);
-
   const [giftDialogOpen, setGiftDialogOpen] = useState(false);
   const [expireDialogOpen, setExpireDialogOpen] = useState(false);
+  /** Dialogo para cambiar el estado de toda la seleccion a la vez. */
+  const [bulkStatusOpen, setBulkStatusOpen] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
 
   // ---------------------------------------------------------- ajustes ---
   const [settingsOpen, setSettingsOpen] = useState(false);
+  /** Con que pestana se abren los ajustes. Cambia al pedirlo desde fuera. */
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>('appearance');
   const [settings, setSettings] = useState<IAppSettings>(DEFAULT_SETTINGS);
+
+  /**
+   * `true` cuando los ajustes ya se han leido de la base de datos.
+   *
+   * Existe para una sola cosa: que el filtro **no se guarde hasta haber sido
+   * leido**. Al montar, el estado vale `emptyFilter` (solo disponibles, que es
+   * el valor por defecto), y si el efecto de guardado se disparase ahi
+   * escribiria ese valor por encima del que si habia quedado de la sesion
+   * anterior. El resultado era que el filtro no se recordaba nunca.
+   */
+  const [ajustesListos, setAjustesListos] = useState(false);
+
+  /**
+   * Que tabla se ve: las claves o los juegos de Steam.
+   *
+   * No es un filtro sino otra coleccion, asi que no vive en `filter`. Se
+   * guarda igualmente para que la app se abra donde se dejo.
+   */
+  const [vista, setVista] = useState<AppView>(DEFAULT_VIEW);
+
+  /**
+   * El idioma en pantalla, para que los componentes hijos traduzcan ya con el
+   * idioma bueno desde el primer render y no un fotograma tarde.
+   */
+  const [idioma, setIdioma] = useState<AppLocale>(DEFAULT_SETTINGS.locale);
+
+  const t = useMemo<ITranslator>(
+    () => ({
+      locale: idioma,
+      setLocale: setIdioma,
+      // Se declara como propiedad y no como metodo abreviado porque el
+      // interfaz `ITranslator` declara el traducir como una llamada, y asi el
+      // tipo es exactamente el mismo que el que consumen los componentes.
+      t: (clave: string, args?: TranslationArgs) => translate(idioma, clave, args),
+    }),
+    [idioma],
+  );
+
   const [owned, setOwned] = useState<readonly ISteamOwnedGame[]>([]);
   const [cuenta, setCuenta] = useState<SteamAccountStatus>({
     conectado: false,
@@ -106,6 +170,7 @@ export function App() {
   const settingsVivo = useKeepMounted(settingsOpen);
   const giftVivo = useKeepMounted(giftDialogOpen);
   const expireVivo = useKeepMounted(expireDialogOpen);
+  const bulkVivo = useKeepMounted(bulkStatusOpen);
   const tagsVivo = useKeepMounted(tagsOpen);
 
   // ------------------------------------------------------------- avisos ---
@@ -145,6 +210,10 @@ export function App() {
       try {
         const cargados = await settingsService.load();
         setSettings(cargados);
+        setIdioma(cargados.locale);
+        applyTheme(cargados.theme);
+        setFilter(initialFilter(cargados));
+        setVista(cargados.lastView === AppView.Games ? AppView.Games : DEFAULT_VIEW);
 
         if (cargados.steamApiKey && cargados.steamId) {
           const juegos = await steamService.getOwnedGames(
@@ -163,6 +232,12 @@ export function App() {
         }
       } catch {
         // Sin ajustes, sin biblioteca, sin problema: la app sigue con las claves.
+      } finally {
+        // Se marca aqui y no dentro del `try`: aunque la carga falle, a partir
+        // de este punto ya se puede guardar. Dejarlo en el `try` haria que una
+        // base de datos que falla al leer nunca llegara a recordar el filtro,
+        // que es justo cuando mas lo necesita uno.
+        setAjustesListos(true);
       }
     };
 
@@ -174,6 +249,27 @@ export function App() {
     setFilter((current) => ({ ...current, ...changes }));
   }, []);
 
+  /**
+   * Guarda el ambito, el tipo y la vista.
+   *
+   * Va en un efecto aparte y no dentro de `patchFilter` a proposito: si se
+   * guardara ahi, cada pulsacion esperaria a la base de datos antes de repintar
+   * la lista, que con cuatrocientas filas se nota. Aqui se guarda por detras y
+   * la lista se actualiza al instante.
+   *
+   * La comprobacion de `ajustesListos` no es opcional: sin ella, el primer
+   * volcado escribe los valores por defecto encima de los guardados.
+   */
+  useEffect(() => {
+    if (!ajustesListos) return;
+
+    void settingsService.setMany({
+      lastScope: filter.scope,
+      lastKind: filter.kind,
+      lastView: vista,
+    });
+  }, [ajustesListos, filter.scope, filter.kind, vista]);
+
   const visible = useMemo(
     () => sortKeys(filterKeys(keys, filter), sort),
     [keys, filter, sort],
@@ -181,6 +277,21 @@ export function App() {
 
   const stats = useMemo(() => computeStats(keys, visible.length), [keys, visible.length]);
   const page = useMemo(() => visible.slice(0, PAGE_SIZE), [visible]);
+
+  /**
+   * Deselecciona lo que el filtro deja fuera.
+   *
+   * Va en un efecto y no dentro de `patchFilter` porque en este punto ya se
+   * conoce la lista **resultante**, que es la unica que importa: la poda
+   * necesita saber que claves se ven de verdad, no cual sera el filtro nuevo.
+   *
+   * Solo mira `visible`, y por tanto solo cuando cambian las claves o el filtro,
+   * no cuando se reordena la lista. Es lo que se quiere: cambiar el orden no
+   * invalida nada, cambiar el filtro si.
+   */
+  useEffect(() => {
+    setSelection((actual) => podarSeleccion(actual, visible));
+  }, [visible]);
 
   /** Cuantas claves comparten cada titulo, para el contador de la fila. */
   const groups = useMemo(() => groupByTitle(keys), [keys]);
@@ -214,20 +325,22 @@ export function App() {
   );
 
   /**
-   * Las claves sobre las que se actua de verdad.
+   * Las seleccionadas que se pueden regalar.
    *
-   * Con el interruptor activado se quedan solo las disponibles: no tiene
-   * sentido intentar regalar algo que ya esta regalado, y hacerlo en silencio
-   * seria peor que no hacerlo.
+   * Se calculan solas, sin interruptor: si la vista esta en «Solo
+   * disponibles» (que es lo unico que hay que decidir, y se decide en la barra
+   * de filtros) lo que se ve ya son todas regalables, y la seleccion de esa
+   * lista no puede contener ninguna que no lo sea. Con el filtro en «Todos» la
+   * seleccion si puede mezclar estados, y entonces se descartan las que no.
    */
   const actionableKeys = useMemo(
-    () => (onlyAvailable ? selectedKeys.filter(isAvailable) : selectedKeys),
-    [selectedKeys, onlyAvailable],
+    () => (filter.scope === KeyScope.Available ? selectedKeys : selectedKeys.filter(isAvailable)),
+    [selectedKeys, filter.scope],
   );
 
   const facts = useMemo(
-    () => analyzeSelection(selectedKeys, onlyAvailable),
-    [selectedKeys, onlyAvailable],
+    () => analyzeSelection(selectedKeys, filter.scope === KeyScope.All),
+    [selectedKeys, filter.scope],
   );
 
   const selectionIds = useMemo(
@@ -254,10 +367,6 @@ export function App() {
     setSelection(new Set(visible.map((key) => key.id)));
   }, [visible]);
 
-  const toggleOnlyAvailable = useCallback((): void => {
-    setOnlyAvailable((actual) => !actual);
-  }, []);
-
   /** El texto que explica por que un boton esta apagado. */
   const motivo = useCallback(
     (action: SelectAction): string | undefined => {
@@ -276,6 +385,40 @@ export function App() {
         target?.tagName === 'INPUT' ||
         target?.tagName === 'TEXTAREA' ||
         target?.tagName === 'SELECT';
+
+      // Escape cierra primero lo que esta abierto encima. Se comprueba en orden de
+      // capa, de mas nuevo a mas viejo: si no, Escape cerraria el dialogo de
+      // atras sin llegar al de delante, que es como se siente al pulsar una vez
+      // y ver que no pasa nada.
+      if (event.key === 'Escape' && giftDialogOpen) {
+        setGiftDialogOpen(false);
+        return;
+      }
+
+      if (event.key === 'Escape' && bulkStatusOpen) {
+        setBulkStatusOpen(false);
+        return;
+      }
+
+      if (event.key === 'Escape' && expireDialogOpen) {
+        setExpireDialogOpen(false);
+        return;
+      }
+
+      if (event.key === 'Escape' && tagsOpen) {
+        setTagsOpen(false);
+        return;
+      }
+
+      if (event.key === 'Escape' && settingsOpen) {
+        setSettingsOpen(false);
+        return;
+      }
+
+      if (event.key === 'Escape' && storageOpen) {
+        setStorageOpen(false);
+        return;
+      }
 
       if (event.key === 'Escape' && editorOpen) {
         setEditorOpen(false);
@@ -305,7 +448,17 @@ export function App() {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [editorOpen, selection.size, clearSelection]);
+  }, [
+    bulkStatusOpen,
+    editorOpen,
+    expireDialogOpen,
+    giftDialogOpen,
+    selection.size,
+    settingsOpen,
+    storageOpen,
+    tagsOpen,
+    clearSelection,
+  ]);
 
   // ------------------------------------------------------------ acciones ---
   const handleCreate = (): void => {
@@ -349,6 +502,59 @@ export function App() {
     setDeleting(null);
     notify('Key eliminada.', 'success');
     await reload();
+  };
+
+  /**
+   * Aplica un estado a varias claves de golpe.
+   *
+   * Se reciben los ids ya filtrados por el dialogo (que es quien decide que
+   * transiciones tienen sentido), asi que aqui solo se escribe. Aun asi se
+   * vuelve a comprobar el estado de cada una antes de escribir: entre que el
+   * dialogo calcula el reparto y se pulsa el boton, la lista puede haber
+   * cambiado, y escribir a ciegas dejaria claves en un estado que ya no
+   * corresponde.
+   */
+  const handleApplyBulkStatus = async (
+    ids: readonly number[],
+    status: KeyStatus,
+  ): Promise<number> => {
+    /*
+     * Los ids que llegan ya estan filtrados por el dialogo, que es quien sabe
+     * que transiciones tienen sentido. Aun asi se vuelve a comprobar el estado
+     * de cada una contra la lista **actual**, no contra la del render en el
+     * que se creo el dialogo: entre abrirlo y pulsarlo la lista puede haber
+     * cambiado, y escribir a ciegas dejaria claves en un estado que ya no
+     * corresponde.
+     */
+    const porId = new Map(keys.map((key) => [key.id, key]));
+
+    const aplicables = ids.filter((id) => {
+      const entry = porId.get(id);
+
+      if (!entry || entry.status === status) return false;
+
+      // Cambiar a "regalada" exige decir a quien; sin destino no se escribe,
+      // porque quedaria una clave regalada sin destinatario, que no significa
+      // nada. El dialogo ya avisa de esto antes de aplicar.
+      if (status === KeyStatus.Gifted && !entry.giftedTo?.trim()) return false;
+
+      return true;
+    });
+
+    if (aplicables.length === 0) return 0;
+
+    // Una sola operacion en vez de una por clave: con cuatrocientas filas
+    // marcadas son cuatrocientas escrituras, y cada una es una ida y vuelta a
+    // la base de datos. Ademas, escribir de una en una deja la coleccion a
+    // medias si algo falla a mitad.
+    await gameKeyService.setStatusMany(aplicables, status);
+    await reload();
+
+    // El aviso va **ademas** del mensaje del dialogo, no en vez de el: el
+    // dialogo se puede cerrar sin leer y el cambio ya esta hecho.
+    notify(t.t('bulk.done', [aplicables.length]), 'success');
+
+    return aplicables.length;
   };
 
   const handleCycleStatus = async (entry: IGameKey): Promise<void> => {
@@ -516,6 +722,10 @@ export function App() {
       const cargados = await settingsService.load();
       setSettings(cargados);
 
+      // El idioma se propaga al arbol entero para que los componentes traduzcan
+      // ya, sin esperar al siguiente render del dialogo de ajustes.
+      if (cargados.locale !== idioma) setIdioma(cargados.locale);
+
       applyTheme(cargados.theme);
 
       return null;
@@ -659,7 +869,57 @@ export function App() {
   };
 
   // ---------------------------------------------------------------- vista ---
+  /** Abrir ajustes en una pestana concreta, sin tener que buscarla a mano. */
+  const openSettingsAt = useCallback((tab: SettingsTab): void => {
+    setSettingsTab(tab);
+    setSettingsOpen(true);
+  }, []);
+
+  /** AppIds de la coleccion, para marcar en la tabla que ya hay clave. */
+  const appIdsConClave = useMemo(() => {
+    const ids = new Set<number>();
+
+    for (const key of keys) {
+      const appId = (key as { steamAppId?: number | null }).steamAppId;
+
+      if (typeof appId === 'number' && Number.isFinite(appId)) {
+        ids.add(appId);
+      }
+    }
+
+    return ids;
+  }, [keys]);
+
+  const handleRefreshSteam = useCallback(async (): Promise<void> => {
+    setBusy(true);
+
+    try {
+      const juegos = await steamService.getOwnedGames(
+        settings.steamApiKey,
+        settings.steamId,
+      );
+
+      setOwned(juegos);
+      setCuenta((current) => ({
+        ...current,
+        juegos: juegos.length,
+        sincronizadoAt: new Date().toISOString(),
+      }));
+
+      await settingsService.set('steamSyncedAt', new Date().toISOString());
+      notify(`Biblioteca sincronizada: ${juegos.length} juegos.`, 'success');
+    } catch (cause) {
+      notify(
+        cause instanceof Error ? cause.message : 'La sincronizacion fallo.',
+        'error',
+      );
+    } finally {
+      setBusy(false);
+    }
+  }, [notify, settings.steamApiKey, settings.steamId]);
+
   return (
+    <LocaleContext.Provider value={t}>
     <div className="flex h-full flex-col bg-surface-0">
       <Toolbar
         filter={filter}
@@ -667,18 +927,34 @@ export function App() {
         sort={sort}
         busy={busy}
         searchRef={searchRef}
+        view={vista}
+        cuenta={cuenta}
         onFilterChange={patchFilter}
         onSortChange={setSort}
+        onViewChange={setVista}
+        onOpenSteamSettings={() => openSettingsAt('account')}
         onCreate={handleCreate}
         onImport={handleImport}
         onExport={handleExport}
         onOpenStorage={() => setStorageOpen(true)}
-        onOpenSettings={() => setSettingsOpen(true)}
+        onOpenSettings={() => openSettingsAt('appearance')}
       />
 
       <main className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-        {loading ? (
-          <div className="flex h-full items-center justify-center text-sm text-slate-500">
+        {vista === AppView.Games ? (
+          cuenta.conectado ? (
+            <SteamGamesTable
+              juegos={owned}
+              cuenta={cuenta}
+              conClave={appIdsConClave}
+              onRefresh={handleRefreshSteam}
+              busy={busy}
+            />
+          ) : (
+            <SteamNotConnected onOpen={() => openSettingsAt('account')} />
+          )
+        ) : loading ? (
+          <div className="flex h-full items-center justify-center text-sm text-t4">
             Cargando coleccion…
           </div>
         ) : visible.length === 0 ? (
@@ -708,7 +984,7 @@ export function App() {
             </div>
 
             {visible.length > page.length ? (
-              <p className="mt-4 text-center text-xs text-slate-500">
+              <p className="mt-4 text-center text-xs text-t4">
                 Mostrando {page.length} de {visible.length}. Afina la busqueda para ver el
                 resto.
               </p>
@@ -717,17 +993,24 @@ export function App() {
         )}
       </main>
 
-      <footer className="flex shrink-0 items-center justify-between border-t border-line bg-surface-1 px-4 py-2 text-[11px] text-slate-500">
+      <footer className="flex shrink-0 items-center justify-between border-t border-line bg-surface-1 px-4 py-2 text-[11px] text-t4">
+        {vista === AppView.Games ? (
+          <span>
+            {cuenta.juegos} juegos en Steam
+            {cuenta.steamId ? ` · ${cuenta.steamId}` : ''}
+          </span>
+        ) : (
         <span>
           {visible.length} de {keys.length} claves
           {stats.available > 0 ? ` · ${stats.available} regalables` : ''}
         </span>
+        )}
         <span className="flex items-center gap-3">
           <span
             title={STORAGE_MODE_NOTICE[getStorageMode()]}
             className={[
               'flex items-center gap-1.5',
-              getStorageMode() === 'memory' ? 'text-amber-400/80' : 'text-slate-500',
+              getStorageMode() === 'memory' ? 'text-warn' : 'text-t4',
             ].join(' ')}
           >
             <Icon name="package" size={12} />
@@ -761,6 +1044,7 @@ export function App() {
       {settingsVivo ? (
         <SettingsDialog
           open={settingsOpen}
+          initialTab={settingsTab}
           settings={settings}
           cuenta={cuenta}
           onSave={handleSaveSettings}
@@ -791,20 +1075,30 @@ export function App() {
         />
       ) : null}
 
-      {/* ------------------------------------------------------- seleccion --- */}
-      {selectedKeys.length > 0 ? (
+      {/* ------------------------------------------------------- seleccion ---
+          La barra solo aparece en la tabla de claves. En la de juegos no hay
+          nada seleccionado ni seleccionable, asi que mostrarla seria un boton
+          flotando sobre una tabla donde no hace nada. */}
+      {vista === AppView.Keys && selectedKeys.length > 0 ? (
         <SelectionBar
           facts={facts}
           visibles={visible.length}
-          onlyAvailable={onlyAvailable}
-          onToggleOnlyAvailable={toggleOnlyAvailable}
           onSelectAll={selectAll}
           onClear={clearSelection}
           onExport={handleExportGift}
           onMarkGifted={() => setGiftDialogOpen(true)}
-          onMarkExpired={() => setExpireDialogOpen(true)}
+          onBulkStatus={() => setBulkStatusOpen(true)}
           onTags={() => setTagsOpen(true)}
           motivo={motivo}
+        />
+      ) : null}
+
+      {bulkVivo ? (
+        <BulkStatusDialog
+          open={bulkStatusOpen}
+          entries={selectedKeys}
+          onApply={handleApplyBulkStatus}
+          onClose={() => setBulkStatusOpen(false)}
         />
       ) : null}
 
@@ -845,6 +1139,7 @@ export function App() {
 
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
     </div>
+    </LocaleContext.Provider>
   );
 }
 
@@ -884,11 +1179,27 @@ function etiquetasComunes(entries: readonly IGameKey[]): readonly string[] {
   );
 }
 
-/** Aplica el tema al documento. */
+/**
+ * Aplica el tema al documento.
+ *
+ * Cuando el tema es `system` se traduce a `light` o `dark` segun lo que diga
+ * el sistema operativo. No se puede dejar el atributo en `system` y confiar en
+ * el CSS del todo, porque hay reglas de los componentes que dependen de
+ * variables y hay que resolverlas aqui una sola vez y para todas.
+ */
 function applyTheme(tema: string): void {
   if (typeof document === 'undefined') return;
 
-  document.documentElement.dataset.theme = tema;
+  if (tema !== 'system') {
+    document.documentElement.dataset.theme = tema;
+    return;
+  }
+
+  const claro =
+    typeof matchMedia === 'function' &&
+    matchMedia('(prefers-color-scheme: light)').matches;
+
+  document.documentElement.dataset.theme = claro ? 'light' : 'dark';
 }
 
 interface IEmptyStateProps {
@@ -902,12 +1213,12 @@ function EmptyState({ hasKeys, onCreate, onImport, onClearFilters }: IEmptyState
   if (hasKeys) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/5 text-slate-500">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-hover text-t4">
           <Icon name="search" size={22} />
         </div>
         <div>
-          <h3 className="text-sm font-medium text-slate-300">Ningun resultado</h3>
-          <p className="mt-1 text-xs text-slate-500">
+          <h3 className="text-sm font-medium text-t2">Ningun resultado</h3>
+          <p className="mt-1 text-xs text-t4">
             Prueba a cambiar la busqueda o quitar algun filtro.
           </p>
         </div>
@@ -920,12 +1231,12 @@ function EmptyState({ hasKeys, onCreate, onImport, onClearFilters }: IEmptyState
 
   return (
     <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
-      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400 ring-1 ring-blue-500/20">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-info/10 text-info ring-1 ring-info/20">
         <Icon name="key" size={22} />
       </div>
       <div>
-        <h3 className="text-sm font-medium text-slate-300">Todavia no hay claves</h3>
-        <p className="mt-1 text-xs text-slate-500">
+        <h3 className="text-sm font-medium text-t2">Todavia no hay claves</h3>
+        <p className="mt-1 text-xs text-t4">
           Importa tu TXT o anade una clave a mano.
         </p>
       </div>

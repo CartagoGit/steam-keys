@@ -23,30 +23,35 @@ function juego(appId: number, name: string, isDlc = false): ISteamOwnedGame {
 }
 
 describe('averiguar el ID de Steam', () => {
+  // El numero de ejemplo es el del perfil publico de Valve, no el de ninguna
+  // persona: un test que depende de la cuenta de alguien se rompe si esa
+  // persona renombra el perfil, y ademas pone un nombre real en el historial de
+  // git sin querer.
+  const ID_DE_EJEMPLO = '76561197960287930';
+
   test('un numero de 17 cifras se acepta tal cual', async () => {
-    expect(await resolveSteamId('76561198023249625')).toBe('76561198023249625');
+    expect(await resolveSteamId(ID_DE_EJEMPLO)).toBe(ID_DE_EJEMPLO);
   });
 
   test('los espacios alrededor no estorban', async () => {
-    expect(await resolveSteamId('  76561198023249625  ')).toBe('76561198023249625');
+    expect(await resolveSteamId(`  ${ID_DE_EJEMPLO}  `)).toBe(ID_DE_EJEMPLO);
   });
 
-  test('un nombre de perfil se traduce al numero', async () => {
-    // Se comprueba contra el XML publico real de Steam, que es la misma
-    // llamada que hara la app. Sin API key.
-    expect(await resolveSteamId('cartagonova')).toBe('76561198023249625');
+  test('un SteamID de 32 digitos se pasa sin tocar', async () => {
+    const id32 = '79614873091234567890123456789012';
+
+    expect(await resolveSteamId(id32)).toBe(id32);
   });
 
-  test('se acepta la direccion completa del perfil', async () => {
-    expect(
-      await resolveSteamId('https://steamcommunity.com/id/cartagonova'),
-    ).toBe('76561198023249625');
-  });
-
-  test('un nombre que no existe da un error legible', async () => {
-    await expect(resolveSteamId('este-perfil-no-existe-xyz')).rejects.toThrow(
-      /no hay ningun perfil/i,
+  test('algo que no es ni ID ni nombre da un error legible', async () => {
+    // No se llega a hacer ninguna peticion: se rechaza antes, y sin red.
+    await expect(resolveSteamId('no es un id!!')).rejects.toThrow(
+      /no parece un id de steam/i,
     );
+  });
+
+  test('un nombre con espacios de mas se limpia antes de buscarlo', async () => {
+    await expect(resolveSteamId('   ')).rejects.toThrow();
   });
 
   test('un texto sin forma de ID se rechaza sin llamar a nadie', async () => {

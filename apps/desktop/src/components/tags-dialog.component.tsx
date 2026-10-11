@@ -8,6 +8,7 @@ import { KeyPlatform } from '@/contracts/enums/key-platform.enum';
 import { Icon } from './icon.component';
 import { Modal } from './modal.component';
 import { Button, INPUT_CLASS } from './ui.component';
+import { useT } from '@/context/locale.context';
 import type { IGameKey } from '@/contracts/interfaces/game-key.interface';
 
 export interface ITagsDialogProps {
@@ -42,6 +43,7 @@ export function TagsDialog({
   onConfirm,
   onCancel,
 }: ITagsDialogProps) {
+  const { t } = useT();
   const [seleccionadas, setSeleccionadas] = useState<ReadonlySet<string>>(
     () => new Set(iniciales.map(normalizeTag)),
   );
@@ -84,14 +86,14 @@ export function TagsDialog({
   };
 
   return (
-    <Modal open={open} onClose={onCancel} size="lg" label="Etiquetas">
+    <Modal open={open} onClose={onCancel} size="lg" label={t('tags.title')}>
       <header className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
           <div>
-            <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
-              <Icon name="tag" size={15} className="text-blue-400" />
+            <h2 className="text-sm font-semibold text-t1 flex items-center gap-2">
+              <Icon name="tag" size={15} className="text-info" />
               Etiquetas
             </h2>
-            <p className="mt-0.5 text-[11px] text-slate-500">
+            <p className="mt-0.5 text-[11px] text-t4">
               {entries.length === 1
                 ? 'Se cambiara 1 clave'
                 : `Se cambiaran ${entries.length} claves`}
@@ -101,8 +103,8 @@ export function TagsDialog({
           <button
             type="button"
             onClick={onCancel}
-            title="Cerrar"
-            className="rounded-lg p-1.5 text-slate-500 transition hover:bg-white/5 hover:text-slate-200"
+            title={t('action.close')}
+            className="rounded-lg p-1.5 text-t4 transition hover:bg-hover hover:text-t1"
           >
             <Icon name="x" size={16} />
           </button>
@@ -121,7 +123,7 @@ export function TagsDialog({
                   anadirNueva();
                 }
               }}
-              placeholder="Etiqueta nueva"
+              placeholder={t('tags.new')}
               className={INPUT_CLASS}
             />
             <Button
@@ -129,7 +131,7 @@ export function TagsDialog({
               icon="plus"
               onClick={anadirNueva}
               disabled={cleanTag(nueva).length === 0}
-              title="Anadir la etiqueta a la seleccion"
+              title={t('tags.addHint')}
             >
               Anadir
             </Button>
@@ -137,7 +139,7 @@ export function TagsDialog({
 
           {/* ------------------------------------------------------ existentes */}
           {sugeridas.length === 0 ? (
-            <p className="mt-6 text-center text-xs text-slate-500">
+            <p className="mt-6 text-center text-xs text-t4">
               Todavia no hay etiquetas en la coleccion.
             </p>
           ) : (
@@ -154,8 +156,8 @@ export function TagsDialog({
                     className={[
                       'rounded-full px-3 py-1.5 text-xs transition',
                       activa
-                        ? 'bg-blue-600 text-white ring-1 ring-blue-400'
-                        : 'bg-white/5 text-slate-300 ring-1 ring-white/10 hover:bg-white/10',
+                        ? 'bg-accent text-on-accent ring-1 ring-accent'
+                        : 'bg-hover text-t2 ring-1 ring-line hover:bg-hover-2',
                     ].join(' ')}
                   >
                     {activa ? <Icon name="check" size={11} className="mr-1 inline" /> : null}
@@ -168,7 +170,7 @@ export function TagsDialog({
         </div>
 
         <footer className="flex items-center justify-between gap-3 border-t border-line px-5 py-3">
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-t4">
             Las claves que no tengan la etiqueta la reciben; las que ya la tienen la conservan.
           </p>
 
@@ -179,7 +181,7 @@ export function TagsDialog({
             <Button
               variant="primary"
               onClick={() => onConfirm([...seleccionadas])}
-              title="Aplicar estas etiquetas a todas las claves seleccionadas"
+              title={t('tags.applyHint')}
             >
               Aplicar
             </Button>

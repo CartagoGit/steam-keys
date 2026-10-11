@@ -41,10 +41,10 @@ export interface IButtonProps {
 
 const VARIANTS: Record<string, string> = {
   primary:
-    'bg-blue-600 text-white hover:bg-blue-500 active:bg-blue-700 shadow-sm shadow-blue-950/50',
-  ghost: 'text-slate-300 hover:bg-white/5 hover:text-white active:bg-white/10',
-  subtle: 'bg-white/5 text-slate-200 ring-1 ring-white/10 hover:bg-white/10',
-  danger: 'bg-rose-600/90 text-white hover:bg-rose-500 active:bg-rose-600',
+    'bg-accent text-on-accent hover:brightness-110 active:brightness-95 shadow-sm',
+  ghost: 'text-t2 hover:bg-hover hover:text-t1 active:bg-hover-2',
+  subtle: 'bg-hover text-t1 ring-1 ring-line hover:bg-hover-2',
+  danger: 'bg-danger text-on-accent hover:brightness-110 active:brightness-95',
 };
 
 export function Button({
@@ -83,26 +83,76 @@ export function Button({
 export interface IFieldProps {
   label: string;
   children: ReactNode;
-  hint?: string;
+  /**
+   * Texto de ayuda.
+   *
+   * Acepta un nodo y no solo una cadena porque algunos avisos necesitan un
+   * enlace de verdad dentro: «Pedir la clave en steamcommunity.com/dev/apikey»
+   * escrito como texto obliga a copiarlo y pegarlo a mano en el navegador, que
+   * es justo el rodeo que hace que alguien no llegue a pedirla.
+   */
+  hint?: ReactNode;
   required?: boolean;
 }
 
 export function Field({ label, children, hint, required }: IFieldProps) {
   return (
     <label className="flex flex-col gap-1.5">
-      <span className="text-xs font-medium tracking-wide text-slate-400 uppercase">
+      <span className="text-xs font-medium tracking-wide text-t3 uppercase">
         {label}
-        {required ? <span className="ml-1 text-rose-400">*</span> : null}
+        {required ? <span className="ml-1 text-danger">*</span> : null}
       </span>
       {children}
-      {hint ? <span className="text-xs text-slate-500">{hint}</span> : null}
+      {hint ? <span className="text-xs text-t4">{hint}</span> : null}
     </label>
   );
 }
 
+export interface IExternalLinkProps {
+  /** Se abre en el navegador del sistema, no dentro de la ventana de la app. */
+  url: string;
+  children: ReactNode;
+  /** Si se escribe la URL en vez de un texto corto. */
+  showUrl?: boolean;
+}
+
+/**
+ * Enlace que abre en el navegador del sistema.
+ *
+ * Se pone `target="_blank"` y ademas se intercepta el clic para llamar a
+ * `window.open`. Lo segundo no sobra: en una ventana de escritorio el motor
+ * no siempre recoge el `_blank`, y sin el `preventDefault` lo que ocurre en
+ * el peor caso es peor que no abrirse nada — la propia ventana de la app navega
+ * a la web externa y la aplicacion se queda en blanco, con el trabajo sin
+ * guardar a la vista.
+ *
+ * Sigue siendo un `<a href>` de verdad y no un `button`: se ve la URL al
+ * pasar el raton, se puede copiar el enlace con el boton derecho y se puede
+ * abrir en otra pestana con el boton central. Todo eso se pierde con un
+ * `button` que solo llama a `window.open`.
+ */
+export function ExternalLink({ url, children, showUrl = false }: IExternalLinkProps) {
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer noopener"
+      onClick={(event) => {
+        event.preventDefault();
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }}
+      title={url}
+      className="inline-flex items-center gap-1 text-info underline decoration-info/40 underline-offset-2 transition hover:decoration-info"
+    >
+      {showUrl ? url.replace(/^https?:\/\//, '') : children}
+      <Icon name="external" size={11} className="shrink-0" />
+    </a>
+  );
+}
+
 export const INPUT_CLASS =
-  'w-full rounded-lg bg-surface-2 px-3 py-2 text-sm text-slate-100 ring-1 ring-white/10 ' +
-  'placeholder:text-slate-600 transition focus:bg-surface-3 focus:ring-2 focus:ring-blue-500/60 focus:outline-none';
+  'w-full rounded-lg bg-surface-2 px-3 py-2 text-sm text-t1 ring-1 ring-line ' +
+  'placeholder:text-t5 transition focus:bg-surface-3 focus:ring-2 focus:ring-accent focus:outline-none';
 
 export const SELECT_CLASS = `${INPUT_CLASS} appearance-none cursor-pointer`;
 
@@ -155,7 +205,7 @@ export function PasswordInput({
         onClick={() => setVisible((actual) => !actual)}
         title={visible ? labelHidden : labelVisible}
         aria-label={visible ? labelHidden : labelVisible}
-        className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-lg text-slate-500 transition hover:text-slate-200 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-400"
+        className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-lg text-t4 transition hover:text-t1 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent"
       >
         <Icon name={visible ? 'eye-off' : 'eye'} size={15} />
       </button>

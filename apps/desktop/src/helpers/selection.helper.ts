@@ -1,5 +1,4 @@
 import { KeyStatus } from '@/contracts/enums/key-status.enum';
-import { KEY_STATUS_META } from '@/contracts/constants/key-status.constants';
 import { normalizeTag } from '@/contracts/constants/tag.constants';
 import type { IGameKey } from '@/contracts/interfaces/game-key.interface';
 
@@ -38,6 +37,43 @@ export interface ISelectionFacts {
 }
 
 /**
+ * Quita de la seleccion lo que ya no se esta viendo.
+ *
+ * El problema que resuelve: se seleccionan veinte claves, se cambia un filtro y
+ * la lista ya no las enseña, pero **siguen seleccionadas**. La barra de
+ * acciones sigue diciendo «20 seleccionadas» y un «Exportar» se lleva veinte
+ * claves de las cuales solo se ven cuatro. Y peor: no hay forma de saber
+ * cuales son, porque las que no estan en pantalla no tienen fila donde mirar su
+ * casilla y desmarcarla.
+ *
+ * La regla es una sola: **lo que se marca es lo que se ve**. Si una clave deja
+ * de estar en la lista, deja de estar marcada. Asi el recuento de la barra
+ * siempre describe algo que la persona puede comprobar en pantalla.
+ *
+ * Devuelve **el mismo conjunto** cuando no hay nada que quitar, y eso no es un
+ * detalle: React compara por referencia, y construir un `Set` nuevo con el
+ * mismo contenido haria que el efecto que llama a esta funcion se volviera a
+ * disparar, que devolveria otro `Set` nuevo, y asi hasta el infinito.
+ */
+export function podarSeleccion(
+  seleccion: ReadonlySet<number>,
+  visibles: readonly IGameKey[],
+): ReadonlySet<number> {
+  const enPantalla = new Set<number>();
+  for (const key of visibles) enPantalla.add(key.id);
+
+  const siguiente = new Set<number>();
+  let cambia = false;
+
+  for (const id of seleccion) {
+    if (enPantalla.has(id)) siguiente.add(id);
+    else cambia = true;
+  }
+
+  return cambia ? siguiente : seleccion;
+}
+
+/**
  * Estados a los que tiene sentido cambiar una clave con la barra.
  *
  * Una clave ya regalada o canjeada no se puede "volver a disponible": la
@@ -57,10 +93,21 @@ export function isExpirable(entry: IGameKey): boolean {
   return entry.status !== KeyStatus.Expired;
 }
 
-/** Que acciones quedan bloqueadas para una seleccion concreta. */
+/**
+ * Que acciones quedan bloqueadas para una seleccion concreta.
+ *
+ * `scopeVisible` dice si lo que se esta viendo son solo claves disponibles, y
+ * es lo que hace validas las acciones de regalar **sin interruptor**.
+ *
+ * Antes el parametro era un interruptor propio de la barra de seleccion, y
+ * entonces el filtro de la barra de filtros no hacia falta para el alcance:
+ * eran dos controles para lo mismo, y el equivocado se pulsaba sin ningun
+ * efecto visible. Ahora el alcance sale del filtro, que es donde ya se mira
+ * para saber que se esta viendo.
+ */
 export function analyzeSelection(
   selected: readonly IGameKey[],
-  onlyAvailable: boolean,
+  scopeVisible: boolean,
 ): ISelectionFacts {
   const total = selected.length;
   const giftable = selected.filter(isGiftable).length;
@@ -71,10 +118,11 @@ export function analyzeSelection(
   const noRegalables = selected.filter((key) => !isGiftable(key));
   const noExpirables = selected.filter((key) => !isExpirable(key));
 
-  // El interruptor "solo disponibles" es lo que hace validas las acciones de
-  // regalar. Sin el, la seleccion puede ser cualquier cosa y entonces no se
-  // sabe si es seguro exportar.
-  const soloDisponibles = onlyAvailable && giftable === total;
+  // Con el filtro en «Solo disponibles» lo que se ve ya es todo regalable, y
+  // la seleccion no puede contener ninguna que no lo sea. Con el filtro en
+  // «Todos», la seleccion puede ser de cualquier estado y entonces regalar no
+  // es valido para el conjunto.
+  const soloDisponibles = scopeVisible && giftable === total;
 
   if (total === 0) {
     return {
@@ -90,7 +138,18 @@ export function analyzeSelection(
   }
 
   if (!soloDisponibles) {
-    const motivo = noRegalables.length > 0 ? messageMixed(noRegalables) : messageToggle();
+    // El mensaje no repite el recuento: la cabecera de la barra de seleccion
+    // ya dice cuantas hay de cada. Aqui va lo que **falta por hacer**, que es
+    // lo unico que no se deduce leyendo la cabecera.
+    //
+    // El numero va en plural solo si corresponde. "esas 1" se lee mal y el
+    // usuario lo nota, porque es justo el texto que va debajo del boton.
+    const motivo =
+      noRegalables.length === 1
+        ? 'Cambia el filtro a «Solo disponibles» para dejar fuera esa 1'
+        : noRegalables.length > 1
+          ? `Cambia el filtro a «Solo disponibles» para dejar fuera esas ${noRegalables.length}`
+          : 'Cambia el filtro a «Solo disponibles» para poder actuar sobre la seleccion';
 
     blocked.push({ action: 'export', ids: noRegalables.map((key) => key.id), message: motivo });
     blocked.push({ action: 'gift', ids: noRegalables.map((key) => key.id), message: motivo });
@@ -100,7 +159,7 @@ export function analyzeSelection(
     blocked.push({
       action: 'expire',
       ids: noExpirables.map((key) => key.id),
-      message: 'Todas las claves seleccionadas ya estaban caducadas.',
+      message: 'Ya estaban todas caducadas',
     });
   }
 
@@ -114,28 +173,6 @@ export function analyzeSelection(
     canTag: true,
     blocked,
   };
-}
-
-/** El tooltip que explica por que no se puede exportar o regalar. */
-function messageToggle(): string {
-  return 'Activa «Solo disponibles» para poder regalar la seleccion.';
-}
-
-function messageMixed(noRegalables: readonly IGameKey[]): string {
-  const estados = [...new Set(noRegalables.map((key) => KEY_STATUS_META[key.status].label))];
-
-  if (estados.length === 1) {
-    // El plural va con la etiqueta del estado: "3 claves regaladas" y no
-    // "3 claves Regalada", que es lo que suena mal al leerlo. Las etiquetas
-    // llegan en mayuscula porque son las de las pastillas, y aqui van en
-    // minuscula porque van metidas en medio de la frase.
-    const etiqueta = (estados[0] ?? '').toLowerCase();
-    const plural = etiqueta.endsWith('a') ? `${etiqueta}s` : etiqueta;
-
-    return `Hay ${noRegalables.length} claves ${plural} en la seleccion. Solo se pueden regalar las disponibles.`;
-  }
-
-  return `La seleccion mezcla estados (${estados.join(', ')}). Activa «Solo disponibles» para dejar fuera el resto.`;
 }
 
 /**

@@ -1,19 +1,399 @@
 @import 'tailwindcss';
 
 /*
- * Tema oscuro por defecto: la app se usa de noche, reglando keys, y un fondo
- * claro en una ventana siempre visible cansa mas que ayuda.
+ * Temas
+ * -------
+ * Los colores no van fijos en los componentes sino en variables semanticas
+ * (`t1` es el texto principal, `t5` el mas tenue). Asi un tema nuevo es solo
+ * una lista de variables y no hay que tocar ni un componente.
+ *
  */
 @theme {
-  --color-surface-0: #0b0d12;
-  --color-surface-1: #11141b;
-  --color-surface-2: #171b24;
-  --color-surface-3: #1f242f;
-  --color-line: #2a303c;
+  /* Se declaran aqui solo los nombres; los valores vienen por tema. */
+  --color-t1: var(--t1);
+  --color-t2: var(--t2);
+  --color-t3: var(--t3);
+  --color-t4: var(--t4);
+  --color-t5: var(--t5);
+  --color-surface-0: var(--s0);
+  --color-surface-1: var(--s1);
+  --color-surface-2: var(--s2);
+  --color-surface-3: var(--s3);
+  --color-line: var(--line);
+  --color-line-soft: var(--lineSoft);
+  --color-line-strong: var(--lineStrong);
+  --color-hover: var(--hover);
+  --color-hover-2: var(--hover2);
+  --color-accent: var(--accent);
+  /* Color del texto que va ENCIMA del acento. Depende del tema: sobre un
+     azul se lee el fondo, sobre un marron hay que poner blanco. */
+  --color-on-accent: var(--onAccent);
+
+  /*
+   * Colores con significado, no de la rampa.
+   * --------------------------------------
+   * Antes los estados (correcto, aviso, error) usaban directamente
+   * `text-emerald-300` o `text-amber-300`: tonos elegidos para fondo oscuro.
+   * Sobre el tema claro, un verde claro o un ambar claro son ilegibles, y eso
+   * es exactamente lo que pasaba al cambiar de tema: el aviso se veia gris y
+   * el "correcto" desaparecia.
+   *
+   * Aqui no se elige el tono: cada tema declara el suyo. Un tema claro pone un
+   * verde **oscuro**, y uno oscuro un verde claro. El componente dice
+   * `text-ok` y se olvida del tema, que es la idea de las variables
+   * semanticas de las que ya usan `t1` y `surface-1`.
+   */
+  --color-ok: var(--ok);
+  --color-ok-strong: var(--okStrong);
+  --color-warn: var(--warn);
+  --color-warn-strong: var(--warnStrong);
+  --color-danger: var(--danger);
+  --color-danger-strong: var(--dangerStrong);
+  --color-info: var(--info);
+  --color-info-strong: var(--infoStrong);
 }
 
-:root {
+/*
+ * Tema por defecto: noche. La app se usa de noche, reĺando keys, y un fondo
+ * claro en una ventana siempre visible cansa mas que ayuda.
+ */
+:root,
+:root[data-theme='dark'] {
   color-scheme: dark;
+
+  --s0: #0b0d12;
+  --s1: #11141b;
+  --s2: #171b24;
+  --s3: #1f242f;
+  --line: #2a303c;
+  --lineSoft: rgb(255 255 255 / 6%);
+  --lineStrong: rgb(255 255 255 / 14%);
+
+  --t1: #e6e9ef;
+  --t2: #cbd2dd;
+  --t3: #9aa4b4;
+  --t4: #7c8798;
+  --t5: #5a6373;
+
+  --hover: rgb(255 255 255 / 5%);
+  --hover2: rgb(255 255 255 / 10%);
+
+  /* Estados: sobre fondo oscuro, tono claro. */
+  --accent: #3b82f6;
+  --onAccent: #0b0d12;
+  --ok: #34d399;
+  --okStrong: #6ee7b7;
+  --warn: #fbbf24;
+  --warnStrong: #fcd34d;
+  --danger: #f87171;
+  --dangerStrong: #fca5a5;
+  --info: #60a5fa;
+  --infoStrong: #93c5fd;
+}
+
+/* Dia: fondo claro, texto oscuro. Para pantallas muy brillantes. */
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --s0: #f4f6fa;
+  --s1: #ffffff;
+  --s2: #f7f9fc;
+  --s3: #eaeef5;
+  --line: #d3dae6;
+  --lineSoft: rgb(10 20 40 / 6%);
+  --lineStrong: rgb(10 20 40 / 14%);
+
+  --t1: #10141c;
+  --t2: #2a3341;
+  --t3: #4d5866;
+  --t4: #5f6b7b;
+  --t5: #8590a0;
+
+  --hover: rgb(10 20 40 / 5%);
+  --hover2: rgb(10 20 40 / 9%);
+
+  /* Estados: sobre fondo claro, tono oscuro. Esto es lo que faltaba y hacia
+     que el tema claro saliera ilegible en los avisos y confirmaciones. */
+  --accent: #2563eb;
+  --onAccent: #ffffff;
+  --ok: #047857;
+  --okStrong: #065f46;
+  --warn: #a16207;
+  --warnStrong: #854d0e;
+  --danger: #be123c;
+  --dangerStrong: #9f1239;
+  --info: #1d4ed8;
+  --infoStrong: #1e40af;
+}
+
+/* Noche profunda: casi negro, para OLED y para no ver luz de fondo. */
+:root[data-theme='midnight'] {
+  color-scheme: dark;
+
+  --s0: #000000;
+  --s1: #0a0a0c;
+  --s2: #121215;
+  --s3: #1b1b20;
+  --line: #2a2a32;
+  --lineSoft: rgb(255 255 255 / 7%);
+  --lineStrong: rgb(255 255 255 / 16%);
+
+  --t1: #e8e8ea;
+  --t2: #c4c4c9;
+  --t3: #9a9aa2;
+  --t4: #74747c;
+  --t5: #55555c;
+
+  --hover: rgb(255 255 255 / 6%);
+  --hover2: rgb(255 255 255 / 11%);
+
+  --accent: #4f8ef7;
+  --onAccent: #000000;
+  --ok: #2dd4a7;
+  --okStrong: #5eead4;
+  --warn: #fbbf24;
+  --warnStrong: #fcd34d;
+  --danger: #fb7185;
+  --dangerStrong: #fda4af;
+  --info: #7aa9f5;
+  --infoStrong: #a3c4fd;
+}
+
+/* Papel: claro pero con calidez, para leer mucho rato. */
+:root[data-theme='paper'] {
+  color-scheme: light;
+
+  --s0: #eae4d9;
+  --s1: #f7f3ea;
+  --s2: #f2ece0;
+  --s3: #e5ddcd;
+  --line: #d3c9b4;
+  --lineSoft: rgb(60 40 20 / 7%);
+  --lineStrong: rgb(60 40 20 / 16%);
+
+  --t1: #241f18;
+  --t2: #3d352a;
+  --t3: #574c3f;
+  --t4: #6f6455;
+  --t5: #918676;
+
+  --hover: rgb(60 40 20 / 5%);
+  --hover2: rgb(60 40 20 / 9%);
+
+  /* Sobre un crema, los tonos de estado van algo mas saturados y oscuros para
+     que no se lavan contra el fondo. */
+  --accent: #8a4d12;
+  --onAccent: #ffffff;
+  --ok: #0f6b34;
+  --okStrong: #0b5329;
+  --warn: #8a5008;
+  --warnStrong: #6b3e0d;
+  --danger: #b91c1c;
+  --dangerStrong: #991b1b;
+  --info: #1d4ed8;
+  --infoStrong: #1e3a8a;
+}
+
+/* Bosque: verde profundo, para quienpee el azul. */
+:root[data-theme='forest'] {
+  color-scheme: dark;
+
+  --s0: #0b1210;
+  --s1: #101a17;
+  --s2: #16231f;
+  --s3: #1e2f29;
+  --line: #2a3d36;
+  --lineSoft: rgb(190 255 230 / 6%);
+  --lineStrong: rgb(190 255 230 / 14%);
+
+  --t1: #e4f0ea;
+  --t2: #c4dacf;
+  --t3: #94b3a5;
+  --t4: #6d8f80;
+  --t5: #4f6d60;
+
+  --hover: rgb(190 255 230 / 5%);
+  --hover2: rgb(190 255 230 / 10%);
+
+  --accent: #34a06b;
+  --onAccent: #000000;
+  --ok: #4ade80;
+  --okStrong: #86efac;
+  --warn: #f0b429;
+  --warnStrong: #fcd34d;
+  --danger: #f87171;
+  --dangerStrong: #fca5a5;
+  --info: #5eb3a4;
+  --infoStrong: #93ddd0;
+}
+
+/* Arandano: claro rosado, suave pero sin ser blanco. */
+:root[data-theme='berry'] {
+  color-scheme: light;
+
+  --s0: #f6eef2;
+  --s1: #fffafc;
+  --s2: #fbeff3;
+  --s3: #f2dfe6;
+  --line: #e0c8d2;
+  --lineSoft: rgb(80 20 50 / 6%);
+  --lineStrong: rgb(80 20 50 / 14%);
+
+  --t1: #2b1721;
+  --t2: #4a2b39;
+  --t3: #6b4356;
+  --t4: #8a6175;
+  --t5: #ab8295;
+
+  --hover: rgb(80 20 50 / 5%);
+  --hover2: rgb(80 20 50 / 9%);
+
+  --accent: #be3455;
+  --onAccent: #ffffff;
+  --ok: #15803d;
+  --okStrong: #166534;
+  --warn: #a16207;
+  --warnStrong: #854d0e;
+  --danger: #be123c;
+  --dangerStrong: #9f1239;
+  --info: #9d174d;
+  --infoStrong: #831843;
+}
+
+/* Nord: azul frio, el clasico de los que programan. */
+:root[data-theme='nord'] {
+  color-scheme: dark;
+
+  --s0: #2e3440;
+  --s1: #3b4252;
+  --s2: #434c5e;
+  --s3: #4c566a;
+  --line: #5e6a80;
+  --lineSoft: rgb(236 239 244 / 6%);
+  --lineStrong: rgb(236 239 244 / 15%);
+
+  --t1: #eceff4;
+  --t2: #d8dee9;
+  --t3: #bdc7d8;
+  --t4: #9aa5ba;
+  --t5: #7d8899;
+
+  --hover: rgb(236 239 244 / 6%);
+  --hover2: rgb(236 239 244 / 11%);
+
+  --accent: #88c0d0;
+  --onAccent: #000000;
+  --ok: #a3be8c;
+  --okStrong: #c7ddb5;
+  --warn: #ebcb8b;
+  --warnStrong: #f5e3ae;
+  --danger: #f2a8af;
+  --dangerStrong: #f8c9ce;
+  --info: #a8c4e0;
+  --infoStrong: #c6d9ec;
+}
+
+/* Alto contraste: para quien la diferencia de contraste no le basta. */
+:root[data-theme='contrast'] {
+  color-scheme: dark;
+
+  --s0: #000000;
+  --s1: #0a0a0a;
+  --s2: #141414;
+  --s3: #1f1f1f;
+  --line: #6e6e6e;
+  --lineSoft: rgb(255 255 255 / 18%);
+  --lineStrong: rgb(255 255 255 / 40%);
+
+  --t1: #ffffff;
+  --t2: #f2f2f2;
+  --t3: #d4d4d4;
+  --t4: #b4b4b4;
+  --t5: #949494;
+
+  --hover: rgb(255 255 255 / 12%);
+  --hover2: rgb(255 255 255 / 22%);
+
+  --accent: #5aa9ff;
+  --onAccent: #000000;
+  --ok: #3ddc84;
+  --okStrong: #7dffb4;
+  --warn: #ffcc33;
+  --warnStrong: #ffe066;
+  --danger: #ff6b6b;
+  --dangerStrong: #ff9c9c;
+  --info: #7fc4ff;
+  --infoStrong: #addaff;
+}
+
+/*
+ * "Seguir al sistema". No se elige: se aplica cuando el usuario elige esa
+ * opcion, y entonces manda lo que diga el sistema operativo.
+ */
+:root[data-theme='system'] {
+  color-scheme: dark;
+
+  --s0: #0b0d12;
+  --s1: #11141b;
+  --s2: #171b24;
+  --s3: #1f242f;
+  --line: #2a303c;
+  --lineSoft: rgb(255 255 255 / 6%);
+  --lineStrong: rgb(255 255 255 / 14%);
+
+  --t1: #e6e9ef;
+  --t2: #cbd2dd;
+  --t3: #9aa4b4;
+  --t4: #7c8798;
+  --t5: #5a6373;
+
+  --hover: rgb(255 255 255 / 5%);
+  --hover2: rgb(255 255 255 / 10%);
+
+  --accent: #3b82f6;
+  --onAccent: #0b0d12;
+  --ok: #34d399;
+  --okStrong: #6ee7b7;
+  --warn: #fbbf24;
+  --warnStrong: #fcd34d;
+  --danger: #f87171;
+  --dangerStrong: #fca5a5;
+  --info: #60a5fa;
+  --infoStrong: #93c5fd;
+}
+
+/* Cuando el sistema pide claro y el tema es "system", se aplica el claro. */
+@media (prefers-color-scheme: light) {
+  :root[data-theme='system'] {
+    color-scheme: light;
+
+    --s0: #f4f6fa;
+    --s1: #ffffff;
+    --s2: #f7f9fc;
+    --s3: #eaeef5;
+    --line: #d3dae6;
+    --lineSoft: rgb(10 20 40 / 6%);
+    --lineStrong: rgb(10 20 40 / 14%);
+
+    --t1: #10141c;
+    --t2: #2a3341;
+    --t3: #4d5866;
+    --t4: #667384;
+    --t5: #8b96a5;
+
+    --hover: rgb(10 20 40 / 5%);
+    --hover2: rgb(10 20 40 / 9%);
+
+    --accent: #2563eb;
+    --ok: #047857;
+    --okStrong: #065f46;
+    --warn: #a16207;
+    --warnStrong: #854d0e;
+    --danger: #be123c;
+    --dangerStrong: #9f1239;
+    --info: #1d4ed8;
+    --infoStrong: #1e40af;
+  }
 }
 
 html,
@@ -24,10 +404,15 @@ body,
 
 body {
   margin: 0;
-  background: var(--color-surface-0);
-  color: #e6e9ef;
+  /* El `body` **no** lleva fondo: el que se ve es el de la raiz de la app,
+     que es la que lleva `bg-surface-0`. Ponerlo aqui tambien lo hacia quedar
+     con el valor del tema oscuro por defecto, porque `var(--s0)` en el `body`
+     se resuelve antes de que exista `data-theme`. El color del texto si hace
+     falta aqui, para que hereden los nodos sueltos. */
+  color: var(--t1);
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
+  transition: color 0.15s ease;
   overflow: hidden;
 }
 
@@ -42,13 +427,15 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--color-surface-3);
+  background: var(--s3);
   border-radius: 999px;
-  border: 2px solid var(--color-surface-0);
+  border: 2px solid var(--s0);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #2f3644;
+  /* En tema claro, un gris oscuro fijo sobre fondo claro se ve como una barra
+     negra atravesando la ventana. */
+  background: var(--line);
 }
 
 /* ---------------------------------------------------------------- animaciones */
@@ -160,9 +547,13 @@ body {
   }
 }
 
-/* ---------------------------------------------------------------- focus */
+/* ---------------------------------------------------------------- focus
+   El color del anillo viene del tema. Con un azul fijo, en el tema papel el
+   contorno de teclado quedaba casi del mismo color que el fondo y no se veia
+   que elemento tiene el foco.
+   */
 :focus-visible {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 

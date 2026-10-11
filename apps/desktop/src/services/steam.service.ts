@@ -42,9 +42,10 @@ export class SteamError extends Error {
  * Traduce lo que la persona escribe a un SteamID de 17 cifras.
  *
  * Hay dos formas de identificar una cuenta y la gente no sabe cual tiene: el
- * numero (`76561198023249625`) o el nombre de perfil (`cartagonova`, lo que sale
- * en la direccion de la web). Admitir las dos evita tener que buscar el numero
- * a mano, que es el rodeo que hace que la gente se rinda y no conecte la cuenta.
+ * numero de 17 cifras (`7656119…`) o el nombre de perfil, que es lo que sale
+ * en la direccion de la web, en `steamcommunity.com/id/tunombre`. Admitir las
+ * dos evita tener que buscar el numero a mano, que es el rodeo que hace que la
+ * gente se rinda y no conecte la cuenta.
  *
  * El nombre se resuelve contra el XML publico del perfil, que **no necesita
  * clave de API**: asi se puede averiguar el ID antes de tener la clave, y un

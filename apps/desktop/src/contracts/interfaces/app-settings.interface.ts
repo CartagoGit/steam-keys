@@ -27,6 +27,12 @@ export interface IAppSettings {
   steamLinked: boolean;
   /** Ultima sincronizacion correcta, en ISO. */
   steamSyncedAt: string | null;
+  /** Que ambito estaba seleccionado la ultima vez. */
+  lastScope: string;
+  /** Que tipo estaba seleccionado la ultima vez. */
+  lastKind: string;
+  /** Que vista estaba abierta la ultima vez. */
+  lastView: string;
 }
 
 /** Claves de la tabla `app_settings`. */
@@ -36,7 +42,12 @@ export type AppSettingKey =
   | 'steamApiKey'
   | 'steamId'
   | 'steamLinked'
-  | 'steamSyncedAt';
+  | 'steamSyncedAt'
+  // Lo ultimo que se estaba viendo. Se guarda para que al reabrir la app se
+  //Caiga donde se dejo y no haya que volver a pulsar los filtros cada vez.
+  | 'lastScope'
+  | 'lastKind'
+  | 'lastView';
 
 /** Un ajuste tal y como sale de la tabla, antes de interpretar el tipo. */
 export interface ISettingRow {

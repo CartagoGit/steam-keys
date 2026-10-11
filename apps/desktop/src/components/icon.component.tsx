@@ -41,6 +41,15 @@ const PATHS: Record<IconName, ReactNode> = {
   ),
   shield: <path d="M12 22s8-3.6 8-10V5l-8-3-8 3v7c0 6.4 8 10 8 10Zm-3-10 2.2 2.2L15.5 10" />,
   check: <path d="m4.5 12.5 5 5 10-11" />,
+  /* Ancho para "no cambia": la misma idea que `check`, pero sin flecha. */
+  minus: <path d="M5 12h14" />,
+  /* Capas apiladas, para lo que se aplica a varias filas a la vez. */
+  layers: (
+    <>
+      <path d="m12 3 9 5-9 5-9-5 9-5Z" />
+      <path d="m3 13 9 5 9-5" />
+    </>
+  ),
   alert: (
     <>
       <path d="M12 3.5 22 20H2L12 3.5Z" />

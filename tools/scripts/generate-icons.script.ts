@@ -25,6 +25,8 @@ interface IRgba {
 const BACKGROUND_TOP: IRgba = { r: 59, g: 130, b: 246, a: 255 };
 const BACKGROUND_BOTTOM: IRgba = { r: 29, g: 78, b: 216, a: 255 };
 const FOREGROUND: IRgba = { r: 255, g: 255, b: 255, a: 255 };
+/** El azul del fondo, para el hueco del aro: no blanco ni negro. */
+const BACKGROUND_DEEP: IRgba = { r: 37, g: 99, b: 235, a: 255 };
 
 function createCanvas(size: number): Uint8Array {
   return new Uint8Array(size * size * 4);
@@ -119,44 +121,157 @@ function disc(canvas: Uint8Array, cx: number, cy: number, radius: number, color:
   }
 }
 
+/**
+ * El dibujo del icono.
+ *
+ * Una llave blanca sobre azul era bonito a 1024 px y **ilegible a 16 px**, que
+ * es el tamano que se ve en la barra del navegador, en la barra de tareas y en
+ * el dock. A ese tamano solo se distingue una mancha con dos puntitos.
+ *
+ * Lo que se dibuja ahora son tres cosas y solo tres, y todas se leen a 16 px:
+ *
+ * 1. Un aro grueso a la **izquierda**: la cabeza de la llave. Es la forma que
+ *    la gente asocia con "clave" de todo el mundo, sin depender de ningun
+ *    logo.
+ * 2. Una barra horizontal que sale a la derecha: el vastago.
+ * 3. **Un diente** en el extremo. Un solo diente grande vale mas que tres
+ *    pequenos: a 16 px solo se ve uno y se lee; con tres se convierte en un
+ *    borde irregular que parece ruido.
+ *
+ * El aro y el diente van separados por el hueco del vastago, que es lo que hace
+ * que la silueta siga siendo reconocible aunque se pixele mucho.
+ */
 function drawIcon(): Uint8Array {
   const canvas = createCanvas(SIZE);
 
-  // Fondo redondeado con degradado vertical.
-  const margin = 72;
-  const size = SIZE - margin * 2;
+  // ---------------------------------------------------------- fondo ---
+  // Degradado diagonal en vez de vertical: con el vertical, la parte de abajo
+  // del aro se pierde en el azul oscuro en las pantallas OLED.
+  const margin = 64;
+  const radius = 216;
 
   for (let y = 0; y < SIZE; y += 1) {
-    const ratio = y / SIZE;
-    const color: IRgba = {
-      r: Math.round(BACKGROUND_TOP.r + (BACKGROUND_BOTTOM.r - BACKGROUND_TOP.r) * ratio),
-      g: Math.round(BACKGROUND_TOP.g + (BACKGROUND_BOTTOM.g - BACKGROUND_TOP.g) * ratio),
-      b: Math.round(BACKGROUND_TOP.b + (BACKGROUND_BOTTOM.b - BACKGROUND_TOP.b) * ratio),
-      a: 255,
-    };
-
     for (let x = 0; x < SIZE; x += 1) {
-      const dx = Math.max(margin + 210 - x, x - (margin + size - 211), 0);
-      const dy = Math.max(margin + 210 - y, y - (margin + size - 211), 0);
+      const ratio = (x + y) / (SIZE * 2);
+
+      const color: IRgba = {
+        r: Math.round(BACKGROUND_TOP.r + (BACKGROUND_BOTTOM.r - BACKGROUND_TOP.r) * ratio),
+        g: Math.round(BACKGROUND_TOP.g + (BACKGROUND_BOTTOM.g - BACKGROUND_TOP.g) * ratio),
+        b: Math.round(BACKGROUND_TOP.b + (BACKGROUND_BOTTOM.b - BACKGROUND_TOP.b) * ratio),
+        a: 255,
+      };
+
+      const dx = Math.max(margin + radius - x, x - (SIZE - margin - radius - 1), 0);
+      const dy = Math.max(margin + radius - y, y - (SIZE - margin - radius - 1), 0);
       const distance = Math.hypot(dx, dy);
 
-      if (distance <= 210) setPixel(canvas, x, y, color, 1);
-      else if (distance <= 211) setPixel(canvas, x, y, color, 211 - distance);
+      if (distance <= radius) setPixel(canvas, x, y, color, 1);
+      else if (distance <= radius + 1) setPixel(canvas, x, y, color, radius + 1 - distance);
     }
   }
 
-  // Llave: aro + vstago + dientes.
-  const cx = 400;
-  const cy = 400;
-  const outer = 168;
-  const inner = 96;
+  // ----------------------------------------------------------- llave ---
+  // La cabeza se situa en el tercio izquierdo y algo mas arriba: con el centro
+  // optico, el espacio que queda a la derecha para el vastago es el justo, sin
+  // tener que achicar la llave hasta hacerla fina.
+  const cx = 384;
+  const cy = 470;
+
+  const outer = 190;
+  const inner = 100;
+
+  // Aro. Grueso a proposito: `outer - inner` son 88 px sobre 1024, que a 16 px
+  // son algo mas de uno. Un aro mas fino desaparece del todo.
+  ring(canvas, cx, cy, outer, inner, FOREGROUND);
+
+  // El hueco del aro lleva el azul del fondo, no blanco: si no, la cabeza se
+  // lee como un disco y se pierde la silueta de llave.
+  disc(canvas, cx, cy, inner - 10, BACKGROUND_DEEP);
+
+  // Vstago: sale de la cabeza y llega casi al borde derecho.
+  const shaftStart = cx + inner - 44;
+  const shaftEnd = SIZE - margin - 116;
+  roundedRect(canvas, shaftStart, cy - 50, shaftEnd - shaftStart, 100, 26, FOREGROUND);
+
+  // Un unico diente grande hacia abajo, a dos tercios del vastago. Es lo que
+  // convierte una barra en una llave a primera vista.
+  const toothX = shaftStart + (shaftEnd - shaftStart) * 0.52;
+  roundedRect(canvas, toothX, cy + 34, 74, 190, 26, FOREGROUND);
+
+  return canvas;
+}
+
+/**
+ * El icono reducido, para el favicon.
+ *
+ * La primera version dibujaba un aro con un diente pegado debajo y salia un
+ * amasijo sin forma: a 32 px el aro se cerraba y el diente se fundia con el.
+ * No era un problema de tamano sino de **dibujo**: dos formas que se tocan y
+ * compiten por el mismo espacio.
+ *
+ * Aqui se dibuja **la misma llave** que en el icono grande, y solo se le
+ * engordan las partes. Es lo unico que hace falta: la silueta ya funciona a
+ * 1024 px y a 16 px lo unico que hay que lograr es que las tres piezas —aro,
+ * vastago, diente— sigan siendo tres piezas separadas.
+ *
+ * Dos cambios concretos para el tamano pequeno:
+ *
+ * - El hueco del aro es proporcionalmente mas pequeno. A 16 px un hueco de
+ *   tamano normal se lo come el redondeo y el aro se convierte en un disco.
+ * - La llave se dibuja un poco mas grande dentro del lienzo, porque en un
+ *   favicon no hay margen que desperdiciar: cada pixel cuenta.
+ */
+function drawFavicon(size: number): Uint8Array {
+  const canvas = createCanvas(SIZE);
+
+  // ---------------------------------------------------------- fondo ---
+  // Sin esquinas redondeadas: en la barra del navegador un rectángulo de 32 px
+  // es indistinguible de uno redondeado, y las esquinas redondeadas dejarian
+  // cuatro pixeles del fondo del navegador asomando por las esquinas.
+  for (let y = 0; y < SIZE; y += 1) {
+    for (let x = 0; x < SIZE; x += 1) {
+      const ratio = (x + y) / (SIZE * 2);
+
+      setPixel(canvas, x, y, {
+        r: Math.round(BACKGROUND_TOP.r + (BACKGROUND_BOTTOM.r - BACKGROUND_TOP.r) * ratio),
+        g: Math.round(BACKGROUND_TOP.g + (BACKGROUND_BOTTOM.g - BACKGROUND_TOP.g) * ratio),
+        b: Math.round(BACKGROUND_TOP.b + (BACKGROUND_BOTTOM.b - BACKGROUND_TOP.b) * ratio),
+        a: 255,
+      }, 1);
+    }
+  }
+
+  // ----------------------------------------------------------- llave ---
+  // Las proporciones son las del icono grande pero **algo mas engordadas**, y
+  // la llave se centra mejor: el aro con `outer` de 222 se comia el tercio
+  // izquierdo entero y el vastago salia del hueco del aro en vez de del borde,
+  // que es como se leia todo junto.
+  const cx = 340;
+  const cy = 468;
+
+  // Aro: 190 de radio, 84 de hueco. El grosor (106 px) es un 35% mayor que en el
+  // icono grande y es lo que hace que a 16 px siga viéndose el hueco.
+  const outer = 190;
+  const inner = 84;
+
+  // El vastago arranca **en el borde exterior** del aro, nunca dentro del hueco:
+  // si arranca dentro, el blanco del aro y el blanco del vastago se unen y la
+  // cabeza deja de leerse como un aro.
+  const shaftStart = cx + outer - 62;
+  const shaftEnd = SIZE - 96;
+  const shaftHeight = 96;
+
+  // El diente se coloca mas a la derecha del que en el icono grande, casi en el
+  // extremo. Un diente en el centro se lee como una cruz y no como una llave.
+  const toothX = shaftStart + (shaftEnd - shaftStart) * 0.62;
+  roundedRect(canvas, shaftStart, cy - shaftHeight / 2, shaftEnd - shaftStart, shaftHeight, 24, FOREGROUND);
+  roundedRect(canvas, toothX, cy + shaftHeight / 2 - 10, 88, 190, 24, FOREGROUND);
 
   ring(canvas, cx, cy, outer, inner, FOREGROUND);
-  disc(canvas, cx, cy, inner - 26, { r: 59, g: 130, b: 246, a: 255 });
 
-  roundedRect(canvas, cx + inner - 34, cy - 46, 268, 92, 22, FOREGROUND);
-  roundedRect(canvas, cx + outer + 150, cy - 46, 62, 172, 20, FOREGROUND);
-  roundedRect(canvas, cx + outer + 86, cy - 46, 62, 132, 20, FOREGROUND);
+  // El hueco lleva el azul del fondo: con blanco dentro, el aro se lee como un
+  // disco con un agujero y se pierde la forma de llave.
+  disc(canvas, cx, cy, inner, BACKGROUND_DEEP);
 
   return canvas;
 }
@@ -206,12 +321,12 @@ function chunk(type: string, data: Uint8Array): Uint8Array {
   return out;
 }
 
-function encodePng(canvas: Uint8Array): Uint8Array {
+function encodePng(canvas: Uint8Array, size = SIZE): Uint8Array {
   const header = new Uint8Array(13);
   const headerView = new DataView(header.buffer);
 
-  headerView.setUint32(0, SIZE);
-  headerView.setUint32(4, SIZE);
+  headerView.setUint32(0, size);
+  headerView.setUint32(4, size);
   header[8] = 8; // bits por canal
   header[9] = 6; // RGBA
   header[10] = 0;
@@ -219,10 +334,10 @@ function encodePng(canvas: Uint8Array): Uint8Array {
   header[12] = 0;
 
   // Cada scanline lleva delante su byte de filtro (0 = ninguno).
-  const raw = new Uint8Array(SIZE * (SIZE * 4 + 1));
+  const raw = new Uint8Array(size * (size * 4 + 1));
 
-  for (let y = 0; y < SIZE; y += 1) {
-    const target = y * (SIZE * 4 + 1);
+  for (let y = 0; y < size; y += 1) {
+    const target = y * (size * 4 + 1);
     raw[target] = 0;
     raw.set(canvas.subarray(y * SIZE * 4, (y + 1) * SIZE * 4), target + 1);
   }
@@ -249,5 +364,12 @@ mkdirSync(outputDir, { recursive: true });
 const target = join(outputDir, 'icon-source.png');
 writeFileSync(target, encodePng(drawIcon()));
 
+// El favicon va en `public/` porque es lo que Vite copia a `build/` y es de
+// donde lo lee el `index.html`. Ahi no hay que hacer nada mas.
+const publicDir = join(import.meta.dir, '..', '..', 'apps', 'desktop', 'public');
+mkdirSync(publicDir, { recursive: true });
+writeFileSync(join(publicDir, 'favicon.png'), encodePng(drawFavicon(32)));
+
 console.log(`Icono base generado: ${target} (${SIZE}x${SIZE})`);
+console.log(`Favicon generado: ${join(publicDir, 'favicon.png')} (32x32)`);
 console.log('Siguiente paso:  cd apps/desktop && bunx tauri icon ../../build/icons/icon-source.png');

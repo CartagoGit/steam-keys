@@ -5,6 +5,7 @@ import {
   groupByTitle,
   isExpirable,
   isGiftable,
+  podarSeleccion,
   siblingsOf,
 } from './selection.helper';
 import { KeyStatus } from '@/contracts/enums/key-status.enum';
@@ -62,7 +63,7 @@ describe('que se puede hacer con una seleccion', () => {
     expect(facts.canGift).toBe(false);
   });
 
-  test('una seleccion mezclada bloquea el regalar aunque el interruptor este activo', () => {
+  test('una seleccion mezclada bloquea el regalar aunque el filtro sea de disponibles', () => {
     const seleccion = [
       clave(1, KeyStatus.Available),
       clave(2, KeyStatus.Gifted),
@@ -73,11 +74,20 @@ describe('que se puede hacer con una seleccion', () => {
     expect(facts.giftable).toBe(1);
     expect(facts.canExport).toBe(false);
 
+    // El mensaje no nombra el estado de las claves que lo impiden: la barra de
+    // seleccion ya lo dice en su cabecera ("3 se pueden regalar · 2 ya no"), y
+    // cada fila muestra su propio estado. Aqui va lo que **falta por hacer**,
+    // que es lo unico que no se deduce de la cabecera.
+    //
+    // Dice "cambia el filtro", no "pulsa el interruptor": el interruptor que
+    // habia en la barra de seleccion se quito por duplicar el filtro de la
+    // barra de filtros, y este mensaje quedaria obsoleto si se hubiera dejado.
     const motivo = facts.blocked.find((b) => b.action === 'export');
-    // El motivo usa la etiqueta del estado, no el valor crudo del enum: decir
-    // "gifted" en un tooltip en castellano no le dice nada a nadie.
-    expect(motivo?.message).toContain('regalada');
-    expect(motivo?.message).not.toContain('gifted');
+    expect(motivo?.message).toContain('filtro a «Solo disponibles»');
+
+    // Las claves concretas que lo impiden si vienen, en `ids`, para poder
+    // nombrarlas en el aviso al completar la accion.
+    expect(motivo?.ids).toEqual([2]);
   });
 
   test('el bloqueo explica el motivo en el tooltip', () => {
@@ -107,7 +117,7 @@ describe('que se puede hacer con una seleccion', () => {
     expect(facts.canExpire).toBe(false);
 
     const motivo = facts.blocked.find((b) => b.action === 'expire');
-    expect(motivo?.message).toContain('ya estaban caducadas');
+    expect(motivo?.message).toContain('caducadas');
   });
 
   test('una seleccion vacia no habilita nada', () => {
@@ -126,21 +136,33 @@ describe('que se puede hacer con una seleccion', () => {
     expect(facts.canTag).toBe(true);
   });
 
-  test('el motivo lleva las claves en plural', () => {
+  test('el motivo dice cuantas claves hay que dejar fuera', () => {
     const facts = analyzeSelection(
       [clave(1, KeyStatus.Gifted), clave(2, KeyStatus.Gifted)],
       true,
     );
 
     const motivo = facts.blocked.find((b) => b.action === 'gift');
-    expect(motivo?.message).toContain('2 claves regaladas');
+    expect(motivo?.message).toContain('esas 2');
+    expect(motivo?.ids).toEqual([1, 2]);
   });
 
-  test('el motivo de canjeadas tambien va en plural', () => {
+  test('el motivo tambien sale con una sola clave que estorba', () => {
     const facts = analyzeSelection([clave(1, KeyStatus.Redeemed)], true);
 
     const motivo = facts.blocked.find((b) => b.action === 'export');
-    expect(motivo?.message).toContain('canjeadas');
+    expect(motivo?.message).toContain('esa 1');
+    expect(motivo?.ids).toEqual([1]);
+  });
+
+  test('si no hay ninguna que estorbe el motivo no inventa un numero', () => {
+    // Todo disponible pero con el interruptor apagado: no hay claves que
+    // dejar fuera, asi que el motivo no debe decir "esas 0".
+    const facts = analyzeSelection([clave(1, KeyStatus.Available)], false);
+
+    const motivo = facts.blocked.find((b) => b.action === 'export');
+    expect(motivo?.message).toContain('filtro a «Solo disponibles»');
+    expect(motivo?.message).not.toContain('esas 0');
   });
 });
 
@@ -211,5 +233,59 @@ describe('permisos por clave', () => {
     expect(isExpirable(clave(1, KeyStatus.Expired))).toBe(false);
     expect(isExpirable(clave(1, KeyStatus.Available))).toBe(true);
     expect(isExpirable(clave(1, KeyStatus.Redeemed))).toBe(true);
+  });
+});
+describe('podar la seleccion al cambiar el filtro', () => {
+  test('lo que ya no se ve se deselecciona', () => {
+    // El caso del que habla el usuario: veinte seleccionadas, se cambia el
+    // filtro y solo cuatro siguen en pantalla. Sin esto, «Exportar» se lleva
+    // veinte claves de las que solo se ven cuatro, y no hay forma de saber
+    // cuales son porque las otras no tienen fila donde mirar su casilla.
+    const seleccion = new Set([1, 2, 3, 4, 5, 6, 7, 8]);
+    const visibles = [clave(1, KeyStatus.Available), clave(2, KeyStatus.Available)];
+
+    expect([...podarSeleccion(seleccion, visibles)]).toEqual([1, 2]);
+  });
+
+  test('lo que sigue en pantalla se conserva', () => {
+    const seleccion = new Set([1, 3]);
+    const visibles = [
+      clave(1, KeyStatus.Available),
+      clave(2, KeyStatus.Available),
+      clave(3, KeyStatus.Available),
+    ];
+
+    expect([...podarSeleccion(seleccion, visibles)]).toEqual([1, 3]);
+  });
+
+  test('si no hay que quitar nada devuelve el mismo conjunto', () => {
+    // React compara por referencia: devolver un Set nuevo con el mismo
+    // contenido haria que el efecto se volviera a disparar, y el ciclo no
+    // terminaria nunca.
+    const seleccion = new Set([1, 2]);
+    const visibles = [clave(1, KeyStatus.Available), clave(2, KeyStatus.Available)];
+
+    expect(podarSeleccion(seleccion, visibles)).toBe(seleccion);
+  });
+
+  test('una lista vacia vacia la seleccion', () => {
+    expect([...podarSeleccion(new Set([1, 2, 3]), [])]).toEqual([]);
+  });
+
+  test('una seleccion vacia se queda vacia y sin cambio', () => {
+    const seleccion = new Set<number>();
+
+    expect(podarSeleccion(seleccion, [clave(1, KeyStatus.Available)]).size).toBe(0);
+  });
+
+  test('solo se quita lo que no esta en pantalla, sin tocar el original', () => {
+    const seleccion = new Set([1, 9]);
+    const visibles = [clave(1, KeyStatus.Available)];
+
+    const resultado = podarSeleccion(seleccion, visibles);
+
+    expect(resultado).not.toBe(seleccion);
+    // El conjunto original no se toca: es el estado de React.
+    expect([...seleccion]).toEqual([1, 9]);
   });
 });

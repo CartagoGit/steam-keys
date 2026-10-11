@@ -23,6 +23,15 @@ export const SEARCH_DEBOUNCE_MS = 180;
 export const SEARCH_SHORTCUT = '/';
 
 /**
+ * Donde se pide la clave de la API de Steam.
+ *
+ * Va en una constante y no escrita en el JSX porque es el unico sitio donde
+ * se ofrece, y porque una direccion metida a mano en medio de un texto de
+ * ayuda es facil que se quede anticuada sin que nadie se entere.
+ */
+export const STEAM_API_KEY_URL = 'https://steamcommunity.com/dev/apikey';
+
+/**
  * Cuantas posiciones de la clave se dejan visibles al inspeccionarla.
  * La clave se enmascara por defecto; solo se revela bajo demanda.
  */
