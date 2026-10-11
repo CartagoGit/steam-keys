@@ -41,5 +41,13 @@ export const APP_LOCALE_VALUES: readonly AppLocale[] = Object.freeze([
   AppLocale.De,
 ]);
 
-/** Idioma que se usa cuando no hay nada guardado o el guardado no existe. */
-export const DEFAULT_LOCALE: AppLocale = AppLocale.Es;
+/**
+ * Idioma que se usa cuando no hay nada guardado o el guardado no existe.
+ *
+ * El ingles y no el espanol. El idioma guardado esta en la tabla
+ * `app_settings`, que vive **dentro** de la base de datos: si la base de datos
+ * no esta, no hay idioma guardado que leer, y el primer arranque tendria que
+ * invented uno. English es el que hace que ese primer arranque se entienda
+ * fuera de Espana y de Portugal, que es donde esta el autor.
+ */
+export const DEFAULT_LOCALE: AppLocale = AppLocale.En;

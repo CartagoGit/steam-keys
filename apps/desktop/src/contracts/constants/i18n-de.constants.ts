@@ -9,6 +9,13 @@ export const DE: TranslationTable = Object.freeze({
   'action.add': 'Hinzufuegen',
   'action.clear': 'Leeren',
   'action.forget': 'Vergessen',
+  'empty.title': 'Noch keine Keys',
+  'empty.hint': 'Importiere deine TXT-Datei oder lege einen Key von Hand an.',
+  'empty.import': 'TXT importieren',
+  'empty.create': 'Key hinzufuegen',
+  'empty.noResults': 'Keine Treffer',
+  'empty.noResultsHint': 'Versuche eine andere Suche oder entferne einen Filter.',
+  'empty.clearFilters': 'Filter zuruecksetzen',
   'action.edit': 'Bearbeiten',
   'action.delete': 'Loeschen',
   'action.copy': 'Kopieren',
@@ -205,12 +212,12 @@ export const DE: TranslationTable = Object.freeze({
   'storage.restoring': 'Wird wiederhergestellt…',
   'storage.restore': 'Wiederherstellen',
   'storage.mode.desktop': 'Desktop-App',
-  'storage.mode.devBridge': 'Entwicklung (echte Datenbank)',
+  'storage.mode.devBridge': 'Entwicklung (eigene Datenbank)',
   'storage.mode.memory': 'Vorschau im Browser',
   'storage.notice.desktop':
     'Deine Schluessel liegen auf deiner Festplatte, in einer SQLite-Datenbank, mit automatischen Sicherungen.',
   'storage.notice.devBridge':
-    'Du siehst die echte Datenbank ueber die Entwicklungsbruecke. Was du hier aenderst, wird dort gespeichert.',
+    'Du siehst eine Entwicklungsdatenbank, getrennt von der der App, unter .dev/. Was du hier aenderst, beruehrt deine echten Keys nicht.',
   'storage.notice.memory':
     'Vorschau im Browser: die Daten liegen im localStorage und gehen verloren, wenn du die Browserdaten loeschst.',
   'app.loadFailed': 'Die Sammlung liess sich nicht lesen.',

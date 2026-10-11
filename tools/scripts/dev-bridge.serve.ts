@@ -28,7 +28,7 @@ import { Database } from 'bun:sqlite';
 import { existsSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
-import { databasePath } from './support/db-path.helper';
+import { devDatabasePath } from './support/db-path.helper';
 import { SCHEMA_STATEMENTS } from '../../apps/desktop/src/contracts/constants/db-schema.constants';
 
 /** Una sentencia que hay que ejecutar contra la base de datos. */
@@ -62,11 +62,17 @@ async function leerEntrada(): Promise<string> {
  * Ruta de la base de datos que usa el puente.
  *
  * `STEAM_KEYS_DB_PATH` permite apuntar a otra base de datos, y es lo que usan
- * los tests para no tocar la real. Sin esa variable se resuelve igual que en
- * la app de escritorio.
+ * los tests para no tocar la real.
+ *
+ * Sin esa variable **no** se usa `databasePath()`, que es la de la app de
+ * escritorio. Antes si, y eso hacia que abrir la interfaz en el navegador
+ * escribiera sobre la coleccion de verdad: un reset o una importacion a medias
+ * desde el navegador se comian las claves, y de `dist/` no hay copia en git.
+ * Ahora el navegador trabaja sobre `.dev/steam-keys-dev.db`, una base de datos
+ * aparte con el mismo esquema.
  */
 function rutaBaseDeDatos(): string {
-  return process.env.STEAM_KEYS_DB_PATH ?? databasePath();
+  return devDatabasePath();
 }
 
 /** Abre la base de datos en solo lectura. */
@@ -75,8 +81,9 @@ function abrirLectura(): Database {
 
   if (!existsSync(ruta)) {
     throw new Error(
-      `No existe la base de datos: ${ruta}. ` +
-        'Importa el TXT con "bun run import -- --force".',
+      `No existe la base de datos de desarrollo: ${ruta}. ` +
+        'Se crea sola en cuanto se escribe algo; si quieres verla con tus ' +
+        'claves, arranca con STEAM_KEYS_DB_PATH=dist/steam-keys.db.',
     );
   }
 
@@ -164,7 +171,7 @@ await principal();
 export { abrirLectura, abrirEscritura, parsearPeticion };
 
 /** Ruta esperada de la base de datos, util para diagnostico. */
-export const RUTA_BD = databasePath;
+export const RUTA_BD = devDatabasePath;
 
 /** Directorio de este script, para localizar el repositorio. */
 export const DIR_SCRIPT = dirname(join(import.meta.path));

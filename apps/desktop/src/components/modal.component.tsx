@@ -92,7 +92,13 @@ export function Modal({
   if (!visible) return null;
 
   const clases = [
-    'w-full overflow-hidden rounded-2xl bg-surface-1 shadow-2xl ring-1 ring-line',
+    // `flex max-h-[...] flex-col` es lo que hace que el `flex-1 overflow-y-auto`
+    // que ponen los dialogos en su cuerpo sirva de algo. Sin altura maxima el
+    // panel crece hasta lo que occupancy el contenido, se sale de la pantalla y
+    // el `overflow-hidden` de aqui lo recorta sin dejar desplazarse: el ultimo
+    // elemento (el selector de idioma en Ajustes) quedaba sin poder pulsarse en
+    // una ventana baja, y parecia que el idioma no se podia cambiar.
+    'flex max-h-[calc(100dvh-2rem)] w-full flex-col overflow-hidden rounded-2xl bg-surface-1 shadow-2xl ring-1 ring-line',
     SIZES[size] ?? SIZES.md,
     saliendo ? 'animate-scale-out' : 'animate-scale-in',
   ].join(' ');

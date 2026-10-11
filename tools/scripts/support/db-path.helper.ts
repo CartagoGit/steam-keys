@@ -15,7 +15,7 @@
  * donde lived la base antes del modo portable y donde se queda si el
  * ejecutable se instala en un sitio sin permisos de escritura.
  */
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { homedir, platform } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -30,6 +30,18 @@ export const DB_FILE_NAME = 'steam-keys.db';
  * niveles hasta la raiz del repositorio y entrar en `dist`.
  */
 const DIST_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'dist');
+
+/**
+ * Carpeta de la base de datos de descarte, en la raiz del repositorio.
+ *
+ * `.dev/` y no `dist/dev/`: `dist/` la vacian los scripts de compilacion, y
+ * perder la coleccion de pruebas cada vez que se compila haria inutil
+ * trabajar en la interfaz con datos. En la raiz no la toca nadie.
+ */
+const DEV_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '.dev');
+
+/** Nombre de la base de datos de descarte. Distinto a propósito del de la app. */
+const DEV_DB_FILE_NAME = 'steam-keys-dev.db';
 
 /** Directorio de configuracion del sistema, el modo de antes del portable. */
 export function systemConfigDir(): string {
@@ -67,4 +79,38 @@ export function appConfigDir(): string {
 /** Ruta completa del fichero SQLite. */
 export function databasePath(): string {
   return join(appConfigDir(), DB_FILE_NAME);
+}
+
+/**
+ * Base de datos de descarte para `bun run dev`.
+ *
+ * El puente de desarrollo ejecutaba SQL contra `databasePath()`, que es
+ * **la base de datos de verdad**: la de tus 403 claves. Con la interfaz en el
+ * navegador, cualquier cosa que se probara (un `bun run db:reset`, una
+ * importacion a medias, un `migrate()` con el esquema a medio cambiar) escribia
+ * en la coleccion que de verdad importa, y como `dist/` esta ignorado por git
+ * no hay copia de la que volver.
+ *
+ * Por eso el navegador trabaja sobre otra. Es la misma tabla y el mismo
+ * repositorio, solo que un fichero distinto: sirve para ver como se comporta la
+ * interfaz con datos de verdad sin tocar los tuyos.
+ *
+ * `STEAM_KEYS_DB_PATH` manda sobre todo, que es lo que usan los tests, y sigue
+ * funcionando igual. Para mirar las claves de verdad desde el navegador se
+ * puede apuntar a mano:
+ *
+ *   STEAM_KEYS_DB_PATH=dist/steam-keys.db bun run dev
+ */
+export function devDatabasePath(): string {
+  const forzado = process.env.STEAM_KEYS_DB_PATH;
+
+  if (forzado !== undefined && forzado !== '') return resolve(forzado);
+
+  return join(DEV_DIR, DEV_DB_FILE_NAME);
+}
+
+/** Crea la carpeta de la base de datos de descarte si no existe. */
+export function ensureDevDir(): string {
+  mkdirSync(DEV_DIR, { recursive: true });
+  return DEV_DIR;
 }

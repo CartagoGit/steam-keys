@@ -154,7 +154,7 @@ export function SettingsDialog({
 
   return (
     <Modal open={open} onClose={onClose} size="lg" label={t('settings.title')}>
-      <header className="flex items-center justify-between border-b border-line px-5 py-4">
+      <header className="flex shrink-0 items-center justify-between border-b border-line px-5 py-4">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-t1">
           <Icon name="settings" size={16} className="text-t3" />
           {t('settings.title')}
@@ -172,7 +172,7 @@ export function SettingsDialog({
       </header>
 
       {/* ------------------------------------------------------------- pestanas */}
-      <div className="flex gap-1 border-b border-line px-5 pt-2">
+      <div className="flex shrink-0 gap-1 border-b border-line px-5 pt-2">
         {(
           [
             ['appearance', 'settings.tab.appearance'],

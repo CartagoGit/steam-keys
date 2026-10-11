@@ -9,6 +9,13 @@ export const PT: TranslationTable = Object.freeze({
   'action.add': 'Adicionar',
   'action.clear': 'Limpar',
   'action.forget': 'Esquecer',
+  'empty.title': 'Ainda nao tens chaves',
+  'empty.hint': 'Importa o teu ficheiro TXT ou adiciona uma chave a mao.',
+  'empty.import': 'Importar ficheiro TXT',
+  'empty.create': 'Adicionar chave',
+  'empty.noResults': 'Nenhum resultado',
+  'empty.noResultsHint': 'Tenta outra pesquisa ou remove um filtro.',
+  'empty.clearFilters': 'Limpar filtros',
   'action.edit': 'Editar',
   'action.delete': 'Apagar',
   'action.copy': 'Copiar',
@@ -201,12 +208,12 @@ export const PT: TranslationTable = Object.freeze({
   'storage.restoring': 'A restaurar…',
   'storage.restore': 'Restaurar',
   'storage.mode.desktop': 'App de escritorio',
-  'storage.mode.devBridge': 'Desenvolvimento (BD real)',
+  'storage.mode.devBridge': 'Desenvolvimento (BD separada)',
   'storage.mode.memory': 'Previa no navegador',
   'storage.notice.desktop':
     'As tuas chaves estao no teu disco, numa base de dados SQLite, com copias de seguranca automaticas.',
   'storage.notice.devBridge':
-    'Estas a ver a base de dados real atraves da ponte de desenvolvimento. Tudo o que editares aqui fica guardado nela.',
+    'Estas a ver uma base de dados de desenvolvimento, separada da da aplicacao, em .dev/. O que editares aqui nao toca as tuas chaves.',
   'storage.notice.memory':
     'Previa no navegador: os dados ficam no localStorage e perdem-se se limpares os dados do navegador.',
   'app.loadFailed': 'Nao foi possivel ler a colecao.',

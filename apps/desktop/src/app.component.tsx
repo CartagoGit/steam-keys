@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { translate } from '@/helpers/i18n.helper';
-import { LocaleContext, type ITranslator } from './context/locale.context';
+import { LocaleContext, useT, type ITranslator } from './context/locale.context';
 
 import { BulkStatusDialog } from './components/bulk-status-dialog.component';
 import { ConfirmDialog, ToastStack, type IToast, type ToastTone } from './components/feedback.component';
@@ -1237,6 +1237,12 @@ interface IEmptyStateProps {
 }
 
 function EmptyState({ hasKeys, onCreate, onImport, onClearFilters }: IEmptyStateProps) {
+  // Los dos estados (no hay nada / no hay resultados) estaban escritos en
+  // español en el marcado, asi que con la app en cualquier otro idioma salian
+  // en castellano justo en las pantallas que se ven la primera vez. Se traducen
+  // con `useT()`, que es el mismo traductor que consume el resto del arbol.
+  const { t } = useT();
+
   if (hasKeys) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
@@ -1244,13 +1250,11 @@ function EmptyState({ hasKeys, onCreate, onImport, onClearFilters }: IEmptyState
           <Icon name="search" size={22} />
         </div>
         <div>
-          <h3 className="text-sm font-medium text-t2">Ningun resultado</h3>
-          <p className="mt-1 text-xs text-t4">
-            Prueba a cambiar la busqueda o quitar algun filtro.
-          </p>
+          <h3 className="text-sm font-medium text-t2">{t('empty.noResults')}</h3>
+          <p className="mt-1 text-xs text-t4">{t('empty.noResultsHint')}</p>
         </div>
         <Button variant="subtle" size="sm" onClick={onClearFilters}>
-          Limpiar filtros
+          {t('empty.clearFilters')}
         </Button>
       </div>
     );
@@ -1262,17 +1266,15 @@ function EmptyState({ hasKeys, onCreate, onImport, onClearFilters }: IEmptyState
         <Icon name="key" size={22} />
       </div>
       <div>
-        <h3 className="text-sm font-medium text-t2">Todavia no hay claves</h3>
-        <p className="mt-1 text-xs text-t4">
-          Importa tu TXT o anade una clave a mano.
-        </p>
+        <h3 className="text-sm font-medium text-t2">{t('empty.title')}</h3>
+        <p className="mt-1 text-xs text-t4">{t('empty.hint')}</p>
       </div>
       <div className="flex gap-2">
         <Button variant="primary" icon="upload" onClick={onImport}>
-          Importar TXT
+          {t('empty.import')}
         </Button>
         <Button variant="subtle" icon="plus" onClick={onCreate}>
-          Anadir clave
+          {t('empty.create')}
         </Button>
       </div>
     </div>

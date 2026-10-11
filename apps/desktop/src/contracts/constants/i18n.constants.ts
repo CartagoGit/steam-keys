@@ -45,6 +45,15 @@ export const EN: TranslationTable = Object.freeze({
   'action.clear': 'Clear',
   'action.forget': 'Forget',
 
+  // ------------------------------------------------------- empty state ---
+  'empty.title': 'No keys yet',
+  'empty.hint': 'Import your TXT file or add a key by hand.',
+  'empty.import': 'Import TXT',
+  'empty.create': 'Add key',
+  'empty.noResults': 'No results',
+  'empty.noResultsHint': 'Try a different search or clear one of the filters.',
+  'empty.clearFilters': 'Clear filters',
+
   // -------------------------------------------------------------- header ---
   'app.title': 'Steam Keys',
   'app.subtitle': '{0} available of {1}',
@@ -345,10 +354,10 @@ export const EN: TranslationTable = Object.freeze({
   'storage.restoring': 'Restoring…',
   'storage.restore': 'Restore',
   'storage.mode.desktop': 'Desktop app',
-  'storage.mode.devBridge': 'Development (real database)',
+  'storage.mode.devBridge': 'Development (separate database)',
   'storage.mode.memory': 'Preview in the browser',
   'storage.notice.desktop': 'Your keys are on your disk, in a SQLite database, with automatic backups.',
-  'storage.notice.devBridge': 'You are looking at the real database through the development bridge. Anything you edit here is saved to it.',
+  'storage.notice.devBridge': 'You are looking at a development database, separate from the one the app uses, in .dev/. Whatever you edit here does not touch your real keys; this is where the interface gets tested.',
   'storage.notice.memory': 'Preview in the browser: the data lives in localStorage and is lost if you clear the browser data.',
   'app.loadFailed': 'Could not read the collection.',
   'app.nothingSelected': 'Nothing selected.',

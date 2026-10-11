@@ -6,7 +6,7 @@ import {
   interpolate,
   translate,
 } from './i18n.helper';
-import { AppLocale, APP_LOCALE_VALUES } from '@/contracts/enums/app-locale.enum';
+import { AppLocale, APP_LOCALE_VALUES, DEFAULT_LOCALE } from '@/contracts/enums/app-locale.enum';
 import { TRANSLATIONS } from '@/contracts/constants/i18n.constants';
 import { baseKeys } from './i18n.helper';
 
@@ -72,8 +72,9 @@ describe('detectar el idioma', () => {
     expect(detectLocale(['es-ES', 'en'])).toBe(AppLocale.Es);
   });
 
-  test('un idioma que no soportamos cae en espanol', () => {
-    expect(detectLocale(['ja-JP', 'it'])).toBe(AppLocale.Es);
+  test('un idioma que no soportamos cae en ingles', () => {
+    expect(detectLocale(['ja-JP', 'it'])).toBe(DEFAULT_LOCALE);
+    expect(DEFAULT_LOCALE).toBe(AppLocale.En);
   });
 
   test('un idioma de la lista se detecta por su idioma base', () => {
@@ -83,8 +84,8 @@ describe('detectar el idioma', () => {
     expect(detectLocale(['fr-CA'])).toBe(AppLocale.Fr);
   });
 
-  test('sin candidatos sale espanol', () => {
-    expect(detectLocale([])).toBe(AppLocale.Es);
+  test('sin candidatos sale ingles', () => {
+    expect(detectLocale([])).toBe(DEFAULT_LOCALE);
   });
 
   test('en un entorno sin navigator no rompe', () => {

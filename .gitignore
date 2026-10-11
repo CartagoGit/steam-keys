@@ -20,6 +20,10 @@ backups/
 *.bak
 *.dump
 
+# Base de datos de descarte de `bun run dev`. No es la de la app, pero puede
+# acabar con datos copiados a mano, asi que tampoco se versiona.
+.dev/
+
 # `Cargo.lock` se genera dentro del contenedor de compilacion. En una
 # aplicacion Rust normalmente se versiona, pero aqui no: el Rust solo existe
 # dentro de Docker, asi que versionar el fichero solo anadiria 5500 lineas que

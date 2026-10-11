@@ -9,6 +9,13 @@ export const FR: TranslationTable = Object.freeze({
   'action.add': 'Ajouter',
   'action.clear': 'Effacer',
   'action.forget': 'Oublier',
+  'empty.title': 'Pas encore de cles',
+  'empty.hint': 'Importe ton fichier TXT ou ajoute une cle a la main.',
+  'empty.import': 'Importer TXT',
+  'empty.create': 'Ajouter une cle',
+  'empty.noResults': 'Aucun resultat',
+  'empty.noResultsHint': 'Essaie une autre recherche ou retire un filtre.',
+  'empty.clearFilters': 'Effacer les filtres',
   'action.edit': 'Modifier',
   'action.delete': 'Supprimer',
   'action.copy': 'Copier',
@@ -204,12 +211,12 @@ export const FR: TranslationTable = Object.freeze({
   'storage.restoring': 'Restauration…',
   'storage.restore': 'Restaurer',
   'storage.mode.desktop': 'Application de bureau',
-  'storage.mode.devBridge': 'Developpement (BD reelle)',
+  'storage.mode.devBridge': 'Developpement (BD separee)',
   'storage.mode.memory': 'Apercu dans le navigateur',
   'storage.notice.desktop':
     'Tes cles sont sur ton disque, dans une base SQLite, avec des sauvegardes automatiques.',
   'storage.notice.devBridge':
-    'Tu vois la vraie base de donnees a travers le pont de developpement. Ce que tu modifies ici y est enregistre.',
+    'Tu vois une base de donnees de developpement, separee de celle de l application, dans .dev/. Ce que tu modifies ici ne touche pas tes vraies cles.',
   'storage.notice.memory':
     'Apercu dans le navigateur : les donnees vivent dans localStorage et disparaissent si tu nettoies les donnees du navigateur.',
   'app.loadFailed': 'Impossible de lire la collection.',
