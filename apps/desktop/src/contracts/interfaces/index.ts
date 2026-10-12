@@ -47,6 +47,11 @@ export type {
 } from './parsed-entry.interface';
 
 export type {
+  DatabaseState,
+  IStartup,
+} from './startup.interface';
+
+export type {
   IAppMatch,
   IResolvedKey,
   ISteamOwnedGame,

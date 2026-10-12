@@ -213,6 +213,32 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
     );
   }
 
+  async setTagsForKeys(
+    asignaciones: readonly { id: number; tags: readonly string[] }[],
+  ): Promise<void> {
+    if (asignaciones.length === 0) return;
+
+    const ahora = touchTimestamp();
+
+    /**
+     * En transaccion, no en un bucle suelto.
+     *
+     * Con cuatrocientas claves son cuatrocientas sentencias `UPDATE` y una
+     * ida y vuelta cada una. Peor que eso: si la numero 250 falla, las 249
+     * anteriores ya estan escritas y la coleccion queda con unas claves
+     * etiquetadas y otras no, sin nada que lo diga. En transaccion se
+     * escribe todo o nada.
+     */
+    await this.db.transaccion(async () => {
+      for (const asignacion of asignaciones) {
+        await this.db.execute(
+          `UPDATE ${TABLE_GAME_KEYS} SET tags = $1, updated_at = $2 WHERE id = $3`,
+          [serializeTags(asignacion.tags), ahora, asignacion.id],
+        );
+      }
+    });
+  }
+
   async findByKey(keyValue: string): Promise<IGameKey | null> {
     const rows = await this.db.select<IGameKeyRow>(
       `SELECT ${GAME_KEY_COLUMNS} FROM ${TABLE_GAME_KEYS} WHERE key_value = $1`,

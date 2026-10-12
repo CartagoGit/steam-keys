@@ -24,7 +24,7 @@ import { TagsDialog } from './components/tags-dialog.component';
 import { Toolbar } from './components/toolbar.component';
 import { Button } from './components/ui.component';
 
-import { AppTheme, AppView, DEFAULT_VIEW, KEY_STATUS_VALUES, KeyPlatform, KeyScope, KeySort, KeyStatus, PAGE_SIZE, mergeTags, removeTags, type AppLocale, type IAppSettings, type IGameKey, type IGameKeyDraft, type IImportSummary, type IKeyFilter, type ISteamOwnedGame, type SteamAccountStatus, type TranslationArgs, type Translator } from '@/contracts';
+import { AppTheme, AppView, DEFAULT_VIEW, KEY_STATUS_VALUES, KeyPlatform, KeyScope, KeySort, KeyStatus, PAGE_SIZE, mergeTags, type AppLocale, type IAppSettings, type IGameKey, type IGameKeyDraft, type IImportSummary, type IKeyFilter, type ISteamOwnedGame, type SteamAccountStatus, type TranslationArgs, type Translator } from '@/contracts';
 import { computeStats, emptyFilter, filterKeys, sortKeys } from '@/helpers/filter-keys.helper';
 import { analyzeSelection, claveGrupo, groupByTitle, isGiftable, podarSeleccion, type SelectAction } from '@/helpers/selection.helper';
 import { useKeepMounted } from '@/helpers/use-exit-animation.helper';
@@ -37,10 +37,8 @@ import { settingsService, DEFAULT_SETTINGS } from '@/services/settings.service';
 import { storageService } from '@/services/storage.service';
 import { inspectStartup } from '@/services/startup.service';
 import {
-  legacyBackupsMigrated,
-  migrateLegacyBackups,
+  migrateLegacyBackupsSiHaceFalta,
 } from '@/services/legacy-backups.service';
-import { getDatabaseClient } from '@/repositories/repository.factory';
 import { FirstRun } from '@/components/first-run.component';
 import { steamService, SteamError, textoDeSteamError, resolveSteamId } from '@/services/steam.service';
 import { bestCandidate, cuentaComoPropio } from '@/helpers/match-owned.helper';
@@ -76,16 +74,7 @@ const IMPORT_FILE_NAME = 'steam-keys.txt';
  */
 const ARRANQUE = {
   inspeccionar: inspectStartup,
-  migrarCopias: async (): Promise<void> => {
-    const db = await getDatabaseClient();
-
-    // El propio servicio marca «ya no hace falta hacerlo». Si ya esta marcado,
-    // no se toca nada: es la senal de que esto ya corrio en un arranque
-    // anterior y no hay que repetirlo.
-    if (await legacyBackupsMigrated(db)) return;
-
-    await migrateLegacyBackups(db);
-  },
+  migrarCopias: migrateLegacyBackupsSiHaceFalta,
 } as const;
 
 /**
@@ -1226,14 +1215,39 @@ export function App() {
     const total = selectionIds.length;
 
     try {
-      const r = await conCarga('loading.tags', async () => {
-        for (const key of selectedKeys) {
-          const juntadas = mergeTags(key.tags, tags);
-          const sinLasNuevas = removeTags(juntadas, tags);
-          const final = [...sinLasNuevas, ...tags.filter((tag) => !sinLasNuevas.includes(tag))];
+      /**
+       * Una sola transaccion, no una escritura por clave.
+       *
+       * El estado se cambio a una sola operacion con el motivo escrito mas
+       * abajo en este mismo archivo —cuatrocientas escrituras, y la
+       * coleccion a medias si algo falla a mitad— y las etiquetas seguian
+       * haciendolo de una en una.
+       *
+       * Y el calculo era un no-op algebraico: `sinLasNuevas` quitaba
+       * exactamente lo que `final` volvia a anadir al final, asi que
+       * `final` era siempre `juntadas` para cualquier entrada. Las tres
+       * lineas solo parecian hacer algo que no hacia.
+       *
+       * La fusion se mantiene: las etiquetas se **anaden**, no se
+       * reemplazan. Es lo que hace `mergeTags` y lo que dice el comentario
+       * de esta misma funcion.
+       */
+      const finales = selectedKeys.map((key) => ({
+        id: key.id,
+        tags: mergeTags(key.tags, tags),
+      }));
 
-          await gameKeyService.setTagsMany([key.id], final);
-        }
+      const r = await conCarga('loading.tags', async () => {
+        // Las claves que ya tienen todas esas etiquetas no se tocan: el
+        // resultado seria identico y la escritura no compra nada.
+        const cambian = finales.filter(
+          (asignacion) =>
+            asignacion.tags.join('\u0000') !==
+            (selectedKeys.find((key) => key.id === asignacion.id)?.tags ?? [])
+              .join('\u0000'),
+        );
+
+        await gameKeyService.setTagsForKeys(cambian);
       });
 
       if (!r.ok) return;

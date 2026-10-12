@@ -86,6 +86,23 @@ export const gameKeyService = {
   },
 
   /** Cambia las etiquetas de varias claves a la vez, en una sola operacion. */
+  /**
+   * Etiquetas distintas por clave, en una sola transaccion.
+   *
+   * `setTagsMany` pone la misma lista a todos los ids, que es lo que sirve
+   * para marcar un grupo entero con un estado. La **fusion** de etiquetas no
+   * puede: cada clave conserva las suyas, asi que la lista final es distinta
+   * en cada una.
+   */
+  async setTagsForKeys(
+    asignaciones: readonly { id: number; tags: readonly string[] }[],
+  ): Promise<void> {
+    if (asignaciones.length === 0) return;
+
+    const repository = await getRepository();
+    await repository.setTagsForKeys(asignaciones);
+  },
+
   async setTagsMany(ids: readonly number[], tags: readonly string[]): Promise<void> {
     const repository = await getRepository();
     await repository.setTagsMany(ids, tags);

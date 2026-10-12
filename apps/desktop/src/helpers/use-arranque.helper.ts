@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import type { AppLocale } from '@/contracts';
-import type { IStartup } from '@/services/startup.service';
+import type { AppLocale, IStartup } from '@/contracts';
 
 /**
  * Lo que el arranque necesita del mundo exterior.

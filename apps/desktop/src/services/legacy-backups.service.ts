@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import SqliteDatabase from '@tauri-apps/plugin-sql';
 
+import { getDatabaseClient } from '@/repositories/repository.factory';
 import {
   BackupReason,
   GAME_KEY_COLUMNS,
@@ -61,6 +62,26 @@ async function leerFilas(nombre: string): Promise<readonly IGameKeyRow[]> {
   } finally {
     await invoke('discard_staged_backup').catch(() => undefined);
   }
+}
+
+/**
+ * Trae las copias antiguas si no se han traído ya.
+ *
+ * Es lo que llama el arranque. La de mas abajo, que recibe la base por
+ * parametro, se queda para quien ya la tenga a mano; esta resuelve por su
+ * cuenta, y asi un componente no tiene que importar `repositories/` para
+ * asking por ella —los componentes ven `contracts + helpers + services`,
+ * y como se llega a la base es cosa de los servicios—.
+ */
+export async function migrateLegacyBackupsSiHaceFalta(): Promise<void> {
+  const db = await getDatabaseClient();
+
+  // El propio servicio marca «ya no hace falta hacerlo». Si ya esta marcado,
+  // no se toca nada: es la senal de que esto ya corrio en un arranque
+  // anterior.
+  if (await legacyBackupsMigrated(db)) return;
+
+  await migrateLegacyBackups(db);
 }
 
 /**

@@ -51,6 +51,16 @@ export interface IGameKeyRepository {
   setStatusMany(ids: readonly number[], status: KeyStatus): Promise<void>;
   /** Cambia las etiquetas de varias claves a la vez, en una sola operacion. */
   setTagsMany(ids: readonly number[], tags: readonly string[]): Promise<void>;
+  /**
+   * Cambia las etiquetas de varias claves, **distintas en cada una**.
+   *
+   * Es lo que necesita la fusion de etiquetas: cada clave ya tiene las
+   * suyas, asi que la lista final es distinta en cada una y `setTagsMany` no
+   * sirve. Va en transaccion a proposito —se escribe todo o nada—: con
+   * cuatrocientas claves, escribir de una en una deja la coleccion a
+   * medias en cuanto una falla.
+   */
+  setTagsForKeys(asignaciones: readonly { id: number; tags: readonly string[] }[]): Promise<void>;
   /** Marca varias claves como regaladas, guardando para quien fue cada una. */
   giftMany(entries: readonly { id: number; giftedTo: string }[]): Promise<void>;
   markUsed(id: number, usedAt?: string): Promise<void>;

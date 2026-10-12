@@ -133,6 +133,31 @@ export class MemoryGameKeyRepository implements IGameKeyRepository {
     persist(this.keys);
   }
 
+  /**
+   * Etiquetas distintas por clave.
+   *
+   * Aqui la atomicidad sale gratis —el `map` construye la lista entera y
+   * solo se asigna si ha salido bien—; en SQLite hace falta la transaccion
+   * de verdad. Se escribe en esa forma para que las dos implementaciones
+   * hagan lo mismo aunque una no pueda transaccionarse.
+   */
+  async setTagsForKeys(
+    asignaciones: readonly { id: number; tags: readonly string[] }[],
+  ): Promise<void> {
+    if (asignaciones.length === 0) return;
+
+    const porId = new Map(asignaciones.map((a) => [a.id, a.tags]));
+    const ahora = nowSqliteTimestamp();
+
+    this.keys = this.keys.map((key) => {
+      const tags = porId.get(key.id);
+
+      return tags === undefined ? key : { ...key, tags: [...tags], updatedAt: ahora };
+    });
+
+    persist(this.keys);
+  }
+
   async markUsed(id: number, usedAt?: string): Promise<void> {
     const stamp = usedAt ?? nowSqliteTimestamp();
     this.keys = this.keys.map((key) =>
