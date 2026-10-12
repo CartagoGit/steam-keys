@@ -914,19 +914,26 @@ export function App() {
 
     const total = actionableKeys.length;
 
-    // El destinatario va en el aviso, asi que el deshacer tambien lo nombra: sin
-    // el, el aviso que sale tras deshacer no dice a quien se habia regalado.
-    deshacer.registrar(
-      traducir(pluralKey(total, 'app.giftedOne', 'app.giftedMany'), [total, limpio]),
-      actionableKeys,
-    );
-
     try {
-      await conCarga('loading.gifting', async () => {
+      const r = await conCarga('loading.gifting', async () => {
         await gameKeyService.giftMany(
           actionableKeys.map((key) => ({ id: key.id, giftedTo: limpio })),
         );
       });
+
+      // Cancelado: lo de debajo puede haber seguido, asi que no se apunta nada
+      // que el usuario ya ha decidido deshacer.
+      if (!r.ok) return;
+
+      // El destinatario va en el aviso, asi que el deshacer tambien lo nombra:
+      // sin el, el aviso que sale tras deshacer no dice a quien se habia
+      // regalado. Y va **despues** de escribir: si el `giftMany` falla, una
+      // entrada en la pila devolveria las claves a regaladas cuando no se
+      // regalaron.
+      deshacer.registrar(
+        traducir(pluralKey(total, 'app.giftedOne', 'app.giftedMany'), [total, limpio]),
+        actionableKeys,
+      );
 
       setSelection(new Set());
       setGiftDialogOpen(false);
@@ -953,18 +960,23 @@ export function App() {
 
     const total = affected.length;
 
-    deshacer.registrar(
-      traducir(pluralKey(total, 'app.expiredOne', 'app.expiredMany'), [total]),
-      affected,
-    );
-
     try {
-      await conCarga('loading.expiring', async () => {
+      const r = await conCarga('loading.expiring', async () => {
         await gameKeyService.setStatusMany(
           affected.map((key) => key.id),
           KeyStatus.Expired,
         );
       });
+
+      if (!r.ok) return;
+
+      // `affected` es una foto de la lista en memoria, de antes de escribir, asi
+      // que se puede apuntar el deshacer sin releer la base — y solo cuando la
+      // escritura ha funcionado.
+      deshacer.registrar(
+        traducir(pluralKey(total, 'app.expiredOne', 'app.expiredMany'), [total]),
+        affected,
+      );
 
       setSelection(new Set());
       setExpireDialogOpen(false);
@@ -994,13 +1006,8 @@ export function App() {
 
     const total = selectionIds.length;
 
-    deshacer.registrar(
-      traducir(pluralKey(total, 'app.tagsOne', 'app.tagsMany'), [total]),
-      selectedKeys,
-    );
-
     try {
-      await conCarga('loading.tags', async () => {
+      const r = await conCarga('loading.tags', async () => {
         for (const key of selectedKeys) {
           const juntadas = mergeTags(key.tags, tags);
           const sinLasNuevas = removeTags(juntadas, tags);
@@ -1009,6 +1016,17 @@ export function App() {
           await gameKeyService.setTagsMany([key.id], final);
         }
       });
+
+      if (!r.ok) return;
+
+      // Aqui el caso era mas grave que en las otras acciones: las etiquetas se
+      // escriben **una a una**, asi que un fallo a mitad deja la coleccion con
+      // unas claves cambiadas y otras no. Apuntar el deshacer despues evita
+      // prometer un estado que no llego a existir.
+      deshacer.registrar(
+        traducir(pluralKey(total, 'app.tagsOne', 'app.tagsMany'), [total]),
+        selectedKeys,
+      );
 
       setSelection(new Set());
       setTagsOpen(false);
