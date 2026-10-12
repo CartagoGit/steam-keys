@@ -36,6 +36,26 @@ const SIZES: Record<TSize, string> = {
 };
 
 /**
+ * Margen que se deja entre el dialogo y los bordes de la ventana, en pixeles.
+ *
+ * Es el mismo por los cuatro lados a proposito: si el de arriba fuera mayor, el
+ * panel quedaria «colgado» de la barra de titulo y en una ventana baja se
+ * comeria el espacio de abajo, que es justo el que necesita el boton de
+ * guardar.
+ *
+ * Va en el `style` y no en una clase de Tailwind. Las clases se escriben
+ * `p-4` y `max-h-[calc(100dvh-2rem)]`, y para que las dos dijeran lo mismo
+ * habria que escribir el numero dos veces —y la vez que se tocara una, el
+ * dialogo se saldria por abajo justo cuando se le anade una fila, que es
+ * cuando mas falta hace—.
+ *
+ * Y no es que se pueda escribir `p-[${MARGEN}px]`: Tailwind lee el codigo
+ * fuente buscando literales, no las expresiones, asi que de un literal de
+ * plantilla no genera ninguna clase. Se pierde el margen sin avisar.
+ */
+const MARGEN = 16;
+
+/**
  * Lo que puede recibir el foco dentro de un dialogo.
  *
  * `[tabindex]:not([tabindex="-1"])` recoge los que se han hecho enfocables a
@@ -74,6 +94,7 @@ function PanelInterno({
   ref,
   form,
   className,
+  style,
   onSalir,
   onSubmit,
   children,
@@ -82,6 +103,7 @@ function PanelInterno({
   /** `true` pinta un `<form>` en vez de un `<div>`. */
   form: boolean;
   className: string;
+  style?: React.CSSProperties;
   onSalir: () => void;
   onSubmit?: (event: React.FormEvent<HTMLFormElement>) => void;
   children: React.ReactNode;
@@ -104,6 +126,7 @@ function PanelInterno({
         tabIndex={-1}
         onSubmit={onSubmit}
         className={className}
+        style={style}
         onAnimationEnd={alTerminar}
       >
         {children}
@@ -112,7 +135,13 @@ function PanelInterno({
   }
 
   return (
-    <div ref={ref} tabIndex={-1} className={className} onAnimationEnd={alTerminar}>
+    <div
+      ref={ref}
+      tabIndex={-1}
+      className={className}
+      style={style}
+      onAnimationEnd={alTerminar}
+    >
       {children}
     </div>
   );
@@ -257,21 +286,38 @@ export function Modal({
   const clases = [
     // `flex max-h-[...] flex-col` es lo que hace que el `flex-1 overflow-y-auto`
     // que ponen los dialogos en su cuerpo sirva de algo. Sin altura maxima el
-    // panel crece hasta lo que occupancy el contenido, se sale de la pantalla y
+    // panel crece hasta lo que ocupa el contenido, se sale de la pantalla y
     // el `overflow-hidden` de aqui lo recorta sin dejar desplazarse: el ultimo
     // elemento (el selector de idioma en Ajustes) quedaba sin poder pulsarse en
     // una ventana baja, y parecia que el idioma no se podia cambiar.
-    'flex max-h-[calc(100dvh-2rem)] w-full flex-col overflow-hidden rounded-2xl bg-surface-1 shadow-2xl ring-1 ring-line',
+    //
+    // La maxima va en el `style`, atada a `MARGEN`, y no como clase suelta: ver
+    // el comentario de la constante.
+    'flex w-full flex-col overflow-hidden rounded-2xl bg-surface-1 shadow-2xl ring-1 ring-line',
     SIZES[size] ?? SIZES.md,
+    /**
+     * El ancho y el alto se mueven despacio.
+     *
+     * Los dialogos que cambian de contenido —Ajustes, que tiene pestanas—
+     * saltaban de tamano de golpe: se pulsaba «General» y el panel se
+     * estiraba o se encogia en un fotograma. Con `height` en la transicion,
+     * que es `auto` y no un numero, el navegador interpola cuando puede y en
+     * los navegadores que no, el salto es el de antes: no se rompe nada.
+     *
+     * Y el ancho con `max-w`: es lo unico que se anima de verdad al cambiar de
+     * pestana a una mas ancha, sin lo que el texto se recoloca a saltos.
+     */
+    'transition-[max-width,height] duration-200 ease-out motion-reduce:transition-none',
     saliendo ? 'animate-scale-out' : 'animate-scale-in',
   ].join(' ');
 
   return (
     <div
       className={[
-        'fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm',
+        'fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm',
         saliendo ? 'animate-backdrop-out bg-black/60' : 'animate-backdrop-in bg-black/60',
       ].join(' ')}
+      style={{ padding: MARGEN }}
       onClick={(event) => {
         // Solo si el pulso ha dado en el fondo, no en el panel de dentro.
         if (!closeOnBackdrop) return;
@@ -287,6 +333,7 @@ export function Modal({
         ref={panelRef}
         form={As === 'form'}
         className={clases}
+        style={{ maxHeight: `calc(100dvh - ${MARGEN * 2}px)` }}
         onSalir={terminarSalida}
         onSubmit={onSubmit}
       >

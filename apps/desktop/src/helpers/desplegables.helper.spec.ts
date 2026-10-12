@@ -55,6 +55,7 @@ function fuente(relativa: string): string {
 }
 
 const POPOVER = fuente('components/popover.component.tsx');
+const DIALOGO = fuente('components/modal.component.tsx');
 const FILTRO = fuente('components/filter-menu.component.tsx');
 const SELECTOR = fuente('components/segmented.component.tsx');
 const VISTAS = fuente('components/view-switch.component.tsx');
@@ -116,6 +117,37 @@ describe('desplegables', () => {
 
     // El rol va en el boton, que si es una caja.
     expect(POPOVER).toMatch(/role="option"[\s\S]{0,200}tabIndex/);
+  });
+
+  /**
+   * El panel tiene ancho propio, y no el del boton que lo abre.
+   *
+   * Se ponia `minWidth: ancla.current?.offsetWidth`, asi que el menu tomaba el
+   * ancho del ancla. En el filtro de etiquetas eso es mortal: el boton crece
+   * con cada etiqueta marcada —chips dentro del propio boton—, de modo que el
+   * menu se estiraba cada vez que se marcaba algo. Justo cuando mas se nota
+   * es cuando mas se movia.
+   *
+   * Y en «Plataforma» el problema era el contrario: los nombres largos
+   * («Sin determinar») empujaban el ancho y el menu se comia media pantalla.
+   *
+   * Con ancho fijo el menu es un menu: abre siempre igual, se lea el boton que
+   * tenga detras lo que tenga.
+   */
+  test('el panel tiene ancho fijo, no el del boton que lo abre', () => {
+    expect(POPOVER).toContain('const ANCHO = 280;');
+
+    // Y lo aplica como ancho, no como minimo: en `minWidth` el panel se
+    // estiraria igual con cualquier contenido ancho que metiera dentro.
+    expect(POPOVER).toMatch(/^\s*width: ANCHO,$/m);
+    expect(POPOVER).not.toContain('minWidth: ancla.current');
+
+    // El calculo de la posicion usa ese mismo ancho, no el de la caja del
+    // ancla: si el panel mide 280 y el boton 400, la caja se sale de la
+    // ventana por la derecha y `MARGEN` deja de ser un margen.
+    expect(POPOVER).toContain('caja.right - ANCHO');
+    expect(POPOVER).toContain('window.innerWidth - ANCHO - MARGEN');
+    expect(POPOVER).not.toContain('caja.right - caja.width');
   });
 
   test('el panel del filtro no se declara lista', () => {
@@ -845,20 +877,121 @@ describe('el filtro de etiquetas', () => {
     expect(BARRA).toMatch(/<div className="ml-auto flex shrink-0 flex-col gap-1\.5 self-start">/);
     expect(BARRA).toMatch(/<span aria-hidden="true" className="invisible text-\[10px\] font-medium tracking-wide uppercase">/);
 
-    // Mismo radio y misma caja que los botones del desplegable.
-    expect(BARRA).toMatch(/inline-flex shrink-0 items-center justify-center gap-1\.5 rounded-full px-3 py-\[7px\]/);
+    /**
+     * Misma caja que los botones del desplegable y que los del header: 42 px.
+     *
+     * Antes llevaba `py-[7px]`, la cifra rara que compensaba su `border` para
+     * quedarse en 40. Era una medida para el boton solo: el de la derecha
+     * quedaba dos pixeles mas bajo que todo lo demas de su fila, y se notaba
+     * en el borde de abajo. Ahora `py-2`, y para que «Anadir» —que no lleva
+     * borde— llegue tambien, `primary` y `danger` llevan borde transparente.
+     */
+    expect(BARRA).toMatch(/inline-flex shrink-0 items-center justify-center gap-2 rounded-full px-3\.5 py-2/);
 
     // Y el tono que dice «esto tira algo». Con el neutro de antes no se
     // distinguia de un filtro mas, y «Limpiar» no es un filtro: deshace.
-    expect(BARRA).toMatch(/border border-danger\/30 bg-danger\/10 text-danger-strong/);
+    // El borde va a /60: a /30 daba 1,3:1 contra el fondo, y un borde que no
+    // se distingue del fondo no es un borde —la WCAG 1.4.11 pide 3:1—.
+    expect(BARRA).toMatch(/border border-danger\/60 bg-danger\/10 text-danger-strong/);
     expect(BARRA).toMatch(/hover:border-danger hover:bg-danger hover:text-on-danger/);
 
-    // Con una cruz, que es la unica accion destructiva de la barra.
-    expect(BARRA).toMatch(/<Icon name="x" size=\{12\}/);
+    // Con una cruz, del mismo tamano y a la misma distancia que el «+» de
+    // «Anadir»: a 12 px con 6 de separacion, los dos botones de la misma
+    // barra se leian como de familias distintas.
+    expect(BARRA).toMatch(/<Icon name="x" size=\{15\}/);
 
     // Y limpia las etiquetas tambien, o el filtro se queda puesto sin que lo
     // diga nadie.
     expect(BARRA).toMatch(/onFilterChange\(\{[\s\S]{0,400}?tags: \[\],/);
+  });
+
+  /**
+   * Exportar, Importar y Datos viven con las claves, no con la aplicacion.
+   *
+   * Estaban en la barra de arriba, que es comun a las dos tablas. Al cambiar a
+   * «Mis juegos» seguian ahi: unas acciones para exportar, importar y abrir
+   * los datos de una lista de claves, al lado de una biblioteca de Steam que
+   * no es una lista de claves y que no se puede exportar ni importar.
+   *
+   * En la fila de filtros desaparecen con la vista, que es lo que toca, y de
+   * paso bajan de texto: tres acciones de vez en cuando no pueden ocupar el
+   * mismo ancho que cinco filtros de uso diario. Con `aria-label` no pierden el
+   * nombre para el lector de pantalla —y el `title` para el raton—.
+   */
+  test('exportar, importar y datos estan en la fila de claves y solo con el icono', () => {
+    // Los tres, con su icono y con nombre para quien no ve el icono.
+    expect(BARRA).toMatch(/aria-label=\{t\('toolbar\.export'\)\}/);
+    expect(BARRA).toMatch(/aria-label=\{t\('toolbar\.import'\)\}/);
+    expect(BARRA).toMatch(/aria-label=\{t\('toolbar\.data'\)\}/);
+
+    // Y ya no salen como botones con texto en la barra de arriba.
+    expect(BARRA).not.toMatch(/variant="ghost" icon="download"/);
+    expect(BARRA).not.toMatch(/variant="ghost" icon="upload"/);
+    expect(BARRA).not.toMatch(/variant="ghost" icon="package"/);
+
+    /**
+     * En la fila de filtros, y solo ahi.
+     *
+     * Se comprueba que el bloque de los tres este **despues** de la apertura de
+     * la fila —`{view === AppView.Keys ? (`— y no antes, que es lo que hacia
+     * que siguieran ahi en la vista de juegos.
+     */
+    const fila = BARRA.indexOf('{view === AppView.Keys ? (');
+    const acciones = BARRA.indexOf('aria-label={t(\'toolbar.export\')}');
+
+    expect(fila).toBeGreaterThan(-1);
+    expect(acciones).toBeGreaterThan(fila);
+
+    // Y «Ajustes» y «Anadir» se quedan arriba, que no son de la lista.
+    expect(BARRA.indexOf('variant="ghost" icon="settings"')).toBeLessThan(fila);
+    expect(BARRA.indexOf('variant="primary" icon="plus"')).toBeLessThan(fila);
+  });
+
+  /**
+   * Los tres botones de icono son cuadrados y del alto de la fila.
+   *
+   * `h-10 w-10` y no un `px`: un boton de icono con relleno horizontal y sin
+   * ancho fijo sale mas ancho que alto, que es un boton que parece un
+   * «continuar». Y miden 40 como la fila, no 42 como los botones de texto.
+   */
+  test('los botones de icono son cuadrados', () => {
+    const cuadrados = BARRA.match(/flex h-10 w-10 shrink-0 items-center justify-center rounded-full/g) ?? [];
+
+    expect(cuadrados).toHaveLength(3);
+  });
+
+  /**
+   * Los dialogos no se pegan al borde de arriba.
+   *
+   * El margen y el `max-h` salen de la misma constante, en el `style`. Se
+   *Podrian escribir como clases —`p-4` y `max-h-[calc(100dvh-2rem)]`— y
+   * entonces el numero estaria escrito dos veces, con la mitad de las
+   * posibilidades de que un dia se toque una y no la otra: el dialogo se sale
+   * por abajo justo cuando se le ha anadido una fila, que es cuando mas falta
+   * hace.
+   *
+   * Y no es que se pueda escribir con un literal de plantilla
+   * (`max-h-[calc(100dvh-${MARGEN * 2}px)]`): Tailwind lee el codigo fuente
+   * buscando literales, no expresiones, asi que de ahi no genera ninguna clase
+   * y el margen se pierde sin avisar. Se perdio una vez por eso.
+   *
+   * Y el panel transiciona de tamano. Ajustes tiene pestanas y al cambiarlas
+   * el alto saltaba de golpe; con `height` en la transicion —que es `auto`,
+   * asi que el navegador interpola si puede— el dialogo se abre y se cierra
+   * como una caja y no como un recorte.
+   */
+  test('los dialogos dejan margen y transicionan de tamano', () => {
+    expect(DIALOGO).toContain('const MARGEN = 16;');
+
+    expect(DIALOGO).toContain('style={{ padding: MARGEN }}');
+    expect(DIALOGO).toContain('style={{ maxHeight: `calc(100dvh - ${MARGEN * 2}px)` }}');
+
+    // Ni una clase construida con la constante, que es el fallo silencioso.
+    expect(DIALOGO).not.toMatch(/className=\{`[^`]*\$\{/);
+    expect(DIALOGO).not.toMatch(/'[^']*p-\[\$\{/);
+
+    // Y la transicion pide menos movimiento al que no lo quiere.
+    expect(DIALOGO).toContain('motion-reduce:transition-none');
   });
 
   /**

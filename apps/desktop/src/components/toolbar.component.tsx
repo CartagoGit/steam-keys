@@ -187,14 +187,14 @@ export function Toolbar({
           `flex-wrap` aqui no es cosmetico: sin el, los botones se salen por la
           derecha al estrechar la ventana y aparece una barra de scroll
           horizontal en toda la aplicacion. Con el, bajan a la fila siguiente.
+
+          Aqui solo quedan las dos acciones que no son de la lista: «Ajustes»,
+          que son de la aplicacion, y «Anadir», que es la accion principal y
+          tiene que estar siempre a mano. Exportar, Importar y Datos se fueron
+          a la fila de filtros: son de las claves, y ahi desaparecen al cambiar
+          de vista.
         */}
         <div className="flex flex-wrap items-center gap-2">
-          {/*
-            El interruptor de "solo disponibles" se ha ido al panel de filtros,
-            junto al de tipo. Aqui solo queda lo que no es un filtro de la
-            lista: el buscador, el orden y las acciones.
-          */}
-
           <div className="relative">
             <select
               value={sort}
@@ -209,27 +209,6 @@ export function Toolbar({
               ))}
             </select>
           </div>
-
-          <Button variant="ghost" icon="download" onClick={onExport} title={t('toolbar.export')}>
-            {t('toolbar.export')}
-          </Button>
-          <Button
-            variant="ghost"
-            icon="upload"
-            onClick={onImport}
-            disabled={busy}
-            title={t('toolbar.import')}
-          >
-            {t('toolbar.import')}
-          </Button>
-          <Button
-            variant="ghost"
-            icon="package"
-            onClick={onOpenStorage}
-            title={t('toolbar.data')}
-          >
-            {t('toolbar.data')}
-          </Button>
 
           <Button
             variant="ghost"
@@ -372,6 +351,67 @@ export function Toolbar({
           ) : null}
 
           {/*
+            Exportar, Importar y Datos, aqui y no en la barra de arriba.
+
+            Son de las claves, no de la aplicacion: exportar el TXT, importar
+            uno y abrir donde se guardan los datos tienen que ver con la lista
+            que se esta mirando. En la barra de arriba seguian ahi al cambiar a
+            «Mis juegos», junto a unas acciones que no tienen nada que ver con
+            una biblioteca de Steam —«Exportar» ofrecia exportar una biblioteca
+            que no es una lista de claves—. A la derecha del todo y con forma de
+            boton de icono, para no competir con los filtros: son tres acciones
+            de vez en cuando y cinco filtros de uso diario.
+          */}
+          <div className="flex shrink-0 items-center gap-1 self-start">
+            <button
+              type="button"
+              onClick={onExport}
+              title={t('toolbar.export')}
+              aria-label={t('toolbar.export')}
+              className={[
+                'flex h-10 w-10 shrink-0 items-center justify-center rounded-full',
+                'border border-borde bg-surface-2 text-t1 transition-colors',
+                'hover:bg-surface-3 active:bg-surface-3',
+                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+              ].join(' ')}
+            >
+              <Icon name="download" size={15} />
+            </button>
+
+            <button
+              type="button"
+              onClick={onImport}
+              disabled={busy}
+              title={t('toolbar.import')}
+              aria-label={t('toolbar.import')}
+              className={[
+                'flex h-10 w-10 shrink-0 items-center justify-center rounded-full',
+                'border border-borde bg-surface-2 text-t1 transition-colors',
+                'hover:bg-surface-3 active:bg-surface-3',
+                'disabled:cursor-not-allowed disabled:opacity-40',
+                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+              ].join(' ')}
+            >
+              <Icon name="upload" size={15} />
+            </button>
+
+            <button
+              type="button"
+              onClick={onOpenStorage}
+              title={t('toolbar.data')}
+              aria-label={t('toolbar.data')}
+              className={[
+                'flex h-10 w-10 shrink-0 items-center justify-center rounded-full',
+                'border border-borde bg-surface-2 text-t1 transition-colors',
+                'hover:bg-surface-3 active:bg-surface-3',
+                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+              ].join(' ')}
+            >
+              <Icon name="package" size={15} />
+            </button>
+          </div>
+
+          {/*
             «Limpiar», con la misma forma que todo lo demas de la fila.
 
             Antes era un enlace con subrayado, sin fondo y mas bajo: el texto
@@ -415,14 +455,24 @@ export function Toolbar({
               }
               title={t('filter.reset')}
               className={[
-                'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full px-3 py-[7px]',
-                'text-xs font-medium transition-colors',
-                'border border-danger/30 bg-danger/10 text-danger-strong',
+                'inline-flex shrink-0 items-center justify-center gap-2 rounded-full px-3.5 py-2',
+                'text-sm font-medium transition-colors',
+                // El borde va a /60 y no /30 porque a /30 el circulo se ve
+                // dibujado pero no se ve * delineado: el contraste contra el
+                // fondo salia en 1.3:1, y un borde que no se distingue del
+                // fondo no es un borde. A /60 pasa de 3:1, que es lo que pide
+                // el criterio de contraste no textual para los limites de un
+                // control.
+                'border border-danger/60 bg-danger/10 text-danger-strong',
                 'hover:border-danger hover:bg-danger hover:text-on-danger',
                 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
               ].join(' ')}
             >
-              <Icon name="x" size={12} className="shrink-0 opacity-80" />
+              {/* Mismo tamano de icono, mismo `gap` y mismo `px` que el
+                  boton de «Anadir»: si el uno mide 15px con 8px de separacion
+                  y el otro 12px con 6px, los dos botones de la misma barra se
+                  leen como de familias distintas. */}
+              <Icon name="x" size={15} className="shrink-0" />
 
               {t('action.clear')}
             </button>

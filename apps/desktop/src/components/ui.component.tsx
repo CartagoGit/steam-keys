@@ -51,8 +51,15 @@ export interface IButtonProps {
 type TVariant = NonNullable<IButtonProps['variant']>;
 
 const VARIANTS: Record<TVariant, string> = {
+  /**
+   * `primary` y `danger` llevan borde transparente. No es decoracion: sin
+   * borde estos dos miden 40px y `ghost`/`subtle` 42, y en una misma barra dos
+   * botones de la misma accion con 2px de diferencia parecen un descuido —y lo
+   * es—. Con el borde transparente el alto es el mismo en las cuatro
+   * variantes y el relleno de color no se ve afectado.
+   */
   primary:
-    'bg-accent text-on-accent hover:brightness-110 active:brightness-95 shadow-sm',
+    'border border-transparent bg-accent text-on-accent hover:brightness-110 active:brightness-95 shadow-sm',
   /**
    * Antes era solo texto con fondo al pasar por encima, que es indistinguible
    * de una etiqueta. Con `ghost` los botones del header parecian texto plano:
@@ -61,7 +68,7 @@ const VARIANTS: Record<TVariant, string> = {
    */
   ghost: 'border border-borde bg-surface-2 text-t1 hover:bg-surface-3 hover:text-t1 active:bg-surface-3',
   subtle: 'border border-borde bg-surface-2 text-t1 hover:bg-surface-3 active:bg-surface-3',
-  danger: 'bg-danger text-on-accent hover:brightness-110 active:brightness-95',
+  danger: 'border border-transparent bg-danger text-on-accent hover:brightness-110 active:brightness-95',
 };
 
 export function Button({

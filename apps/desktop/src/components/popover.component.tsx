@@ -52,6 +52,20 @@ const MIN_ABajo = 120;
 /** Margen del alto maximo: una lista mas baja de esto parece un error. */
 const ALTO_MINIMO = 96;
 
+/**
+ * Ancho del panel, en pixeles.
+ *
+ * Fijo y no el del boton. Con `minWidth` al ancho del ancla, el menu se
+ * estiraba cada vez que el boton crecia —al marcar una etiqueta, al marcar
+ * tres—, de modo que el menu se movia mientras se leia y Platforma, con
+ * nombres largos, se comia media pantalla.
+ *
+ * 280 px es lo que necesita el nombre mas largo de las listas —«Sin
+ * determinar» con su punto y sus numeros al lado— con aire, y cabe en
+ * cualquier ventana en la que quepa un boton.
+ */
+const ANCHO = 280;
+
 /** Donde va la lista, en pixeles desde el borde de la ventana. */
 interface IPosicion {
   top: number;
@@ -149,13 +163,13 @@ export function Popover({
       ),
     );
 
-    const left = lado === 'derecha' ? caja.right - caja.width : caja.left;
+    const left = lado === 'derecha' ? caja.right - ANCHO : caja.left;
 
     setPosicion({
       top: arriba ? caja.top - SEPARACION - alto : caja.bottom + SEPARACION,
       left: Math.max(
         MARGEN,
-        Math.min(left, window.innerWidth - caja.width - MARGEN),
+        Math.min(left, window.innerWidth - ANCHO - MARGEN),
       ),
       alto,
       arriba,
@@ -298,7 +312,16 @@ export function Popover({
         position: 'fixed',
         top: posicion.top,
         left: posicion.left,
-        minWidth: ancla.current?.offsetWidth,
+        /**
+         * **Ancho fijo, y no el del boton.** Se ponia el del ancla con
+         * `minWidth`, y entonces el menu crecia con cada etiqueta que se
+         * marcaba —que es justo cuando mas se nota— y ademas el menu de
+         * plataforma, con sus nombres largos, se comia media pantalla.
+         *
+         * Un menu es un menu: tiene el ancho que necesita para sus opciones,
+         * no el que le happenca el boton que lo abre.
+         */
+        width: ANCHO,
         maxHeight: posicion.alto,
         /**
          * La escala sale desde el boton, no desde el centro: el menu tiene que

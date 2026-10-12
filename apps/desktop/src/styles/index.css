@@ -709,7 +709,15 @@ body {
   .animate-fade-out,
   .animate-scale-out,
   .animate-backdrop-in,
-  .animate-backdrop-out {
+  .animate-backdrop-out,
+  /*
+    * Los desplegables tambien. Se anadieron cuando la lista ya estaba
+    * hecha y se dejo la animacion al afono: con el parkinson, abrir un filtro
+    * con la flecha y sentir el menu moverse es justo el efecto que hay que
+    * quitar.
+    */
+  .animate-popover-in,
+  .animate-popover-out {
     animation: none;
   }
 }
@@ -737,11 +745,17 @@ body {
    Asi que el tamano se pone donde hace falta y a mano: el chip de los tags
    lleva `fontSize` en el `style`, que es el unico sitio donde gana la
    shorthand. Mismo resultado, sin tocar nada mas.
+
+   Y aqui **no** hay nada mas. Se llego a poner un `opacity: 0.45` en este
+   mismo bloque —venia pegado desde el andamiaje, donde era de `.row-dragging`,
+   una clase que no existe en la aplicacion— y el efecto fue que todos los
+   botones, campos y desplegables se veian al 45 %: apagados, sin contraste y
+   sin saber si estan pulsables o apagados. Entre el texto en 7:1 y un fondo al
+   45 %, todo el header parecia una foto nueva.
    */
 input,
 select,
 textarea,
 button {
   font: inherit;
-  opacity: 0.45;
 }

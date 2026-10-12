@@ -134,8 +134,12 @@ describe('combinar varias etiquetas', () => {
   test('la exclusion no toca las etiquetas de las claves', () => {
     const r = filterKeys(catalogo, { ...emptyFilter(), tags: ['cumplidos'], excluir: true });
 
-    expect(r[0].tags).toEqual(['cumplidos', 'regalo']);
-    expect(catalogo[0].tags).toEqual(['cumplidos', 'regalo']);
+    // Con `excluir` la clave tiene que llevar la etiqueta: es un «y», no un
+    // «o». El `!` se come el `undefined` porque con `noUncheckedIndexedAccess`
+    // el elemento es opcional, y si el filtro fallara el test tiene que
+    // fallar tambien —no reventar con un error de tipo.
+    expect(r[0]?.tags).toEqual(['cumplidos', 'regalo']);
+    expect(catalogo[0]?.tags).toEqual(['cumplidos', 'regalo']);
   });
 });
 
