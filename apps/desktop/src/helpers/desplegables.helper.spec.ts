@@ -434,8 +434,8 @@ describe('lo marcado se ve', () => {
    * ademas lo contrario de lo que un filtro debe hacer, que es dar la sensacion
    * de que el conjunto marcado esta ahi entero.
    */
-  test('los tags caben todos, en dos columnas, sin recorte', () => {
-    expect(FILTRO).toContain('POR_FILA = 2');
+  test('los tags caben todos, apilados por columna, sin recorte', () => {
+    expect(FILTRO).toContain('FILAS_POR_COLUMNA = 1');
     expect(FILTRO).toContain('ANCHO_MAX_TAG');
 
     // Ni un tope, ni el recuento de los que sobran, ni el recorte que los
@@ -449,13 +449,11 @@ describe('lo marcado se ve', () => {
       'const opcionesVisibles = options.filter((option) => marcadas.has(option.value));',
     );
 
-    // Las dos cajas —la que mide y la que se ve— comparten las mismas
-    // columnas, o medirian una cosa y pintarian otra.
-    const columnas = FILTRO.match(
-      /gridTemplateColumns: `repeat\(\$\{POR_FILA\}, minmax\(0, max-content\)\)`/g,
-    );
+    // Las dos cajas —la que mide y la que se ve— llevan las mismas reglas de
+    // rejilla, o medirian una cosa y pintarian otra.
+    const flujos = FILTRO.match(/gridAutoFlow: 'column'/g);
 
-    expect(columnas).toHaveLength(2);
+    expect(flujos).toHaveLength(2);
 
     /**
      * Las columnas no se reservan enteras aunque no haya nada.
@@ -469,8 +467,12 @@ describe('lo marcado se ve', () => {
      * columna. Si el tope estuviera en la columna, la columna ocuparia lo mismo
      * con cero tags que con veinte.
      */
-    expect(FILTRO).not.toContain(`minmax(0, \${ANCHO_MAX_TAG})`);
-    expect(FILTRO).toContain('style={{ maxWidth: ANCHO_MAX_TAG }}');
+    expect(FILTRO).toContain("gridAutoColumns: 'max-content'");
+    expect(FILTRO).toContain('style={{ maxWidth: ANCHO_MAX_TAG, fontSize: TAMANO_CHIP }}');
+
+    // Y ya no hay `grid-template-columns`: con `grid-auto-flow: column` las
+    // columnas las abre el navegador hacia la derecha segun hagan falta.
+    expect(FILTRO).not.toContain('gridTemplateColumns');
   });
 
   /**
@@ -509,15 +511,9 @@ describe('lo marcado se ve', () => {
     // Y mide lo que la rejilla pediria, no lo que hay recortado.
     expect(FILTRO).toMatch(/ref=\{medidaRef\}[\s\S]{0,400}width: 'max-content'/);
 
-    // El ancho y el alto van en pixels, que es lo unico que el navegador sabe
-    // interpolar entre dos medidas.
+    // El ancho va en pixels, que es lo unico que el navegador sabe interpolar
+    // entre dos medidas. El alto no: va fijo, y eso lo comprueba otro test.
     expect(FILTRO).toMatch(/className="relative shrink-0 overflow-hidden"[\s\S]{0,160}width: `\$\{anchoTags\}px`/);
-    expect(FILTRO).toMatch(/className="relative shrink-0 overflow-hidden"[\s\S]{0,160}height: `\$\{altoTags\}px`/);
-
-    // Y la transicion es justo de los dos, con el mismo reposaje que la pompa.
-    expect(FILTRO).toContain(
-      "const TRANSICION_TAGS =\n  'width 240ms cubic-bezier(0.34, 1.3, 0.64, 1), height 240ms cubic-bezier(0.34, 1.3, 0.64, 1)';",
-    );
   });
 
   /**
@@ -624,8 +620,6 @@ describe('el filtro de etiquetas', () => {
    * transicionando.
    */
   test('ninguna caja fuerza un ancho: el recorte lo pone la de fuera', () => {
-    expect(FILTRO).not.toMatch(/width: `\$\{anchoTags\}px`,?\n\s*\}\}\n\s*\}/);
-
     // Las dos rejillas, identicas y a `max-content`.
     const anchos = FILTRO.match(/width: 'max-content'/g);
 
@@ -633,6 +627,53 @@ describe('el filtro de etiquetas', () => {
 
     // Y el ancho medido solo va en la caja que transiciona.
     expect(FILTRO).toContain('width: `${anchoTags}px`');
+  });
+
+  /**
+   * El alto va **fijo**, y no sale de la medicion.
+   *
+   * Sale del alto del boton, no de lo que ocupan los chips. Con el alto
+   * medido, cada tag que se marcase hacia el bloque del filtro mas alto, y con
+   * el la fila entera: que es exactamente lo que no debe pasar, porque los
+   * tags tienen que empujar en horizontal y en vertical nada.
+   *
+   * Y por eso la transicion es solo de `width`: animar tambien el alto
+   * obligaria a volver a medirlo.
+   */
+  test('el alto de la columna es fijo y la transicion es solo de ancho', () => {
+    expect(FILTRO).toContain("const ALTO_COLUMNA = '2.5rem'");
+
+    // Ni una medida de alto que se pueda colar por ahi.
+    expect(FILTRO).not.toContain('alto: altoTags');
+    expect(FILTRO).not.toContain('altoTags');
+
+    // Y las tres cajas que llevan el alto, las tres con la misma constante.
+    const altos = FILTRO.match(/height: ALTO_COLUMNA/g);
+
+    expect(altos).toHaveLength(3);
+
+    expect(FILTRO).toContain(
+      "const TRANSICION_TAGS = 'width 240ms cubic-bezier(0.34, 1.3, 0.64, 1)';",
+    );
+  });
+
+  /**
+   * Los tags se apilan **hacia abajo**, no hacia la derecha.
+   *
+   * Se llena una columna entera antes de abrir la siguiente. Con el flujo por
+   * defecto de la rejilla pasaria al reves —uno en la primera fila, otro en la
+   * segunda— que es lo que se hizo y no es lo pedido.
+   */
+  test('los tags llenan la columna antes de abrir la siguiente', () => {
+    const flujos = FILTRO.match(/gridAutoFlow: 'column'/g);
+
+    expect(flujos).toHaveLength(2);
+
+    // Y las dos cajas fijan las mismas filas, que es lo que decide cuantas
+    // caben por columna.
+    const filas = FILTRO.match(/gridTemplateRows: `repeat\(\$\{FILAS_POR_COLUMNA\}, auto\)`/g);
+
+    expect(filas).toHaveLength(2);
   });
 
   /**
@@ -645,14 +686,28 @@ describe('el filtro de etiquetas', () => {
    * aplicacion** y todos se veian a 16 px. Dentro de `@layer base`, las
    * utilidades vuelven a mandar.
    */
-  test('heredar la fuente de los controles va dentro de base', () => {
-    expect(CSS).toMatch(/@layer base \{\s*input,\s*select,\s*textarea,\s*button \{\s*font: inherit;/);
+  test('heredar la fuente de los controles se queda fuera de las capas', () => {
+    // Estuvo en `@layer base` para que las utilidades de tamano llegaran a los
+    // botones, y fue un error de alcance: bajo todos los botones de la
+    // aplicacion de 32 px a 24 sin que se pidiera. Vuelve a estar fuera. El
+    // chip pone su tamano a mano y los demas se quedan como estaban.
+    expect(CSS).not.toMatch(/@layer base \{\s*input,/);
+    expect(CSS).toMatch(/input,\s*select,\s*textarea,\s*button \{\s*font: inherit;/);
 
-    // Y la regla no puede aparecer suelta por ahi: dos veces, una gana a
-    // Tailwind y la otra no. Una sola, y dentro de la capa.
+    // Una sola vez, que duplicarla no arregla nada y descoloca la que queda.
     const reglas = CSS.match(/font: inherit/g);
 
     expect(reglas).toHaveLength(1);
+
+    // Y como la regla se come el tamano, el chip no puede depender de una
+    // utilidad: lo pone en el `style`, que es lo unico que gana.
+    expect(FILTRO).toContain("const TAMANO_CHIP = '10px'");
+
+    // Solo dentro del chip. El titulo del filtro es un `span`, no un boton, y
+    // ahi la utilidad llega bien: alli `text-[10px]` si funciona.
+    const chip = FILTRO.match(/const chip = [\s\S]*?\n  \);/);
+
+    expect(chip?.[0]).not.toContain('text-[10px]');
   });
 
   /**
@@ -664,6 +719,25 @@ describe('el filtro de etiquetas', () => {
    * demas se hunden: «Estado» y «Etiquetas» quedaban treinta y tantos pixeles
    * por debajo, con los titulos descentrados.
    */
+  /**
+   * Todos los controles de la fila miden lo mismo.
+   *
+   * El boton del pompa son 32 px por dentro, pero su pista lleva `p-1` y se ve
+   * de 40. El desplegable no tiene pista —es un boton suelto—, asi que con el
+   * mismo `py-1` que el pompa se quedaba en 32, ocho pixeles por debajo, y los
+   * dos parecian cosas distintas siendo el mismo par. Los toggles son la
+   * referencia: son los que ya estaban.
+   *
+   * Y el `border` de «Limpiar» tambien cuenta: con `py-2` se quedaba en 42.
+   * Por eso ese va a `py-[7px]`, que es la cifra rara que deja los 40 justos.
+   */
+  test('el desplegable y limpiar miden lo mismo que los toggles', () => {
+    expect(FILTRO).toMatch(/justify-between gap-2 rounded-full px-3 py-2/);
+
+    // Y la columna de tags, atada al alto de ese boton.
+    expect(FILTRO).toContain("const ALTO_COLUMNA = '2.5rem'");
+  });
+
   test('la fila de filtros arranca arriba', () => {
     expect(BARRA).toContain('flex flex-wrap items-start gap-x-5 gap-y-3');
     expect(BARRA).not.toContain('flex flex-wrap items-center gap-x-5 gap-y-3');
@@ -685,8 +759,15 @@ describe('el filtro de etiquetas', () => {
     expect(BARRA).toMatch(/<span aria-hidden="true" className="invisible text-\[10px\] font-medium tracking-wide uppercase">/);
 
     // Mismo radio y misma caja que los botones del desplegable.
-    expect(BARRA).toMatch(/inline-flex shrink-0 items-center justify-center rounded-full px-3 py-1/);
-    expect(BARRA).toMatch(/bg-surface-2 text-t3 hover:bg-surface-3 hover:text-t1/);
+    expect(BARRA).toMatch(/inline-flex shrink-0 items-center justify-center gap-1\.5 rounded-full px-3 py-\[7px\]/);
+
+    // Y el tono que dice «esto tira algo». Con el neutro de antes no se
+    // distinguia de un filtro mas, y «Limpiar» no es un filtro: deshace.
+    expect(BARRA).toMatch(/border border-danger\/30 bg-danger\/10 text-danger-strong/);
+    expect(BARRA).toMatch(/hover:border-danger hover:bg-danger hover:text-on-danger/);
+
+    // Con una cruz, que es la unica accion destructiva de la barra.
+    expect(BARRA).toMatch(/<Icon name="x" size=\{12\}/);
 
     // Y limpia las etiquetas tambien, o el filtro se queda puesto sin que lo
     // diga nadie.

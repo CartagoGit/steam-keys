@@ -370,23 +370,24 @@ export function Toolbar({
           ) : null}
 
           {/*
-            «Limpiar», como los demas: boton, no texto suelto.
+            «Limpiar», con la misma forma que todo lo demas de la fila.
 
-            Era un enlace con subrayado y sin fondo, en una fila de cinco
-            botones redondeados. Se leia como otra cosa —como una nota al pie de
-            la barra— y ademas salia descuadrado, porque el boton mide 20 px y
-            el texto suelto 16, asi que su base no coincidia con la de los
-            demas.
+            Antes era un enlace con subrayado, sin fondo y mas bajo: el texto
+            suelto mide 16 px y un boton con relleno 32. En una fila de cinco
+            botones redondeados se leia como otra cosa, no como un boton.
 
-            El hueco de arriba lleva un titulo invisible con las mismas clases
-            que los titulos de los filtros. Es lo unico que alinea la fila sin
-            un numero magico: si mañana los titulos cambian de tamano, el hueco
-            cambia con ellos y «Limpiar» sigue cayendo donde toca.
+            Ahora es boton, con el mismo `py-2` que los desplegables —la misma
+            cifra que lleva el boton del pompa por dentro— para que todos midan
+            lo mismo. El hueco de arriba lleva un titulo invisible con las
+            mismas clases que los de los filtros, que es lo unico que alinea sin
+            un numero magico, y `self-start` porque la fila ya no centra.
 
-            Y va con `self-start` porque la fila va con `items-center`: sin eso
-            el bloque —que es mucho mas bajo que un filtro con cuatro filas de
-            tags— se centraba en vez de arrancar arriba, y el boton se quedaba
-            treinta pixeles por debajo de los demas.
+            Y lleva una cruz y el tono de peligro. Es la unica accion de la
+            barra que **tira algo**: no cambia lo que se ve, deshace. Con el
+            tono neutro de antes no se distinguia de un filtro mas, y con solo
+            un subrayado el peligro —«se me va a borrar la busqueda»— no se
+            anunciaba en ninguna parte. El tono fuerte solo en el hover, para
+            que estar encima no grite.
           */}
           <div className="ml-auto flex shrink-0 flex-col gap-1.5 self-start">
             <span aria-hidden="true" className="invisible text-[10px] font-medium tracking-wide uppercase">
@@ -409,12 +410,15 @@ export function Toolbar({
               }
               title={t('filter.reset')}
               className={[
-                'inline-flex shrink-0 items-center justify-center rounded-full px-3 py-1',
+                'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full px-3 py-[7px]',
                 'text-xs font-medium transition-colors',
-                'bg-surface-2 text-t3 hover:bg-surface-3 hover:text-t1',
+                'border border-danger/30 bg-danger/10 text-danger-strong',
+                'hover:border-danger hover:bg-danger hover:text-on-danger',
                 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
               ].join(' ')}
             >
+              <Icon name="x" size={12} className="shrink-0 opacity-80" />
+
               {t('action.clear')}
             </button>
           </div>

@@ -9,28 +9,57 @@ import { useT } from '@/context/locale.context';
 type TAlcance = 'ninguna' | 'todas' | 'parcial';
 
 /**
- * Los tags marcados van en una rejilla de **dos columnas**.
+ * Los tags marcados se apilan **por columna**, no por fila.
  *
- * Con nombres largos —«Elder Scrolls Online»— en una sola fila habia que
- * recortar tanto que no seidia nada. En dos columnas caben dos nombres enteros
- * y el tercero baja, que es justo lo pedido.
+ * Se llena una columna entera antes de abrir la siguiente: un tag, el de
+ * debajo, y luego a la derecha. Es como se leen las listas de etiquetas de las
+ * demas herramientas, y ademas tiene una propiedad que la fila no tiene — al
+ * crecer solo hacia un lado, **la barra de filtros no cambia de alto**, que es
+ * justo lo que tiene que pasar: el filtro de al lado se desplaza, la fila no.
  *
- * **No hay tope de cuantos se muestran.** Habia uno, y con cuatro marcadas ya
- * salia un «+1» en vez del tag: contar no es ver. La columna crece y se encoge
- * con ella, asi que no hace falta esconder nada.
+ * Por columna caben las que quepan en el alto del boton. Ahora mismo una, y
+ * dos no: el boton mide 40 px y dos chips con su separacion miden 44. Subir
+ * `FILAS_POR_COLUMNA` a dos obliga a subir `ALTO_COLUMNA` con el, o el segundo
+ * chip se sale.
+ *
+ * **No hay tope de cuantos se muestran.** Habia uno, y con cuatro marcadas
+ * salia un «+1» en vez del tag: contar no es ver. Al crecer solo en horizontal
+ * no hace falta esconder nada.
  *
  * El ancho de un tag sale de su texto, con un maximo para que un nombre muy
  * largo no se lleve media barra. Lo que no cabe se recorta y lleva el nombre
  * entero en el `title`.
  */
-const POR_FILA = 2;
+const FILAS_POR_COLUMNA = 1;
 
 /** Ancho maximo de un tag. Lo que pase, se recorta. */
 const ANCHO_MAX_TAG = '9rem';
 
+/**
+ * Alto de la columna: el del boton, para que no empuje la barra.
+ *
+ * La pista del pompa mide mas que su boton: lleva `p-1`, y por dentro el boton
+ * son 32 px. El desplegable no tiene pista —es un boton suelto— asi que con el
+ * mismo `py-1` que el boton del pompa se quedaba en 32, ocho pixeles por
+ * debajo, y los dos parecian cosas distintas siendo un par. Con `py-2` queda
+ * en 40, que es lo que mide la pista.
+ *
+ * Y el alto va fijo y no sale de la medicion, a proposito: si fuera lo que
+ * ocupan los chips, cada tag que se marcase haria el bloque del filtro mas
+ * alto, y con el la fila entera —que es el descentrado que se acaba de
+ * arreglar—. Fijandolo al alto del boton, la columna nunca lo pasa y la barra
+ * solo se mueve en horizontal: que es de donde tiene que empujar.
+ *
+ * Esta atado a `py-2` del boton a proposito: si manana el boton cambia de alto,
+ * el unico sitio que hay que tocar es este.
+ */
+const ALTO_COLUMNA = '2.5rem';
+
+/** Tamano del texto del chip. Va aqui porque las utilidades no llegan. */
+const TAMANO_CHIP = '10px';
+
 /** Cuanto tarda en deslizarse la columna al aparecer o desaparecer un tag. */
-const TRANSICION_TAGS =
-  'width 240ms cubic-bezier(0.34, 1.3, 0.64, 1), height 240ms cubic-bezier(0.34, 1.3, 0.64, 1)';
+const TRANSICION_TAGS = 'width 240ms cubic-bezier(0.34, 1.3, 0.64, 1)';
 
 /** Una opcion del desplegable. */
 export interface IFilterOption<T extends string> {
@@ -202,7 +231,7 @@ export function FilterMenu<T extends string>({
    * ancho es cero de verdad, no «cero que luego se corrige».
    */
   const medidaRef = useRef<HTMLDivElement>(null);
-  const [medida, setMedida] = useState({ ancho: 0, alto: 0 });
+  const [medida, setMedida] = useState({ ancho: 0 });
 
   useLayoutEffect(() => {
     const caja = medidaRef.current;
@@ -211,11 +240,8 @@ export function FilterMenu<T extends string>({
 
     const leer = (): void => {
       const ancho = caja.offsetWidth;
-      const alto = caja.offsetHeight;
 
-      setMedida((anterior) =>
-        anterior.ancho === ancho && anterior.alto === alto ? anterior : { ancho, alto },
-      );
+      setMedida((anterior) => (anterior.ancho === ancho ? anterior : { ancho }));
     };
 
     leer();
@@ -246,7 +272,7 @@ export function FilterMenu<T extends string>({
       ? allLabel
       : opcionesVisibles.map((option) => t(option.label)).join(', ');
 
-  const { ancho: anchoTags, alto: altoTags } = medida;
+  const { ancho: anchoTags } = medida;
 
   /**
    * El chip, **el mismo** para el que se ve y para el que mide.
@@ -262,16 +288,21 @@ export function FilterMenu<T extends string>({
    *   nombre largo lo tocaba los dos dabian numeros distintos.
    *
    * Ahora los dos son el mismo elemento y lo unico que cambia es si se ve.
+   *
+   * Y el tamano va en el `style`, no en la clase. Hay una regla en el CSS que
+   * pone `font: inherit` a los botones, y como `font` es el atajo completo
+   * pisa tambien el tamano: una utilidad `text-[10px]` no llega nunca a
+   * aplicarse. El `style` si, porque gana a todo lo demas.
    */
   const chip = (option: IFilterOption<T>, visible: boolean): ReactNode => (
     <span
       key={String(option.value)}
       title={visible ? t(option.label) : undefined}
       className={[
-        'flex h-5 min-w-0 items-center gap-1 px-1.5 text-[10px] leading-none',
+        'flex h-5 min-w-0 items-center gap-1 px-1.5 leading-none',
         visible ? 'overflow-hidden rounded-md bg-surface-2 text-t2' : '',
       ].join(' ')}
-      style={{ maxWidth: ANCHO_MAX_TAG }}
+      style={{ maxWidth: ANCHO_MAX_TAG, fontSize: TAMANO_CHIP }}
     >
       {option.dot ? (
         <span
@@ -454,7 +485,7 @@ export function FilterMenu<T extends string>({
           aria-haspopup="listbox"
           title={disabled ? disabledTitle : `${label}: ${resumen}`}
           className={[
-            'inline-flex shrink-0 items-center justify-between gap-2 rounded-full px-3 py-1 text-xs font-medium transition-colors',
+            'inline-flex shrink-0 items-center justify-between gap-2 rounded-full px-3 py-2 text-xs font-medium transition-colors',
             'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
             'disabled:cursor-not-allowed',
             // Relleno solido con el color del filtro, como la pompa del
@@ -505,8 +536,12 @@ export function FilterMenu<T extends string>({
           mide, y otra visible con el ancho ya puesto en pixeles— y el ancho
           medido se le pone a la de fuera con `transition: width`.
 
-          El alto se transiciona tambien, porque al bajarse a una segunda fila
-          el filtro de al lado se elevaria de golpe.
+          **El alto va fijo y no se transiciona.** Sale de `ALTO_COLUMNA`, no
+          de la medicion, y a proposito: si fuera lo que ocupan los chips,
+          cada tag que se marcase haria el bloque del filtro mas alto, y con el
+          la fila entera —que es el descentrado que se acaba de arreglar—.
+          Fijandolo al alto del boton la columna nunca lo pasa, y la barra solo
+          se mueve en horizontal: que es de donde tiene que empujar.
 
           **No hay tope de cuantos se muestran.** Con cuatro marcadas salia un
           «+1» en vez del tag, y contar no es ver: no se esconde ninguno.
@@ -515,7 +550,7 @@ export function FilterMenu<T extends string>({
           className="relative shrink-0 overflow-hidden"
           style={{
             width: `${anchoTags}px`,
-            height: `${altoTags}px`,
+            height: ALTO_COLUMNA,
             transition: TRANSICION_TAGS,
           }}
         >
@@ -525,18 +560,27 @@ export function FilterMenu<T extends string>({
             necesita —mide lo que pediria la rejilla, no lo que hay recortado—.
             No se ve y no transiciona.
 
-            Y las columnas son `max-content`, no del ancho maximo. Con
-            `9rem` fijas, una rejilla de dos columnas ocupa 18rem **aunque este
-            vacia**: se vio un hueco de 292 px a la derecha de «Todas» en los
-            filtros de plataforma y estado, que no tienen un solo tag. Medir
-            lo que pide, y no lo que permite, es justo de lo que va esto.
+            `grid-auto-flow: column` con las filas fijas es lo que hace que los
+            tags se apilen **hacia abajo** y no hacia la derecha: se llena la
+            primera columna hasta `FILAS_POR_COLUMNA` y solo entonces se abre
+            otra a la derecha. Con el flujo por defecto pasaria al reves —dos en
+            la primera fila y uno en la segunda—, que es lo que se hizo y no es
+            lo pedido.
+
+            Y `grid-auto-columns: max-content` para que cada columna se ajuste
+            a su tag. Con un ancho fijo, veinte tags de nombre corto se llevaban
+            media barra.
           */}
           <div
             ref={medidaRef}
             aria-hidden="true"
             className="pointer-events-none invisible absolute top-0 left-0 grid gap-1"
             style={{
-              gridTemplateColumns: `repeat(${POR_FILA}, minmax(0, max-content))`,
+              gridAutoFlow: 'column',
+              gridTemplateRows: `repeat(${FILAS_POR_COLUMNA}, auto)`,
+              gridAutoColumns: 'max-content',
+              alignContent: 'center',
+              height: ALTO_COLUMNA,
               width: 'max-content',
             }}
           >
@@ -559,7 +603,11 @@ export function FilterMenu<T extends string>({
           <div
             className="grid gap-1"
             style={{
-              gridTemplateColumns: `repeat(${POR_FILA}, minmax(0, max-content))`,
+              gridAutoFlow: 'column',
+              gridTemplateRows: `repeat(${FILAS_POR_COLUMNA}, auto)`,
+              gridAutoColumns: 'max-content',
+              alignContent: 'center',
+              height: ALTO_COLUMNA,
               width: 'max-content',
             }}
           >
