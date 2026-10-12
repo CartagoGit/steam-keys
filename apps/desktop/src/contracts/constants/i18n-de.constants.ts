@@ -54,14 +54,15 @@ export const DE: TranslationTable = Object.freeze({
   'filter.menu.scope': 'Wie viele markieren',
   'filter.tags': 'Schlagworte',
   'filter.tags.footHint':
-    'Ohne Markierte zeigt alles. Mit mehreren Markierten: alles mit einem davon — oder alles mit allen, wenn du das Schloss schliesst.',
+    'Ohne Markierte zeigt alles. Mit mehreren Markierten nimmt der Filter die mit einem davon auf — oder nur die mit allen, wenn du das Schloss schliesst.',
   'filter.menu.footHint':
-    'Ohne Markierte zeigt alles. Mit mehreren Markierten: alles mit einem davon.',
-  'filter.menu.footHintExcluir': 'Ohne Markierte zeigt alles. Geschlossen: nur was alle traegt.',
-  'filter.menu.orAnd.off': 'ODER — eines genuegt',
-  'filter.menu.orAnd.on': 'UND — alle',
-  'filter.menu.acota.off': 'Nicht verwerfen',
-  'filter.menu.acota.on': 'Verwerfen',
+    'Ohne Markierte zeigt alles. Mit mehreren Markierten nimmt der Filter die mit einem davon auf.',
+  'filter.menu.footHintExcluir':
+    'Ohne Markierte zeigt alles. Geschlossen nimmt er nur auf, was alle traegt.',
+  'filter.menu.orAnd.off': 'Nimmt einige auf',
+  'filter.menu.orAnd.on': 'Nimmt alle auf',
+  'filter.menu.acota.off': 'Nimmt nur diese auf',
+  'filter.menu.acota.on': 'Nimmt diese nicht auf',
   'filter.reset': 'Suche und Filter zuruecksetzen',
   'select.one': '{0} ausgewaehlt',
   'select.many': '{0} ausgewaehlt',

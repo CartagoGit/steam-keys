@@ -566,18 +566,22 @@ export function FilterMenu<T extends string>({
           {todas ? <span>{allLabel}</span> : <span className="tabular-nums">{marcadas.size}</span>}
 
           {/*
-            El candado solo cuando la exclusion esta encendida. Encendido o
-            apagado, el boton pone un numero: el icono de al lado solo dice como
-            hay que leer ese numero, y mientras no se haya decidido no hay nada
-            que leer de otra forma.
+            El candado, a la **derecha del todo**, despues de la flecha.
+
+            Va despues de la flecha y no entre el numero y la flecha porque los
+            tres se leen de izquierda a derecha segun lo que significan: lo que
+            has marcado —el numero—, luego como se abre —la flecha— y luego el
+            matiz. En el sitio de antes, entre el numero y la flecha, se leia
+            como parte de la cuenta: «2 candado v», que parece el nombre de una
+            etiqueta y no el modo del filtro.
+
+            Y sale **siempre que el modo este puesto**, sin mirar si hay nada
+            marcado: con el modo cerrado y cero marcadas el filtro no acota,
+            pero el modo sigue puesto, y el boton es el unico sitio donde se
+            ve. Si solo saliera al marcar, habria un momento en el que el modo
+            esta encendido y no se ve en ninguna parte.
           */}
-          {excluir ? (
-            <Icon
-              name="lock"
-              size={11}
-              className={todas ? 'shrink-0 text-t4' : 'shrink-0 opacity-80'}
-            />
-          ) : null}
+          {excluir ? <Icon name="lock" size={11} className="shrink-0 opacity-80" /> : null}
 
           {/* La flecha va en la tinta del propio boton, no en un color fijo. */}
           <svg

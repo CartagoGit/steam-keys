@@ -1103,11 +1103,22 @@ describe('el filtro de etiquetas', () => {
     // abajo, que explica por que.
     expect(FILTRO).not.toContain('disabled={marcadas.size < 2}');
 
-    // El icono del boton va condicionado al estado, no a que exista.
-    expect(FILTRO).toMatch(/\{excluir \? \(\s*<Icon\s*name="lock"/);
+    /**
+     * El icono del boton va **a la derecha del todo**, despues de la flecha.
+     *
+     * Estaba entre el numero y la flecha, y ahi se leia como parte de la
+     * cuenta —«2 candado v»— en vez de como el matiz del filtro. Los tres se
+     * leen de izquierda a derecha segun lo que significan: lo marcado, como se
+     * abre, y el matiz.
+     */
+    expect(FILTRO).toMatch(/\{excluir \? <Icon name="lock"/);
+
+    // Y sale siempre que el modo este puesto, sin mirar si hay algo marcado.
+    expect(FILTRO).not.toMatch(/excluir \? \(<Icon[\s\S]{0,120}todas \?/);
 
     // El texto sale de `modoExclusion`, porque no es el mismo en los tres
-    // filtros: en etiquetas son OR y AND, en los otros acota y descarta.
+    // filtros: en etiquetas es «incluye algunas / todas» y en los otros
+    // «incluye solo estas / no incluye estas».
     expect(FILTRO).toContain("modoExclusion === 'or-and' ? 'filter.menu.orAnd' : 'filter.menu.acota'");
 
     // Y la nota de abajo cambia con el modo, que es donde se lee la regla.
@@ -1147,10 +1158,10 @@ describe('el filtro de etiquetas', () => {
   test('el candado nombra el operador, en vez de repetir el icono', () => {
     // Corto, porque lo que explica esta en la nota de al lado. Y son **cuatro**
     // textos, no dos: el candado de plataforma y estado no dice OR/AND.
-    expect(I18N_ES).toContain("'filter.menu.orAnd.off': 'OR — cualquiera'");
-    expect(I18N_ES).toContain("'filter.menu.orAnd.on': 'AND — todas'");
-    expect(I18N_ES).toContain("'filter.menu.acota.off': 'Descartar no'");
-    expect(I18N_ES).toContain("'filter.menu.acota.on': 'Descartar si'");
+    expect(I18N_ES).toContain("'filter.menu.orAnd.off': 'Incluye algunas'");
+    expect(I18N_ES).toContain("'filter.menu.orAnd.on': 'Incluye todas'");
+    expect(I18N_ES).toContain("'filter.menu.acota.off': 'Incluye solo estas'");
+    expect(I18N_ES).toContain("'filter.menu.acota.on': 'No incluye estas'");
 
     /**
      * Ni una palabra de las que se quitaron.
@@ -1169,7 +1180,7 @@ describe('el filtro de etiquetas', () => {
     ]) {
       const linea = I18N_ES.split('\n').find((l) => l.includes(`'${clave}'`)) ?? '';
 
-      for (const palabra of ['candado', 'sale lo que', 'sale solo', 'coincide']) {
+      for (const palabra of ['candado', 'sale ', 'descartar', 'coincide']) {
         expect(`${clave}:${palabra}:${linea.toLowerCase().includes(palabra)}`).toBe(`${clave}:${palabra}:false`);
       }
     }
@@ -1194,9 +1205,9 @@ describe('el filtro de etiquetas', () => {
    * esta marcando etiquetas, y lo de verdad lo dice OR y AND.
    */
   test('la nota del pie dice las tres reglas del filtro', () => {
-    expect(I18N_ES).toContain('Sin marcar ninguna, se ven todas. Con varias marcadas sale lo que lleva alguna, o lo que las lleva todas si cierras el candado.');
-    expect(I18N_ES).toContain('Sin marcar ninguna, se ven todas. Con varias marcadas sale lo que lleva alguna.');
-    expect(I18N_ES).toContain('Sin marcar ninguna, se ven todas. Con el candado cerrado sale solo lo que las lleva todas.');
+    expect(I18N_ES).toContain('Sin marcar ninguna, se ve todo. Con varias marcadas, el filtro incluye las que llevan alguna, o solo las que las llevan todas si abres el candado.');
+    expect(I18N_ES).toContain('Sin marcar ninguna, se ve todo. Con varias marcadas, el filtro incluye las que llevan alguna.');
+    expect(I18N_ES).toContain('Sin marcar ninguna, se ve todo. Con el candado abierto solo incluye las que llevan todas.');
 
     // Y el texto entero, no un esqueleto: es lo unico que explica el filtro.
     for (const nota of ['filter.tags.footHint', 'filter.menu.footHint', 'filter.menu.footHintExcluir']) {

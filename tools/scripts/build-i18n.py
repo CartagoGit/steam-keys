@@ -203,7 +203,7 @@ TRADUCCIONES['fr'] = {
  'toolbar.data': 'Donnees', 'toolbar.settings': 'Reglages', 'toolbar.add': 'Ajouter',
  'sort.recent': 'Plus recentes', 'sort.alpha': 'A - Z', 'sort.status': 'Par etat',
  'sort.platform': 'Par plateforme',
- 'filter.menu.all': 'All', 'filter.menu.none': 'None', 'filter.menu.scope': 'How many to mark', 'filter.tags': 'Tags', 'filter.tags.footHint': 'Sans rien de coche, tout s affiche. Avec plusieurs cochees: ce qui en porte une, ou ce qui les porte toutes si tu fermes le cadenas.', 'filter.menu.footHint': 'Sans rien de coche, tout s affiche. Avec plusieurs cochees: ce qui en porte une.', 'filter.platform': 'Plateforme', 'filter.status': 'Etat',
+ 'filter.menu.all': 'All', 'filter.menu.none': 'None', 'filter.menu.scope': 'How many to mark', 'filter.tags': 'Tags', 'filter.tags.footHint': 'Sans rien de coche, tout s affiche. Avec plusieurs cochees, le filtre inclut celles qui en portent une, ou seulement celles qui les portent toutes si tu fermes le cadenas.', 'filter.menu.footHint': 'Sans rien de coche, tout s affiche. Avec plusieurs cochees, le filtre inclut celles qui en portent une.', 'filter.platform': 'Plateforme', 'filter.status': 'Etat',
  'filter.scope.label': 'Disponibilite', 'filter.scope.all': 'Toutes',
  'filter.scope.available': 'Disponibles seulement',
  'filter.kind.label': 'Type', 'filter.kind.all': 'Tous',
@@ -409,7 +409,7 @@ TRADUCCIONES['fr'] = {
  'storage.restoreCounting': 'Calcul de ce qui va changer…',
  'storage.restoreWillAdd': '{0} nouvelles cles seront ajoutees',
  'storage.restoreWillUpdate': '{0} seront mises a jour',
- 'filter.menu.footHintExcluir': 'Sans rien de coche, tout s affiche. Cadenas ferme: seulement ce qui les porte toutes.',  'filter.menu.orAnd.off': 'OU — une seule',  'filter.menu.orAnd.on': 'ET — toutes',  'filter.menu.acota.off': 'Ne pas ecarter',  'filter.menu.acota.on': 'Ecarter',
+ 'filter.menu.footHintExcluir': 'Sans rien de coche, tout s affiche. Cadenas ferme: il inclut seulement ce qui les porte toutes.',  'filter.menu.orAnd.off': 'Inclut certaines',  'filter.menu.orAnd.on': 'Inclut toutes',  'filter.menu.acota.off': 'Inclut seulement celles-ci',  'filter.menu.acota.on': 'N inclut pas celles-ci',
  }
 TRADUCCIONES['pt'] = {
  'export.title': 'exportacao',
@@ -562,7 +562,7 @@ TRADUCCIONES['pt'] = {
  'toolbar.data': 'Dados', 'toolbar.settings': 'Ajustes', 'toolbar.add': 'Adicionar',
  'sort.recent': 'Mais recentes', 'sort.alpha': 'A - Z', 'sort.status': 'Por estado',
  'sort.platform': 'Por plataforma',
- 'filter.menu.all': 'Todas', 'filter.menu.none': 'Nenhuma', 'filter.menu.scope': 'Quantas marcar', 'filter.tags': 'Etiquetas', 'filter.tags.footHint': 'Sem nada marcado ve-se tudo. Com varias marcadas: sai o que tiver alguma, ou todas se fechares o cadado.', 'filter.menu.footHint': 'Sem nada marcado ve-se tudo. Com varias marcadas: sai o que tiver alguma.', 'filter.platform': 'Plataforma', 'filter.status': 'Estado',
+ 'filter.menu.all': 'Todas', 'filter.menu.none': 'Nenhuma', 'filter.menu.scope': 'Quantas marcar', 'filter.tags': 'Etiquetas', 'filter.tags.footHint': 'Sem nada marcado ve-se tudo. Com varias marcadas, o filtro inclui as que tem alguma, ou so as que as tem todas se fechares o cadado.', 'filter.menu.footHint': 'Sem nada marcado ve-se tudo. Com varias marcadas, o filtro inclui as que tem alguma.', 'filter.platform': 'Plataforma', 'filter.status': 'Estado',
  'filter.scope.label': 'Disponiveis', 'filter.scope.all': 'Todas',
  'filter.scope.available': 'So disponiveis',
  'filter.kind.label': 'Tipo', 'filter.kind.all': 'Todos',
@@ -768,7 +768,7 @@ TRADUCCIONES['pt'] = {
  'storage.restoreCounting': 'A calcular o que vai mudar…',
  'storage.restoreWillAdd': '{0} chaves novas entram',
  'storage.restoreWillUpdate': '{0} vao ser atualizadas',
- 'filter.menu.footHintExcluir': 'Sem nada marcado ve-se tudo. Com o cadado fechado: so as que as tenham todas.',  'filter.menu.orAnd.off': 'OU — uma basta',  'filter.menu.orAnd.on': 'E — todas',  'filter.menu.acota.off': 'Nao descartar',  'filter.menu.acota.on': 'Descartar',
+ 'filter.menu.footHintExcluir': 'Sem nada marcado ve-se tudo. Com o cadado fechado so inclui as que as tem todas.',  'filter.menu.orAnd.off': 'Inclui algumas',  'filter.menu.orAnd.on': 'Inclui todas',  'filter.menu.acota.off': 'Inclui so estas',  'filter.menu.acota.on': 'Nao inclui estas',
  }
 TRADUCCIONES['de'] = {
  'export.title': 'Export',
@@ -921,7 +921,7 @@ TRADUCCIONES['de'] = {
  'toolbar.data': 'Daten', 'toolbar.settings': 'Einstellungen', 'toolbar.add': 'Hinzufuegen',
  'sort.recent': 'Neueste zuerst', 'sort.alpha': 'A - Z', 'sort.status': 'Nach Status',
  'sort.platform': 'Nach Plattform',
- 'filter.menu.all': 'Alle', 'filter.menu.none': 'Keine', 'filter.menu.scope': 'Wie viele markieren', 'filter.tags': 'Schlagworte', 'filter.tags.footHint': 'Ohne Markierte zeigt alles. Mit mehreren Markierten: alles mit einem davon — oder alles mit allen, wenn du das Schloss schliesst.', 'filter.menu.footHint': 'Ohne Markierte zeigt alles. Mit mehreren Markierten: alles mit einem davon.', 'filter.platform': 'Plattform', 'filter.status': 'Status',
+ 'filter.menu.all': 'Alle', 'filter.menu.none': 'Keine', 'filter.menu.scope': 'Wie viele markieren', 'filter.tags': 'Schlagworte', 'filter.tags.footHint': 'Ohne Markierte zeigt alles. Mit mehreren Markierten nimmt der Filter die mit einem davon auf — oder nur die mit allen, wenn du das Schloss schliesst.', 'filter.menu.footHint': 'Ohne Markierte zeigt alles. Mit mehreren Markierten nimmt der Filter die mit einem davon auf.', 'filter.platform': 'Plattform', 'filter.status': 'Status',
  'filter.scope.label': 'Verfuegbarkeit', 'filter.scope.all': 'Alle',
  'filter.scope.available': 'Nur verfuegbare',
  'filter.kind.label': 'Art', 'filter.kind.all': 'Alle',
@@ -1128,7 +1128,7 @@ TRADUCCIONES['de'] = {
  'storage.restoreCounting': 'Berechne, was sich andaern wird…',
  'storage.restoreWillAdd': '{0} neue Schluessel kommen hinzu',
  'storage.restoreWillUpdate': '{0} werden aktualisiert',
- 'filter.menu.footHintExcluir': 'Ohne Markierte zeigt alles. Geschlossen: nur was alle traegt.',  'filter.menu.orAnd.off': 'ODER — eines genuegt',  'filter.menu.orAnd.on': 'UND — alle',  'filter.menu.acota.off': 'Nicht verwerfen',  'filter.menu.acota.on': 'Verwerfen',
+ 'filter.menu.footHintExcluir': 'Ohne Markierte zeigt alles. Geschlossen nimmt er nur auf, was alle traegt.',  'filter.menu.orAnd.off': 'Nimmt einige auf',  'filter.menu.orAnd.on': 'Nimmt alle auf',  'filter.menu.acota.off': 'Nimmt nur diese auf',  'filter.menu.acota.on': 'Nimmt diese nicht auf',
  }
 def limpiar_vacios(texto: str) -> str:
     return re.sub(r'\n{3,}', '\n\n', texto)
