@@ -553,6 +553,8 @@ export const EN: TranslationTable = Object.freeze({
   'shortcuts.undo': 'Undo the last action',
   'shortcuts.hint': 'Inside a text field, Escape, Ctrl+A and Ctrl+Z still apply.',
   'app.duplicateKey': 'You already have that key, under «{0}».',
+  'app.undoNothingHappened':
+    'Could not undo: the keys are no longer in the collection.',
   'app.undoDone': 'Undone: {0}',
   'app.undoAvailable': 'Undo: {0}',
   'app.nothingToUndo': 'There is nothing to undo.',

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { pluralKey, setCurrentLocale, translate } from '@/helpers/i18n.helper';
 import { normalizeForMatch } from '@/helpers/match-title.helper';
+import { normalizeKey } from '@/helpers/normalize-text.helper';
 import { buildOwnershipIndex, ownershipCandidates } from '@/helpers/match-owned.helper';
 import { LocaleContext, useT, type ITranslator } from './context/locale.context';
 
@@ -399,6 +400,9 @@ export function App() {
       setBusy(true);
 
       try {
+        /** Cuantas filas se han tocado de verdad, en cualquiera de las dos vias. */
+        let aplicadas = 0;
+
         if (entrada.borradas) {
           for (const foto of entrada.antes) {
             await gameKeyService.create({
@@ -406,30 +410,62 @@ export function App() {
               keyValue: foto.keyValue,
               platform: foto.platform,
               status: foto.status,
+              /**
+               * `source` y `lastUsedAt` tambien se pasan. Sin ellos el alta
+               * los ponia a `Manual` y `null` fijos, y deshacer un borrado
+               * convertia una clave importada del TXT en manual y le
+               * borraba la marca de cuando se canjeo —justo lo que el
+               * comentario de `IUndoSnapshot` dice que por eso se guardan.
+               */
+              source: foto.source,
               giftedTo: foto.giftedTo,
               parentTitle: foto.parentTitle,
               note: foto.note,
               tags: foto.tags,
               addedOn: foto.addedOn,
+              lastUsedAt: foto.lastUsedAt,
             });
+
+            aplicadas += 1;
           }
         } else {
           // El `id` no viene en la foto, asi que se empareja por el valor de la
           // clave: es lo unico que la base garantiza unico y no cambia al
           // deshacer, porque lo que se restauraron son justo esos campos.
+          //
+          // Se empareja por la forma **normalizada**, que es la que usa el
+          // indice unico: con el valor tal cual, una fila cuya forma
+          // guardada no coincidia con la de la foto no encontraba su `id`,
+          // hacia `continue` sin decir nada y aun asi salia el «Deshecho».
           const actuales = await gameKeyService.list();
-          const porClave = new Map(actuales.map((clave) => [clave.keyValue, clave.id]));
+          const porClave = new Map(
+            actuales.map((clave) => [normalizeKey(clave.keyValue), clave.id]),
+          );
 
           for (const foto of entrada.antes) {
-            const id = porClave.get(foto.keyValue);
+            const id = porClave.get(normalizeKey(foto.keyValue));
 
             if (id === undefined) continue;
 
             await gameKeyService.update(id, borradorDe(foto));
+            aplicadas += 1;
           }
         }
 
         await reload();
+
+        /**
+         * Solo se dice «Deshecho» si de verdad se ha deshecho algo.
+         *
+         * Una fila puede no aparecer si mientras tanto se borro, se importo
+         * una clave igual o el cambio venia de otro sitio. Antes el aviso
+         * salia igual, y el usuario leia que se habia deshecho cuando no se
+         * habia deshecho nada: peor que un fallo, porque un fallo se ve.
+         */
+        if (aplicadas === 0) {
+          notify(traducir('app.undoNothingHappened'), 'error');
+          return;
+        }
 
         notify(traducir('app.undoDone', [entrada.label]), 'success');
       } catch (cause) {

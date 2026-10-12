@@ -384,6 +384,7 @@ export const PT: TranslationTable = Object.freeze({
   'shortcuts.undo': 'Anular a ultima acao',
   'shortcuts.hint': 'Dentro de um campo de texto, Escape, Ctrl+A e Ctrl+Z continuam a valer.',
   'app.duplicateKey': 'Ja tens essa chave em «{0}».',
+  'app.undoNothingHappened': 'Nao foi possivel anular: as chaves ja nao estao na colecao.',
   'app.undoDone': 'Anulado: {0}',
   'app.undoAvailable': 'Anular: {0}',
   'app.nothingToUndo': 'Nao ha nada para anular.',

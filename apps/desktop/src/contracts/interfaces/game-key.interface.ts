@@ -57,4 +57,15 @@ export interface IGameKeyInput {
   note?: string | null;
   tags?: readonly string[];
   addedOn?: string | null;
+  /**
+   * De donde vino la clave. Por defecto, creada a mano.
+   *
+   * Lo pone el **deshacer un borrado**: `IUndoSnapshot` guarda `source` y
+   * `lastUsedAt` precisamente porque al recrear la fila se perderian, y
+   * sin esto una clave importada del TXT volvia como manual y sin la marca
+   * de cuando se canjeo.
+   */
+  source?: KeySource;
+  /** Ultimo canjeo, si consta. Solo lo rellena el camino del deshacer. */
+  lastUsedAt?: string | null;
 }

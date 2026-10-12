@@ -473,6 +473,8 @@ export const ES: TranslationTable = Object.freeze({
   'shortcuts.undo': 'Deshacer la ultima accion',
   'shortcuts.hint': 'Dentro de un campo de texto siguen valiendo Escape, Ctrl+A y Ctrl+Z.',
   'app.duplicateKey': 'Ya tienes esa clave, en «{0}».',
+  'app.undoNothingHappened':
+    'No se ha podido deshacer: las claves ya no estan en la coleccion.',
   'app.undoDone': 'Deshecho: {0}',
   'app.undoAvailable': 'Deshacer: {0}',
   'app.nothingToUndo': 'No hay nada que deshacer.',

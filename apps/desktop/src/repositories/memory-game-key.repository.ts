@@ -33,13 +33,16 @@ export class MemoryGameKeyRepository implements IGameKeyRepository {
       keyValue: normalizeKey(input.keyValue),
       platform: input.platform ?? KeyPlatform.Steam,
       status: input.status ?? KeyStatus.Available,
-      source: KeySource.Manual,
+      // Como en la base: por defecto una clave creada desde el formulario es
+      // manual, y el deshacer de un borrado es el que pasa el valor
+      // explicito para devolver la fila tal cual estaba.
+      source: input.source ?? KeySource.Manual,
       giftedTo: input.giftedTo ?? null,
       parentTitle: input.parentTitle ?? null,
       note: input.note ?? null,
       tags: input.tags ?? [],
       addedOn: input.addedOn ?? null,
-      lastUsedAt: null,
+      lastUsedAt: input.lastUsedAt ?? null,
       createdAt: now,
       updatedAt: now,
     };

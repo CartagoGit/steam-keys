@@ -393,6 +393,7 @@ export const FR: TranslationTable = Object.freeze({
   'shortcuts.undo': 'Annuler la derniere action',
   'shortcuts.hint': 'Dans un champ de texte, Echap, Ctrl+A et Ctrl+Z comptent toujours.',
   'app.duplicateKey': 'Tu as deja cette cle dans «{0}».',
+  'app.undoNothingHappened': 'Impossible d annuler : les cles ne sont plus dans la collection.',
   'app.undoDone': 'Annule : {0}',
   'app.undoAvailable': 'Annuler : {0}',
   'app.nothingToUndo': 'Il ny a rien a annuler.',

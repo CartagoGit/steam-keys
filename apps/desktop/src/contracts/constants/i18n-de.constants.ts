@@ -395,6 +395,8 @@ export const DE: TranslationTable = Object.freeze({
   'shortcuts.undo': 'Letzte Aktion rueckgaengig machen',
   'shortcuts.hint': 'In einem Textfeld gelten weiterhin Esc, Strg+A und Strg+Z.',
   'app.duplicateKey': 'Diesen Schlussel hast du bereits unter «{0}».',
+  'app.undoNothingHappened':
+    'Konnte nicht rueckgaengig gemacht werden: die Schluessel sind nicht mehr in der Sammlung.',
   'app.undoDone': 'Rueckgaengig gemacht: {0}',
   'app.undoAvailable': 'Rueckgaengig: {0}',
   'app.nothingToUndo': 'Es gibt nichts rueckgaengig zu machen.',

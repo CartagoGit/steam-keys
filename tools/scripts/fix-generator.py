@@ -82,6 +82,12 @@ FILAS = [
     ('app.duplicateKey', 'Ya tienes esa clave, en «{0}».',
      'You already have that key, under «{0}».', 'Tu as deja cette cle dans «{0}».',
      'Ja tens essa chave em «{0}».', 'Diesen Schlussel hast du bereits unter «{0}».'),
+    ('app.undoNothingHappened',
+     'No se ha podido deshacer: las claves ya no estan en la coleccion.',
+     'Could not undo: the keys are no longer in the collection.',
+     'Impossible d annuler : les cles ne sont plus dans la collection.',
+     'Nao foi possivel anular: as chaves ja nao estao na colecao.',
+     'Konnte nicht rueckgaengig gemacht werden: die Schluessel sind nicht mehr in der Sammlung.'),
     ('app.undoDone', 'Deshecho: {0}', 'Undone: {0}', 'Annule : {0}', 'Anulado: {0}',
      'Rueckgaengig gemacht: {0}'),
 

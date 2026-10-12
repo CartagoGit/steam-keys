@@ -54,13 +54,18 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
       keyValue,
       input.platform ?? KeyPlatform.Steam,
       input.status ?? KeyStatus.Available,
-      KeySource.Manual,
+      // Por defecto una clave creada desde el formulario es manual. Lo
+      // explicito es el deshacer de un borrado, que tiene que devolver la
+      // fila tal cual estaba y no como nueva.
+      input.source ?? KeySource.Manual,
       input.giftedTo ?? null,
       input.parentTitle ?? null,
       input.note ?? null,
       serializeTags(input.tags),
       input.addedOn ?? null,
-      null,
+      // Antes era `null` fijo. El deshacer de un borrado lo rellena; en una
+      // alta normal una clave recien creada no se ha canjeado nunca.
+      input.lastUsedAt ?? null,
       ahora,
       ahora,
     ]);
