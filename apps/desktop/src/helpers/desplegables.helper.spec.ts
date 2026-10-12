@@ -250,6 +250,22 @@ describe('selectores con pompa', () => {
   test('al dejar de estar marcada ninguna, la pompa se desvanece', () => {
     expect(FILTRO).toContain("parcial={alcance === 'parcial'}");
 
+    /*
+     * Y el valor tiene que ser una de las dos opciones, siempre.
+     *
+     * Esto se rompio de verdad: se pasaba `value={alcance}` y con tres de siete
+     * marcadas el valor era `'parcial'`, que no es ninguna de las dos opciones.
+     * `medir()` busca el boton que coincide con el valor y no encontraba
+     * ninguno, con lo que la pompa se quedaba **clavada encima de «Ninguna»**
+     * y lo unico que la tapaba era el `opacity`. Al volver a un estado con
+     * opcion elegida tenia que recolocarse desde cero, y el salto se notaba.
+     *
+     * `value` real + `parcial` aparte: la pompa siempre sabe donde esta, y el
+     * estado a medias es una propiedad, no un valor que no existe.
+     */
+    expect(FILTRO).toMatch(/value=\{alcance === 'todas' \? 'todas' : 'ninguna'\}/);
+    expect(FILTRO).not.toMatch(/value=\{alcance\}/);
+
     // Se desvanece con `opacity`, no desapareciendo: si se desmontase al volver
     // a un estado con opcion elegida tendria que medirse otra vez, y como
     // entonces no hay boton activo `medir` no hace nada y la pompa saltaria
@@ -284,5 +300,105 @@ describe('selectores con pompa', () => {
 
     // El selector de vistas, en la cabecera, no lo pide.
     expect(VISTAS).not.toContain('completo');
+  });
+});
+
+/**
+ * El teclado de los desplegables tiene que vivir fuera del boton.
+ *
+ * `Popover` se monta en `document.body` con un portal, asi que en cuanto la
+ * lista esta abierta el elemento con el foco es un hermano del boton, no un
+ * descendiente. Con el `onKeyDown` en el `<div>` que envuelve al boton, el
+ * evento subia hasta `body` y se paraba ahi: **Enter no abria la lista**. Con el
+ * raton no se notaba, porque el clic va directo al `onClick` del boton, pero con
+ * el teclado no habia forma de llegar a las opciones.
+ */
+describe('teclado de los desplegables', () => {
+  test('el listener esta en window, no en un onKeyDown del boton', () => {
+    expect(FILTRO).toContain("window.addEventListener('keydown'");
+    expect(FILTRO).toContain('window.removeEventListener');
+
+    // Y en fase de captura, como el de Escape en `Popover`, para que se coja
+    // antes que cualquier otro.
+    expect(FILTRO).toMatch(/addEventListener\('keydown',\s*\w+,\s*true\)/);
+
+    expect(FILTRO).not.toContain('onKeyDown');
+  });
+
+  /**
+   * El listener se crea una vez y lee el estado por un ref.
+   *
+   * Si dependiera de `abierto`, `options` o `resaltada` habria que volver a
+   * registrarlo en cada cambio —tres veces cada vez que se mueve el resaltado—
+   * y eso es trabajo en el camino que mas se nota: el del teclado.
+   */
+  test('el estado va por ref, para no registrar el listener en cada cambio', () => {
+    expect(FILTRO).toContain('estadoRef');
+    expect(FILTRO).toContain('estadoRef.current');
+  });
+
+  /**
+   * Las flechas de un desplegable no mueven el del de al lado.
+   *
+   * Con el listener en `window` cualquier par de teclas tocaria todos los
+   * desplegables a la vez. Solo acta si el foco esta en su boton o en una de sus
+   * opciones.
+   */
+  test('solo responde si el foco esta en este desplegable', () => {
+    expect(FILTRO).toContain('botonRef.current?.contains(activo)');
+    expect(FILTRO).toContain("getAttribute('role') === 'option'");
+  });
+});
+
+/**
+ * Nada se pinta hasta que esta todo cargado.
+ *
+ * Con el cartel de espera solo en el hueco de las claves, la cabecera salia ya
+ * montada sobre una lista vacia y a los pocos milisegundos se le cambiaban los
+ * numeros debajo de los ojos: el titulo pasaba de «0 de 0» a «403 de 403» y los
+ * filtros se recolocaban al aparecer las opciones que dependen de los datos. Un
+ * salto de maquetacion en cada arranque.
+ *
+ * El telon va **antes de la barra**, y espera a los ajustes **y** a las claves:
+ * hasta que no se lean los ajustes, el idioma, el tema y el filtro son los de
+ * fabrica.
+ */
+describe('arranque sin salto de estilos', () => {
+  const APP = fuente('app.component.tsx');
+
+  test('el cartel espera a los ajustes y a las claves', () => {
+    expect(APP).toContain('todoListo');
+    expect(APP).toMatch(/todoListo\s*=\s*ajustesListos\s*&&\s*clavesCargadas/);
+
+    // El flag sale del estado derivado, no de ponerlo en los dos sitios: asi no
+    // se queda a medias si uno de los dos falla.
+    expect(APP).toContain('setListoParaPintar(todoListo)');
+    expect(APP).not.toContain('setListoParaPintar(true)');
+  });
+
+  test('el cartel envuelve toda la ventana, no solo el hueco de las claves', () => {
+    /**
+     * El cartel tiene que estar **antes** que `<Toolbar`.
+     *
+     * Comparando posiciones: si se pinta despues, la cabecera sale montada
+     * mientras carga y el arreglo no hace nada. Es la unica forma de
+     * comprobarlo leyendo el fuente, y mira justo lo que hay que mirar.
+     */
+    const cartel = APP.indexOf('!listoParaPintar ?');
+    const barra = APP.indexOf('<Toolbar');
+
+    expect(cartel).toBeGreaterThan(-1);
+    expect(barra).toBeGreaterThan(-1);
+    expect(cartel).toBeLessThan(barra);
+
+    // Y ya no queda un segundo cartel mas abajo, que era el que dejaba la
+    // cabecera al descubierto.
+    expect(APP.split('app.loadingCollection').length - 1).toBe(1);
+  });
+
+  test('las claves marcan su carga aunque fallen', () => {
+    // En el `finally`, no en el `try`: si la lectura falla, la pantalla tiene
+    // que ensenar el error, no quedarse esperando para siempre.
+    expect(APP).toMatch(/finally\s*\{\s*setClavesCargadas\(true\)/);
   });
 });

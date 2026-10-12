@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { Icon, type IconName } from './icon.component';
 import { Popover, PopoverOption } from './popover.component';
@@ -155,52 +155,93 @@ export function FilterMenu<T extends string>({
   };
 
   /**
-   * Abrir con las flechas, recorrer, y elegir con Enter.
+   * Teclado en `window`, no en un `onKeyDown` del boton.
    *
-   * `Escape` no esta aqui a proposito: lo lleva `Popover`, que lo captura en
-   * fase de captura y detiene la propagacion. Asi el cierre tiene un solo dueno
-   * y no se abre otro camino por el que se pueda cerrar la lista y el filtro a
-   * la vez.
+   * Estaba como `onKeyDown` en el `<div>` que envuelve el boton, y por eso
+   * **no funcionaba al abrir con Enter**. La razon es que `Popover` se monta en
+   * `document.body` con un portal: en cuanto la lista esta abierta, el elemento
+   * que tiene el foco ya no esta dentro de ese `<div>`, es un hermano suyo en el
+   * `body`. El evento sube hasta `body` y alli se queda: nunca llega al
+   * envoltorio. Con el raton no se notaba —el clic va directo al `onClick` del
+   * boton—, pero con el teclado el `Enter` no abria nada y no habia forma de
+   * llegar a las opciones.
+   *
+   * Con un listener en `window` en fase de captura da igual donde este el foco:
+   * se coje antes que nadie. Es lo mismo que hace `Popover` con Escape, y por
+   * eso los dos estan en el mismo sitio y no en dos capas distintas.
+   *
+   * Se guarda `abierto`, `options` y `resaltada` en refs para que el listener no
+   * se vuelva a crear en cada cambio y no tenga que depender de ellos.
    */
-  const alTeclado = (evento: React.KeyboardEvent): void => {
-    const ultimo = options.length - 1;
+  const estadoRef = useRef({ abierto, opciones: options, resaltada });
 
-    switch (evento.key) {
-      case 'ArrowDown':
-      case 'ArrowUp':
-        evento.preventDefault();
-        setAbierto(true);
-        setResaltada((i) => {
-          if (i < 0) return evento.key === 'ArrowDown' ? 0 : ultimo;
-          // Al dar la vuelta por un extremo se vuelve al otro, y no se queda
-          // encajado: una lista en la que la flecha se para es una lista que
-          // parece rota.
-          if (evento.key === 'ArrowDown') return i === ultimo ? 0 : i + 1;
-          return i === 0 ? ultimo : i - 1;
-        });
-        break;
-      case 'Home':
-        evento.preventDefault();
-        setResaltada(0);
-        break;
-      case 'End':
-        evento.preventDefault();
-        setResaltada(ultimo);
-        break;
-      case 'Enter':
-      case ' ':
-        evento.preventDefault();
-        if (!abierto) {
-          setAbierto(true);
+  estadoRef.current = { abierto, opciones: options, resaltada };
+
+  useEffect(() => {
+    if (disabled) return;
+
+    const alPulsar = (evento: KeyboardEvent): void => {
+      const { abierto: estaAbierto, opciones: lista, resaltada: marca } =
+        estadoRef.current;
+
+      // El foco tiene que estar en este desplegable. Sin esto, las flechas
+      // moverian el resaltado de «Plataforma» mientras se esta jugando con el
+      // desplegable de «Estado» de al lado.
+      const activo = document.activeElement;
+
+      const mio =
+        botonRef.current?.contains(activo) ||
+        (activo instanceof HTMLElement && activo.getAttribute('role') === 'option');
+
+      if (!mio) return;
+
+      const ultimo = lista.length - 1;
+
+      switch (evento.key) {
+        case 'ArrowDown':
+        case 'ArrowUp':
+          evento.preventDefault();
+          if (!estaAbierto) {
+            setAbierto(true);
+            setResaltada(evento.key === 'ArrowDown' ? 0 : ultimo);
+            return;
+          }
+          setResaltada((i) => {
+            if (i < 0) return evento.key === 'ArrowDown' ? 0 : ultimo;
+            // Al dar la vuelta por un extremo se vuelve al otro, y no se queda
+            // encajado: una lista en la que la flecha se para es una lista que
+            // parece rota.
+            if (evento.key === 'ArrowDown') return i === ultimo ? 0 : i + 1;
+            return i === 0 ? ultimo : i - 1;
+          });
           break;
-        }
-        if (resaltada >= 0 && resaltada < options.length) {
-          const elegida = options[resaltada];
-          if (elegida) alternar(elegida.value);
-        }
-        break;
-    }
-  };
+        case 'Home':
+          evento.preventDefault();
+          setResaltada(0);
+          break;
+        case 'End':
+          evento.preventDefault();
+          setResaltada(ultimo);
+          break;
+        case 'Enter':
+        case ' ':
+          evento.preventDefault();
+          if (!estaAbierto) {
+            setAbierto(true);
+            return;
+          }
+          if (marca >= 0 && marca < lista.length) {
+            const elegida = lista[marca];
+            if (elegida) alternar(elegida.value);
+          }
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', alPulsar, true);
+
+    return () => window.removeEventListener('keydown', alPulsar, true);
+  }, [disabled]);
 
   return (
     /*
@@ -209,10 +250,7 @@ export function FilterMenu<T extends string>({
      * donde acaba cada filtro; encima, cada filtro es un bloque con su
      * nombre y se lee de un vistazo.
      */
-    <div
-      onKeyDown={alTeclado}
-      className="flex shrink-0 flex-col gap-1.5"
-    >
+    <div className="flex shrink-0 flex-col gap-1.5">
       <span
         className={[
           'text-[10px] font-medium tracking-wide uppercase',
@@ -318,9 +356,26 @@ export function FilterMenu<T extends string>({
               sinTitulo
               compacto
               completo
+              /*
+               * `value` es una de las dos opciones **siempre**, y `parcial` va
+               * aparte. Antes se pasaba `'parcial'` como valor, y eso rompia
+               * por dentro: `medir()` busca el boton que coincide con el valor
+               * para saber donde va la pompa, y `'parcial'` no es ninguno de
+               * los dos, asi que no encontraba nada y la pompa se quedaba
+               * clavada donde estaba —encima de «Ninguna»—. Lo unico que la
+               * hacia invisible era el `opacity`, con lo que al volver a un
+               * estado con opcion elegida tenia que recolocarse desde cero y
+               * se leia el salto.
+               *
+               * Ahora el valor sigue siendo real, la pompa siempre sabe donde
+               * esta, y `parcial` solo decide si se ve. En el estado a medias
+               * queda sobre «Ninguna», que es lo cierto: no hay ninguna
+               * plataforma marcada. Lo que no es cierto es «Todas», y por eso
+               * esa es la que no se enciende.
+               */
               parcial={alcance === 'parcial'}
               tone={tone === 'sky' ? 'sky' : 'rose'}
-              value={alcance}
+              value={alcance === 'todas' ? 'todas' : 'ninguna'}
               options={[
                 { value: 'ninguna', label: t('filter.menu.none') },
                 { value: 'todas', label: allLabel },

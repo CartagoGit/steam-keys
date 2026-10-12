@@ -106,8 +106,26 @@ export function App() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [deleting, setDeleting] = useState<IGameKey | null>(null);
   const [toasts, setToasts] = useState<readonly IToast[]>([]);
-  const [loading, setLoading] = useState(true);
+  /**
+   * `true` hasta que se ha leido **todo** lo que la pantalla usa.
+   *
+   * Antes solo miraba a las claves, y por eso la barra se pintaba con los datos
+   * de por defecto y luego se corrigian solos: «0 disponibles de 0» que a
+   * continuacion seconvertia en «403 disponibles de 403», el filtro en su valor
+   * de fabrica hasta que llegaba el guardado, el idioma en ingles hasta que se
+   * leia el suyo. Cada uno de esos cambios es un fotograma con la pantalla
+   * mal, y juntos se ven como un parpadeo al arrancar.
+   *
+   * Con este estado la ventana no se pinta hasta que estan los ajustes **y** las
+   * claves, asi que lo primero que se ve ya es lo correcto. Cuesta un turno mas
+   * de espera en pantalla negra —que es lo que ya se veia igual, porque el
+   * `body` esta en el color del tema desde el primer fotograma—, y a cambio no
+   * hay nada que se mueva debajo.
+   */
+  const [listoParaPintar, setListoParaPintar] = useState(false);
   const [busy, setBusy] = useState(false);
+  /** Las claves ya se han leido, salga bien o mal. */
+  const [clavesCargadas, setClavesCargadas] = useState(false);
   const [storageOpen, setStorageOpen] = useState(false);
 
   // ------------------------------------------------------- seleccion ---
@@ -139,6 +157,24 @@ export function App() {
    * anterior. El resultado era que el filtro no se recordaba nunca.
    */
   const [ajustesListos, setAjustesListos] = useState(false);
+
+  /**
+   * Se puede pintar cuando estén **las dos** cosas.
+   *
+   * Los ajustes van aparte de las claves a proposito: hasta que no se lean, el
+   * idioma es el de fabrica, el tema el de fabrica y el filtro el de fabrica. Y
+   * un efecto que solo espera uno de los dos se dispara con el otro todavia a
+   * medias, que es el mismo salto de estilos por un camino distinto.
+   *
+   * El efecto se apoya en `todoListo` y no en escribir el flag en los dos sitios:
+   * asi los dos caminos de llegada —ajustes leidos y claves leidas— no tienen
+   * que acordarse de Levantarlo, y no se queda a medias si uno falla.
+   */
+  const todoListo = ajustesListos && clavesCargadas;
+
+  useEffect(() => {
+    setListoParaPintar(todoListo);
+  }, [todoListo]);
 
   /**
    * Si al arrancar hay base de datos o no.
@@ -360,7 +396,7 @@ export function App() {
         'error',
       );
     } finally {
-      setLoading(false);
+      setClavesCargadas(true);
     }
     // `traducir` tambien: sin el, el error de carga se queda en el idioma
     // anterior si el usuario cambia de idioma con la lista ya cargada.
@@ -1790,6 +1826,25 @@ export function App() {
           databasePath={arranque.databasePath}
           onStartEmpty={() => setArranque({ ...arranque, database: 'ready' })}
         />
+      ) : !listoParaPintar ? (
+        /*
+         * El telon va **antes que la barra**, no despues.
+         *
+         * Con el cartel solo en el hueco de las claves, la cabecera —titulo con
+         * su contador, filtros, selector de tablas y buscador— salia ya montada
+         * sobre una lista vacia, y a los pocos milisegundos se le cambiaban los
+         * numeros debajo de los ojos. Era un salto de maquetacion al arrancar,
+         * con el titulo pasando de «0 de 0» a «403 de 403» y los filtros
+         * recolocandose al aparecer las opciones que dependen de los datos.
+         *
+         * Ocultarlo entero cuesta un turno de espera, que no se nota: el fondo
+         * de la ventana ya es el del tema desde antes de que este JavaScript
+         * corra, asi que lo que se ve mientras carga es una ventana del color
+         * correcto y sin texto encima.
+         */
+        <div className="flex h-full items-center justify-center text-sm text-t4">
+          {traducir('app.loadingCollection')}
+        </div>
       ) : (
         <>
       <Toolbar
@@ -1825,10 +1880,6 @@ export function App() {
           ) : (
             <SteamNotConnected onOpen={() => openSettingsAt('account')} />
           )
-        ) : loading ? (
-          <div className="flex h-full items-center justify-center text-sm text-t4">
-            {traducir('app.loadingCollection')}
-          </div>
         ) : visible.length === 0 ? (
           <EmptyState
             hasKeys={keys.length > 0}
