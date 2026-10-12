@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { Icon } from './icon.component';
+import { Popover, PopoverOption } from './popover.component';
 import { APP_LOCALE_VALUES, AppLocale, LOCALE_FLAG_SIZE, LOCALE_META } from '@/contracts';
 
 export interface ILocaleSelectProps {
@@ -19,10 +20,15 @@ export interface ILocaleSelectProps {
  * Electron, y en el mejor de los casos sale un icono roto. La unica forma de
  * poner una bandera delante del nombre es hacer la lista a mano.
  *
- * Se hace con un boton y un desplegable, con los mismos roles que un select
+ * Se hace con un boton y un `Popover`, con los mismos roles que un select
  * nativo (`listbox`/`option`, navegacion con flechas y con Inicio/Fin) para
  * que se pueda usar igual con el teclado y un lector de pantalla lo anuncie
  * como lo que es.
+ *
+ * La lista se dibuja en un portal y no debajo del boton. Este vive dentro de
+ * un dialogo, cuyo panel recorta y cuyo cuerpo se desplaza: con la lista
+ * colgada del boton se ve cortada por el borde y, al abrirse, el dialogo entero
+ * daba un bote. Lo cuenta `Popover`.
  *
  * Los nombres van en su idioma y con sus tildes, porque quien busca "Francais"
  * en la lista quiere ver exactamente lo que busca. Las banderas son SVG y no
@@ -31,8 +37,7 @@ export interface ILocaleSelectProps {
 export function LocaleSelect({ value, onChange, label }: ILocaleSelectProps) {
   const [abierto, setAbierto] = useState(false);
   const [resaltada, setResaltada] = useState(0);
-  const contenedor = useRef<HTMLDivElement>(null);
-  const opciones = useRef<(HTMLButtonElement | null)[]>([]);
+  const boton = useRef<HTMLButtonElement>(null);
 
   const actual = LOCALE_META[value];
 
@@ -43,22 +48,7 @@ export function LocaleSelect({ value, onChange, label }: ILocaleSelectProps) {
     if (!abierto) return;
 
     setResaltada(Math.max(0, APP_LOCALE_VALUES.indexOf(value)));
-
-    const fuera = (evento: MouseEvent): void => {
-      if (!contenedor.current?.contains(evento.target as Node)) setAbierto(false);
-    };
-
-    document.addEventListener('mousedown', fuera);
-
-    return () => document.removeEventListener('mousedown', fuera);
   }, [abierto, value]);
-
-  // Mantiene la resaltada a la vista al navegar con el teclado.
-  useEffect(() => {
-    if (!abierto) return;
-
-    opciones.current[resaltada]?.scrollIntoView({ block: 'nearest' });
-  }, [abierto, resaltada]);
 
   const elegir = (locale: AppLocale): void => {
     setAbierto(false);
@@ -69,9 +59,6 @@ export function LocaleSelect({ value, onChange, label }: ILocaleSelectProps) {
     const ultimo = APP_LOCALE_VALUES.length - 1;
 
     switch (evento.key) {
-      case 'Escape':
-        setAbierto(false);
-        break;
       case 'ArrowDown':
         evento.preventDefault();
         setAbierto(true);
@@ -101,12 +88,16 @@ export function LocaleSelect({ value, onChange, label }: ILocaleSelectProps) {
           setAbierto(true);
         }
         break;
+      // `Escape` no esta aqui a proposito: lo lleva `Popover`, que sabe
+      // cuando hay algo abierto encima y por tanto cuando tiene sentido
+      // subir un nivel en vez de cerrarlo todo.
     }
   };
 
   return (
-    <div ref={contenedor} className="relative" onKeyDown={alTeclado}>
+    <div onKeyDown={alTeclado}>
       <button
+        ref={boton}
         type="button"
         onClick={() => setAbierto((abierto) => !abierto)}
         aria-label={label}
@@ -139,61 +130,47 @@ export function LocaleSelect({ value, onChange, label }: ILocaleSelectProps) {
         />
       </button>
 
-      {abierto && (
-        <ul
-          role="listbox"
-          aria-label={label}
-          className="absolute z-30 mt-1 max-h-64 w-full overflow-auto rounded-lg bg-surface-1
-            p-1 shadow-lg shadow-black/30 ring-1 ring-line-strong"
-        >
-          {APP_LOCALE_VALUES.map((locale, indice) => {
-            const meta = LOCALE_META[locale];
-            const puesto = locale === value;
+      <Popover
+        abierto={abierto}
+        ancla={boton}
+        onCerrar={() => setAbierto(false)}
+        resaltada={resaltada}
+        aria-label={label}
+      >
+        {APP_LOCALE_VALUES.map((locale, indice) => {
+          const meta = LOCALE_META[locale];
+          const puesto = locale === value;
 
-            return (
-              <li key={locale}>
-                <button
-                  ref={(nodo) => {
-                    opciones.current[indice] = nodo;
-                  }}
-                  type="button"
-                  role="option"
-                  aria-selected={puesto}
-                  // `tabIndex={-1}` porque la lista se recorre con las flechas,
-                  // no tabulando opcion por opcion: con el tabulador normal
-                  // habria que pasar por cinco idiomas para llegar al siguiente
-                  // campo.
-                  tabIndex={-1}
-                  onMouseEnter={() => setResaltada(indice)}
-                  onClick={() => elegir(locale)}
-                  className={[
-                    'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition',
-                    indice === resaltada ? 'bg-surface-3 text-t1' : 'text-t2',
-                  ].join(' ')}
-                >
-                  <span
-                    aria-hidden="true"
-                    className="shrink-0 overflow-hidden rounded-[3px] ring-1 ring-line-strong"
-                    style={{ width: LOCALE_FLAG_SIZE, height: (LOCALE_FLAG_SIZE * 2) / 3 }}
-                  >
-                    <img
-                      src={meta?.flag}
-                      alt=""
-                      width={LOCALE_FLAG_SIZE}
-                      height={(LOCALE_FLAG_SIZE * 2) / 3}
-                      className="h-full w-full object-cover"
-                    />
-                  </span>
+          return (
+            <PopoverOption
+              key={locale}
+              activa={puesto}
+              resaltada={indice === resaltada}
+              alPulsar={() => elegir(locale)}
+              alEntrar={() => setResaltada(indice)}
+              derecha={
+                puesto ? <Icon name="check" size={14} className="shrink-0 text-accent" /> : null
+              }
+            >
+              <span
+                aria-hidden="true"
+                className="shrink-0 overflow-hidden rounded-[3px] ring-1 ring-line-strong"
+                style={{ width: LOCALE_FLAG_SIZE, height: (LOCALE_FLAG_SIZE * 2) / 3 }}
+              >
+                <img
+                  src={meta?.flag}
+                  alt=""
+                  width={LOCALE_FLAG_SIZE}
+                  height={(LOCALE_FLAG_SIZE * 2) / 3}
+                  className="h-full w-full object-cover"
+                />
+              </span>
 
-                  <span className="flex-1 truncate">{meta?.label ?? locale}</span>
-
-                  {puesto && <Icon name="check" size={14} className="shrink-0 text-accent" />}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+              <span className="flex-1 truncate">{meta?.label ?? locale}</span>
+            </PopoverOption>
+          );
+        })}
+      </Popover>
     </div>
   );
 }
