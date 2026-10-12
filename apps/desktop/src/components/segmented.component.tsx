@@ -251,14 +251,16 @@ export function Segmented<T extends string>({
       )}
 
       {/*
-        El fondo del grupo es plano y sin anillo: lo unico con relieve es la
-        pompa. Un fondo un punto mas claro que la barra da la sensacion de
-        «hueco por donde meter cosas» sin aadir un solo borde.
+        El fondo del grupo tiene relieve propio y borde. Con `bg-hover` solo
+        —blanco al 5 %— no se distinguia de la barra en la que esta pegado, y
+        sin borde no se veía donde acababa el grupo. `bg-surface-2` lo separa y
+        el borde lo remata. El relleno sigue plano, sin sombra, para que lo
+        unico que parezca presionado sea la pompa.
       */}
       <div
         ref={pistaRef}
         className={[
-          'relative flex items-center bg-hover',
+          'relative flex items-center border border-line bg-surface-2',
           curva,
           completo ? 'flex-1' : '',
           compacto ? 'p-0.5' : 'p-1',
@@ -327,7 +329,7 @@ export function Segmented<T extends string>({
                  * solo en vez de dejar el texto claro encima de un relleno que
                  * ya casi no se ve.
                  */
-                activo && !parcial ? colores.sobrePompa : 'text-t4 hover:text-t2',
+                activo && !parcial ? colores.sobrePompa : 'text-t2 hover:text-t1',
               ].join(' ')}
             >
               {option.icon ? (

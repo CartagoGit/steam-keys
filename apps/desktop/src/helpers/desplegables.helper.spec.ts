@@ -435,7 +435,7 @@ describe('lo marcado se ve', () => {
    * de que el conjunto marcado esta ahi entero.
    */
   test('los tags caben todos, apilados por columna, sin recorte', () => {
-    expect(FILTRO).toContain('FILAS_POR_COLUMNA = 1');
+    expect(FILTRO).toContain('FILAS_POR_COLUMNA = 2');
     expect(FILTRO).toContain('ANCHO_MAX_TAG');
 
     // Ni un tope, ni el recuento de los que sobran, ni el recorte que los
@@ -513,7 +513,7 @@ describe('lo marcado se ve', () => {
 
     // El ancho va en pixels, que es lo unico que el navegador sabe interpolar
     // entre dos medidas. El alto no: va fijo, y eso lo comprueba otro test.
-    expect(FILTRO).toMatch(/className="relative shrink-0 overflow-hidden"[\s\S]{0,160}width: `\$\{anchoTags\}px`/);
+    expect(FILTRO).toMatch(/className="absolute top-0 left-0 overflow-hidden"[\s\S]{0,160}width: `\$\{anchoTags\}px`/);
   });
 
   /**
@@ -641,7 +641,7 @@ describe('el filtro de etiquetas', () => {
    * obligaria a volver a medirlo.
    */
   test('el alto de la columna es fijo y la transicion es solo de ancho', () => {
-    expect(FILTRO).toContain("const ALTO_COLUMNA = '2.5rem'");
+    expect(FILTRO).toContain("const ALTO_COLUMNA = '2.75rem'");
 
     // Ni una medida de alto que se pueda colar por ahi.
     expect(FILTRO).not.toContain('alto: altoTags');
@@ -664,6 +664,22 @@ describe('el filtro de etiquetas', () => {
    * defecto de la rejilla pasaria al reves —uno en la primera fila, otro en la
    * segunda— que es lo que se hizo y no es lo pedido.
    */
+  /**
+   * La columna **cuelga**, no empuja.
+   *
+   * Dos filas de tags son 44 px y el boton 40. Si la columna ocupara su sitio
+   * en el flujo, el bloque del filtro mediria 44, la fila entera creceria
+   * cuatro pixeles y los titulos de al lado se descuadrarian —el descentrado que
+   * se corrigio antes volviendo la fila a `items-start`—.
+   *
+   * En `absolute` ocupa ancho, que es lo que tiene que hacer para empujar, y no
+   * ocupa alto. El envoltorio queda a la altura del boton.
+   */
+  test('la columna de tags cuelga del boton en vez de empujar la fila', () => {
+    expect(FILTRO).toMatch(/<div className="relative shrink-0" style=\{\{ width: `\$\{anchoTags\}px` \}\}/);
+    expect(FILTRO).toContain('className="absolute top-0 left-0 overflow-hidden"');
+  });
+
   test('los tags llenan la columna antes de abrir la siguiente', () => {
     const flujos = FILTRO.match(/gridAutoFlow: 'column'/g);
 
@@ -731,11 +747,36 @@ describe('el filtro de etiquetas', () => {
    * Y el `border` de «Limpiar» tambien cuenta: con `py-2` se quedaba en 42.
    * Por eso ese va a `py-[7px]`, que es la cifra rara que deja los 40 justos.
    */
+  /**
+   * Los controles apagados se ven.
+   *
+   * Estaban con `bg-hover` —blanco al 5 %— y `text-t4`, que son 2,15:1 de
+   * contraste en el tema oscuro. Por debajo del 4,5 que pide la norma, y por
+   * debajo de lo que se necesita para que algo parezca pulsable: se leia como
+   * un texto con una flecha pegada, no como un boton.
+   *
+   * Con superficie y borde son 6,4:1 en oscuro y 10,3:1 en claro. El borde es
+   * la mitad del arreglo: sin el, el fondo no se distingue de la barra en la
+   * que esta pegado por mucho que se le suba.
+   */
+  test('los controles apagados tienen superficie y borde, no solo texto', () => {
+    expect(FILTRO).toMatch(/todas \? 'border border-line bg-surface-2 text-t2'/);
+    expect(FILTRO).not.toContain("todas ? 'bg-hover text-t4'");
+
+    // Y la pista de los toggles, que estaba en el mismo estado.
+    expect(SELECTOR).toContain("'relative flex items-center border border-line bg-surface-2',");
+    expect(SELECTOR).not.toContain("'relative flex items-center bg-hover',");
+
+    // El texto de los no marcados tambien: con `text-t4` sobre la pista nueva
+    // seguia sin leerse.
+    expect(SELECTOR).toContain("'text-t2 hover:text-t1'");
+  });
+
   test('el desplegable y limpiar miden lo mismo que los toggles', () => {
     expect(FILTRO).toMatch(/justify-between gap-2 rounded-full px-3 py-2/);
 
     // Y la columna de tags, atada al alto de ese boton.
-    expect(FILTRO).toContain("const ALTO_COLUMNA = '2.5rem'");
+    expect(FILTRO).toContain("const ALTO_COLUMNA = '2.75rem'");
   });
 
   test('la fila de filtros arranca arriba', () => {

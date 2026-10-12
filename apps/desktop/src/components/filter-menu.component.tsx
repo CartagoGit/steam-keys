@@ -9,18 +9,14 @@ import { useT } from '@/context/locale.context';
 type TAlcance = 'ninguna' | 'todas' | 'parcial';
 
 /**
- * Los tags marcados se apilan **por columna**, no por fila.
+ * Los tags marcados se apilan **por columna**, de dos en dos.
  *
- * Se llena una columna entera antes de abrir la siguiente: un tag, el de
- * debajo, y luego a la derecha. Es como se leen las listas de etiquetas de las
- * demas herramientas, y ademas tiene una propiedad que la fila no tiene — al
- * crecer solo hacia un lado, **la barra de filtros no cambia de alto**, que es
- * justo lo que tiene que pasar: el filtro de al lado se desplaza, la fila no.
+ * Se llena una columna entera antes de abrir la siguiente: el primero, el
+ * segundo debajo, y el tercero ya a la derecha. Es como se leen las listas de
+ * etiquetas de las demas herramientas.
  *
- * Por columna caben las que quepan en el alto del boton. Ahora mismo una, y
- * dos no: el boton mide 40 px y dos chips con su separacion miden 44. Subir
- * `FILAS_POR_COLUMNA` a dos obliga a subir `ALTO_COLUMNA` con el, o el segundo
- * chip se sale.
+ * Y al crecer solo hacia un lado, **la barra de filtros no cambia de alto**:
+ * el filtro de al lado se desplaza, la fila no.
  *
  * **No hay tope de cuantos se muestran.** Habia uno, y con cuatro marcadas
  * salia un «+1» en vez del tag: contar no es ver. Al crecer solo en horizontal
@@ -30,30 +26,33 @@ type TAlcance = 'ninguna' | 'todas' | 'parcial';
  * largo no se lleve media barra. Lo que no cabe se recorta y lleva el nombre
  * entero en el `title`.
  */
-const FILAS_POR_COLUMNA = 1;
+const FILAS_POR_COLUMNA = 2;
 
 /** Ancho maximo de un tag. Lo que pase, se recorta. */
 const ANCHO_MAX_TAG = '9rem';
 
+/** Alto de un chip. */
+const ALTO_CHIP = 'h-5';
+
+/** Separacion entre chips de la misma columna. */
+const ESPACIO_CHIPS = 'gap-1';
+
 /**
- * Alto de la columna: el del boton, para que no empuje la barra.
+ * Alto de la columna: dos chips y su separacion.
  *
- * La pista del pompa mide mas que su boton: lleva `p-1`, y por dentro el boton
- * son 32 px. El desplegable no tiene pista —es un boton suelto— asi que con el
- * mismo `py-1` que el boton del pompa se quedaba en 32, ocho pixeles por
- * debajo, y los dos parecian cosas distintas siendo un par. Con `py-2` queda
- * en 40, que es lo que mide la pista.
+ * **Va fijo y no sale de la medicion.** Si fuera lo que ocupan los chips,
+ * cada tag que se marcase haria el bloque del filtro mas alto, y con el la
+ * fila entera, que es el descentrado que se corrigio antes.
  *
- * Y el alto va fijo y no sale de la medicion, a proposito: si fuera lo que
- * ocupan los chips, cada tag que se marcase haria el bloque del filtro mas
- * alto, y con el la fila entera —que es el descentrado que se acaba de
- * arreglar—. Fijandolo al alto del boton, la columna nunca lo pasa y la barra
- * solo se mueve en horizontal: que es de donde tiene que empujar.
+ * Y aun asi44 no cabe en el alto del boton, que es 40. Por eso la caja va
+ * en `absolute` y el envoltorio no mide: la columna cuelga del boton hacia
+ * abajo en vez de encadrarse con el. Ocupa ancho —que es lo que tiene que
+ * hacer— pero no ocupa alto, y la barra no se entera en vertical.
  *
- * Esta atado a `py-2` del boton a proposito: si manana el boton cambia de alto,
- * el unico sitio que hay que tocar es este.
+ * Esta atado a `ALTO_CHIP` y `ESPACIO_CHIPS` a proposito: si el chip cambia
+ * de alto, el unico sitio que hay que tocar es este.
  */
-const ALTO_COLUMNA = '2.5rem';
+const ALTO_COLUMNA = '2.75rem';
 
 /** Tamano del texto del chip. Va aqui porque las utilidades no llegan. */
 const TAMANO_CHIP = '10px';
@@ -299,7 +298,7 @@ export function FilterMenu<T extends string>({
       key={String(option.value)}
       title={visible ? t(option.label) : undefined}
       className={[
-        'flex h-5 min-w-0 items-center gap-1 px-1.5 leading-none',
+        ['flex min-w-0 items-center gap-1 px-1.5 leading-none', ALTO_CHIP].join(' '),
         visible ? 'overflow-hidden rounded-md bg-surface-2 text-t2' : '',
       ].join(' ')}
       style={{ maxWidth: ANCHO_MAX_TAG, fontSize: TAMANO_CHIP }}
@@ -492,7 +491,13 @@ export function FilterMenu<T extends string>({
             // interruptor. Sin nada marcado esta apagado —no se esta filtrando—
             // y en cuanto se marca algo se enciende entero. El menu abierto no
             // lo enciende: abrirlo no es filtrar.
-            todas ? 'bg-hover text-t4' : [colores.relleno, colores.sobreRelleno].join(' '),
+            //
+            // Apagado **no** es casi invisible. Con `bg-hover` —blanco al 5 %—
+            // y `text-t4` el texto salia a 2,15:1 de contraste, por debajo
+            // del 4,5 que pide la norma, y el boton no pare pulsable sino un
+            // texto con una flecha pegada. Con superficie, borde y `text-t2`
+            // son 6,4:1 en el tema oscuro y 10,3:1 en el claro.
+            todas ? 'border border-line bg-surface-2 text-t2' : [colores.relleno, colores.sobreRelleno].join(' '),
             disabled ? 'opacity-40' : '',
           ].join(' ')}
         >
@@ -536,24 +541,24 @@ export function FilterMenu<T extends string>({
           mide, y otra visible con el ancho ya puesto en pixeles— y el ancho
           medido se le pone a la de fuera con `transition: width`.
 
-          **El alto va fijo y no se transiciona.** Sale de `ALTO_COLUMNA`, no
-          de la medicion, y a proposito: si fuera lo que ocupan los chips,
-          cada tag que se marcase haria el bloque del filtro mas alto, y con el
-          la fila entera —que es el descentrado que se acaba de arreglar—.
-          Fijandolo al alto del boton la columna nunca lo pasa, y la barra solo
-          se mueve en horizontal: que es de donde tiene que empujar.
+          **Y cuelga, no empuja.** El alto va fijo —dos chips y su separacion—
+          y ademas la caja va en `absolute`, con el envoltorio a la altura del
+          boton. Con dos filas la columna es 44 y el boton 40: si ocupara su
+          sitio en el flujo, el bloque del filtro mediria 44, la fila entera
+          creceria cuatro pixeles y los titulos de al lado se descuadrarian.
 
           **No hay tope de cuantos se muestran.** Con cuatro marcadas salia un
           «+1» en vez del tag, y contar no es ver: no se esconde ninguno.
         */}
-        <div
-          className="relative shrink-0 overflow-hidden"
-          style={{
-            width: `${anchoTags}px`,
-            height: ALTO_COLUMNA,
-            transition: TRANSICION_TAGS,
-          }}
-        >
+        <div className="relative shrink-0" style={{ width: `${anchoTags}px` }}>
+          <div
+            className="absolute top-0 left-0 overflow-hidden"
+            style={{
+              width: `${anchoTags}px`,
+              height: ALTO_COLUMNA,
+              transition: TRANSICION_TAGS,
+            }}
+          >
           {/*
             Esta caja es la que mide: `max-content` la deja al tamano de sus
             hijos aunque la de fuera le imponga otro, que es justo lo que
@@ -579,7 +584,7 @@ export function FilterMenu<T extends string>({
               gridAutoFlow: 'column',
               gridTemplateRows: `repeat(${FILAS_POR_COLUMNA}, auto)`,
               gridAutoColumns: 'max-content',
-              alignContent: 'center',
+              gap: ESPACIO_CHIPS,
               height: ALTO_COLUMNA,
               width: 'max-content',
             }}
@@ -606,12 +611,13 @@ export function FilterMenu<T extends string>({
               gridAutoFlow: 'column',
               gridTemplateRows: `repeat(${FILAS_POR_COLUMNA}, auto)`,
               gridAutoColumns: 'max-content',
-              alignContent: 'center',
+              gap: ESPACIO_CHIPS,
               height: ALTO_COLUMNA,
               width: 'max-content',
             }}
           >
             {opcionesVisibles.map((option) => chip(option, true))}
+          </div>
           </div>
         </div>
       </div>
