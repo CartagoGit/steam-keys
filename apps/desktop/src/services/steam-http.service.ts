@@ -50,8 +50,24 @@ async function hayInvoke(): Promise<boolean> {
   return invokeDisponible;
 }
 
-/** Coge el cuerpo de una peticion GET a Steam como texto. */
-export async function steamGet(ruta: string): Promise<string> {
+/**
+ * Coge el cuerpo de una peticion GET a Steam como texto.
+ *
+ * `signal` solo llega a la rama del navegador, y no por descuido: la otra es un
+ * `invoke`, y el comando de Rust no es cancelable desde fuera — Tauri v2 no
+ * expone forma de abortar un comando ya lanzado—. La verdad es que el comando
+ * de Rust lleva su propio tiempo limite del lado de `ureq`, asi que no se
+ * cuelga para siempre; pero desde Javascript no se puede cortar antes.
+ *
+ * Por eso, en la app de escritorio, resolver el nombre de un perfil **no** se
+ * puede cancelar, y el indicador de carga se queda hasta que Steam conteste.
+ * Es un caso lo bastante raro —un solo `GET` a un XML diminuto— como para no
+ * construir un puente de cancelacion entero por el.
+ */
+export async function steamGet(
+  ruta: string,
+  signal?: AbortSignal,
+): Promise<string> {
   if (await hayInvoke()) {
     const { invoke } = await import('@tauri-apps/api/core');
     return invoke<string>('steam_get', { ruta });
@@ -61,9 +77,15 @@ export async function steamGet(ruta: string): Promise<string> {
   // cabeceras CORS, asi que la biblioteca se puede leer desde el navegador.
   // Lo que no funciona es el XML del perfil, que es justo donde hace falta el
   // comando de Rust.
-  const respuesta = await fetch(`https://${ruta}`);
+  const respuesta = await fetch(
+    `https://${ruta}`,
+    signal === undefined ? undefined : { signal },
+  );
 
   if (!respuesta.ok) {
+    // El estado va en el mensaje y no en una clase propia porque aqui no hay
+    // quien lo distinga: el llamador —`resolveSteamId`— solo necesita saber
+    // que fallo, y el detalle se enseña en el aviso de la app.
     throw new Error(`Steam respondio con el estado ${respuesta.status}`);
   }
 

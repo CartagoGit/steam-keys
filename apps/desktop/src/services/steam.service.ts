@@ -60,7 +60,10 @@ export class SteamError extends Error {
  * nombre mal escrito se detecta aqui con un mensaje claro en vez de devolver
  * un error de autorizacion mas adelante que no explica nada.
  */
-export async function resolveSteamId(entrada: string): Promise<string> {
+export async function resolveSteamId(
+  entrada: string,
+  signal?: AbortSignal,
+): Promise<string> {
   const limpio = entrada.trim();
 
   if (/^7656119\d{10}$/.test(limpio)) return limpio;
@@ -82,32 +85,78 @@ export async function resolveSteamId(entrada: string): Promise<string> {
     );
   }
 
-let cuerpo: string;
+  let cuerpo: string;
 
-try {
+  try {
     // La peticion va por Rust cuando se puede: `steamcommunity.com` no manda
     // cabeceras CORS y el navegador la rechazaria antes de salir.
     cuerpo = await steamGet(
       `steamcommunity.com/id/${encodeURIComponent(handle)}/?xml=1`,
+      signal,
     );
   } catch (cause) {
+    /**
+     * Tauri **no** rechaza con un `Error`, sino con el `String` del `Err` de
+     * Rust. Mirar `instanceof Error` era por tanto una rama muerta dentro de
+     * Tauri —la app de escritorio, que es donde se usa esto— y los errores
+     * con mensaje propio («Ese dominio no esta permitido») llegaban aplastados
+     * al genérico. Ahora se mira el `string` que de verdad llega.
+     *
+     * Fuera de Tauri si es un `Error` de verdad, y su mensaje se conserva: son
+     * errores de red del navegador y su texto dice cosas que el nuestro no
+     * («Failed to fetch» no, pero «aborted» si, y ese caso ya se trata aparte).
+     */
+    const mensaje =
+      typeof cause === 'string'
+        ? cause
+        : cause instanceof Error
+          ? cause.message
+          : '';
+
     throw new SteamError(
-      cause instanceof Error
-        ? `No se pudo consultar Steam: ${cause.message}`
-        : 'No se pudo contactar con Steam.',
-      'http',
+      `No se pudo consultar Steam: ${mensaje}`.trim(),
+      cause instanceof Error && cause.name === 'AbortError'
+        ? 'cancelado'
+        : 'http',
     );
   }
 
-  // Steam **no** devuelve un 404 cuando el perfil no existe: responde con un
-  // 200 y el error va dentro del propio XML. Sin mirar esto, un nombre mal
-  // escrito se cuela como si fuera bueno y el fallo aparece mas tarde como
-  // una biblioteca vacia, que no explica nada.
-  const error = /<error><!\[CDATA\[([^\]]+)\]\]><\/error>/.exec(cuerpo)?.[1];
+  /**
+   * Steam **no** devuelve un 404 cuando el perfil no existe: responde con un
+   * 200 y el error va dentro del propio XML. Sin mirar esto, un nombre mal
+   * escrito se cuela como si fuera bueno y el fallo aparece mas tarde como
+   * una biblioteca vacia, que no explica nada.
+   *
+   * El patron acepta las tres formas que se han visto en produccion: con
+   * `CDATA`, sin `CDATA`, y partido por un salto de linea. El regex anterior
+   * exigia `<error><![CDATA[…]]></error>` exacto, y cuando no encajaba el flujo
+   * caia en «no se pudo leer el ID» —que dice «no supe leerlo», no «no
+   * existe»— que es el mensaje menos diagnostico de todos.
+   */
+  const error = /<error>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/error>/.exec(
+    cuerpo,
+  )?.[1]?.trim();
 
-  if (error) {
+  if (error !== undefined && error !== '') {
     throw new SteamError(
       `No hay ningun perfil con el nombre "${handle}".`,
+      'idInvalido',
+    );
+  }
+
+  /**
+   * Un perfil cuyo nombre «vanity» se renombro devuelve `<redirect>` con el
+   * nuevo, en vez de un error. Sin este caso caia en el mismo «no se pudo leer
+   * el ID», que manda a revisar como se escribio el nombre cuando el nombre
+   * esta bien y lo que cambio fue el destino.
+   */
+  const renombrado = /<redirect>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/redirect>/.exec(
+    cuerpo,
+  )?.[1]?.trim();
+
+  if (renombrado !== undefined && renombrado !== '') {
+    throw new SteamError(
+      `Ese perfil ahora se llama "${renombrado}".`,
       'idInvalido',
     );
   }
@@ -177,6 +226,15 @@ export const steamService = {
      */
     const PAUSA_ENTRE_PAGINAS_MS = 300;
 
+    /**
+     * Paginas seguidas sin ningún juego nuevo.
+     *
+     * Va **fuera** del bucle a proposito: si se declarara dentro, seria un
+     * contador que se reinicia en cada iteracion y por tanto siempre valdria
+     * cero — que es exactamente el bug que se arregla aqui, reintroducido.
+     */
+    let vaciasSeguidas = 0;
+
     for (let pagina = 0; pagina < MAX_PAGINAS; pagina += 1) {
       if (pagina > 0) await esperar(PAUSA_ENTRE_PAGINAS_MS, signal);
 
@@ -218,15 +276,35 @@ export const steamService = {
       for (const bruto of paginaJuegos) {
         const juego = normalizarJuego(bruto);
 
+        // Sin `appid` no hay forma de deduplicarlo, y colgarlo bajo una clave
+        // compartida haria desaparecer al resto. Se pierde el que falte.
+        if (juego === null) continue;
+
         if (vistos.has(juego.appId)) continue;
 
         vistos.set(juego.appId, juego);
         nuevos += 1;
       }
 
-      // Una pagina entera sin nada nuevo es la misma pagina repetida: seguir
-      // pidiendo solo gastaria el margen de peticiones para acabar igual.
-      if (nuevos === 0) break;
+      /**
+       * Paginacion repetida **consecutiva**, no una sola pagina sin novedades.
+       *
+       * Antes una pagina entera sin nada nuevo cortaba el bucle, y la
+       * justificacion era «una pagina sin nada nuevo es la misma pagina
+       * repetida». Eso es una suposicion, no una garantia: Steam no documenta
+       * que `page=` se respete con `include_appinfo=1`, ni que el orden sea
+       * estable entre peticiones. Si un juego cambia su `rtime_last_played` y
+       * la biblioteca se reordena, una pagina puede venir entera de cosas ya
+       * vistas **seguida** de una con cincuenta nuevas — y cortando ahi la
+       * biblioteca se queda a medias sin que nada diga nada.
+       *
+       * Dos paginas seguidas sin nada nuevo si son una senal mucho mas fuerte:
+       * para que eso pase por casualidad haria falta que dos reordenaciones
+       * coincidieran. Y el coste de acertar es una peticion mas.
+       */
+      vaciasSeguidas = nuevos === 0 ? vaciasSeguidas + 1 : 0;
+
+      if (vaciasSeguidas >= 2) break;
     }
 
     return [...vistos.values()];
@@ -363,7 +441,26 @@ function normalizarTienda(datos: IStorePayload, appId: number): ISteamStoreApp {
   };
 }
 
-function normalizarJuego(bruto: unknown): ISteamOwnedGame {
+/**
+ * Un juego de la biblioteca, o `null` si no se puede usar.
+ *
+ * El `null` es lo nuevo y es lo importante. Antes se hacía `appid ?? 0` y se
+ * insertaba igual: **todos** los juegos a los que les faltara el `appid` —
+ * o viniera como cadena, o en cero— caían en el mapa bajo la misma clave `0`,
+ * de modo que el primero se guardaba y los demás se descartaban sin avisar.
+ *
+ * Con eso, un `null` suelto en el array rompía el `item.appid` con un
+ * `TypeError` que salía como error de red y un `appid` ausente hacía que
+ * juegos que el usuario **sí tiene** desaparecieran de la biblioteca, mientras
+ * aparecía un juego fantasma con id `0` que no emparejaba con nada.
+ *
+ * Lo que se hace ahora es conservar la deduplicación por `appid` —que es
+ * correcta y necesaria— y descartar lo que no la puede usar. Perder una fila
+ * malformada es mejor que perder veinte detrás de ella.
+ */
+function normalizarJuego(bruto: unknown): ISteamOwnedGame | null {
+  if (bruto === null || typeof bruto !== 'object') return null;
+
   const item = bruto as {
     appid?: number;
     name?: string;
@@ -372,7 +469,14 @@ function normalizarJuego(bruto: unknown): ISteamOwnedGame {
     img_icon_url?: string;
   };
 
-  const appId = item.appid ?? 0;
+  // `Number.isInteger` y no `!= null`: un `appid` puede venir como cadena o
+  // como 0 si Steam responde algo raro, y `??` no cubre ninguno de los dos.
+  // El id es la clave de deduplicacion; sin el, el juego no tiene sitio.
+  const appId = item.appid;
+
+  if (typeof appId !== 'number' || !Number.isInteger(appId) || appId <= 0) {
+    return null;
+  }
 
   return {
     appId,
@@ -387,13 +491,37 @@ function normalizarJuego(bruto: unknown): ISteamOwnedGame {
 }
 
 /**
- * Pide JSON a Steam.
+ * Cuanto espera una peticion antes de darse por colgada.
  *
- * `signal` se pasa al `fetch`, que es lo que hace que la peticion sea
- * realmente cancelable y no solo «dejar de esperarla». Cuando se aborta, el
- * `fetch` lanza `AbortError`, y aqui se distingue de un fallo de red para que
- * quien llama pueda no avisar de un error que el propio usuario acaba de pedir.
+ * Sin esto, el unico final posible de un `fetch` a Steam es que responda o que
+ * el usuario pulse la X. Y hay un tercer caso que no cabe en esas dos: Steam
+ * acepta la conexion, manda las cabeceras 200 y luego deja el stream a medias.
+ * Es raro pero pasa con HTTP/2 a medias, y entonces `respuesta.json()` no
+ * resuelve nunca, la sincronizacion se queda esperando para siempre y el
+ * indicador de carga —que el usuario puede cerrar, pero no siempre mira— es lo
+ * unico que separa esa pantalla de una aplicacion colgada.
+ *
+ * Quince segundos es holgado para la API de Steam y corto para que no se note
+ * como fallo: si tarda mas, esta caida y ya se avisara.
  */
+const TIMEOUT_POR_PETICION_MS = 15_000;
+
+/**
+ * Estados que merece la pena volver a intententar.
+ *
+ * El 429 es lo que mas se ve, pero los 5xx son tan de Steam como el 429: la
+ * biblioteca de una cuenta con mil juegos son veinte peticiones seguidas y
+ * cualquier glitch del otro lado en la pagina quince se comia las veinte
+ * —tirando por el suelo todo lo ya recogido— sin que el usuario entendiera por
+ * que. Un 503 transitorio no es un fallo de la cuenta ni de la clave: es
+ * volver a preguntar.
+ *
+ * Los 4xx, en cambio, son definitivos. Un 400 es una peticion mal formada y un
+ * 401/403 es una clave caducada: repetirlo las tres veces solo retrasa el
+ * aviso.
+ */
+const REINTENTABLES = new Set([408, 425, 429, 500, 502, 503, 504]);
+
 /**
  * Pide JSON a Steam.
  *
@@ -408,16 +536,28 @@ function normalizarJuego(bruto: unknown): ISteamOwnedGame {
  * normal y el usuario veria un aviso de error por algo que el mismo acaba de
  * cancelar.
  *
- * El 429 no se propaga como fallo. Es «has ido demasiado rapido», lo unico que
- * Steam responde con codigo y lo unico que tiene arreglo; lo distingue
- * `pedirConMargen`, que espera y lo reintenta.
+ * Se aborta con **dos** señales —la del usuario y un reloj— y se distingue
+ * cual de las dos fue: `steam.cancelado` es «lo has pedido tu» y no se avisa;
+ * el reloj es un fallo y se avisa como tal. Confundirlos era el caso raro que
+ * de verdad no occurre nunca, y por eso no lo cubria nadie.
+ *
+ * El 429 y los 5xx **no** se propagan como fallo: son «ahora no», lo resuelve
+ * `pedirConMargen` esperando y reintentando.
  */
 async function pedirJson<T>(url: string, signal?: AbortSignal): Promise<T> {
+  const reloj = AbortSignal.timeout(TIMEOUT_POR_PETICION_MS);
+
+  // `AbortSignal.any` es lo que hace que las dos cosas sirvan a la vez. Con un
+  // solo `fetch` no se puede decir «corta esto, pero no antes de quince
+  // segundos» sin compositionarla antes.
+  const corte = signal === undefined ? reloj : AbortSignal.any([signal, reloj]);
+
   try {
-    const respuesta = await fetch(url, signal === undefined ? undefined : { signal });
+    const respuesta = await fetch(url, { signal: corte });
 
     if (!respuesta.ok) {
-      if (respuesta.status === 429) {
+      if (REINTENTABLES.has(respuesta.status)) {
+        // No lleva texto: es un estado intermedio, nunca llega a la pantalla.
         throw new SteamError('demasiado-rapido', 'limite');
       }
 
@@ -434,27 +574,57 @@ async function pedirJson<T>(url: string, signal?: AbortSignal): Promise<T> {
     // propaga tal cual en vez de reinterpretarse como fallo de red.
     if (cause instanceof SteamError) throw cause;
 
-    if (signal?.aborted === true || (cause as Error)?.name === 'AbortError') {
+    const abortado = corte.aborted || (cause as Error)?.name === 'AbortError';
+
+    // El orden importa: si el usuario pulso la X **y** el reloj habia saltado a
+    // la vez, es una cancelacion —no se avisa de nada que el usuario acaba de
+    // pedir—. Por eso se mira `signal` y no `corte`.
+    if (signal?.aborted === true) {
       throw new SteamError('Sincronizacion cancelada.', 'cancelado');
+    }
+
+    if (abortado) {
+      throw new SteamError('Steam no ha contestado.', 'http');
     }
 
     throw new SteamError('No se pudo contactar con Steam.', 'http');
   }
 }
 
-/** Espera que se pueda cortar, para no dejar un temporizador vivo. */
+/**
+ * Espera que se pueda cortar, para no dejar un temporizador vivo.
+ *
+ * El `{ once: true }` solo limpia el oyente **si el abort ocurre**. En el camino
+ * normal —el temporizador gana, que es el que se usa casi siempre— el oyente
+ * se queda registrado en el `AbortSignal` para siempre. Con una biblioteca de
+ * veinte paginas son veinte esperas y veinte oyentes reteniendo el `signal`
+ * entero, y a partir de diez Bun empieza a quejarse en la consola.
+ *
+ * Por eso se quita a mano en cuanto se resuelve, con el mismo gesto en los dos
+ * caminos.
+ */
 function esperar(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve) => {
-    const reloj = setTimeout(resolve, ms);
+    // Se guarda para quitarlo despues: sin esto, la primera alarma es «too many
+    // listeners», y el aviso aparece en un sitio donde nadie lo mira.
+    const alAbortar = (): void => {
+      clearTimeout(reloj);
+      resolve();
+    };
 
-    signal?.addEventListener(
-      'abort',
-      () => {
-        clearTimeout(reloj);
-        resolve();
-      },
-      { once: true },
-    );
+    const reloj = setTimeout(() => {
+      signal?.removeEventListener('abort', alAbortar);
+      resolve();
+    }, ms);
+
+    if (signal?.aborted === true) {
+      // Ya estaba abortado antes de empezar: `addEventListener` no dispara por
+      // un abort pasado, asi que sin esto se esperaria el tiempo entero.
+      alAbortar();
+      return;
+    }
+
+    signal?.addEventListener('abort', alAbortar, { once: true });
   });
 }
 
@@ -479,13 +649,25 @@ async function pedirConMargen<T>(
 
       if (!esLimite) throw cause;
 
-      // En el ultimo intento no hay mas margen: se convierte en el fallo de red
-      // de siempre, que es lo que el usuario sabe entender.
+      // En el ultimo intento no hay mas margen: se convierte en el fallo de
+      // red de siempre, que es lo que el usuario sabe entender.
       if (intento === intentos - 1) {
         throw new SteamError('Steam no ha contestado.', 'http');
       }
 
-      await esperar(1000 * (intento + 1), signal);
+      /**
+       * Exponencial de verdad, y con el suelo que pide Steam.
+       *
+       * El margen anterior era `1000 * (intento + 1)`, que es una progresión
+       * aritmetica —1 s y 2 s— donde lo que hace falta es que cada intento
+       * duplique el anterior: es lo que da margen a un servidor saturado sin
+       * convertir el retraso en algo que el usuario percibe como colgado.
+       *
+       * El suelo son cuatro segundos porque el limite real de Steam son cinco
+       * llamadas por cada diez segundos: reintentar al segundo tapaba la
+       * siguiente llamada y 发表aba el 429 que se estaba intentando esquivar.
+       */
+      await esperar(4000 * 2 ** intento, signal);
     }
   }
 
