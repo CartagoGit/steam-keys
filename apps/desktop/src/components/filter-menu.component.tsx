@@ -72,6 +72,23 @@ const TAMANO_CHIP = '10px';
  */
 const TAMANO_AVISO = '10px';
 
+/**
+ * Tope de alto del panel de los filtros, en pixeles.
+ *
+ * Grande a proposito: el alto **de verdad** lo pone la pantalla, que es lo que
+ * mide `Popover` al colocar el menu. Este numero solo entra cuando la ventana
+ * es mas alta que el, y para entonces interesa que el menu se aproveche entero
+ * y no que se quede a mitad de camino.
+ *
+ * Antes valia 320, que es un tope arbitrario que se cumplia siempre: el panel
+ * media 302 con cinco etiquetas, la cabecera y el pie se comian 111 y a las
+ * opciones les quedaban 182 —apenas cinco de 36, asi que salia scroll con las
+ * cinco a la vista y el menu se veia mas corto de lo que la ventana
+ * permitia—. Con 30 etiquetas pasaba lo mismo: el menu no crecia, se
+ * encogia la lista.
+ */
+const ALTO_MAXIMO_PANEL = 640;
+
 /** Cuanto tarda en deslizarse la columna al aparecer o desaparecer un tag. */
 const TRANSICION_TAGS = 'width 240ms cubic-bezier(0.34, 1.3, 0.64, 1)';
 
@@ -686,7 +703,23 @@ export function FilterMenu<T extends string>({
           scrollCopia
           ancla={botonRef}
           resaltada={resaltada}
-          altoMaximo={320}
+          /*
+           * Sin tope fijo: el alto lo marca **lo que haya debajo**, que es
+           * donde cae el contenido.
+           *
+           * Estaba en 320 y con eso el panel se quedaba clavado ahi siempre,
+           * se normase cuan larga fuera la lista. Con la cabecera y el pie se
+           * comian 111 de los 302 pixeles y a la lista le quedaban 182: cinco
+           * opciones de 36 ya no cabian y salia una barra de scroll en un menu
+           * que tiene sitio de sobra en la pantalla.
+           *
+           * Lo que limita de verdad el alto es la pantalla —eso lo calcula
+           * `Popover`, que mide el hueco que hay hasta el borde— asi que el
+           * menu crece con su contenido y, si no cabe, se desplaza. Anadir el
+           * candado al pie **agranda el desplegable**, que es lo unico que
+           * puede hacer: lo otro es salirsele de encima al contenido.
+           */
+          altoMaximo={ALTO_MAXIMO_PANEL}
           onCerrar={() => setAbierto(false)}
         >
           {/*

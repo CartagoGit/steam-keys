@@ -1140,12 +1140,14 @@ describe('el filtro de etiquetas', () => {
    * - **«Lo que tenga»** esta en castelhano y suena a frase hecha.
    *
    * Lo que hace de verdad la consulta es un operador, asi que se dice el
-   * operador: OR con el candado abierto, AND con el cerrado. Tres palabras, el
-   * termino exacto, y quien ha usado un filtro en cualquier sitio lo reconoce.
+   * operador. Y el que lo nombra es **el boton**, no la nota: el boton ya
+   * tiene el candado al lado y es lo que se pulsa, asi que ahi es donde se
+   * lee que filtro se esta aplicando.
    */
   test('el candado nombra el operador, en vez de repetir el icono', () => {
-    expect(I18N_ES).toContain("'filter.menu.excluirOff': 'OR: coincide con alguna de las marcadas.'");
-    expect(I18N_ES).toContain("'filter.menu.excluirOn': 'AND: coincide con todas las marcadas.'");
+    // Corto, porque lo que explica esta en la nota de al lado.
+    expect(I18N_ES).toContain("'filter.menu.excluirOff': 'OR — cualquiera'");
+    expect(I18N_ES).toContain("'filter.menu.excluirOn': 'AND — todas'");
 
     // Ni una palabra de las que se quitaron.
     for (const palabra of ['candado abierto', 'candado cerrado', 'sale lo que', 'sale solo']) {
@@ -1154,30 +1156,58 @@ describe('el filtro de etiquetas', () => {
   });
 
   /**
-   * La nota de abajo dice una sola cosa: que sin marcar no se filtra.
+   * La nota del pie dice las tres reglas del filtro, no una.
    *
-   * Se le habia puesto «Varias marcadas: union» y luego «interseccion», y las
-   * dos cosas estaban mal por el mismo motivo: **jerga de conjuntos**. Nadie
-   * que este filtrando etiquetas sabe lo que es una interseccion, y lo que
-   * hace la consulta ya lo dice el candado de al lado, con OR y con AND. Dos
-   * veces lo mismo, una de las dos en un idioma que no es el de la pantalla.
+   * Se quedo en «Sin marcar ninguna: sin filtro» y con eso desaparecio la
+   * parte importante: que con varias marcadas se puede pedir **cualquiera** o
+   * **todas**. Es la unica funcionalidad de los tres filtros que no se deduce
+   * mirando los botones, y sin la parece que el filtro solo sabe filtrar por
+   * una cosa.
    *
-   * La nota se queda con lo unico que no se deduce mirando los botones: que no
-   * marcar nada **no** es filtrar por nada, es no filtrar.
+   * Con «Varias: OR o AND» el boton dice cual de las dos esta puesta y la nota
+   * dice que las dos existen. Y son las tres reglas en una linea: sin marcar no
+   * se filtra —que es lo que no se deduce de un boton que pone «Todas»—, con
+   * una da igual, y con varias se elige el operador.
+   *
+   * Sin jerga de conjuntos: «interseccion» y «union» no le dicen nada a quien
+   * esta marcando etiquetas, y lo de verdad lo dice OR y AND.
    */
-  test('la nota del pie solo explica el caso de no marcar nada', () => {
-    for (const clave of [
-      'filter.tags.footHint',
-      'filter.menu.footHint',
-      'filter.menu.footHintExcluir',
-    ]) {
-      expect(I18N_ES).toContain(`'${clave}': 'Sin marcar ninguna: sin filtro.'`);
-    }
+  test('la nota del pie dice las tres reglas del filtro', () => {
+    expect(I18N_ES).toContain("'filter.tags.footHint': 'Ninguna marcada: sin filtro. Varias: OR o AND.'");
+    expect(I18N_ES).toContain("'filter.menu.footHint': 'Ninguna marcada: sin filtro.'");
+    expect(I18N_ES).toContain("'filter.menu.footHintExcluir': 'Ninguna marcada: sin filtro. Varias: AND.'");
 
     // Y nada de jerga de teoria de conjuntos en ninguna de las tres.
     for (const palabra of ['interseccion', 'union', 'uniao', 'intersecao']) {
       expect(I18N_ES).not.toContain(palabra);
     }
+  });
+
+  /**
+   * El menu **crece** con su contenido; no se encoge la lista.
+   *
+   * El alto maximo estaba en 320, un numero arbitrario que ademas se cumplia
+   * siempre: el panel media 302 siempre, cabecera y pie se comian 111 y a las
+   * opciones les quedaban 182. Con cinco etiquetas —180 de contenido— eso era
+   * un scroll de seis pixeles en un menu al que le sobraba media pantalla, y
+   * con treinta etiquetas la lista se encogia mas.
+   *
+   * El alto de verdad lo pone la pantalla, que es lo que mide `Popover` al
+   * colocar el menu. Este numero solo entra cuando la ventana es mas alta, y
+   * para entonces que el menu se aproveche entero.
+   *
+   * Medido: cinco opciones dan 302 px y siete dan 342, y en los dos casos sin
+   * barra de scroll. Antes los dos daban 320 y con scroll.
+   */
+  test('el alto del menu lo marca el contenido, no un numero fijo', () => {
+    expect(FILTRO).toContain('const ALTO_MAXIMO_PANEL = 640');
+    expect(FILTRO).toContain('altoMaximo={ALTO_MAXIMO_PANEL}');
+
+    // Y la lista cede el alto: sin `flex-1` growing, el pie no la aplasta.
+    expect(FILTRO).toContain('min-h-0 flex-1 overflow-y-auto overscroll-contain py-1');
+
+    // El pie es `shrink-0`, con lo que el que cede espacio es el de en medio.
+    expect(FILTRO).toContain('shrink-0 border-t border-line bg-surface-1');
   });
 
   /**
