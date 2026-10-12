@@ -129,14 +129,6 @@ export const gameKeyService = {
     await repository.markUsed(id);
   },
 
-  /** Parsea el TXT y devuelve el numero de claves listas para insertar. */
-  async analyzeTxt(contents: string): Promise<number> {
-    const repository = await getRepository();
-    const existing = await repository.listKeyValues();
-
-    return parseLegacyTxt(contents, { existingKeys: existing }).entries.length;
-  },
-
   /**
    * Importa el contenido de un TXT.
    *

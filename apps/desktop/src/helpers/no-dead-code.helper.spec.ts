@@ -71,6 +71,28 @@ function fuentes(): IFuente[] {
 const DECLARA = /^\s*export\s+(?:async\s+)?(function|const|class)\s+([A-Za-z_$][\w$]*)/gm;
 
 /**
+ * Metodos de un objeto exportado.
+ *
+ * Antes esto era un agujero: el guard miraba `export function`, `export
+ * const` y `export class`, y un metodo de un literal —`async getStoreApp(`,
+ * `async search(`— no casa con ninguno de los tres. En `steam.service.ts`
+ * se acumulaban tres metodos sin llamar, mas de cien lineas con la tienda
+ * de Steam —precio, metacritic, resenas— escritas para una pantalla de
+ * detalle que no llego a existir, y el guard en verde.
+ *
+ * Solo se miran los metodos del objeto **exportado**: un objeto local
+ * puede pasarse entero a otra funcion, y ahi el patron `\bnombre\b` no
+ * distingue una llamada de una propiedad.
+ *
+ * Se excluyen los nombres de tres letras o menos, por lo mismo que mas
+ * arriba: `run` o `map` colisionarian con media aplicacion.
+ */
+const METODO = /^\s{2}(?:async\s+)?([A-Za-z_$][\w$]*)\s*[(<]/gm;
+
+/** El nombre del objeto exportado al que pertenece el metodo, si lo hay. */
+const EXPORTADO = /^\s*export\s+const\s+([A-Za-z_$][\w$]*)\s*=\s*\{/gm;
+
+/**
  * Cuantas veces sale el nombre en el codigo, **sin contar su declaracion ni el
  * barril**.
  *
@@ -133,6 +155,86 @@ describe('codigo muerto', () => {
     }
 
     expect(muertas).toEqual([]);
+  });
+
+  /**
+   * Metodos de un objeto exportado que no se llaman nunca.
+   *
+   * Van aparte del test anterior porque se cuentan de otra manera: el uso
+   * tiene que ser `objeto.metodo` o `.metodo(`, no el nombre suelto. Un
+   * metodo que solo se menciona en un comentario —los comentarios ya estan
+   * fuera de `limpio`— o en el propio fichero sigue sin estar vivo.
+   */
+  test('no hay metodos de un objeto exportado sin usar', () => {
+    const muertos: string[] = [];
+
+    for (const fuente of todos) {
+      if (fuente.esBarril) continue;
+
+      EXPORTADO.lastIndex = 0;
+
+      const primerExportado = EXPORTADO.exec(fuente.limpio);
+
+      // Sin ningun objeto exportado no hay metodos que mirar.
+      if (!primerExportado) continue;
+
+      const objeto = primerExportado[1];
+      const desde = primerExportado.index + primerExportado[0].length;
+
+      /**
+       * El objeto se cierra con su llave al principio de linea, y en estos
+       * archivos los metodos van indentados con dos espacios. Cortar en el
+       * cierre evita que `METODO` se lleve por delante una funcion suelta de
+       * mas abajo.
+       */
+      const hasta = fuente.limpio.indexOf('\n};', desde);
+      const cuerpo = fuente.limpio.slice(
+        desde,
+        hasta < 0 ? undefined : hasta,
+      );
+
+      METODO.lastIndex = 0;
+
+      let encontrado: RegExpExecArray | null;
+
+      while ((encontrado = METODO.exec(cuerpo)) !== null) {
+        const metodo = encontrado[1];
+
+        if (!metodo) continue;
+
+        if (metodo.length <= 3) continue;
+
+        // `constructor`, `get x` y demas palabras reservadas no son la API
+        // del objeto.
+        if (metodo === 'constructor' || metodo === 'if' || metodo === 'for')
+          continue;
+
+        /**
+         * Cuenta **cualquier** acceso por punto, no solo la llamada.
+         *
+         * Un metodo se puede usar como valor —`gameKeyService.repository` que
+         * se pasa a otro sitio— y exigirle unos parentesis lo daria por
+         * muerto. Aqui el error posible va en un sentido: que otro objeto con
+         * un metodo del mismo nombre lo llame y este parezca vivo. Eso solo
+         * puede hacer que el guard **no** vea codigo muerto, nunca que se
+         * queje de algo que si se usa, que es la direccion en la que conviene
+         * equivocarse.
+         */
+        const acceso = new RegExp(`\\.${metodo}\\b`);
+
+        const usos = todos.reduce(
+          (total, f) =>
+            total + (f.esBarril ? 0 : (f.limpio.match(acceso) ?? []).length),
+          0,
+        );
+
+        if (usos === 0) {
+          muertos.push(`${fuente.ruta}: ${objeto}.${metodo}`);
+        }
+      }
+    }
+
+    expect(muertos).toEqual([]);
   });
 
   test('los barrels no reexportan nada que ya no exista', () => {

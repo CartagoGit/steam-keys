@@ -1,8 +1,7 @@
 import { steamGet } from './steam-http.service';
-import type { ISteamOwnedGame, ISteamOwnedGames, ISteamStoreApp } from '@/contracts';
+import type { ISteamOwnedGame, ISteamOwnedGames } from '@/contracts';
 
 const WEB_API = 'https://api.steampowered.com';
-const STORE_API = 'https://store.steampowered.com/api';
 
 /** Por que fallo una llamada a Steam. Lo que decide como se enseña. */
 export type TSteamErrorCodigo =
@@ -387,137 +386,7 @@ export const steamService = {
 
     return { juegos: [...vistos.values()], truncada };
   },
-
-  /**
-   * Busca un juego por nombre.
-   *
-   * Es la parte fragil: devuelve tambien los DLC y las ediciones sueltas, que
-   * es exactamente lo que hace que el emparejamiento no sea de fiar. Por eso
-   * quien llama tiene que mirar los candidatos, no coger el primero.
-   */
-  async search(term: string): Promise<readonly ISteamOwnedGame[]> {
-    const url =
-      `${STORE_API}/storesearch/?term=${encodeURIComponent(term)}&l=english&cc=us`;
-
-    const datos = await pedirJson<{
-      items?: { type?: string; name?: string; id?: number }[];
-    }>(url);
-
-    return (datos.items ?? [])
-      .filter((item) => item.type === 'app' && typeof item.id === 'number')
-      .map((item) => ({
-        appId: item.id as number,
-        name: item.name ?? '',
-        playtimeForever: 0,
-        lastPlayed: 0,
-        isDlc: false,
-        iconUrl: null,
-      }));
-  },
-
-  /** Datos publicos de un juego. No necesita clave. */
-  async getStoreApp(appId: number): Promise<ISteamStoreApp | null> {
-    const url = `${STORE_API}/appdetails?appids=${appId}&l=english&cc=us`;
-
-    const datos = await pedirJson<Record<string, { success?: boolean; data?: unknown }>>(
-      url,
-    );
-
-    const entrada = datos[String(appId)];
-
-    if (!entrada?.success || !entrada.data) return null;
-
-    return normalizarTienda(entrada.data as IStorePayload, appId);
-  },
-
-  /** Puntuaciones de resenas. No necesita clave. */
-  async getReviews(appId: number): Promise<
-    Pick<
-      ISteamStoreApp,
-      | 'reviewScore'
-      | 'reviewScoreDesc'
-      | 'totalReviews'
-      | 'totalPositive'
-      | 'totalNegative'
-      | 'recentPositiveRatio'
-      | 'recentTotal'
-    > | null
-  > {
-    const url =
-      `${STORE_API}/appreviews/${appId}` +
-      '?json=1&language=all&purchase_type=all&num_per_page=0';
-
-    try {
-      const datos = await pedirJson<{
-        success?: number;
-        query_summary?: {
-          review_score?: number;
-          review_score_desc?: string;
-          total_reviews?: number;
-          total_positive?: number;
-          total_negative?: number;
-        };
-      }>(url);
-
-      if (!datos.success) return null;
-
-      const resumen = datos.query_summary ?? {};
-
-      return {
-        reviewScore: resumen.review_score ?? null,
-        reviewScoreDesc: resumen.review_score_desc ?? null,
-        totalReviews: resumen.total_reviews ?? 0,
-        totalPositive: resumen.total_positive ?? 0,
-        totalNegative: resumen.total_negative ?? 0,
-        // La API publica no da el desglose de 30 dias: `filter=recent` y
-        // `day_range` devuelven exactamente lo mismo que sin filtro. Se deja en
-        // null en vez de inventar un numero.
-        recentPositiveRatio: null,
-        recentTotal: null,
-      };
-    } catch {
-      return null;
-    }
-  },
 };
-
-interface IStorePayload {
-  name?: string;
-  type?: string;
-  metacritic?: { score?: number };
-  recommendations?: { total?: number };
-  developers?: string[];
-  publishers?: string[];
-  genres?: { description: string }[];
-  categories?: { id: number; description: string }[];
-  price_overview?: { final_formatted?: string };
-  header_image?: string;
-}
-
-function normalizarTienda(datos: IStorePayload, appId: number): ISteamStoreApp {
-  const categorias = datos.categories ?? [];
-  const esDlc = datos.type === 'dlc' || categorias.some((c) => c.id === 21);
-
-  return {
-    appId,
-    name: datos.name ?? '',
-    type: esDlc ? 'dlc' : 'game',
-    developers: datos.developers ?? [],
-    publishers: datos.publishers ?? [],
-    genres: (datos.genres ?? []).map((genero) => genero.description),
-    categories: categorias.map((categoria) => categoria.description),
-    metacritic: datos.metacritic?.score ?? null,
-    reviewScore: null,
-    reviewScoreDesc: null,
-    totalReviews: datos.recommendations?.total ?? 0,
-    totalPositive: 0,
-    totalNegative: 0,
-    recentPositiveRatio: null,
-    recentTotal: null,
-    price: datos.price_overview?.final_formatted ?? null,
-    headerImage: datos.header_image ?? null,
-  };
-}
 
 /**
  * Un juego de la biblioteca, o `null` si no se puede usar.

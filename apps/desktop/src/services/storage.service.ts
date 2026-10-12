@@ -81,11 +81,6 @@ export const storageService = {
     return backupService.create(await getDatabaseClient(), reason);
   },
 
-  /** Copias de seguridad disponibles. */
-  async listBackups(): Promise<readonly IBackup[]> {
-    return backupService.list(await getDatabaseClient());
-  },
-
   /** Elimina una copia concreta. */
   async deleteBackup(name: string): Promise<void> {
     await backupService.remove(await getDatabaseClient(), name);
