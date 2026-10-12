@@ -31,6 +31,16 @@ export interface IShortcutsDialogProps {
 export function ShortcutsDialog({ open, onClose }: IShortcutsDialogProps) {
   const { t } = useT();
 
+  /**
+   * Solo se listan atajos que existen de verdad.
+   *
+   * Este dialogo se abre **buscando** un atajo: si aparece uno aqui y al
+   * pulsarlo no pasa nada, se pierde el rato y —peor— se pierde la fe en el
+   * resto de la lista. Antes anunciaba `Ctrl` dos veces seguidas para «marcar
+   * todas» y «marcar las que fallan», y ninguna de las dos hacia nada. Se ha
+   * dejado solo la primera, que ahora tiene manejador, y se ha añadido que
+   * Escape también limpia la seleccion.
+   */
   const grupos: readonly { titulo: string; filas: readonly IShortcutRow[] }[] = [
     {
       titulo: t('shortcuts.groupGeneral'),
@@ -44,8 +54,12 @@ export function ShortcutsDialog({ open, onClose }: IShortcutsDialogProps) {
     {
       titulo: t('shortcuts.groupSelection'),
       filas: [
-        { teclas: 'Ctrl', icono: 'check', descripcion: t('shortcuts.selectAll') },
-        { teclas: 'Ctrl', icono: 'alert', descripcion: t('shortcuts.selectFail') },
+        { teclas: 'Ctrl+A', icono: 'check', descripcion: t('shortcuts.selectAll') },
+        {
+          teclas: 'Escape',
+          icono: 'x',
+          descripcion: t('shortcuts.clearSelection'),
+        },
       ],
     },
     {
