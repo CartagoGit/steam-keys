@@ -52,6 +52,9 @@ export const PT: TranslationTable = Object.freeze({
   'filter.menu.all': 'Toutes',
   'filter.menu.none': 'Aucune',
   'filter.menu.scope': 'Combien en cocher',
+  'filter.tags': 'Etiquettes',
+  'filter.tags.footHint':
+    'Sans rien de coche, tout s affiche. Plusieurs cochees: tout ce qui en porte une.',
   'filter.menu.footHint':
     'Sans rien de coche, tout s affiche. Cochez-en plusieurs pour n voir que celles-la.',
   'filter.reset': 'Limpar a busca e os filtros',

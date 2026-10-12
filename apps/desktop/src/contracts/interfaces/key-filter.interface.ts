@@ -30,6 +30,20 @@ export interface IKeyFilter {
    * "muestra las regaladas" no significa nada.
    */
   statuses: readonly KeyStatus[];
+
+  /**
+   * Si esta vacio, no se filtra por etiqueta.
+   *
+   * Se guardan **normalizadas** —`normalizeTag`—, que es como las guarda el
+   * resto de la app: la etiqueta de una clave, la del catalogo y la de aqui
+   * tienen que ser la misma cadena para poder compararse con `===` sin
+   * canonicalizar en cada comparacion.
+   *
+   * Varias a la vez significa «OR»: una clave que lleve cualquiera de ellas
+   * sale. Es lo que espera quien marca tres etiquetas para ver «lo mio de este
+   * tema», no «lo que lleva las tres», que no suele ser nada.
+   */
+  tags: readonly string[];
 }
 
 /** Resumen para la barra de estadisticas. */

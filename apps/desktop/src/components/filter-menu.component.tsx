@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { Icon, type IconName } from './icon.component';
 import { Popover, PopoverOption } from './popover.component';
@@ -9,28 +9,28 @@ import { useT } from '@/context/locale.context';
 type TAlcance = 'ninguna' | 'todas' | 'parcial';
 
 /**
- * La rejilla de los tags marcados.
+ * Los tags marcados van en una rejilla de **dos columnas**.
  *
- * Tres medidas fijas y una sola variable: nada de esto depende de cuantos tags
- * haya ni de lo que midan sus textos. Es lo que permite que el hueco tenga el
- * mismo ancho con tres tags que con uno, y que cambiar de tres a uno **no
- * mueva** el filtro que viene detrás.
+ * Con nombres largos —«Elder Scrolls Online»— en una sola fila habia que
+ * recortar tanto que no seidia nada. En dos columnas caben dos nombres enteros
+ * y el tercero baja, que es justo lo pedido.
  *
- * El hueco mide lo mismo vacio que lleno porque se reserva la rejilla entera:
- * si encogiera al vaciarse, el filtro de estado se desplazaria hacia la
- * izquierda cada vez que se desmarca la ultima plataforma, y eso es un salto
- * de maquetacion en cada pulsacion.
+ * **No hay tope de cuantos se muestran.** Habia uno, y con cuatro marcadas ya
+ * salia un «+1» en vez del tag: contar no es ver. La columna crece y se encoge
+ * con ella, asi que no hace falta esconder nada.
+ *
+ * El ancho de un tag sale de su texto, con un maximo para que un nombre muy
+ * largo no se lleve media barra. Lo que no cabe se recorta y lleva el nombre
+ * entero en el `title`.
  */
-const TOPE_TAGS = 3;
-
-/** Tags por fila. Con dos caben dos nombres enteros; con uno, ninguno. */
 const POR_FILA = 2;
 
-/** Ancho de un hueco. No depende del texto: lo que no cabe se recorta. */
-const ANCHO_TAG = '4.5rem';
+/** Ancho maximo de un tag. Lo que pase, se recorta. */
+const ANCHO_MAX_TAG = '9rem';
 
-/** Alto de una fila de huecos. */
-const ALTO_TAG = '1.25rem';
+/** Cuanto tarda en deslizarse la columna al aparecer o desaparecer un tag. */
+const TRANSICION_TAGS =
+  'width 240ms cubic-bezier(0.34, 1.3, 0.64, 1), height 240ms cubic-bezier(0.34, 1.3, 0.64, 1)';
 
 /** Una opcion del desplegable. */
 export interface IFilterOption<T extends string> {
@@ -53,7 +53,17 @@ export interface IFilterMenuProps<T extends string> {
   /** Texto del boton cuando no hay nada marcado. */
   allLabel: string;
   /** Colores del grupo, para que se distinga de los otros filtros. */
-  tone: 'sky' | 'rose';
+  tone: 'sky' | 'rose' | 'violet';
+  /**
+   * Nota de abajo del menu. Por defecto la de los filtros de siempre, que
+   * habla de «marcar varias, solo esas».
+   *
+   * El de etiquetas necesita la suya porque **cambia el significado**: varias
+   * marcadas son OR —sale lo que lleva alguna—, no AND. Sin decirlo, quien
+   * marca «canducadas» y «regalo» esperando las dos se encuentra con mas de lo
+   * que pedia y no sabe si el filtro va mal.
+   */
+  footHint?: string;
   disabled?: boolean;
   disabledTitle?: string;
 }
@@ -75,6 +85,11 @@ const TONOS = {
     relleno: 'bg-danger',
     sobreRelleno: 'text-on-accent',
     titulo: 'text-danger-strong',
+  },
+  violet: {
+    relleno: 'bg-accent',
+    sobreRelleno: 'text-on-accent',
+    titulo: 'text-accent',
   },
 } as const;
 
@@ -104,6 +119,7 @@ export function FilterMenu<T extends string>({
   onChange,
   allLabel,
   tone,
+  footHint = 'filter.menu.footHint',
   disabled = false,
   disabledTitle,
 }: IFilterMenuProps<T>) {
@@ -168,11 +184,55 @@ export function FilterMenu<T extends string>({
    * lo que vino a resolver este desplegable. Con tres mas el «+N», se ve
    * cuales son sin poder estar mirando como crece la fila.
    */
-  const opcionesVisibles = options
-    .filter((option) => marcadas.has(option.value))
-    .slice(0, TOPE_TAGS);
+  const opcionesVisibles = options.filter((option) => marcadas.has(option.value));
 
-  const sobran = Math.max(0, marcadas.size - opcionesVisibles.length);
+  /**
+   * Cuanto ocupa la columna de tags, en pixeles.
+   *
+   * Se **mide** y se pone a mano en vez de dejarlo al `flex`, porque un ancho
+   * que decide el navegador en la misma pasada en que se pinta no se puede
+   * transicionar: no hay estado intermedio entre el ancho viejo y el nuevo, y
+   * el filtro de al lado se teletransporta en vez de desplazarse.
+   *
+   * La medida sale de una caja invisible con `max-content`, que se ajusta al
+   * contenido aunque la de fuera le imponga otro ancho. Asi lo que se mide es
+   * lo que **pediria** la rejilla, no lo que queda recortado.
+   *
+   * Empieza en cero para que en el primer pintado no haya un salto: sin tags el
+   * ancho es cero de verdad, no «cero que luego se corrige».
+   */
+  const medidaRef = useRef<HTMLDivElement>(null);
+  const [medida, setMedida] = useState({ ancho: 0, alto: 0 });
+
+  useLayoutEffect(() => {
+    const caja = medidaRef.current;
+
+    if (!caja) return;
+
+    const leer = (): void => {
+      const ancho = caja.offsetWidth;
+      const alto = caja.offsetHeight;
+
+      setMedida((anterior) =>
+        anterior.ancho === ancho && anterior.alto === alto ? anterior : { ancho, alto },
+      );
+    };
+
+    leer();
+
+    /**
+     * Los tags cambian de texto al cambiar de idioma, asi que el ancho tambien.
+     * Sin el observador, al cambiar de idioma la columna se queda con el ancho
+     * del idioma anterior y el filtro de al lado se queda donde estaba.
+     */
+    if (typeof ResizeObserver === 'undefined') return;
+
+    const observador = new ResizeObserver(leer);
+
+    observador.observe(caja);
+
+    return () => observador.disconnect();
+  }, [opcionesVisibles.length]);
 
   /**
    * El `title` del boton dice cuales son, todos.
@@ -181,11 +241,12 @@ export function FilterMenu<T extends string>({
    * cuales. Al pasar por encima se ve la lista entera, que es el sitio donde
    * uno se para un momento y lee.
    */
-  const resumen = marcadas.size === 0
-    ? allLabel
-    : sobran === 0
-      ? opcionesVisibles.map((option) => t(option.label)).join(', ')
-      : `${opcionesVisibles.map((option) => t(option.label)).join(', ')} +${sobran}`;
+  const resumen =
+    marcadas.size === 0
+      ? allLabel
+      : opcionesVisibles.map((option) => t(option.label)).join(', ');
+
+  const { ancho: anchoTags, alto: altoTags } = medida;
 
   const alternar = (valor: T): void => {
     const siguiente = marcadas.has(valor)
@@ -331,7 +392,18 @@ export function FilterMenu<T extends string>({
         no seidia nada; en dos columnas caben dos nombres enteros y el tercero
         baja.
       */}
-      <div className="flex shrink-0 items-start gap-1.5">
+      {/*
+        Boton y tags, juntos. El hueco entre ellos es de `gap-1`, el minimo:
+        los tags son parte de este filtro, no un filtro aparte, asi que van
+        pegados. El espacio de verdad lo pone el `gap-x-5` de la barra, que es
+        el que separa este filtro del de estado — y ese si se mantiene, porque
+        si no los dos filtros parecerian uno solo.
+
+        `items-start` y no `items-center`: con tags en dos filas el boton tiene
+        que quedarse arriba, pegado a su titulo, en vez de flotar en medio de
+        una columna mas alta que el.
+      */}
+      <div className="flex shrink-0 items-start gap-1">
         <button
           ref={botonRef}
           type="button"
@@ -381,83 +453,101 @@ export function FilterMenu<T extends string>({
         </button>
 
         {/*
-          Los tags marcados, en su columna.
+          Los tags marcados, en su columna a la derecha.
 
-          Cada uno va con `transform` y no en el flujo, que es lo que hace que el
-          desplazamiento sea **animable**: al desmarcar uno, los de detras se
-          recolocan en su hueco nuevo y se deslizan hasta alli con la
-          transicion, en vez de saltar. Lo mismo al marcar: el que aparece se
-          abre desde donde estaba y empuja a los siguientes.
+          El contenedor mide **lo que necesitan los tags**, no una reserva, y el
+          filtro de al lado se ve desplazarse cuando aparecen o desaparecen. Es
+          lo pedido: si el hueco se reservase fijo, el filtro de estado se
+          quedaria quieto y los tags no tendrian a donde empujar.
 
-          El hueco reserva la rejilla entera aunque no haya nada. Si midiera lo
-          que ocupa, el filtro de estado que viene despues se moveria hacia la
-          izquierda cada vez que se vaciara, y eso es un salto en cada
-          pulsacion.
+          El ancho se mide y se pone a mano para poder transicionar. Un `flex`
+          calcula su ancho y ya esta: no hay transicion posible sobre un ancho
+          que el navegador decide en la misma pasada en que se pinta. Asi que
+          hay dos cajas —una invisible ajustada al contenido, que es la que
+          mide, y otra visible con el ancho ya puesto en pixeles— y el ancho
+          medido se le pone a la de fuera con `transition: width`.
 
-          El «+N» ocupa el hueco que queda libre, no uno extra: asi el ancho
-          nunca depende de cuantos haya marcados.
+          El alto se transiciona tambien, porque al bajarse a una segunda fila
+          el filtro de al lado se elevaria de golpe.
+
+          **No hay tope de cuantos se muestran.** Con cuatro marcadas salia un
+          «+1» en vez del tag, y contar no es ver: no se esconde ninguno.
         */}
         <div
-          className="relative shrink-0"
+          className="relative shrink-0 overflow-hidden"
           style={{
-            width: `calc(${ANCHO_TAG} * ${POR_FILA} + 0.25rem)`,
-            height: ALTO_TAG,
+            width: `${anchoTags}px`,
+            height: `${altoTags}px`,
+            transition: TRANSICION_TAGS,
           }}
         >
-          {[
-            ...opcionesVisibles.map((option, posicion) => ({
-              clave: String(option.value),
-              posicion,
-              nodo: (
-                <>
-                  {option.dot ? (
-                    <span
-                      aria-hidden="true"
-                      className={['h-1.5 w-1.5 shrink-0 rounded-full', option.dot].join(' ')}
-                    />
-                  ) : option.icon ? (
-                    <Icon name={option.icon} size={9} className="shrink-0 opacity-80" />
-                  ) : null}
+          {/*
+            Esta caja es la que mide: `max-content` la deja al tamano de sus
+            hijos aunque la de fuera le imponga otro, que es justo lo que
+            necesita —mide lo que pediria la rejilla, no lo que hay recortado—.
+            No se ve y no transiciona.
 
-                  <span className="truncate">{t(option.label)}</span>
-                </>
-              ),
-            })),
-            ...(sobran > 0
-              ? [
-                  {
-                    clave: '+resto',
-                    posicion: TOPE_TAGS,
-                    nodo: <span className="tabular-nums">+{sobran}</span>,
-                  },
-                ]
-              : []),
-          ].map(({ clave, posicion, nodo }) => (
-            <span
-              key={clave}
-              style={{
-                width: ANCHO_TAG,
-                height: ALTO_TAG,
-                // La columna y la fila salen del indice. `transform` y no
-                // `top`/`left`: es lo que transiciona.
-                transform: `translate(
-                  calc(${posicion % POR_FILA} * (${ANCHO_TAG} + 0.25rem)),
-                  calc(${Math.floor(posicion / POR_FILA)} * ${ALTO_TAG})
-                )`,
-                transition:
-                  'transform 240ms cubic-bezier(0.34, 1.3, 0.64, 1), opacity 200ms ease-out',
-              }}
-              className={[
-                'absolute top-0 left-0 flex items-center gap-1 overflow-hidden rounded-md px-1.5',
-                'bg-surface-2 text-[10px] leading-none text-t2',
-                // Sin nada marcado no hay tags, pero el hueco sigue reservando
-                // el ancho: por eso esto es `opacity` y no quitar el elemento.
-                todas ? 'opacity-0' : 'opacity-100',
-              ].join(' ')}
-            >
-              {nodo}
-            </span>
-          ))}
+            Y las columnas son `max-content`, no del ancho maximo. Con
+            `9rem` fijas, una rejilla de dos columnas ocupa 18rem **aunque este
+            vacia**: se vio un hueco de 292 px a la derecha de «Todas» en los
+            filtros de plataforma y estado, que no tienen un solo tag. Medir
+            lo que pide, y no lo que permite, es justo de lo que va esto.
+          */}
+          <div
+            ref={medidaRef}
+            aria-hidden="true"
+            className="pointer-events-none invisible absolute top-0 left-0 grid gap-1"
+            style={{
+              gridTemplateColumns: `repeat(${POR_FILA}, minmax(0, max-content))`,
+              width: 'max-content',
+            }}
+          >
+            {opcionesVisibles.map((option) => (
+              <span
+                key={String(option.value)}
+                className="flex h-5 min-w-0 items-center gap-1 px-1.5"
+                style={{ maxWidth: ANCHO_MAX_TAG }}
+              >
+                {option.dot ? (
+                  <span
+                    aria-hidden="true"
+                    className={['h-1.5 w-1.5 shrink-0 rounded-full', option.dot].join(' ')}
+                  />
+                ) : option.icon ? (
+                  <Icon name={option.icon} size={9} className="shrink-0 opacity-80" />
+                ) : null}
+
+                <span className="truncate">{t(option.label)}</span>
+              </span>
+            ))}
+          </div>
+
+          <div
+            className="grid gap-1"
+            style={{
+              gridTemplateColumns: `repeat(${POR_FILA}, minmax(0, max-content))`,
+              width: `${anchoTags}px`,
+            }}
+          >
+            {opcionesVisibles.map((option) => (
+              <span
+                key={String(option.value)}
+                title={t(option.label)}
+                className="flex h-5 min-w-0 items-center gap-1 overflow-hidden rounded-md bg-surface-2 px-1.5 text-[10px] leading-none text-t2"
+              >
+                {option.dot ? (
+                  <span
+                    aria-hidden="true"
+                    className={['h-1.5 w-1.5 shrink-0 rounded-full', option.dot].join(' ')}
+                  />
+                ) : option.icon ? (
+                  <Icon name={option.icon} size={9} className="shrink-0 opacity-80" />
+                ) : null}
+
+                <span className="truncate">{t(option.label)}</span>
+              </span>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -527,7 +617,7 @@ export function FilterMenu<T extends string>({
                * esa es la que no se enciende.
                */
               parcial={alcance === 'parcial'}
-              tone={tone === 'sky' ? 'sky' : 'rose'}
+              tone={tone}
               value={alcance === 'todas' ? 'todas' : 'ninguna'}
               options={[
                 { value: 'ninguna', label: t('filter.menu.none') },
@@ -627,7 +717,7 @@ export function FilterMenu<T extends string>({
             muchas, la nota no puede ser lo primero que se vaya al bajar.
           */}
           <p className="sticky bottom-0 border-t border-line bg-surface-1 px-3 py-2 text-[10px] leading-relaxed text-t4">
-            {t('filter.menu.footHint')}
+            {t(footHint)}
           </p>
         </Popover>
       ) : null}

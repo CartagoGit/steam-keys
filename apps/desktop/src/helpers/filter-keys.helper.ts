@@ -15,6 +15,7 @@ export function emptyFilter(): IKeyFilter {
     kind: KeyKind.All,
     platforms: [],
     statuses: [],
+    tags: [],
   };
 }
 
@@ -34,6 +35,7 @@ export function filterKeys(
   const needle = normalize(filter.search);
   const platforms = new Set<KeyPlatform>(filter.platforms);
   const giftable = new Set<KeyStatus>(GIFTABLE_STATUSES);
+  const tags = new Set<string>(filter.tags);
 
   // El filtro de estado solo cuenta cuando el ambito es "todos"; si ya estamos
   // en "solo disponibles", el estado no se puede acotar mas.
@@ -52,6 +54,13 @@ export function filterKeys(
 
     if (platforms.size > 0 && !platforms.has(key.platform)) return false;
     if (statuses.size > 0 && !statuses.has(key.status)) return false;
+
+    /**
+     * Varias etiquetas a la vez son **OR**, no AND: con «canducadas» y
+     * «regalo» marcadas sale lo que lleva cualquiera de las dos. Con AND casi
+     * nunca saldria nada, que es la sensacion de filtro roto.
+     */
+    if (tags.size > 0 && !key.tags.some((tag) => tags.has(tag))) return false;
 
     if (needle.length === 0) return true;
 

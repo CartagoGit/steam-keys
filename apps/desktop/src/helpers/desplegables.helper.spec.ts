@@ -61,6 +61,9 @@ const VISTAS = fuente('components/view-switch.component.tsx');
 const AJUSTES = fuente('components/settings-dialog.component.tsx');
 const BARRA = fuente('components/toolbar.component.tsx');
 const CSS = fuente('styles/index.css');
+const FILTRO_CLAVE = fuente('contracts/interfaces/key-filter.interface.ts');
+const FILTRAR = fuente('helpers/filter-keys.helper.ts');
+const APP = fuente('app.component.tsx');
 
 describe('desplegables', () => {
   test('el panel es el unico que se desplaza', () => {
@@ -406,7 +409,7 @@ describe('lo marcado se ve', () => {
    */
   test('los tags van a la derecha del boton y el boton no se estira', () => {
     // La columna de tags envuelve al boton.
-    expect(FILTRO).toMatch(/<div className="flex shrink-0 items-start gap-1\.5">\s*<button/);
+    expect(FILTRO).toMatch(/<div className="flex shrink-0 items-start gap-1">\s*<button/);
 
     // El boton no lleva ancho maximo: eso era para que los tags de dentro no lo
     // partiesen, y ya no hace falta.
@@ -419,66 +422,171 @@ describe('lo marcado se ve', () => {
   });
 
   /**
-   * Los tags se apilan en filas de dos y bajan a la siguiente.
+   * Los tags se reparten en dos columnas y caben todos.
    *
    * Con nombres largos —«Elder Scrolls Online»— en una sola fila habia que
-   * recortar tanto que no seidia nada. En dos columnas caben dos nombres
+   * recortar tanto que no se via nada. En dos columnas caben dos nombres
    * enteros y el tercero baja.
+   *
+   * **Y no hay tope de cuantos se ven.** Se puso uno y era un error de
+   * criterio, no de espacio: con cuatro marcadas salia un «+1» en vez del tag.
+   * Contar no es ver. Ocultar un filtro que el usuario acaba de marcar es
+   * ademas lo contrario de lo que un filtro debe hacer, que es dar la sensacion
+   * de que el conjunto marcado esta ahi entero.
    */
-  test('los tags ocupan huecos fijos y se reparten en filas', () => {
+  test('los tags caben todos, en dos columnas, sin recorte', () => {
     expect(FILTRO).toContain('POR_FILA = 2');
-    expect(FILTRO).toContain('slice(0, TOPE_TAGS)');
+    expect(FILTRO).toContain('ANCHO_MAX_TAG');
 
-    // La columna sale del indice, no del orden en el DOM.
-    expect(FILTRO).toContain('posicion % POR_FILA');
-    expect(FILTRO).toContain('Math.floor(posicion / POR_FILA)');
+    // Ni un tope, ni el recuento de los que sobran, ni el recorte que los
+    // escondia. Los tres son el mismo error contado de tres formas.
+    expect(FILTRO).not.toContain('TOPE_TAGS');
+    expect(FILTRO).not.toContain('sobran');
+    expect(FILTRO).not.toMatch(/opcionesVisibles\s*=\s*options\.filter\([^)]*\)\.slice\(/);
 
-    // Ancho y alto fijos: no dependen de cuantos haya ni de lo que midan.
-    expect(FILTRO).toContain('ANCHO_TAG');
-    expect(FILTRO).toContain('ALTO_TAG');
+    // Se filtered los marcados y se pintan tal cual.
+    expect(FILTRO).toContain(
+      'const opcionesVisibles = options.filter((option) => marcadas.has(option.value));',
+    );
 
-    // El «+N» entra en un hueco libre, no en uno extra: si no, el ancho
-    // dependeria de cuantos haya marcados.
-    expect(FILTRO).toContain('posicion: TOPE_TAGS');
+    // Las dos cajas —la que mide y la que se ve— comparten las mismas
+    // columnas, o medirian una cosa y pintarian otra.
+    const columnas = FILTRO.match(
+      /gridTemplateColumns: `repeat\(\$\{POR_FILA\}, minmax\(0, max-content\)\)`/g,
+    );
+
+    expect(columnas).toHaveLength(2);
+
+    /**
+     * Las columnas no se reservan enteras aunque no haya nada.
+     *
+     * Con las columnas fijas a `9rem`, una rejilla de dos columnas ocupa 18rem
+     * **aunque este vacia**. Se vio: los filtros de plataforma y estado —que no
+     * tienen ni un tag— dejaban un hueco de 292 px a la derecha de «Todas», y
+     * el filtro de al lado no se movia nunca porque el hueco ya estaba ahi.
+     *
+     * Asi que se mide `max-content` y el tope se le pone al chip, no a la
+     * columna. Si el tope estuviera en la columna, la columna ocuparia lo mismo
+     * con cero tags que con veinte.
+     */
+    expect(FILTRO).not.toContain(`minmax(0, \${ANCHO_MAX_TAG})`);
+    expect(FILTRO).toContain('style={{ maxWidth: ANCHO_MAX_TAG }}');
   });
 
   /**
-   * Al marcar o desmarcar, los tags se desplazan y el filtro de al lado no.
+   * La columna de tags **empuja** al filtro de al lado, y lo hace deslizando.
    *
-   * Dos cosas distintas, y las dos se rompen solas si se descuidan:
+   * Aqui no vale lo de antes. Cuando el hueco tenia un alto fijo, el filtro de
+   * estado no se enteraba de nada; ahora los tags miden lo que ocupan y el
+   * ancho sale de ahi, asi que el filtro de al lado **si** se mueve —que es lo
+   * que tiene que hacer, para que se vea que el filtro se ha quedado estrecho—
+   * pero no pega un salto.
    *
-   * - El tag se coloca con `transform`, que es lo unico que transiciona. Con
-   *   `top`/`left` en el flujo, desmarcar uno hacia que los de detras saltaran
-   *   de golpe a su hueco en vez de deslizarse.
-   * - El hueco reserva la rejilla entera aunque este vacio. Si midiera lo que
-   *   ocupa, el filtro de estado que viene despues se moveria hacia la
-   *   izquierda cada vez que se vaciara, y eso es un salto en cada pulsacion.
+   * Por eso van dos cajas:
+   *
+   * - La de dentro lleva `width: max-content` y esta oculta. Sin eso mediria
+   *   lo que le impone el ancho de fuera, que es justo el ancho viejo, y la
+   *   medida no serviria para nada. Es la que `medir`.
+   * - La de fuera lleva el ancho medido, en pixels, y es la que transiciona.
+   *
+   * Y por eso la transicion es de `width`/`height` y no de `transform`: el
+   * ancho de un contenedor no se puede animar con `transform` sin deformar el
+   * contenido.
    */
-  test('el desplazamiento se anima y no arrastra al filtro de al lado', () => {
-    expect(FILTRO).toMatch(/transition:\s*\n?\s*'transform 240ms[^']*opacity/);
+  test('la columna se mide de verdad y empuja al de al lado con animacion', () => {
+    // Se mide en un efecto de layout, no en uno normal: en un `useEffect` normal
+    // el navegador ya ha pintado la columna sin ancho, y eso es un salto.
+    expect(FILTRO).toMatch(/useLayoutEffect\(\(\) => \{\s*\n\s*const caja = medidaRef\.current/);
 
-    // Se aplica el `transform`, no `top`/`left`.
-    expect(FILTRO).toContain('transform: `translate(');
+    // Y se re-mide cuando cambian, porque los tags cambian de texto al cambiar
+    // de idioma y el ancho tambien.
+    expect(FILTRO).toContain('new ResizeObserver(leer)');
 
-    // El alto del hueco se fija aunque no haya tags.
-    expect(FILTRO).toMatch(/height:\s*ALTO_TAG/);
+    // La caja que mide es invisible y no se pinte: si se viera, se veria dos
+    // veces la misma lista.
+    expect(FILTRO).toMatch(/ref=\{medidaRef\}[\s\S]{0,200}className="pointer-events-none invisible/);
+
+    // Y mide lo que la rejilla pediria, no lo que hay recortado.
+    expect(FILTRO).toMatch(/ref=\{medidaRef\}[\s\S]{0,400}width: 'max-content'/);
+
+    // El ancho y el alto van en pixels, que es lo unico que el navegador sabe
+    // interpolar entre dos medidas.
+    expect(FILTRO).toMatch(/className="relative shrink-0 overflow-hidden"[\s\S]{0,160}width: `\$\{anchoTags\}px`/);
+    expect(FILTRO).toMatch(/className="relative shrink-0 overflow-hidden"[\s\S]{0,160}height: `\$\{altoTags\}px`/);
+
+    // Y la transicion es justo de los dos, con el mismo reposaje que la pompa.
+    expect(FILTRO).toContain(
+      "const TRANSICION_TAGS =\n  'width 240ms cubic-bezier(0.34, 1.3, 0.64, 1), height 240ms cubic-bezier(0.34, 1.3, 0.64, 1)';",
+    );
   });
 
-  /** Lo que no cabe se ve al pasar por encima: el «+3» no dice cuales. */
+  /**
+   * El `title` del boton lleva la lista entera, no solo la primera fila.
+   *
+   * Los chips ya enseñan todos, pero cabe mas de una fila y en pantallas
+   * estrechas la de abajo se sale. El `title` es donde uno se para un momento a
+   * leer, asi que tiene que llevar la lista entera.
+   */
   test('el tooltip lleva la lista entera, no solo lo que cabe', () => {
     expect(FILTRO).toContain('resumen');
     expect(FILTRO).toMatch(/title=\{disabled \? disabledTitle : `\$\{label\}: \$\{resumen\}`\}/);
   });
+});
+
+describe('el filtro de etiquetas', () => {
+  /**
+   * Las etiquetas se filtran, no se decoran.
+   *
+   * Los chips se pueden haber puesto por hermosura y no filtrar nada, que es lo
+   * que paso la primera vez que se pintaron: se veian, se podian marcar y la
+   * lista no cambiaba. Un filtro que no filtra es peor que no tener filtro,
+   * porque hace creer que se esta mirando menos de lo que se mira.
+   */
+  test('las etiquetas entran en el filtro y hacen efecto', () => {
+    // El contrato lleva la lista.
+    expect(FILTRO_CLAVE).toMatch(/tags:\s*readonly string\[\]/);
+
+    // Y el filtro vacio la deja vacia. Si se olvidara aqui, `filter.tags` seria
+    // `undefined` y `.has` reventaria en la primera tecla.
+    expect(FILTRAR).toMatch(/emptyFilter\([^)]*\)[^{]*\{[\s\S]{0,300}?tags:\s*\[\]/);
+
+    // Se compara contra un conjunto: es la diferencia entre comprobar cada
+    // etiqueta suelta y comprobar una vez.
+    expect(FILTRAR).toContain('const tags = new Set<string>(filter.tags)');
+
+    // Y es una disyccion, no una conjunccion: con dos marcadas sale lo que
+    // tenga cualquiera de las dos. Conjuncion seria «lo que tenga las dos», que
+    // es un filtro que casi nunca devuelve nada y parece roto.
+    expect(FILTRAR).toContain('!key.tags.some((tag) => tags.has(tag))');
+  });
 
   /**
-   * Lo que no cabe en los chips se ve en el tooltip.
+   * El filtro solo aparece si hay etiquetas que filtrar.
    *
-   * El «+3» no dice cuales son. El `title` del boton es donde uno se para un
-   * momento a leer, asi que tiene que llevar la lista entera.
+   * Con el catalogo vacio —una instalacion nueva, o una donde se han borrado
+   * todas— un desplegable que se abre sobre nada es ruido. Y su `key` cambia
+   * con la longitud del catalogo, asi que montar y desmontar en cada pulsacion
+   * no es una perdida menor.
    */
-  test('el tooltip lleva la lista entera, no solo lo que cabe', () => {
-    expect(FILTRO).toContain('resumen');
-    expect(FILTRO).toMatch(/title=\{disabled \? disabledTitle : `\$\{label\}: \$\{resumen\}`\}/);
+  test('el filtro aparece en la barra solo cuando hay catalogo', () => {
+    expect(BARRA).toMatch(/catalogo\.length > 0/);
+
+    // Y el catalogo llega desde el componente raiz, que es quien lo tiene.
+    expect(APP).toMatch(/<Toolbar[\s\S]{0,400}?catalogo=\{tags\}/);
+    expect(BARRA).toMatch(/catalogo:\s*readonly ITag\[\]/);
+  });
+
+  /**
+   * Cada dropdown lleva su tono, y el de las etiquetas no es uno de los otros.
+   *
+   * No es cosmetica del todo: el tono es lo que dice que filtro es cual cuando
+   * hay cuatro seguidos y sin leer. Repetir el tono de otro seria como si no
+   * hubiera filtro.
+   */
+  test('las etiquetas tienen tono propio en el desplegable y en la pompa', () => {
+    expect(BARRA).toMatch(/<FilterMenu[\s\S]{0,600}?tone="violet"/);
+    expect(FILTRO).toMatch(/violet:\s*\{\s*relleno: 'bg-accent',\s*sobreRelleno: 'text-on-accent',\s*titulo: 'text-accent'/);
+    expect(SELECTOR).toMatch(/violet:\s*\{\s*pompa: 'bg-accent',\s*sobrePompa: 'text-on-accent',\s*titulo: 'text-accent'/);
   });
 });
 

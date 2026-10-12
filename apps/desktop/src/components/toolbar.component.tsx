@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { AppView, KEY_PLATFORM_META, KEY_PLATFORM_VALUES, KEY_STATUS_VALUES, KeyKind, KeyScope, KeySort, SEARCH_SHORTCUT, TRANSLATIONS, platformLabel, statusMeta, type IKeyFilter, type IKeyStats, type SteamAccountStatus } from '@/contracts';
+import { AppView, KEY_PLATFORM_META, KEY_PLATFORM_VALUES, KEY_STATUS_VALUES, KeyKind, KeyScope, KeySort, SEARCH_SHORTCUT, TRANSLATIONS, platformLabel, statusMeta, type IKeyFilter, type IKeyStats, type ITag, type SteamAccountStatus } from '@/contracts';
 import { Icon } from './icon.component';
 import { Button, INPUT_CLASS, SELECT_CLASS } from './ui.component';
 import { FilterMenu } from './filter-menu.component';
@@ -10,6 +10,8 @@ import { useT } from '@/context/locale.context';
 export interface IToolbarProps {
   filter: IKeyFilter;
   stats: IKeyStats;
+  /** El catalogo de etiquetas, para el filtro de etiquetas. */
+  catalogo: readonly ITag[];
   sort: KeySort;
   busy: boolean;
   searchRef: React.RefObject<HTMLInputElement | null>;
@@ -61,8 +63,28 @@ export function Toolbar({
   onExport,
   onOpenStorage,
   onOpenSettings,
+  catalogo,
 }: IToolbarProps) {
   const { t, locale } = useT();
+
+  /**
+   * Las etiquetas del catalogo, como opciones del filtro.
+   *
+   * El nombre va **tal cual**, sin pasar por `t()` para nada mas: es texto del
+   * usuario, no una clave de traduccion. `FilterMenu` lo pasa por `t` al
+   * pintar, y ahi `t` devuelve lo que le dan si no lo encuentra, con lo que
+   * sale tal cual —que es lo unico razonable, porque traducir una etiqueta
+   * propia no tiene sentido.
+   *
+   * Se ordenan por **numero de usos, de mas a menos**, no alfabeticamente: las
+   * que se usan estan a mano para marcar y las que no, al fondo de la lista
+   * donde estorban menos. Con el catalogo ya ordenado por usos, es solo un
+   * `slice` del orden de la base.
+   */
+  const opcionesEtiqueta = useMemo(
+    () => catalogo.map((tag) => ({ value: tag.nombre, label: tag.nombre, count: tag.usos })),
+    [catalogo],
+  );
 
   /**
    * Los recuentos de plataforma, para la lista del desplegable.
@@ -308,6 +330,40 @@ export function Toolbar({
             tone="rose"
           />
 
+          {/*
+            El filtro de etiquetas, el ultimo de la barra.
+
+            Va al final porque es el que menos se usa de los cuatro: se abre
+            cuando se busca «mis cosas de aquel tema», no cada dos minutos como
+            el ambito. Con el catalogo vacio —una coleccion recien creada— no se
+            pinta: un desplegable de etiquetas con la lista vacia no invita a
+            marcar nada.
+          */}
+          {catalogo.length > 0 ? (
+            <FilterMenu
+              label={t('filter.tags')}
+              options={opcionesEtiqueta}
+              selected={filter.tags}
+              onChange={(tags) => onFilterChange({ tags: [...tags] })}
+              allLabel={t('filter.menu.all')}
+              tone="violet"
+              // Entre llaves y con comillas simples, no como atributo pelado:
+              // el guard de claves muertas busca el literal con comillas
+              // simples y en el atributo no lo encontraria, y daria por buena
+              // una pista que en realidad nadie ve.
+              footHint={'filter.tags.footHint'}
+            />
+          ) : null}
+
+          {/*
+            Limpiar va **junto** a los filtros, no clavado a la derecha con
+            `ml-auto`. Es lo que limpia, asi que cerania a ellos; y sobre todo,
+            con `ml-auto` se quedaba pegado al borde mientras la columna de
+            tags crecia al lado, de modo que el empuje —que es justo lo que
+            avisa de que el filtro se ha hecho estrecho— no se veia nada. Sin
+            el `ml-auto`, «Limpiar» es el vecino de verdad y se desplaza con
+            la animacion.
+          */}
           <button
             type="button"
             onClick={() =>
@@ -317,9 +373,12 @@ export function Toolbar({
                 kind: KeyKind.All,
                 platforms: [],
                 statuses: [],
+                // Sin esto el filtro de etiquetas sobrevive a «Limpiar»: la
+                // lista se queda filtrada y el boton dice todo lo contrario.
+                tags: [],
               })
             }
-            className="ml-auto text-xs text-t4 underline-offset-2 hover:text-t2 hover:underline"
+            className="self-start text-xs text-t4 underline-offset-2 hover:text-t2 hover:underline"
             title={t('filter.reset')}
           >
             {t('action.clear')}

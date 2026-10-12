@@ -196,6 +196,10 @@ describe('cobertura de las traducciones', () => {
         'sort.alpha', 'sort.status', 'sort.platform',
         'filter.platform', 'filter.status', 'filter.scope.label',
         'filter.kind.label', 'filter.kind.all',
+        // El filtro de etiquetas dice lo mismo que el panel de bulk, que es
+        // `select.tags`, y por eso va con el. Y «Todas» es la misma palabra:
+        // el menu de seleccion multiple necesita distinguirla de «Nenhuma».
+        'filter.tags', 'filter.menu.all',
         'select.tags', 'select.groupOrganize', 'tags.title',
         // «Aplicar» es la misma palabra en los dos. Como `action.confirm` y
         // `action.edit`, que ya estaban.

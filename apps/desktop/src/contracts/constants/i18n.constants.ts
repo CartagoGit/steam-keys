@@ -101,6 +101,8 @@ export const EN: TranslationTable = Object.freeze({
   'filter.menu.all': 'All',
   'filter.menu.none': 'None',
   'filter.menu.scope': 'How many to mark',
+  'filter.tags': 'Tags',
+  'filter.tags.footHint': 'With none marked, everything shows. Several marked: anything carrying one shows.',
   'filter.menu.footHint': 'With none marked, everything shows. Mark several to see only those.',
   'filter.reset': 'Clear search and filters',
 

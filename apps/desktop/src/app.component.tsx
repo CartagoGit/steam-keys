@@ -1850,6 +1850,7 @@ export function App() {
       <Toolbar
         filter={filter}
         stats={stats}
+        catalogo={tags}
         sort={sort}
         busy={busy}
         searchRef={searchRef}

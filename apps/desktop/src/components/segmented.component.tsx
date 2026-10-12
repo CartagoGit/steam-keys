@@ -32,7 +32,7 @@ export interface ISegmentedProps<T extends string> {
   /** Texto del tooltip cuando esta apagado. */
   disabledTitle?: string;
   /** Colores del grupo: cambia segun para que sirve cada filtro. */
-  tone?: 'emerald' | 'amber' | 'sky' | 'rose';
+  tone?: 'emerald' | 'amber' | 'sky' | 'rose' | 'violet';
   /** Nombre accesible del grupo. */
   label: string;
   /**
@@ -107,6 +107,7 @@ const TONOS = {
   amber: { pompa: 'bg-warn', sobrePompa: 'text-on-accent', titulo: 'text-warn-strong' },
   sky: { pompa: 'bg-info', sobrePompa: 'text-on-accent', titulo: 'text-info-strong' },
   rose: { pompa: 'bg-danger', sobrePompa: 'text-on-accent', titulo: 'text-danger-strong' },
+  violet: { pompa: 'bg-accent', sobrePompa: 'text-on-accent', titulo: 'text-accent' },
 } as const;
 
 /**
