@@ -29,18 +29,12 @@ import { analyzeSelection, claveGrupo, groupByTitle, isGiftable, podarSeleccion,
 import { useKeepMounted } from '@/helpers/use-exit-animation.helper';
 import { useShortcuts } from '@/helpers/use-shortcuts.helper';
 import { useLoading, type TConTiempo } from '@/helpers/use-loading.helper';
+import { useArranque } from '@/helpers/use-arranque.helper';
 import { borradorDe, useUndo, type IUndoEntry } from '@/helpers/undo.helper';
-import type { IStartup } from '@/services/startup.service';
 import { gameKeyService, DuplicateKeyError } from '@/services/game-key.service';
 import { settingsService, DEFAULT_SETTINGS } from '@/services/settings.service';
 import { storageService } from '@/services/storage.service';
-import { inspectStartup } from '@/services/startup.service';
-import {
-  legacyBackupsMigrated,
-  migrateLegacyBackups,
-} from '@/services/legacy-backups.service';
 import { FirstRun } from '@/components/first-run.component';
-import { getDatabaseClient } from '@/repositories/repository.factory';
 import { steamService, SteamError, resolveSteamId, bestCandidate, cuentaComoPropio } from '@/services/steam.service';
 
 /**
@@ -124,7 +118,6 @@ export function App() {
    * llama a `migrate()` ni se escribe nada. Es lo que evita que aparezca un
    * `steam-keys.db` de cero bytes el simple hecho de arrancar el programa.
    */
-  const [arranque, setArranque] = useState<IStartup | null>(null);
 
   /**
    * Que tabla se ve: las claves o los juegos de Steam.
@@ -153,6 +146,18 @@ export function App() {
     setCurrentLocale(siguiente);
     cambiarIdioma(siguiente);
   }, []);
+
+  /**
+   * Si al arrancar hay base de datos o no.
+   *
+   * `null` mientras se comprueba, que es un estado distinto de los dos: no se
+   * puede pintar el aviso de «no hay base de datos» antes de saber si la hay, o
+   * un arranque lento ensenaba un aviso falso.
+   *
+   * El orden —mirar el fichero, fijar el idioma, migrar las copias antiguas— lo
+   * pone el hook, no las listas de dependencias.
+   */
+  const { arranque, setArranque } = useArranque(setIdioma);
 
   const t = useMemo<ITranslator>(
     () => ({
@@ -284,32 +289,6 @@ export function App() {
   }, []);
 
   // --------------------------------------------------------- carga de datos ---
-  /**
-   * Comprueba si hay base de datos **antes** de abrirla.
-   *
-   * Va el primero de todo y por su cuenta. Abrir la base de datos la crea: por
-   * eso la pregunta tiene que ser "mira el fichero", no "abre y mira si hay
-   * tablas". Preguntar despues de abrir seria tarde, el fichero ya esta en disco.
-   *
-   * Si el idioma guardado se lee aqui se perderia el motivo de mirar el
-   * fichero: `settingsService.load()` abre la base de datos, y con eso ya no se
-   * puede saber si estaba antes. Por eso el arranque va aparte y, mientras valga
-   * `empty`, los dos efectos de carga de abajo no llegan a dispararse.
-   */
-  useEffect(() => {
-    const mirar = async (): Promise<void> => {
-      const estado = await inspectStartup();
-
-      // El idioma sale aqui, y no de los ajustes, porque todavia no hay ajustes
-      // que leer: estan dentro de la base de datos que estamos comprobando.
-      // `setIdioma` deja ademas fijado el idioma global, que es lo que permite
-      // traducir los textos de fuera del arbol de React.
-      setIdioma(estado.locale);
-      setArranque(estado);
-    };
-
-    void mirar();
-  }, []);
 
   const reload = useCallback(async (): Promise<void> => {
     try {
@@ -457,38 +436,6 @@ export function App() {
     void cargar();
   }, [arranque]);
 
-  /**
-   * Trae las copias de seguridad que dejaron la version anterior.
-   *
-   * Hasta hace poco eran ficheros sueltos en una carpeta `backups/`; ahora son
-   * filas de la tabla `backups`. Esta tarea las pasa de una cosa a la otra, una
-   * sola vez, y **no borra los ficheros**: se quedan donde estaban por si algo
-   * sale mal.
-   *
-   * Va despues de cargar los ajustes porque es quien fija la marca de "ya no
-   * hace falta hacerlo"; si se hiciera antes, un fallo al guardar los ajustes
-   * dejaria la migracion sin marcar y se repetiria en cada arranque.
-   */
-  useEffect(() => {
-    if (arranque?.database !== 'ready') return;
-
-    const migrar = async (): Promise<void> => {
-      try {
-        const db = await getDatabaseClient();
-
-        if (await legacyBackupsMigrated(db)) return;
-
-        await migrateLegacyBackups(db);
-      } catch {
-        // Sin carpeta de copias antiguas, o sin permisos para leerla: no hay
-        // nada que hacer y la app sigue con lo que hay. Que la migracion no se
-        // haya marcado como hecha no tiene consecuencia: los ficheros siguen
-        // donde estaban y en el siguiente arranque se vuelve a mirar.
-      }
-    };
-
-    void migrar();
-  }, [arranque]);
 
   // --------------------------------------------------------------- filtros ---
   const patchFilter = useCallback((changes: Partial<IKeyFilter>): void => {
