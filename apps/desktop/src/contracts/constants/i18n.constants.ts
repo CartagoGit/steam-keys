@@ -100,6 +100,7 @@ export const EN: TranslationTable = Object.freeze({
 
   'filter.menu.all': 'All',
   'filter.menu.none': 'None',
+  'filter.menu.scope': 'How many to mark',
   'filter.menu.footHint': 'With none marked, everything shows. Mark several to see only those.',
   'filter.reset': 'Clear search and filters',
 
@@ -145,6 +146,7 @@ export const EN: TranslationTable = Object.freeze({
 
   // ------------------------------------------------------ settings ---
   'settings.title': 'Settings',
+  'settings.tabs': 'Settings section',
   'settings.tab.appearance': 'Appearance',
   'settings.tab.account': 'Steam account',
   'settings.theme': 'Theme',

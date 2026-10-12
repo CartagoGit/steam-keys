@@ -51,6 +51,7 @@ export const PT: TranslationTable = Object.freeze({
   'filter.kind.dlc': 'So DLC',
   'filter.menu.all': 'Toutes',
   'filter.menu.none': 'Aucune',
+  'filter.menu.scope': 'Combien en cocher',
   'filter.menu.footHint':
     'Sans rien de coche, tout s affiche. Cochez-en plusieurs pour n voir que celles-la.',
   'filter.reset': 'Limpar a busca e os filtros',
@@ -152,6 +153,7 @@ export const PT: TranslationTable = Object.freeze({
   'row.status': 'Estado: {0}. {1} Clica para mudar.',
   'row.forRecipient': 'para {0}',
   'settings.title': 'Ajustes',
+  'settings.tabs': 'Secao de ajustes',
   'settings.tab.appearance': 'Aparencia',
   'settings.tab.account': 'Conta Steam',
   'settings.theme': 'Tema',

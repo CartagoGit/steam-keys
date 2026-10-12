@@ -519,6 +519,49 @@ body {
   animation: fade-out 0.12s ease-in forwards;
 }
 
+/*
+ * Desplegables: como las del dialogo pero entrando desde el boton.
+ *
+ * El desplazamiento va en `--popover-desplazamiento` y no en el keyframe
+ * porque un desplegable que se ha volteado hacia arriba tiene que salir
+ * **hacia abajo**, hacia donde esta el boton, y no siempre hacia abajo. Con el
+ * valor puesto en el estilo del panel —lo pone `Popover` segun comopa—
+ * las dos direcciones comparten animacion.
+ *
+ * Sin desplazamiento y solo con escala, el menu aparece y desaparece en el
+ * sitio y no se ve de donde viene: en una ventana con cuatro desplegables, dos
+ * abriendose en sitios distintos, el efecto tiene que decir de cual se trata.
+ */
+@keyframes popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--popover-desplazamiento, 4px)) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes popover-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(var(--popover-desplazamiento, 4px)) scale(0.97);
+  }
+}
+
+.animate-popover-in {
+  animation: popover-in 0.14s ease-out;
+}
+
+.animate-popover-out {
+  animation: popover-out 0.1s ease-in forwards;
+}
+
 .animate-scale-out {
   animation: scale-out 0.12s ease-in forwards;
 }

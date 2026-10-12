@@ -3,6 +3,7 @@ import { APP_THEME_SWATCHES, APP_THEME_VALUES, AppLocale, AppTheme, STEAM_API_KE
 import { Icon } from './icon.component';
 import { LocaleSelect } from './locale-select.component';
 import { Modal } from './modal.component';
+import { Segmented } from './segmented.component';
 import { KeysSettings } from './settings-keys.component';
 import {
   Badge,
@@ -205,28 +206,29 @@ export function SettingsDialog({
       </header>
 
       {/* ------------------------------------------------------------- pestanas */}
-      <div className="flex shrink-0 gap-1 border-b border-line px-5 pt-2">
-        {(
-          [
-            ['appearance', 'settings.tab.appearance'],
-            ['keys', 'settings.tab.keys'],
-            ['account', 'settings.tab.account'],
-          ] as const
-        ).map(([id, clave]) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setTab(id)}
-            aria-selected={tab === id}
-            role="tab"
-            className={[
-              'rounded-t-lg px-3 py-2 text-xs font-medium transition',
-              tab === id ? 'border-b-2 border-accent text-t1' : 'text-t4 hover:text-t2',
-            ].join(' ')}
-          >
-            {t(clave)}
-          </button>
-        ))}
+      {/*
+        `Segmented` y no un underlined a mano. Las tres pestanas son un selector
+        exclusivo mas —tres opciones, una elegida— y antes se dibujaba con otro
+        criterio: una raya azul abajo, sin pompa y sin color propio. Al cambiar
+        de pestana la raya saltaba de un lado a otro en lugar de moverse, y era
+        el unico sitio de la app donde un selector no hacia nada al cambiar.
+
+        El color va en `emerald`, el mismo que «Claves / Mis juegos»: las dos
+        cosas son «cambiar de panel», no «filtrar por una categoria».
+      */}
+      <div className="shrink-0 border-b border-line px-5 py-2">
+        <Segmented
+          label={t('settings.tabs')}
+          sinTitulo
+          tone="emerald"
+          value={tab}
+          options={[
+            { value: 'appearance', label: t('settings.tab.appearance') },
+            { value: 'keys', label: t('settings.tab.keys') },
+            { value: 'account', label: t('settings.tab.account') },
+          ]}
+          onChange={setTab}
+        />
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">

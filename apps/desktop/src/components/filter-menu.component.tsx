@@ -2,7 +2,11 @@ import { useRef, useState } from 'react';
 
 import { Icon, type IconName } from './icon.component';
 import { Popover, PopoverOption } from './popover.component';
+import { Segmented } from './segmented.component';
 import { useT } from '@/context/locale.context';
+
+/** Que boton del par de arriba esta encendido. */
+type TAlcance = 'ninguna' | 'todas' | 'parcial';
 
 /** Una opcion del desplegable. */
 export interface IFilterOption<T extends string> {
@@ -84,6 +88,19 @@ export function FilterMenu<T extends string>({
   const botonRef = useRef<HTMLButtonElement>(null);
   const [abierto, setAbierto] = useState(false);
 
+  /**
+   * Opcion resaltada con el teclado.
+   *
+   * El desplegable de idioma lo tenia y este no. Es la clase de diferencia que
+   * hace que dos menus que se parecen no se comporten igual: en uno se navega
+   * con las flechas y en el otro hay que bajar la lista hasta donde se esta con
+   * el raton. Los cuatro desplegables de la app tienen que ir igual.
+   *
+   * `-1` es «ninguna resaltada», que es lo que se quiere con las flechas hacia
+   * arriba desde la primera: todavia no se ha movido nada.
+   */
+  const [resaltada, setResaltada] = useState(-1);
+
   const colores = TONOS[tone];
   const marcadas = new Set(selected);
 
@@ -108,6 +125,17 @@ export function FilterMenu<T extends string>({
    */
   const todasTodas = selected.length === options.length && options.length > 0;
 
+  /**
+   * Que boton esta encendido en el par de arriba.
+   *
+   * `parcial` no es una opcion: es el estado en el que **ninguno** de los dos
+   * se enciende, que es lo unico que se puede ver cuando el filtro tiene
+   * unas cuantas marcadas de siete. Sin el habia que elegir entre dos
+   * mentiras: encender «Ninguna» cuando hay tres marcadas, o apagar las dos
+   * y no se saber cual de las dos acciones se ha pulsado.
+   */
+  const alcance: TAlcance = todas ? 'ninguna' : todasTodas ? 'todas' : 'parcial';
+
   const alternar = (valor: T): void => {
     const siguiente = marcadas.has(valor)
       ? selected.filter((item) => item !== valor)
@@ -127,13 +155,53 @@ export function FilterMenu<T extends string>({
   };
 
   /**
-   * Escape cierra la lista.
+   * Abrir con las flechas, recorrer, y elegir con Enter.
    *
-   * El `Popover` ya lo captura en fase de captura y detiene la propagacion, de
-   * modo que esto no corre: esta aqui para que quede claro que el cierre
-   * tiene un solo dueño, y no se abra otro camino por el que se pueda cerrar
-   * la lista y el filtro a la vez.
+   * `Escape` no esta aqui a proposito: lo lleva `Popover`, que lo captura en
+   * fase de captura y detiene la propagacion. Asi el cierre tiene un solo dueno
+   * y no se abre otro camino por el que se pueda cerrar la lista y el filtro a
+   * la vez.
    */
+  const alTeclado = (evento: React.KeyboardEvent): void => {
+    const ultimo = options.length - 1;
+
+    switch (evento.key) {
+      case 'ArrowDown':
+      case 'ArrowUp':
+        evento.preventDefault();
+        setAbierto(true);
+        setResaltada((i) => {
+          if (i < 0) return evento.key === 'ArrowDown' ? 0 : ultimo;
+          // Al dar la vuelta por un extremo se vuelve al otro, y no se queda
+          // encajado: una lista en la que la flecha se para es una lista que
+          // parece rota.
+          if (evento.key === 'ArrowDown') return i === ultimo ? 0 : i + 1;
+          return i === 0 ? ultimo : i - 1;
+        });
+        break;
+      case 'Home':
+        evento.preventDefault();
+        setResaltada(0);
+        break;
+      case 'End':
+        evento.preventDefault();
+        setResaltada(ultimo);
+        break;
+      case 'Enter':
+      case ' ':
+        evento.preventDefault();
+        if (!abierto) {
+          setAbierto(true);
+          break;
+        }
+        if (resaltada >= 0 && resaltada < options.length) {
+          const elegida = options[resaltada];
+          if (elegida) alternar(elegida.value);
+        }
+        break;
+    }
+  };
+
   return (
     /*
      * Titulo encima y boton debajo, como en `Segmented`. Al lado, cuatro
@@ -141,7 +209,10 @@ export function FilterMenu<T extends string>({
      * donde acaba cada filtro; encima, cada filtro es un bloque con su
      * nombre y se lee de un vistazo.
      */
-    <div className="flex shrink-0 flex-col gap-1.5">
+    <div
+      onKeyDown={alTeclado}
+      className="flex shrink-0 flex-col gap-1.5"
+    >
       <span
         className={[
           'text-[10px] font-medium tracking-wide uppercase',
@@ -154,7 +225,10 @@ export function FilterMenu<T extends string>({
       <button
         ref={botonRef}
         type="button"
-        onClick={() => setAbierto((v) => !v)}
+        onClick={() => {
+          setResaltada(-1);
+          setAbierto((v) => !v);
+        }}
         disabled={disabled}
         aria-expanded={abierto}
         aria-haspopup="listbox"
@@ -197,69 +271,88 @@ export function FilterMenu<T extends string>({
       </button>
 
       {abierto ? (
-        <Popover abierto ancla={botonRef} onCerrar={() => setAbierto(false)}>
+        /*
+         * `esLista={false}` porque el panel no es solo la lista: lleva el par
+         * de arriba y la nota de abajo. El rol de lista va en la lista de
+         * dentro; un `listbox` con botones y un parrafo miente sobre lo que
+         * contiene y el lector de pantalla anuncia «lista de 2 elementos» y se
+         * encuentra con mas cosas.
+         */
+        <Popover
+          abierto
+          esLista={false}
+          ancla={botonRef}
+          resaltada={resaltada}
+          altoMaximo={320}
+          onCerrar={() => setAbierto(false)}
+        >
           {/*
-            Las dos acciones de «todo» van **arriba**, antes de la lista. Cuando
-            el filtro no filtra nada —que es el estado normal — «Todas» y
-            «Ninguna» son lo unico que hay que tocar, y tener que bajar hasta
-            el final de siete opciones para llegar es lo que hace que la gente
-            se quede con la seleccion a medias.
+            El par de «todo» va **arriba**, antes de la lista. Cuando el filtro
+            no filtra nada —que es el estado normal— «Todas» y «Ninguna» son lo
+            unico que hay que tocar, y tener que bajar hasta el final de siete
+            opciones para llegar es lo que hace que la gente se quede con la
+            seleccion a medias.
+
+            Va con `Segmented`, y no con dos botones: es la misma pompa que se
+            mueve al cambiar de opcion que la de «Disponibles» y «Tipo», y es
+            lo que hace que cambiar «Ninguna» a «Todas» se vea como un cambio y
+            no como un parpadeo de dos textos. El selector de fuera y el de
+            dentro se mueven igual porque son el mismo componente.
+
+            Cada uno dice en que estado se deja el filtro:
+
+            - nada marcado: se ve todo. Es «Ninguna» la que esta encendida.
+            - todas marcadas: se ve todo tambien, pero filtrando de verdad.
+              Es «Todas».
+            - unas cuantas: no hay ninguna de las dos, que es lo que hay que
+              poder ver para saber que el filtro esta a medias.
+
+            Asi que marcar todo y no marcar nada son estados distintos —«no has
+            filtrado» y «has pedido todo»—, y se distinguen porque el boton
+            encendido lo dice. Con `parcial` ninguno se enciende, que es
+            exactamente lo que hay que mostrar.
           */}
-          <div className="flex gap-1 border-b border-line p-1.5">
-            {/*
-              «Todas» y «Ninguna» son un par conmutivo, no dos acciones.
-
-              No se apagan nunca. Apagarlas era lo de antes, y dejaba el menu
-              de un filtro sin tocar con **los dos botones muertos** y ninguna
-              accion a la vista, cuando las dos cosas se podian hacer. Ahora
-              cada uno dice en que estado se deja el filtro:
-
-              - nada marcado: se ve todo. Es «Ninguna» la que esta encendida.
-              - todas marcadas: se ve todo tambien, pero filtrando de verdad.
-                Es «Todas».
-              - unas cuantas: no hay ninguna de las dos, que es lo que hay que
-                poder ver para saber que el filtro esta a medias.
-
-              Asi que marcar todo y no marcar nada son estados distintos —
-              «no has filtrado» y «has pedido todo»—, y se distinguen porque el
-              boton encendido lo dice.
-            */}
-            <button
-              type="button"
-              onClick={desmarcarTodas}
-              aria-pressed={todas}
-              className={[
-                'flex-1 rounded-md px-2 py-1 text-[11px] transition',
-                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-                todas ? 'bg-hover-2 text-t1' : 'text-t3 hover:bg-hover hover:text-t1',
-              ].join(' ')}
-            >
-              {t('filter.menu.none')}
-            </button>
-
-            <button
-              type="button"
-              onClick={marcarTodas}
-              aria-pressed={todasTodas}
-              className={[
-                'flex-1 rounded-md px-2 py-1 text-[11px] transition',
-                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-                todasTodas ? 'bg-hover-2 text-t1' : 'text-t3 hover:bg-hover hover:text-t1',
-              ].join(' ')}
-            >
-              {allLabel}
-            </button>
+          <div className="sticky top-0 z-1 border-b border-line bg-surface-1 p-1.5">
+            <Segmented
+              label={t('filter.menu.scope')}
+              sinTitulo
+              compacto
+              tone={tone === 'sky' ? 'sky' : 'rose'}
+              value={alcance}
+              options={[
+                { value: 'ninguna', label: t('filter.menu.none') },
+                { value: 'todas', label: allLabel },
+              ]}
+              onChange={(nuevo) => {
+                if (nuevo === 'todas') marcarTodas();
+                else desmarcarTodas();
+              }}
+            />
           </div>
 
-          <ul className="max-h-64 overflow-y-auto py-1" role="listbox" aria-multiselectable>
-            {options.map((option) => {
+          {/*
+            Sin `overflow-y-auto` aqui: el scroll es del panel, uno solo.
+
+            Este bloque tenia su propio `max-h-64 overflow-y-auto` y el panel
+            tambien se desplazaba, asi que se veian **dos barras de scroll** a
+            la vez: la de fuera para todo el menu y la de dentro para las
+            opciones. Con siete plataformas el menu parecia una ventana dentro
+            de otra ventana, y no se sapedia cual de las dos tocaba.
+
+            Aqui solo se marca la lista como tal; quien se desplaza es el
+            panel. La cabecera y el pie van `sticky` para que sigan en su sitio
+            al recorrer las opciones, que es para lo que estan.
+          */}
+          <div role="listbox" aria-multiselectable aria-label={label} className="py-1">
+            {options.map((option, indice) => {
               const marcada = marcadas.has(option.value);
 
               return (
                 <PopoverOption
                   key={option.value}
                   activa={marcada}
-                  resaltada={false}
+                  resaltada={indice === resaltada}
+                  alEntrar={() => setResaltada(indice)}
                   alPulsar={() => alternar(option.value)}
                 >
                   {option.dot ? (
@@ -288,14 +381,17 @@ export function FilterMenu<T extends string>({
                 </PopoverOption>
               );
             })}
-          </ul>
+          </div>
 
           {/*
             El pie dice lo que significa no marcar nada, porque es la parte que
             no se deduce. Alguien ve siete opciones sin marcar, el boton dice
             «Todas» y no es obvio que sea «ninguna marcada = todas».
+
+            Va `sticky` abajo por lo mismo que la cabecera: si las opciones son
+            muchas, la nota no puede ser lo primero que se vaya al bajar.
           */}
-          <p className="border-t border-line px-3 py-2 text-[10px] leading-relaxed text-t4">
+          <p className="sticky bottom-0 border-t border-line bg-surface-1 px-3 py-2 text-[10px] leading-relaxed text-t4">
             {t('filter.menu.footHint')}
           </p>
         </Popover>

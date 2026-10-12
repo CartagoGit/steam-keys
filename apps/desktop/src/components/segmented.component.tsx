@@ -1,10 +1,14 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 
+import { Icon, type IconName } from './icon.component';
+
 /** Una opcion de un grupo de opciones excluyentes. */
 export interface ISegmentOption<T> {
   value: T;
   /** Clave de traduccion del texto. */
   label: string;
+  /** Icono delante del texto. Va a SVG, no a glifo. */
+  icon?: IconName;
 }
 
 export interface ISegmentedProps<T extends string> {
@@ -22,6 +26,15 @@ export interface ISegmentedProps<T extends string> {
   tone?: 'emerald' | 'amber' | 'sky' | 'rose';
   /** Nombre accesible del grupo. */
   label: string;
+  /**
+   * Sin el nombre encima, para cuando el selector va **dentro** de otro sitio
+   * que ya dice de que es: el desplegable de filtros, o una fila de un
+   * dialogo. El titulo ahi duplicaria lo que ya esta escrito justo encima y
+   * gastaria tres lineas de alto del menu.
+   */
+  sinTitulo?: boolean;
+  /** Mas bajo y sin respiro, para menus. */
+  compacto?: boolean;
 }
 
 /**
@@ -101,6 +114,8 @@ export function Segmented<T extends string>({
   disabledTitle,
   tone = 'emerald',
   label,
+  sinTitulo = false,
+  compacto = false,
 }: ISegmentedProps<T>) {
   const colores = TONOS[tone];
 
@@ -159,16 +174,18 @@ export function Segmented<T extends string>({
       role="radiogroup"
       aria-label={label}
       title={disabled ? disabledTitle : undefined}
-      className="flex shrink-0 flex-col gap-1.5"
+      className={sinTitulo ? 'flex w-full' : 'flex shrink-0 flex-col gap-1.5'}
     >
-      <span
-        className={[
-          'text-[10px] font-medium tracking-wide uppercase',
-          disabled ? 'text-t5' : colores.titulo,
-        ].join(' ')}
-      >
-        {label}
-      </span>
+      {sinTitulo ? null : (
+        <span
+          className={[
+            'text-[10px] font-medium tracking-wide uppercase',
+            disabled ? 'text-t5' : colores.titulo,
+          ].join(' ')}
+        >
+          {label}
+        </span>
+      )}
 
       {/*
         El fondo del grupo es plano y sin anillo: lo unico con relieve es la
@@ -178,7 +195,8 @@ export function Segmented<T extends string>({
       <div
         ref={pistaRef}
         className={[
-          'relative flex items-center rounded-full bg-hover p-1',
+          'relative flex items-center rounded-full bg-hover',
+          compacto ? 'p-0.5' : 'p-1',
           disabled ? 'opacity-40' : '',
         ].join(' ')}
       >
@@ -187,6 +205,7 @@ export function Segmented<T extends string>({
             aria-hidden="true"
             className={[
               'pointer-events-none absolute top-1 bottom-1 left-0 rounded-full',
+              compacto ? 'top-0.5 bottom-0.5' : '',
               colores.pompa,
             ].join(' ')}
             style={{
@@ -216,7 +235,8 @@ export function Segmented<T extends string>({
                 else botonesRef.current.delete(option.value);
               }}
               className={[
-                'relative z-1 rounded-full px-3.5 py-1 text-xs font-medium whitespace-nowrap transition-colors',
+                'relative z-1 inline-flex items-center justify-center gap-1.5 rounded-full font-medium whitespace-nowrap transition-colors',
+                compacto ? 'flex-1 px-2 py-1 text-[11px]' : 'px-3.5 py-1 text-xs',
                 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
                 'disabled:cursor-not-allowed',
                 // Sin pompa: gris apagado. Con pompa: el color del filtro, y
@@ -224,6 +244,14 @@ export function Segmented<T extends string>({
                 activo ? colores.sobrePompa : 'text-t4 hover:text-t2',
               ].join(' ')}
             >
+              {option.icon ? (
+                <Icon
+                  name={option.icon}
+                  size={compacto ? 11 : 13}
+                  className="shrink-0 opacity-90"
+                />
+              ) : null}
+
               {option.label}
             </button>
           );

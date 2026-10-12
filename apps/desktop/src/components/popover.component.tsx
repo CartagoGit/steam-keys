@@ -22,6 +22,20 @@ export interface IPopoverProps {
   altoMaximo?: number;
   /** Indice de la opcion resaltada, para mantenerla a la vista. */
   resaltada?: number;
+  /**
+   * `false` cuando el panel **no** es la lista.
+   *
+   * El panel lleva `role="listbox"` por defecto porque casi todos lo son: son
+   * listas de opciones y asi lo anuncian los lectores de pantalla sin tener que
+   * repetirlo en cada sitio.
+   *
+   * El desplegable de filtros es la excepcion —lleva arriba el par «Ninguna /
+   * Todas», abajo una nota y en medio la lista—, y ahi el rol va en su lista
+   * de dentro. Un `listbox` con botones y con un parrafo dentro miente sobre lo
+   * que contiene: un lector de pantalla anuncia «lista de X elementos» y se
+   * encuentra con mas cosas.
+   */
+  esLista?: boolean;
   className?: string;
   children: React.ReactNode;
 }
@@ -43,6 +57,8 @@ interface IPosicion {
   top: number;
   left: number;
   alto: number;
+  /** `true` cuando no cabe debajo y se ha volteado hacia arriba. */
+  arriba: boolean;
 }
 
 /**
@@ -79,11 +95,28 @@ export function Popover({
   lado = 'izquierda',
   altoMaximo = 256,
   resaltada,
+  esLista = true,
   className = '',
   children,
 }: IPopoverProps) {
-  const panelRef = useRef<HTMLUListElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const [posicion, setPosicion] = useState<IPosicion | null>(null);
+
+  /**
+   * `true` mientras hay panel en el DOM, y `saliendo` durante la salida.
+   *
+   * Son dos estados y no uno porque **cerrar tambien hay que verse**. Con un
+   * solo estado —`if (!abierto) return null`— el panel desaparece en el
+   * fotograma en que se cierra y la animacion de entrada se queda sin espejo:
+   * abrir desliza el menu desde el boton y cerrar lo hace desaparecer de la
+   * nada, que se lee como un fallo y no como una respuesta.
+   *
+   * Es el mismo truco que usa `Modal`, y por el mismo motivo: al cerrar,
+   * `abierto` pasa a `false` pero el panel sigue montado hasta que la
+   * animacion termina.
+   */
+  const [visible, setVisible] = useState(abierto);
+  const [saliendo, setSaliendo] = useState(false);
 
   /**
    * Mide el boton y decide donde va la lista.
@@ -125,6 +158,7 @@ export function Popover({
         Math.min(left, window.innerWidth - caja.width - MARGEN),
       ),
       alto,
+      arriba,
     });
   }, [altoMaximo, ancla, lado]);
 
@@ -136,6 +170,31 @@ export function Popover({
 
     colocar();
   }, [abierto, colocar]);
+
+  useEffect(() => {
+    if (abierto) {
+      setVisible(true);
+      setSaliendo(false);
+      return;
+    }
+
+    // Cerrado y visible todavia: toca reproducir la salida antes de desmontar.
+    if (visible) setSaliendo(true);
+  }, [abierto, visible]);
+
+  /**
+   * Termina la salida y desmonta.
+   *
+   * El `if (!saliendo)` es imprescindible y no es DEFensivo: `onAnimationEnd`
+   * salta tambien al acabar la animacion de **entrada**, y sin esta comprobacion
+   * el desplegable se cerraria justo despues de abrirse, al abrirlo.
+   */
+  const terminarSalida = (): void => {
+    if (!saliendo) return;
+
+    setVisible(false);
+    setSaliendo(false);
+  };
 
   /**
    * Recalcular mientras se mueve el mundo.
@@ -160,13 +219,12 @@ export function Popover({
   }, [abierto, colocar]);
 
   /**
-   * Mantiene la opcion resaltada a la vista, **solo** dentro de la lista.
+   * Mantiene la opcion resaltada a la vista, **solo** dentro del panel.
    *
-   * Se ajusta el `scrollTop` del panel a mano en vez de usar
-   * `scrollIntoView`, y no por falta de ganas: `scrollIntoView` desplaza
-   * tambien cualquier ancestro que se pueda mover, que es precisamente el bote
-   * del dialogo que este componente viene a quitar. A mano no puede tocar nada
-   * mas.
+   * Se ajusta el `scrollTop` a mano en vez de usar `scrollIntoView`, y no por
+   * falta de ganas: `scrollIntoView` desplaza tambien cualquier ancestro que
+   * se pueda mover, que es precisamente el bote del dialogo que este componente
+   * viene a quitar. A mano no puede tocar nada mas.
    */
   useEffect(() => {
     const panel = panelRef.current;
@@ -229,27 +287,37 @@ export function Popover({
     };
   }, [abierto, ancla, onCerrar]);
 
-  if (!abierto || posicion === null) return null;
+  if (!visible || posicion === null) return null;
 
   return createPortal(
-    <ul
+    <div
       ref={panelRef}
-      role="listbox"
+      role={esLista ? 'listbox' : undefined}
+      onAnimationEnd={terminarSalida}
       style={{
         position: 'fixed',
         top: posicion.top,
         left: posicion.left,
         minWidth: ancla.current?.offsetWidth,
         maxHeight: posicion.alto,
-      }}
+        /**
+         * La escala sale desde el boton, no desde el centro: el menu tiene que
+         * crecer **hacia donde esta el boton**, no encogerse hacia su propia
+         * mitad. Y el desplazamiento va en negativo cuando se ha volteado hacia
+         * arriba, para que tambien en ese caso salga de debajo del boton.
+         */
+        '--popover-desplazamiento': posicion.arriba ? '-4px' : '4px',
+        transformOrigin: `${lado === 'derecha' ? 'right' : 'left'} ${posicion.arriba ? 'bottom' : 'top'}`,
+      } as React.CSSProperties}
       className={[
-        'z-50 overflow-auto overscroll-contain rounded-lg bg-surface-1 p-1 shadow-lg',
+        'z-50 overflow-y-auto overscroll-contain rounded-lg bg-surface-1 p-1 shadow-lg',
         'shadow-black/30 ring-1 ring-line-strong',
+        saliendo ? 'animate-popover-out' : 'animate-popover-in',
         className,
       ].join(' ')}
     >
       {children}
-    </ul>,
+    </div>,
     document.body,
   );
 }
@@ -257,11 +325,12 @@ export function Popover({
 /**
  * Una opcion de un desplegable, con el mismo marcado para todos.
  *
- * Vive aqui y no en el componente que lo usa porque los tres desplegables —el
- * idioma, la plataforma y el estado— necesitan exactamente el mismo: fondo al
- * pasar por encima, check cuando esta elegida, y `tabIndex={-1}` para que la
- * lista se recorra con las flechas y no tabulando opcion por opcion. Lo que
- * cambia entre ellos es el icono y el color, y eso lo pone el llamante.
+ * Vive aqui y no en el componente que lo usa porque los desplegables —el
+ * idioma, la plataforma, el estado y el del editor— necesitan exactamente el
+ * mismo: fondo al pasar por encima, check cuando esta elegida, y `tabIndex={-1}`
+ * para que la lista se recorra con las flechas y no tabulando opcion por
+ * opcion. Lo que cambia entre ellos es el icono y el color, y eso lo pone el
+ * llamante.
  */
 export function PopoverOption({
   activa,
@@ -279,25 +348,37 @@ export function PopoverOption({
   derecha?: React.ReactNode;
   children: React.ReactNode;
 }) {
+  /**
+   * El rol va **en el boton**, no en un envoltorio.
+   *
+   * Antes era un `<li role="option">` con `className="contents"` y dentro el
+   * boton, y eso rompia el desplazamiento con teclado: un elemento con
+   * `display: contents` no genera caja ninguna, asi que su `offsetTop` y su
+   * `offsetHeight` son 0, y el ajuste del `scrollTop` que hace el panel para
+   * mantener la opcion resaltada a la vista comparaba 0 contra 0 y no hacia
+   * nada. Con siete opciones caben todas; con veinte, bajar con las flechas se
+   *enia que parar a media pantalla sin poder ver donde estabas.
+   *
+   * Con el rol en el boton —que si es una caja— las medidas son reales y el
+   * ajuste funciona. Ademas el marcado es valido: el panel es un `<div>` y sus
+   * opciones son `<button>`, no un `<ul>` con `<div>` y `<p>` dentro, que es lo
+   * que habia.
+   */
   return (
-    <li
+    <button
+      type="button"
       role="option"
       aria-selected={activa}
-      className="contents"
+      tabIndex={-1}
+      onClick={alPulsar}
       onMouseEnter={alEntrar}
+      className={[
+        'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition',
+        resaltada ? 'bg-surface-3 text-t1' : 'text-t2',
+      ].join(' ')}
     >
-      <button
-        type="button"
-        tabIndex={-1}
-        onClick={alPulsar}
-        className={[
-          'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition',
-          resaltada ? 'bg-surface-3 text-t1' : 'text-t2',
-        ].join(' ')}
-      >
-        {children}
-        {derecha}
-      </button>
-    </li>
+      {children}
+      {derecha}
+    </button>
   );
 }
