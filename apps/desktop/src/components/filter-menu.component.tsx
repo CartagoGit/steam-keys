@@ -116,7 +116,23 @@ export interface IFilterOption<T extends string> {
  * las marcadas en vez de acarrearlas. Es la otra lectura, y la unica que se
  * puede pedir.
  */
-export type TModoExclusion = 'or-and' | 'acota-descarta';
+/**
+ * Que las marcadas se combinen con «y» en vez de con «o».
+ *
+ * Solo el filtro de etiquetas trae candado, y es por los datos: una clave lleva
+ * todas las etiquetas que lleva, asi que «cumplidos **y** regalados» es una
+ * consulta posible y con OR no se puede pedir.
+ *
+ * Plataforma y estado no lo traen porque una clave tiene **una sola** de cada:
+ * «Steam **y** Epic» no devuelve nada ni con la coleccion entera, y un filtro
+ * que solo puede devolver la lista vacia no es un filtro. Antes el candado lo
+ * traian los tres, pero en esos dos no hacia un AND: descartaba, que es otra
+ * consulta distinta y solo bothersome porque el icono no lo decia. Lo unico
+ * que hacia era enseñar un modo que no existe.
+ *
+ * Sin `onExcluir` no sale candado ni candado en el titulo: el filtro se queda
+ * con un solo modo, que es el unico que puede tener.
+ */
 
 export interface IFilterMenuProps<T extends string> {
   label: string;
@@ -146,11 +162,12 @@ export interface IFilterMenuProps<T extends string> {
    * lo mismo en los dos modos —por eso el boton **no se apaga** con una: si se
    * apagara no se podria dejar el modo puesto antes de seguir marcando, que
    * es justo cuando se decide.
+   *
+   * **Opcional del todo.** Sin `onExcluir` no hay candado: ni en el boton ni
+   * junto al titulo. Lo unica que se le pasa son las etiquetas.
    */
   excluir?: boolean;
   onExcluir?: (excluir: boolean) => void;
-  /** Que dice el candado de este filtro. Ver `TModoExclusion`. */
-  modoExclusion?: TModoExclusion;
   disabled?: boolean;
   disabledTitle?: string;
 }
@@ -209,7 +226,6 @@ export function FilterMenu<T extends string>({
   footHint = 'filter.menu.footHint',
   excluir = false,
   onExcluir,
-  modoExclusion = 'or-and',
   disabled = false,
   disabledTitle,
 }: IFilterMenuProps<T>) {
@@ -505,6 +521,12 @@ export function FilterMenu<T extends string>({
         y ademas disappear en cuanto se desmarca todo: con cero marcadas y el
         modo cerrado, el filtro no acota, pero el modo sigue puesto y no se
         veía en ninguna parte.
+
+        Sale con `onExcluir && excluir`, no con `excluir` a secas. El candado
+        pertenece al filtro, y solo lo tiene el que de verdad puede pedir AND:
+        plataforma y estado son un valor por clave. Dependiendo solo de
+        `excluir`, bastaria con que un filtro de un solo valor marcara su flag
+        para que apareciera un icono de un modo que no tiene.
       */}
       <div className="flex items-center gap-1">
         <span
@@ -516,7 +538,7 @@ export function FilterMenu<T extends string>({
           {label}
         </span>
 
-        {excluir ? (
+        {onExcluir && excluir ? (
           <Icon
             name="lock"
             size={10}
@@ -935,10 +957,9 @@ export function FilterMenu<T extends string>({
             sigue marcando. Con una sola los dos modos dan lo mismo, y por eso
             no hace falta apagarlo para que se entienda que no cambia nada.
 
-            El texto depende del filtro: en etiquetas son OR y AND, porque una
-            clave lleva todas las etiquetas que lleva. En plataforma y estado no
-            puede ser AND —una clave tiene una sola— asi que el candado cerrado
-            **descarta** las marcadas. Ver `TModoExclusion`.
+            El texto nombra el operador entero, porque con una sola marcada los
+            dos modos dan lo mismo y el icono —que solo tiene dos estados— no
+            alcanza para decir cual de los dos se esta aplicando.
 
             Y lleva candado en vez de casilla porque no es «activar algo»:
             abierto es lo normal y cerrado es la otra lectura.
@@ -969,11 +990,7 @@ export function FilterMenu<T extends string>({
               />
 
               <span>
-                {t(
-                  `${modoExclusion === 'or-and' ? 'filter.menu.orAnd' : 'filter.menu.acota'}.${
-                    excluir ? 'on' : 'off'
-                  }`,
-                )}
+                {t(`filter.menu.orAnd.${excluir ? 'on' : 'off'}`)}
               </span>
             </button>
           ) : null}

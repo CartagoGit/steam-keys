@@ -67,6 +67,9 @@ const CSS = fuente('styles/index.css');
 const UI = fuente('components/ui.component.tsx');
 const FILTRO_CLAVE = fuente('contracts/interfaces/key-filter.interface.ts');
 const FILTRAR = fuente('helpers/filter-keys.helper.ts');
+const UNICO = fuente('components/single-select.component.tsx');
+const IDIOMA = fuente('components/locale-select.component.tsx');
+const META = fuente('components/meta-select.component.tsx');
 const APP = fuente('app.component.tsx');
 
 describe('desplegables', () => {
@@ -1115,11 +1118,11 @@ describe('el filtro de etiquetas', () => {
      * El boton es solo el que abre el menu, y abrirlo no cambia el filtro:
      * el candado no tiene nada que ver con el y por eso no va ahi.
      */
-    expect(FILTRO).toMatch(/\{excluir \? \(\s*<Icon\s*name="lock"/);
+    expect(FILTRO).toMatch(/\{onExcluir && excluir \? \(\s*<Icon\s*name="lock"/);
 
     // Y esta **antes** del boton en el fuente, que es lo mismo que estar
     // encima: el titulo va arriba y el boton debajo.
-    const candado = FILTRO.indexOf('<Icon\n            name="lock"');
+    const candado = FILTRO.indexOf('name="lock"');
     const boton = FILTRO.indexOf('<button');
 
     expect(candado).toBeGreaterThan(-1);
@@ -1128,10 +1131,9 @@ describe('el filtro de etiquetas', () => {
     // Y sale siempre que el modo este puesto, sin mirar si hay algo marcado.
     expect(FILTRO).not.toMatch(/excluir \? \(<Icon[\s\S]{0,120}todas \?/);
 
-    // El texto sale de `modoExclusion`, porque no es el mismo en los tres
-    // filtros: en etiquetas «alguna / todas las seleccionadas» y en los otros
-    // «solo las seleccionadas / todas menos las seleccionadas».
-    expect(FILTRO).toContain("modoExclusion === 'or-and' ? 'filter.menu.orAnd' : 'filter.menu.acota'");
+    // El texto nombra el operador entero, sin una prop que decida cual: solo
+    // hay un filtro con candado, asi que no hay dos lecturas que repartir.
+    expect(FILTRO).toContain("t(`filter.menu.orAnd.${excluir ? 'on' : 'off'}`)");
 
     /**
      * La nota del pie **no** cambia con el candado.
@@ -1182,12 +1184,15 @@ describe('el filtro de etiquetas', () => {
    * lee que filtro se esta aplicando.
    */
   test('el candado nombra el operador, en vez de repetir el icono', () => {
-    // Corto, porque lo que explica esta en la nota de al lado. Y son **cuatro**
-    // textos, no dos: el candado de plataforma y estado no dice OR/AND.
+    // Corto, porque lo que explica esta en la nota de al lado. Y son **dos**
+    // textos, no cuatro: con el candado solo en etiquetas, solo hay una cosa
+    // que nombrar —OR y AND— y las de plataforma y estado se fueron con el.
     expect(I18N_ES).toContain("'filter.menu.orAnd.off': 'Elementos que contengan alguna seleccionada.'");
     expect(I18N_ES).toContain("'filter.menu.orAnd.on': 'Elementos que contengan todas las seleccionadas.'");
-    expect(I18N_ES).toContain("'filter.menu.acota.off': 'Solo las seleccionadas.'");
-    expect(I18N_ES).toContain("'filter.menu.acota.on': 'Todas menos las seleccionadas.'");
+
+    // Y las otras dos no existen: describian un modo que ya no hay.
+    expect(I18N_ES).not.toContain('filter.menu.acota');
+    expect(FILTRO).not.toContain('filter.menu.acota');
 
     /**
      * Ni una palabra de las que se quitaron.
@@ -1197,13 +1202,10 @@ describe('el filtro de etiquetas', () => {
      * candado cerrado cambia la consulta. Lo que no puede es repetir el icono
      * en la linea que lo describe.
      */
-    // Solo en las cuatro lineas del boton. En el resto del fichero esas
-    // palabras salen en mensajes que si las necesitan, y un `not.toContain`
-    // sobre el fichero entero las prohibiria tambien ahi.
-    for (const clave of [
-      'filter.menu.orAnd.off', 'filter.menu.orAnd.on',
-      'filter.menu.acota.off', 'filter.menu.acota.on',
-    ]) {
+    // Solo en las dos lineas del boton. En el resto del fichero esas palabras
+    // salen en mensajes que si las necesitan, y un `not.toContain` sobre el
+    // fichero entero las prohibiria tambien ahi.
+    for (const clave of ['filter.menu.orAnd.off', 'filter.menu.orAnd.on']) {
       const linea = I18N_ES.split('\n').find((l) => l.includes(`'${clave}'`)) ?? '';
 
       for (const palabra of ['candado', 'sale ', 'descartar', 'coincide', 'incluye']) {
@@ -1301,7 +1303,7 @@ describe('el filtro de etiquetas', () => {
    * boton existe. Un flag podria quedar desincronizado de la prop que hace el
    * trabajo, que es justo como se llego a este bug.
    */
-  test('el candado sale en los tres filtros y nunca se apaga', () => {
+  test('el candado sale solo en el filtro de etiquetas y nunca se apaga', () => {
     // Sale con `onExcluir`, no con un flag: un flag se desincroniza de la prop
     // que hace el trabajo, y asi llego el boton que salia y no hacia nada.
     expect(FILTRO).toContain('{onExcluir ? (');
@@ -1311,25 +1313,30 @@ describe('el filtro de etiquetas', () => {
     expect(FILTRO).not.toContain('onExcluir?.(');
 
     /**
-     * Y los tres filtros se lo pasan.
+     * Y **solo** se lo pasa el filtro de etiquetas.
      *
-     * Se cuento a mano porque el numero solo no dice nada: si aparecen tres
-     * veces en el mismo filtro, o no hay candado en otro. Van uno en cada
+     * Se cuentan a mano porque el numero solo no dice nada: si aparece tres
+     * veces en el mismo filtro, o no hay candado en otro. Va uno en cada
      * `FilterMenu`, que es como se distingue.
+     *
+     * Plataforma y estado no lo llevan porque una clave tiene una sola
+     * plataforma y un solo estado: «Steam **y** Epic» no devuelve nada ni con
+     * la coleccion entera. Un icono de candado ahi anuncia un AND que no se
+     * puede pedir, y es el modo que solo se ve cuando ya hay algo marcado.
      */
-    const menús = BARRA.match(/<FilterMenu[\s\S]*?\/>/g) ?? [];
+    const menus = BARRA.match(/<FilterMenu[\s\S]*?\/>/g) ?? [];
 
-    expect(menús).toHaveLength(3);
+    expect(menus).toHaveLength(3);
+    expect(menus.filter((menu) => menu.includes('onExcluir='))).toHaveLength(1);
 
-    for (const menu of menús) {
-      expect(menu).toContain('onExcluir={');
-    }
+    // Y el que lo lleva es el de etiquetas, no otro.
+    expect(menus.find((menu) => menu.includes('onExcluir='))).toContain("t('filter.tags')");
+    expect(BARRA.match(/onExcluir=\{\(excluir\)/g) ?? []).toHaveLength(1);
 
-    // Los de plataforma y estado dicen `acota-descarta`, porque una clave
-    // tiene una sola plataforma y un solo estado: el AND no existe ahi.
-    expect(BARRA.match(/modoExclusion="acota-descarta"/g) ?? []).toHaveLength(2);
-    expect(BARRA.match(/excluirPlataformas: excluir/g) ?? []).toHaveLength(1);
-    expect(BARRA.match(/excluirEstados: excluir/g) ?? []).toHaveLength(1);
+    // Y nada de flags de negacion para los otros dos: no existen en el contrato.
+    expect(BARRA).not.toContain('excluirPlataformas');
+    expect(BARRA).not.toContain('excluirEstados');
+    expect(FILTRO).not.toContain('modoExclusion');
 
     /**
      * **Nunca se apaga.**
@@ -1416,27 +1423,139 @@ describe('arranque sin salto de estilos', () => {
  * conserve un filtro puesto que no se ve en ninguna parte.
  */
 describe('el candado nace abierto', () => {
-  test('el filtro por defecto tiene los tres modos abiertos', () => {
-    // Los tres, en `emptyFilter`, que es lo que se usa al arrancar y al
-    // pulsar «Limpiar».
+  test('el filtro por defecto tiene el modo abierto', () => {
+    // El unico que hay: en `emptyFilter`, que es lo que se usa al arrancar y
+    // al pulsar «Limpiar».
     expect(FILTRAR).toMatch(/excluir: false,/);
-    expect(FILTRAR).toMatch(/excluirPlataformas: false,/);
-    expect(FILTRAR).toMatch(/excluirEstados: false,/);
+
+    // Y los otros dos ni aparecen: no tienen modo que abrir ni cerrar.
+    expect(FILTRAR).not.toContain('excluirPlataformas');
+    expect(FILTRAR).not.toContain('excluirEstados');
   });
 
   test('el filtro por defecto no acota por nada', () => {
-    // Si `excluir` se.COLOCA por error en `emptyFilter`, con el filtro
-    // sin marcar no se notaria —no hay nada que excluir— y en cuanto se
-    // marcara algo apareceria una lista vacia sin explicacion.
-    expect(FILTRAR).toMatch(/tags: \[\],[\s\S]{0,120}?excluir: false,[\s\S]{0,60}?excluirPlataformas: false,[\s\S]{0,60}?excluirEstados: false,/);
+    // Si `excluir` se COLOCA por error en `emptyFilter`, con el filtro sin
+    // marcar no se notaria —no hay nada que acotar— y en cuanto se marcara
+    // algo apareceria una lista vacia sin explicacion.
+    expect(FILTRAR).toMatch(/tags: \[\],[\s\S]{0,40}?excluir: false,/);
+
+    // Y los otros dos filtros no tienen nada que dejar cerrado.
+    expect(FILTRAR).not.toMatch(/platforms: \[\],[\s\S]{0,200}?excluirPlataformas/);
   });
 
-  test('limpiar devuelve los tres modos a abierto', () => {
-    expect(BARRA).toMatch(/excluir: false,\s*excluirPlataformas: false,\s*excluirEstados: false,/);
+  test('limpiar devuelve el modo a abierto', () => {
+    expect(BARRA).toMatch(/excluir: false,/);
   });
 
   test('las props del componente tambien arrancan en abierto', () => {
     // `excluir = false` por defecto: un filtro que no lo pase sale abierto.
     expect(FILTRO).toMatch(/excluir = false,/);
+  });
+});
+
+/**
+ * Un solo selector de una eleccion para los cuatro.
+ *
+ * Son cuatro cosas que hacen exactamente lo mismo —abrir una lista, elegir
+ * una, cerrarla— y eran cuatro ficheros. No se les veia la diferencia en el
+ * comportamiento: la lista salia por un portal, el teclado la recorria con las
+ * flechas y la elegida llevaba un check. Lo que **si** se veia era el boton:
+ *
+ * - el de idioma llevaba `ring-1 ring-line`;
+ * - el de plataforma y estado, `border border-borde` —`INPUT_CLASS`;
+ * - el de orden era un `<select>` nativo, con la lista y el dibujado del
+ *   sistema operativo y sin transicion.
+ *
+ * Tres bordes distintos para el mismo control, y dos de ellos en la misma
+ * pantalla del mismo dialogo. Un campo con `ring` y otro con `border` no se
+ * leen como la misma familia aunque lo sean: el grosor y el sitio donde se
+ * dibujan no casan, y el ojo lo nota antes que la cabeza.
+ *
+ * El nativo era el peor de los tres: ademas de no parecerse, **no admite nada
+ * dentro de un `<option>`** —una bandera o un icono se ignoran— y su lista la
+ * dibuja el sistema, que en Windows sale con otro tamano, otro desplazamiento y
+ * otra tipografia. Si el menu tiene que verse como el resto, tiene que ser
+ * nuestro.
+ */
+describe('un solo selector de una eleccion', () => {
+  test('los cuatro usan el mismo componente y ninguno se dibuja a mano', () => {
+    // Los tres que existian, mas el de orden, que se ha converted.
+    for (const [nombre, texto] of [
+      ['idioma', IDIOMA],
+      ['meta', META],
+      ['orden', BARRA],
+    ] as const) {
+      expect(`${nombre}:${texto.includes('SingleSelect')}`).toBe(`${nombre}:true`);
+    }
+  });
+
+  test('el de orden ya no es un <select> nativo', () => {
+    // El `<option>` solo admite texto, asi que no hay forma de ponerle icono.
+    expect(BARRA).not.toContain('<select');
+    expect(BARRA).not.toContain('<option');
+    expect(BARRA).not.toContain('SELECT_CLASS');
+  });
+
+  test('el boton del desplegable sale en un solo sitio de toda la app', () => {
+    // `aria-haspopup="listbox"` es la senal de «esto abre una lista». Si sale
+    // en otro fichero, ese boton esta hecho a mano y puede diverjir en
+    // cualquier cosa —que es exactamente como se separaron.
+    for (const [nombre, texto] of [
+      ['idioma', IDIOMA],
+      ['meta', META],
+      ['toolbar', BARRA],
+    ] as const) {
+      expect(`${nombre}:${texto.includes('aria-haspopup="listbox"')}`).toBe(`${nombre}:false`);
+    }
+
+    // Y sale una vez en el comun, que es quien lo dibuja.
+    expect(UNICO.match(/aria-haspopup="listbox"/g)).toHaveLength(1);
+  });
+
+  test('el boton es el de `CAMPO_CLASS`, el mismo que los campos', () => {
+    // El de idioma se salia de la familia con `ring-1 ring-line`, y con eso el
+    // dialogo de ajustes tenia dos bordes distintos a la vez.
+    expect(UNICO).toContain('${CAMPO_CLASS} flex items-center gap-2 text-left');
+    expect(IDIOMA).not.toContain('ring-1 ring-line ');
+    expect(META).not.toContain('ring-1 ring-line ');
+  });
+
+  test('el boton del desplegable no lleva `w-full`', () => {
+    // `INPUT_CLASS` lo lleva, y con las dos clases en el atributo manda la que
+    // Tailwind pone despues en su CSS y no la que va la ultima: el ancho
+    // acaba siendo el que no se queria. Para eso esta `CAMPO_CLASS` suelta.
+    expect(UI).toContain('export const INPUT_CLASS = `${CAMPO_CLASS} w-full`');
+    expect(UNICO).not.toContain('INPUT_CLASS');
+  });
+
+  test('el giro de la flecha y el `listbox` con nombre', () => {
+    // Sin nombre, el lector de pantalla anuncia «lista» a secas y hay que
+    // haber leido el boton para saber que se esta abriendo.
+    expect(POPOVER).toContain("'aria-label': ariaLabel");
+    expect(POPOVER).toContain('aria-label={ariaLabel}');
+    expect(UNICO).toContain('aria-label={label}');
+
+    // Y la flecha gira al abrir, que es el gesto que dice «esto esta
+    // desplegado» sin tener que mirar el panel.
+    expect(UNICO).toContain("abierto ? 'rotate-180' : ''");
+  });
+
+  test('el teclado lo maneja el boton, no el panel', () => {
+    // El panel va en un portal colgado de `body`: un `onKeyDown` suyo solo ve
+    // lo que se pulsa con el raton encima, que es justo cuando no se navega.
+    expect(UNICO).toMatch(/<div[^>]*onKeyDown=\{alTeclado\}/);
+    expect(UNICO).not.toMatch(/<Popover[^>]*onKeyDown/);
+  });
+
+  test('lo unico que cambia entre ellos es el `icono` de la opcion', () => {
+    // El boton enseña el de la elegida y cada fila el suyo, y salen del mismo
+    // sitio. Con un `icon?: IconName` habria que inventar un tipo capaz de
+    // pintar una bandera, un icono con su color y nada.
+    expect(UNICO).toContain('icono?: ReactNode');
+
+    // Y sale del mismo sitio en el boton y en la fila: sin resto de hueco,
+    // sin medida fija. Lo que pone el boton es el de la elegida.
+    expect(UNICO).toContain('{elegida?.icono}');
+    expect(UNICO).toContain('{option.icono}');
   });
 });

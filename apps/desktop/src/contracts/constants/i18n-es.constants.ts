@@ -84,8 +84,6 @@ export const ES: TranslationTable = Object.freeze({
     'Sin marcar ninguna, se ve todo. Con varias marcadas, el filtro incluye las que llevan alguna.',
   'filter.menu.orAnd.off': 'Elementos que contengan alguna seleccionada.',
   'filter.menu.orAnd.on': 'Elementos que contengan todas las seleccionadas.',
-  'filter.menu.acota.off': 'Solo las seleccionadas.',
-  'filter.menu.acota.on': 'Todas menos las seleccionadas.',
   'filter.menu.lockOn': 'Filtro cerrado: exige todas',
   'filter.reset': 'Quitar busqueda y filtros',
 

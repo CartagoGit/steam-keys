@@ -157,19 +157,23 @@ function catalogaPor(origen: readonly IGameKey[]): readonly IGameKey[] {
 }
 
 /**
- * El candado de plataforma y de estado: acota o descarta.
+ * Plataforma y estado acotan y nada mas: **no tienen candado**.
  *
- * En etiquetas es OR/AND porque una clave lleva todas las etiquetas que lleva.
- * En plataforma y estado **no puede** ser AND: una clave tiene una sola
- * plataforma y un solo estado, de modo que «Steam **y** Epic» no devuelve nada
- * ni con la coleccion entera. Un filtro que devuelve siempre la lista vacia
- * esta roto, y mas si el boton dice «AND».
+ * El candado lo lleva solo el filtro de etiquetas, y no por gusto sino por los
+ * datos. Una clave lleva todas las etiquetas que lleva, asi que «cumplidos **y**
+ * regalados» es una consulta que existe. Una clave tiene **una sola**
+ * plataforma y **un solo** estado, de modo que «Steam **y** Epic» no devuelve
+ * nada ni con la coleccion entera: un filtro que solo puede devolver la lista
+ * vacia esta roto, y mas si el icono dice «cerrado».
  *
- * Asi que ahi el candado cerrado **descarta** las marcadas. Es la otra
- * consulta que si se puede pedir, y la que se quiere: «todo menos las de
- * Steam».
+ * Lo que antes ocupaba ese hueco —cerrado descartaba las marcadas, «todo menos
+ * las de Steam»— era otra consulta, distinta y no mistaken, pero el icono del
+ * candado, que tiene dos estados, decia lo mismo para las dos. Lo unico que se
+ * ensenaba era un modo que no existe y que solo aparecia al marcar algo.
+ *
+ * Ahora el que tiene candado es el de etiquetas, y los otros dos no lo pintan.
  */
-describe('el candado de plataforma y de estado', () => {
+describe('plataforma y estado acotan, sin candado', () => {
   const catalogo = [
     clave(1, { platform: KeyPlatform.Steam, status: KeyStatus.Available }),
     clave(2, { platform: KeyPlatform.BattleNet, status: KeyStatus.Available, tags: ['cumplidos'] }),
@@ -188,87 +192,93 @@ describe('el candado de plataforma y de estado', () => {
     expect(r.map((k) => k.id)).toEqual([1, 3]);
   });
 
-  test('cerrado descarta las plataformas marcadas', () => {
+  /**
+   * Plataforma y estado tienen **un solo modo**, y es a proposito.
+   *
+   * Antes tenian dos, como las etiquetas: abierto acotaba a las marcadas y
+   * cerrado las descartaba. El cerrado no era un AND —no se podia, una clave
+   * tiene una sola plataforma— sino la negacion. Y el icono del candado, que
+   * solo tiene dos estados, decia «cerrado» para las dos cosas: no hay forma de
+   * que un icono diga «todo menos estas».
+   *
+   * El filtro era util («todo menos las de Steam»), pero lo que se ensefia no
+   * era ese filtro: era un modo que no existe y que solo aparece cuando se
+   * marca algo. Con ninguna marcada no se ve, y es justo cuando se empieza a
+   * marcar.
+   *
+   * Ahora el candado solo lo lleva las etiquetas, que si pueden pedir las dos
+   * cosas porque una clave lleva todas las que lleva.
+   */
+  test('dos plataformas marcadas: sale lo que lleva alguna de las dos', () => {
     const r = filterKeys(catalogo, {
       ...todo(),
+      platforms: [KeyPlatform.Steam, KeyPlatform.BattleNet],
+    });
+
+    expect(r).toHaveLength(4);
+  });
+
+  test('varias plataformas marcadas no se pueden negar', () => {
+    // `IKeyFilter` no tiene `excluirPlataformas`, asi que la forma de «todo
+    // menos las de Steam» no se puede ni escribir. Esto lo fija el
+    // compilador, y el test es la red por si alguien lo relaja.
+    expect('excluirPlataformas' in todo()).toBe(false);
+    expect('excluirEstados' in todo()).toBe(false);
+  });
+
+  test('el estado acota y no se descarta, y es independiente de la plataforma', () => {
+    const soloRegaladas = filterKeys(catalogo, {
+      ...todo(),
+      statuses: [KeyStatus.Available],
+    });
+
+    expect(soloRegaladas.map((k) => k.id)).toEqual([1, 2]);
+
+    // Los dos a la vez: solo Steam **y** solo Available.
+    const ambos = filterKeys(catalogo, {
+      ...todo(),
       platforms: [KeyPlatform.Steam],
-      excluirPlataformas: true,
+      statuses: [KeyStatus.Available],
+    });
+
+    expect(ambos.map((k) => k.id)).toEqual([1]);
+  });
+
+  test('con una sola marcada, sale lo que la lleva y solo lo que la lleva', () => {
+    const r = filterKeys(catalogo, {
+      ...todo(),
+      platforms: [KeyPlatform.BattleNet],
     });
 
     expect(r.map((k) => k.id)).toEqual([2, 4]);
   });
 
-  test('dos plataformas marcadas: abierto trae las dos, cerrado quita las dos', () => {
-    const abierto = filterKeys(catalogo, {
-      ...todo(),
-      platforms: [KeyPlatform.Steam, KeyPlatform.BattleNet],
-    });
-
-    // Con las dos marcadas y abierto salen todas: es un «o».
-    expect(abierto).toHaveLength(4);
-
-    // Y con el candado cerrado no sale ninguna, que es lo que se pidio.
-    const cerrado = filterKeys(catalogo, {
-      ...todo(),
-      platforms: [KeyPlatform.Steam, KeyPlatform.BattleNet],
-      excluirPlataformas: true,
-    });
-
-    expect(cerrado).toHaveLength(0);
+  test('sin nada marcado, el filtro no acota', () => {
+    expect(filterKeys(catalogo, { ...todo() })).toHaveLength(4);
   });
 
-  test('el estado se descarta igual que la plataforma, y son independientes', () => {
-    const soloRegaladas = filterKeys(catalogo, {
-      ...todo(),
-      statuses: [KeyStatus.Available],
-      excluirEstados: true,
-    });
-
-    expect(soloRegaladas.map((k) => k.id)).toEqual([3, 4]);
-
-    // Los dos a la vez: descarta Steam **y** descarta Available.
-    const ambos = filterKeys(catalogo, {
-      ...todo(),
-      platforms: [KeyPlatform.Steam],
-      excluirPlataformas: true,
-      statuses: [KeyStatus.Available],
-      excluirEstados: true,
-    });
-
-    // Quedan las de BattleNet, y de las de BattleNet las que no son Available: la 4.
-    expect(ambos.map((k) => k.id)).toEqual([4]);
-  });
-
-  test('con una sola plataforma marcada, cerrar el candado ya hace algo', () => {
-    // Una marcada, cerrado: sale todo lo que no sea esa.
+  test('el candado de etiquetas es independiente de plataforma y estado', () => {
     const r = filterKeys(catalogo, {
       ...todo(),
       platforms: [KeyPlatform.BattleNet],
-      excluirPlataformas: true,
-    });
-
-    expect(r.map((k) => k.id)).toEqual([1, 3]);
-  });
-
-  test('sin nada marcado, los dos modos dan lo mismo', () => {
-    const abierto = filterKeys(catalogo, { ...todo(), excluirPlataformas: false });
-    const cerrado = filterKeys(catalogo, { ...todo(), excluirPlataformas: true });
-
-    expect(cerrado).toEqual(abierto);
-    expect(abierto).toHaveLength(4);
-  });
-
-  test('los tres candados son independientes entre si', () => {
-    const r = filterKeys(catalogo, {
-      ...todo(),
-      platforms: [KeyPlatform.Steam],
-      excluirPlataformas: true,
       tags: ['cumplidos'],
       excluir: true,
     });
 
-    // Descarta las Steam —1 y 3— y de las de BattleNet se queda con las que
-    // llevan la etiqueta: la 2 y la 4. Las dos reglas a la vez.
+    // BattleNet **y** con la etiqueta: sale la 2 y la 4, que son las unicas
+    // de BattleNet y las unicas con la etiqueta. Las dos reglas a la vez, y
+    // aqui si se puede pedir porque una clave lleva varias etiquetas.
     expect(r.map((k) => k.id)).toEqual([2, 4]);
+
+    // Y sin el AND sale mas: el «o» tambien acota por plataforma. Lo que hace
+    // el candado no es mezclarse con el otro filtro, es estrechar **dentro** de
+    // lo que ese filtro ya habia dejado.
+    const abierto = filterKeys(catalogo, {
+      ...todo(),
+      platforms: [KeyPlatform.BattleNet],
+      tags: ['cumplidos'],
+    });
+
+    expect(abierto).toHaveLength(2);
   });
 });

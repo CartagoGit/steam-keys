@@ -287,18 +287,27 @@ describe('cobertura de las traducciones', () => {
    * codigo de barras —una bandera dibujada a ojo puede parecerse a otra y
    * seguir siendo la de otro pais—.
    *
-   * Y el escudo va **centrado**: en la oficial esta en el centro y en el
-   * astil, que es donde antes estaba, la bandera se leia como un manchon.
+   * **El escudo no va centrado.** Esta guarda decia que si, y es lo que hacia
+   * que no se pareciese a ninguna: el oficial esta a un tercio del ancho
+   * —desplazado hacia el astil— y no en el centro. Medido sobre el fichero
+   * oficial, la caja de lo que no es banda va de 0,211 a 0,455 del ancho, con
+   * el punto medio en 0,333; centrada estaria en 0,5.
+   *
+   * Donde vive la geometria exacta es en `banderas.helper.spec.ts`, que
+   * compara los numeros con los de la oficial. Aqui solo se comprueba que el
+   * fichero sea el que dice el codigo y que no lleve la deslocacion que lo
+   * ponia en el centro.
    */
-  test('la bandera de espana son tres bandas con el escudo en el centro', () => {
+  test('la bandera de espana son tres bandas con el escudo hacia el astil', () => {
     const bandera = readFileSync(join(RAIZ, '../public/flags/es.svg'), 'utf8');
 
     // Tres bandas, en la proporcion oficial 1:2:1 sobre 16 de alto.
     expect(bandera).toMatch(/<rect width="24" height="16" fill="#[a-f0-9]{6}"\/>/);
     expect(bandera).toMatch(/<rect y="4" width="24" height="8"/);
 
-    // Y el escudo desplazado al centro de la bandera, no al astil.
-    expect(bandera).toContain('<g transform="translate(12 0)">');
+    // El escudo va puesto con coordenadas, no con una traslacion que lo
+    // empujaba al centro.
+    expect(bandera).not.toContain('translate(12 0)');
 
     // Las otras cuatro banderas no tienen por que parecerse a esta.
     for (const otro of ['en', 'fr', 'pt', 'de']) {

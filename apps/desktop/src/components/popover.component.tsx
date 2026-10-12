@@ -51,6 +51,14 @@ export interface IPopoverProps {
    */
   scrollCopia?: boolean;
   className?: string;
+  /**
+   * Nombre del panel, cuando es una lista.
+   *
+   * Sin esto el lector de pantalla anuncia «lista» a secas. Con el nombre se
+   * anuncia «lista de Plataformas, 7 elementos», que es lo que hace falta para
+   * saber que se esta abriendo sin haber leido el boton.
+   */
+  'aria-label'?: string;
   children: React.ReactNode;
 }
 
@@ -127,6 +135,7 @@ export function Popover({
   scrollCopia = false,
   className = '',
   children,
+  'aria-label': ariaLabel,
 }: IPopoverProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [posicion, setPosicion] = useState<IPosicion | null>(null);
@@ -322,6 +331,7 @@ export function Popover({
     <div
       ref={panelRef}
       role={esLista ? 'listbox' : undefined}
+      aria-label={ariaLabel}
       onAnimationEnd={terminarSalida}
       style={{
         position: 'fixed',
@@ -390,6 +400,8 @@ export function PopoverOption({
   alEntrar,
   /** Se dibuja a la derecha: el icono, o el check de la elegida. */
   derecha,
+  /** Texto del tooltip, si es distinto de lo que ya se ve. */
+  title,
   children,
 }: {
   activa: boolean;
@@ -397,6 +409,7 @@ export function PopoverOption({
   alPulsar: () => void;
   alEntrar?: () => void;
   derecha?: React.ReactNode;
+  title?: string;
   children: React.ReactNode;
 }) {
   /**
@@ -421,6 +434,7 @@ export function PopoverOption({
       role="option"
       aria-selected={activa}
       tabIndex={-1}
+      title={title}
       onClick={alPulsar}
       onMouseEnter={alEntrar}
       className={[

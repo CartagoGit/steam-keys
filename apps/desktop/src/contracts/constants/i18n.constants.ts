@@ -108,8 +108,6 @@ export const EN: TranslationTable = Object.freeze({
     'With none marked, everything shows. With several marked, the filter includes those carrying one.',
   'filter.menu.orAnd.off': 'Items containing any of the selected.',
   'filter.menu.orAnd.on': 'Items containing all of the selected.',
-  'filter.menu.acota.off': 'Only the selected.',
-  'filter.menu.acota.on': 'Everything except the selected.',
   'filter.menu.lockOn': 'Closed filter: requires all',
   'filter.reset': 'Clear search and filters',
 

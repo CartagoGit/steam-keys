@@ -1,8 +1,7 @@
-import { useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 
 import { Icon } from './icon.component';
-import { Popover, PopoverOption } from './popover.component';
-import { INPUT_CLASS } from './ui.component';
+import { SingleSelect, type ISelectOption } from './single-select.component';
 import type { IMetaOption } from '@/contracts';
 
 export interface IMetaSelectProps {
@@ -15,24 +14,43 @@ export interface IMetaSelectProps {
 }
 
 /**
+ * El icono dentro de su color.
+ *
+ * Es el mismo dato que pinta la pastilla de cada fila de la tabla, y por eso
+ * sale del mismo sitio: se elige un estado en el editor para ver como queda ese
+ * estado, y si los dos usaran tablas de color distintas el editor estiria
+ * colores que la tabla nunca enseña.
+ *
+ * El `tone` llega como clases completas desde el dominio y no como un nombre
+ * de color. Los tonos son semanticos (`bg-ok`, `text-warn`) y cada tema declara
+ * los suyos en `styles/index.css`; si aqui se tradujera un `'ok'` a clases,
+ * este desplegable tendria su propia tabla, distinta de la de la pastilla, y
+ * volveria a haber dos fuentes de verdad.
+ */
+function Distintivo({ icon, tone }: { icon: string; tone?: string }): ReactNode {
+  return (
+    <span
+      className={[
+        'flex h-5 w-5 shrink-0 items-center justify-center rounded-md ring-1',
+        tone ?? '',
+      ].join(' ')}
+    >
+      <Icon name={icon as never} size={12} />
+    </span>
+  );
+}
+
+/**
  * Desplegable con el color y el icono de cada opcion.
  *
  * Sustituye a un `<select>` nativo, que solo admite texto: ni un icono ni un
- * fondo por opcion, que es justo lo que hace falta para distinguir «regalada»
- * de «canjeada» de un vistazo. La pastilla que sale en la tabla de cada fila ya
- * usa el color y el icono de los mismos metadatos, y con esto el editor dice lo
- * mismo que la tabla —que es lo esperable: se elige un estado para ver como
- * queda ese estado.
+ * fondo por opcion, que es justo lo que hace falta para distinguir
+ * «regalada» de «canjeada» de un vistazo.
  *
- * Se apoya en `Popover`, que dibuja la lista fuera del dialogo. Sin eso, el
- * desplegable del editor —que vive en un panel con `overflow-hidden`— se
- * cortaba por el borde y, al abrirse, el dialogo entero daba un bote.
- *
- * El `tone` llega como clases completas desde el dominio, no como un nombre de
- * color. Es a proposito: los tonos son semanticos (`bg-ok`, `text-warn`) y cada
- * tema declara los suyos en `styles/index.css`. Si aqui se tradujera un
- * `'ok'` a clases, el dropdown tendria su propia tabla de colores, distinta de
- * la de la pastilla, y volveria a haber dos fuentes de verdad.
+ * No aporta comportamiento: la lista, el teclado y el boton son los de
+ * `SingleSelect`. Aqui solo queda lo que es de este —el distintivo de color— y
+ * la traduccion de `IMetaOption` a la opcion que el selector compartido
+ * entiende.
  */
 export function MetaSelect({
   options,
@@ -41,79 +59,36 @@ export function MetaSelect({
   label,
   className = '',
 }: IMetaSelectProps) {
-  const [abierto, setAbierto] = useState(false);
-  const boton = useRef<HTMLButtonElement>(null);
-
-  const elegida = options.find((option) => option.value === value) ?? options[0];
-
-  const elegir = (valor: string): void => {
-    setAbierto(false);
-    if (valor !== value) onChange(valor);
-  };
+  /**
+   * Se construye cada render, y no con `useMemo`.
+   *
+   * Las opciones vienen ya traducidas del dominio y no hay nada caro que
+   * memorizar: `<Distintivo>` son cuatro elementos. Envolverlo en un `useMemo`
+   * con `options` en las dependencias solo anade una cosa que puede quedar
+   * desfasada —las traducciones cambian con el idioma y la lista de opciones no
+   * cambia nunca—.
+   */
+  const opciones: readonly ISelectOption<string>[] = options.map((option) => ({
+    value: option.value,
+    label: option.label,
+    /*
+     * Sin icono no se pinta nada, **ni siquiera un hueco**. Antes se ponia un
+     * `<span className="w-5">` de relleno para que las filas no se movieran al
+     * pasar el raton por encima, y lo que hacia era dejar un hueco vacio en
+     * todas las que no tienen icono. Si la lista mezcla —que es justo lo que
+     * pasa con las plataformas, que algunas tienen y otras no— el hueco alinea
+     * los textos; si ninguna tiene, el hueco solo estorba.
+     */
+    icono: option.icon ? <Distintivo icon={option.icon} tone={option.tone} /> : undefined,
+  }));
 
   return (
-    <div className={className}>
-      <button
-        ref={boton}
-        type="button"
-        onClick={() => setAbierto((abierto) => !abierto)}
-        aria-label={label}
-        aria-haspopup="listbox"
-        aria-expanded={abierto}
-        className={`${INPUT_CLASS} flex items-center gap-2 text-left`}
-      >
-        {elegida?.icon ? (
-          <span
-            className={[
-              'flex h-5 w-5 shrink-0 items-center justify-center rounded-md ring-1',
-              elegida.tone ?? '',
-            ].join(' ')}
-          >
-            <Icon name={elegida.icon} size={12} />
-          </span>
-        ) : null}
-
-        <span className="flex-1 truncate">{elegida?.label ?? value}</span>
-
-        <Icon
-          name="chevron-down"
-          size={14}
-          className={['shrink-0 text-t3 transition-transform', abierto ? 'rotate-180' : ''].join(' ')}
-        />
-      </button>
-
-      <Popover abierto={abierto} ancla={boton} onCerrar={() => setAbierto(false)}>
-        {options.map((option) => {
-          const activa = option.value === value;
-
-          return (
-            <PopoverOption
-              key={option.value}
-              activa={activa}
-              resaltada={false}
-              alPulsar={() => elegir(option.value)}
-              derecha={
-                activa ? <Icon name="check" size={14} className="shrink-0 text-accent" /> : null
-              }
-            >
-              {option.icon ? (
-                <span
-                  className={[
-                    'flex h-5 w-5 shrink-0 items-center justify-center rounded-md ring-1',
-                    option.tone ?? '',
-                  ].join(' ')}
-                >
-                  <Icon name={option.icon} size={12} />
-                </span>
-              ) : (
-                <span className="w-5 shrink-0" />
-              )}
-
-              <span className="flex-1 truncate">{option.label}</span>
-            </PopoverOption>
-          );
-        })}
-      </Popover>
-    </div>
+    <SingleSelect
+      options={opciones}
+      value={value}
+      onChange={onChange}
+      label={label}
+      className={className}
+    />
   );
 }

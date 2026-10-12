@@ -59,8 +59,6 @@ export const FR: TranslationTable = Object.freeze({
     'Sans rien de coche, tout s affiche. Avec plusieurs cochees, le filtre inclut celles qui en portent une.',
   'filter.menu.orAnd.off': 'Elements contenant au moins un des selectionnes.',
   'filter.menu.orAnd.on': 'Elements contenant tous les selectionnes.',
-  'filter.menu.acota.off': 'Seulement les selectionnes.',
-  'filter.menu.acota.on': 'Tout sauf les selectionnes.',
   'filter.menu.lockOn': 'Filtre ferme : exige tous',
   'filter.reset': 'Effacer la recherche et les filtres',
   'select.one': '{0} selectionnee',

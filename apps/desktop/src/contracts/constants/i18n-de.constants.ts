@@ -59,8 +59,6 @@ export const DE: TranslationTable = Object.freeze({
     'Ohne Markierte zeigt alles. Mit mehreren Markierten nimmt der Filter die mit einem davon auf.',
   'filter.menu.orAnd.off': 'Eintraege, die mindestens einen ausgewaehlten tragen.',
   'filter.menu.orAnd.on': 'Eintraege, die alle ausgewaehlten tragen.',
-  'filter.menu.acota.off': 'Nur die ausgewaehlten.',
-  'filter.menu.acota.on': 'Alle ausser den ausgewaehlten.',
   'filter.menu.lockOn': 'Geschlossener Filter: verlangt alle',
   'filter.reset': 'Suche und Filter zuruecksetzen',
   'select.one': '{0} ausgewaehlt',

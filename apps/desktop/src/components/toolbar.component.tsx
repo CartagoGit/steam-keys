@@ -1,9 +1,10 @@
 import { useMemo } from 'react';
 import { AppView, KEY_PLATFORM_META, KEY_PLATFORM_VALUES, KEY_STATUS_VALUES, KeyKind, KeyScope, KeySort, SEARCH_SHORTCUT, TRANSLATIONS, platformLabel, statusMeta, type IKeyFilter, type IKeyStats, type ITag, type SteamAccountStatus } from '@/contracts';
 import { Icon } from './icon.component';
-import { Button, INPUT_CLASS, SELECT_CLASS } from './ui.component';
+import { Button, INPUT_CLASS } from './ui.component';
 import { FilterMenu } from './filter-menu.component';
 import { Segmented } from './segmented.component';
+import { SingleSelect, type ISelectOption } from './single-select.component';
 import { ViewSwitch } from './view-switch.component';
 import { useT } from '@/context/locale.context';
 
@@ -40,7 +41,6 @@ const SORTS: ReadonlyArray<{ value: KeySort; clave: string }> = [
   { value: KeySort.Estado, clave: 'sort.status' },
   { value: KeySort.Plataforma, clave: 'sort.platform' },
 ];
-
 /** Barra superior: buscador, filtros rapidos y acciones. */
 export function Toolbar({
   filter,
@@ -77,6 +77,21 @@ export function Toolbar({
     () => catalogo.map((tag) => ({ value: tag.nombre, label: tag.nombre, count: tag.usos })),
     [catalogo],
   );
+
+  /**
+   * Los nombres del desplegable de orden, ya traducidos.
+   *
+   * `SORTS` guarda **claves** porque se declara fuera del componente, donde no
+   * hay contexto de idioma todavia. Aqui es donde se traducen, y solo entonces.
+   *
+   * Sin `useMemo` a proposito: son cuatro textos y el idioma cambia una vez
+   * cada vez que se abre el menu. Memorizarlo solo añade una dependencia mas
+   * que puede quedarse desfasada sin que nada lo avise.
+   */
+  const opcionesOrden: readonly ISelectOption<KeySort>[] = SORTS.map((opcion) => ({
+    value: opcion.value,
+    label: t(opcion.clave),
+  }));
 
   /**
    * Los recuentos de plataforma, para la lista del desplegable.
@@ -186,20 +201,36 @@ export function Toolbar({
           trabajo del dia a dia.
         */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative">
-            <select
-              value={sort}
-              onChange={(event) => onSortChange(event.target.value as KeySort)}
-              className={`${SELECT_CLASS} w-40 max-w-[45vw] py-2 pr-8`}
-              aria-label={t('toolbar.sort')}
-            >
-              {SORTS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {t(option.clave)}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/*
+            El desplegable de orden, con el **mismo** componente que el idioma,
+            la plataforma y el estado del dialogo.
+            
+            Era un `<select>` nativo, y se le notaba: sin transicion al abrir y
+            al cerrar, con la lista del sistema operativo —otro tamano, otro
+            desplazamiento, otra tipografia— y con el borde dibujado de otra
+            manera que el resto de campos. En la misma barra, el buscador y el
+            desplegable de orden tenian bordes distintos y solo uno hacia algo
+            al pulsarlo.
+
+            Lo que le falta a los demas y tiene este es el nombre delante —«Ordenar
+            por»—. No es el unico que lo lleva: el selector de idioma lo trae
+            puesto por su `Field`. Ahi no hay sitio para un titulo encima sin
+            estirar la barra de arriba abajo, asi que va dentro, y separado con
+            una linea para que se lea como el rotulo del boton y no como parte
+            del valor.
+
+            El ancho lo pone `w-44` y no el texto: las cuatro opciones van de
+            «A - Z» a «Por plataforma», y con el ancho del texto el boton
+            encoge y crece al cambiar de idioma, que se ve como un parpadeo.
+          */}
+          <SingleSelect
+            options={opcionesOrden}
+            value={sort}
+            onChange={onSortChange}
+            label={t('toolbar.sort')}
+            prefijo={t('toolbar.sort')}
+            className="w-44"
+          />
 
           <Button
             variant="ghost"
@@ -303,15 +334,6 @@ export function Toolbar({
             onChange={(platforms) => onFilterChange({ platforms: [...platforms] })}
             allLabel={t('filter.menu.all')}
             tone="sky"
-            /*
-             * Una clave tiene **una sola** plataforma, asi que aqui el AND no
-             * existe: «Steam y Epic» no devuelve nada ni con la coleccion
-             * entera. El candado cerrado por eso **descarta** las marcadas en
-             * vez de acarrearlas, que es la otra consulta que se puede pedir.
-             */
-            modoExclusion="acota-descarta"
-            excluir={filter.excluirPlataformas}
-            onExcluir={(excluir) => onFilterChange({ excluirPlataformas: excluir })}
             footHint={'filter.menu.footHint'}
           />
 
@@ -322,10 +344,6 @@ export function Toolbar({
             onChange={(statuses) => onFilterChange({ statuses: [...statuses] })}
             allLabel={t('filter.menu.all')}
             tone="rose"
-            // Por lo mismo que en plataforma: un solo estado por clave.
-            modoExclusion="acota-descarta"
-            excluir={filter.excluirEstados}
-            onExcluir={(excluir) => onFilterChange({ excluirEstados: excluir })}
             footHint={'filter.menu.footHint'}
           />
 
@@ -346,6 +364,16 @@ export function Toolbar({
               onChange={(tags) => onFilterChange({ tags: [...tags] })}
               allLabel={t('filter.menu.all')}
               tone="violet"
+              /*
+               * El candado va aqui y en ningun otro sitio.
+               *
+               * Una clave lleva **todas** las etiquetas que lleva, asi que el
+               * AND existe: «cumplidos **y** regalados» es una consulta de
+               * verdad. Plataforma y estado son un valor por clave, y ahi el
+               * AND no puede devolver nada ni con la coleccion entera, asi que
+               * los dos de al lado no reciben ni `excluir` ni `onExcluir` y no
+               * muestran candado.
+               */
               excluir={filter.excluir}
               onExcluir={(excluir) => onFilterChange({ excluir })}
               // Entre llaves y con comillas simples, no como atributo pelado:
@@ -393,13 +421,10 @@ export function Toolbar({
                   // Sin esto el filtro de etiquetas sobrevive a «Limpiar»: la
                   // lista se queda filtrada y el boton dice todo lo contrario.
                   tags: [],
-                  // Y tampoco la exclusion, que si no el filtro sigue
-                  // acotando con un «y» que ya no se ve en ninguna parte.
-                  // Las tres: con una se queda solo, que es un filtro puesto
-                  // que no se ve en ninguna parte.
+                  // Y tampoco el modo del candado, que si no el filtro sigue
+                  // acotando con un «y» que ya no se ve en ninguna parte: un
+                  // filtro puesto que el boton dice haber quitado.
                   excluir: false,
-                  excluirPlataformas: false,
-                  excluirEstados: false,
                 })
               }
               title={t('filter.reset')}

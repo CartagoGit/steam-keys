@@ -182,12 +182,19 @@ export function ExternalLink({ url, children, showUrl = false }: IExternalLinkPr
  * ve el texto y no se ve donde acaba el campo. `--borde` llega a 3:1 en los
  * nueve temas, que es lo que pide la WCAG 1.4.11 para el contorno de un
  * control.
+ *
+ * Se separa del ancho a proposito. `INPUT_CLASS` lleva `w-full`, asi que un
+ * selector que quiere **su propia** medida —«Ordenar por», que va con los
+ * botones de la cabecera— no lo puede usar directamente: con las dos clases en
+ * el `className` manda la que Tailwind pone despues en su CSS, no la que va la
+ * ultima en la cadena, y el ancho acaba siendo el que no se queria. Quien lo
+ * quiera ancho compone `CAMPO_CLASS`; quien lo quiera completo, `INPUT_CLASS`.
  */
-export const INPUT_CLASS =
-  'w-full rounded-lg border border-borde bg-surface-2 px-3 py-2 text-sm text-t1 ' +
+export const CAMPO_CLASS =
+  'rounded-lg border border-borde bg-surface-2 px-3 py-2 text-sm text-t1 ' +
   'placeholder:text-t4 transition focus:bg-surface-3 focus:border-accent focus:outline-none';
 
-export const SELECT_CLASS = `${INPUT_CLASS} appearance-none cursor-pointer`;
+export const INPUT_CLASS = `${CAMPO_CLASS} w-full`;
 
 export interface IPasswordInputProps {
   value: string;

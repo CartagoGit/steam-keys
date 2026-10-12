@@ -22,8 +22,10 @@ export interface IKeyFilter {
   /**
    * Si esta vacio, no se filtra por plataforma.
    *
-   * Con `excluirPlataformas` se invierte: se descartan las marcadas en vez de
-   * acotar a ellas.
+   * No lleva candado, y no es una falta: una clave tiene **una sola**
+   * plataforma, asi que «Steam **y** Epic» no devuelve nada ni con la
+   * coleccion entera. Un filtro que solo puede devolver la lista vacia no es
+   * un filtro. El candado lo lleva el de etiquetas, que si puede pedir AND.
    */
   platforms: readonly KeyPlatform[];
 
@@ -33,6 +35,9 @@ export interface IKeyFilter {
    * Cuando `scope` es "solo disponibles" este filtro **no se aplica**: el
    * selector de estado se apaga, porque combinar "solo disponibles" con
    * "muestra las regaladas" no significa nada.
+   *
+   * Tampoco lleva candado, por lo mismo que `platforms`: una clave tiene un
+   * solo estado.
    */
   statuses: readonly KeyStatus[];
 
@@ -67,22 +72,12 @@ export interface IKeyFilter {
    * Y con una sola marcada tampoco: una etiqueta se cumple o no se cumple. Por
    * eso el boton **no se apaga** con una —si se apagara, no se podria dejar el
    * modo puesto antes de seguir marcando, que es justo cuando se decide—.
+   *
+   * **Es el unico filtro con candado**, y no por gusto sino porque es el
+   * unico que puede pedir las dos cosas: una clave lleva todas las etiquetas
+   * que lleva, y por eso «cumplidos **y** regalados» existe.
    */
   excluir?: boolean;
-
-  /**
-   * Plataformas marcadas que se **descartan** en vez de acotar.
-   *
-   * Aqui el candado no es OR/AND como en las etiquetas, porque una clave tiene
-   * **una sola** plataforma: pedir «Steam **y** Epic» no devuelve nada nunca,
-   * ni con una coleccion entera. De ahi que con candado abierto acote —«solo
-   * Steam o Epic»— y con candado cerrado descarte —«todo menos Steam y Epic»—,
-   * que es la unica lectura que si se puede pedir y es la que se quiere.
-   */
-  excluirPlataformas?: boolean;
-
-  /** Estados marcados que se descartan, por el mismo motivo que las plataformas. */
-  excluirEstados?: boolean;
 }
 
 /** Resumen para la barra de estadisticas. */

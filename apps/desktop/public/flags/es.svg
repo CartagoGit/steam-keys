@@ -6,44 +6,80 @@
     <!--
       Bandas 1:2:1, que es la proporcion oficial. Con cuatro partes iguales la
       bandera se parece a Anyguy, que no es lo que se quiere.
+
+      Rojo y oro van los mismos en las bandas y en el escudo, y son los del
+      Real Decreto. Antes el escudo usaba un rojo distinto del de las bandas y
+      no se notaba a este tamano, pero cualquier ojo que ampliase el fichero
+      veía dos Espanas.
+
+      El color va **en cada elemento** y no puesto ahi arriba con un `<g
+      fill=...>`: heredado no se ve leyendo el rectangulo, y este fichero se
+      lee con codigo —una guarda saca de aqui los rectangulos del escudo para
+      comprobar donde estan— y un color heredado no se puede sacar.
     -->
     <rect width="24" height="16" fill="#aa151b"/>
     <rect y="4" width="24" height="8" fill="#f1bf00"/>
+
     <!--
-      El escudo va en el centro horizontal de la bandera, como en la oficial.
+      El escudo va de x=5.03 a x=10.97 y de y=4.88 a y=11.04.
 
-      Antes estaba desplazado hacia el astil y con eso la bandera se perdia de
-      vista: lo que se veía era una mancha oscura a media banda y el ojo la
-      leia como un remiendo, no como un escudo. La de Espana lo tiene centrado
-      y quien la reconoce lo espera en ese sitio.
+      Esos numeros salen de **medir** el fichero oficial de Wikimedia con el
+      mismo metodo con el que se mide este, no de mirar la bandera. Lo que se
+      compara es la caja de lo que no es banda: la oficial va de 0,211 a 0,455
+      del ancho y de 0,300 a 0,699 del alto; esta, de 0,209 a 0,457 y de 0,305
+      a 0,689. Lo que no cuadra se ajusta hasta que cuadra.
+
+      Dos cosas fallaban y las dos son de mirar en vez de medir:
+
+      - **Va desplazado hacia el astil**, no centrado. Su centro esta en x=8 de
+        24, o sea a un tercio del ancho; centrado seria x=12. Estaba en el 12 —
+        creo que por «centrado suena bien»— y con eso no se parecia a ninguna.
+        La de verdad lleva el escudo a un tercio, y quien la conoce lo busca ahi.
+
+      - **Cabe entero dentro de la franja amarilla**: de 4,88 a 11,04, y la
+        franja va de 4 a 12. Antes el escudo se salia por arriba y por abajo y
+        se comia las bandas rojas, que es justo lo que no hace.
     -->
-    <g transform="translate(12 0)">
-      <!-- Corona: sin ella el escudo parece un rombo suelto. -->
-      <path
-        d="M-2.1 6.1h4.2v-0.9l-0.7-0.5 0.95-1.55 0.7 0.9 0.7-0.9 0.7-1.55 0.7 1.55 0.7-0.9 0.7 0.9 0.95-1.55-0.7 0.5v0.9z"
-        fill="#ad1519"/>
-      <rect x="-2.35" y="6.1" width="4.7" height="0.7" fill="#ad1519"/>
 
-      <!--
-        Cuerpo del escudo, con su forma real: recto arriba y redondeado abajo.
-        Un rectangulo a este tamano es un parche de color, no un escudo.
-      -->
-      <path
-        d="M-1.95 6.9h3.9v2.95c0 1.35-0.82 2.4-1.95 2.9-1.13-0.5-1.95-1.55-1.95-2.9z"
-        fill="#ad1519"/>
+    <!--
+      Corona cerrada. Sin ella el escudo es un rombo suelto y la bandera
+      parece de otro pais: la corona es lo que dice «esto es un escudo de
+      armas» antes de poder leer nada.
+    -->
+    <path fill="#aa151b" d="M6.2 6.12L6.7 5.1l.65.62L8 4.88l.65.84.65-.62.5 1.02z"/>
+    <rect fill="#aa151b" x="6.2" y="6.12" width="3.6" height="0.32"/>
 
-      <!--
-        Cuartelado. A 22 px solo se distinguen los dos colores, y eso es
-        justo lo que lo hace espanol: las lemas y las columnas de Aragon son
-        indistinguibles a este tamano, pero el rojo y el oro alternados en
-        cruz si se ven.
-      -->
-      <g fill="#f1bf00">
-        <rect x="-1.82" y="7.02" width="0.88" height="1.35"/>
-        <rect x="0.94" y="7.02" width="0.88" height="1.35"/>
-        <rect x="-1.82" y="8.37" width="0.88" height="1.35"/>
-        <rect x="0.94" y="8.37" width="0.88" height="1.35"/>
-      </g>
-    </g>
+    <!--
+      Columnas de Hercules. No por dibujarlas todas —a 22 px miden 0,7— sino
+      porque son las que dan **ancho** al escudo: quitarlas dejaba la mancha
+      en 0,137 del ancho de la bandera frente a los 0,245 de la oficial, y se
+      veia como una bandera con algo pequeno pegado en vez de con un escudo.
+    -->
+    <rect fill="#aa151b" x="5.15" y="7.05" width="0.7" height="3.35"/>
+    <rect fill="#aa151b" x="10.15" y="7.05" width="0.7" height="3.35"/>
+    <rect fill="#aa151b" x="5.03" y="6.82" width="0.94" height="0.25"/>
+    <rect fill="#aa151b" x="10.03" y="6.82" width="0.94" height="0.25"/>
+
+    <!--
+      Cuerpo del escudo: recto arriba y redondeado abajo. El ancho sale del
+      oficial y la curva se deja algo mas corta que la real, que a este
+      tamano es indistinguible y cuesta mas acertar.
+    -->
+    <path fill="#aa151b" d="M6 6.52h4v3.1c0 .7-.9 1.28-2 1.42-1.1-.14-2-.72-2-1.42z"/>
+
+    <!-- Liston que une las dos columnas por abajo. -->
+    <rect fill="#aa151b" x="5.15" y="10.5" width="5.7" height="0.3"/>
+
+    <!--
+      Cuartelado en cruz, que es lo que se ve del escudo real a esta escala: un
+      campo rojo con dos cuarteles de oro. Las lemas, las columnas de Aragon y
+      el reino de Granada no se distinguen a 5 px, asi que no se dibujan —
+      dibujarlas solo produce manchas.
+
+      El fondo lo pone el rojo del escudo, asi que aqui solo van los dos
+      cuarteles de oro, en diagonal.
+    -->
+    <rect fill="#f1bf00" x="6.12" y="6.65" width="1.82" height="1.52"/>
+    <rect fill="#f1bf00" x="8.06" y="8.25" width="1.82" height="1.52"/>
   </g>
 </svg>
