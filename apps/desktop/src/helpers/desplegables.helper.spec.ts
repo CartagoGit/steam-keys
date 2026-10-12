@@ -391,24 +391,83 @@ describe('lo marcado se ve', () => {
   });
 
   /**
-   * El boton dice cuales son, no cuantos.
+   * Los tags van **a la derecha** del boton, no dentro.
    *
-   * Con un tope, porque sin el marcar las siete plataformas ocupa el ancho de
-   * media barra y empuja a los demas filtros fuera de la vista: el problema que
-   * vino a resolver este desplegable en el primer sitio.
+   * Se llegaron a meter dentro, y era un error por partida doble: el boton
+   * media lo que midieran los tags, con lo que el desplegable se estira y empuja
+   * a los demas filtros de la barra fuera de la vista —justo el problema que
+   * vino a resolver este filtro—, y ademas el numero y el nombre del filtro
+   * acababan en el mismo sitio, sin saber donde terminaba uno y empezaba el
+   * otro.
+   *
+   * El boton vuelve a medir lo que media: «Todas» o el numero. Los tags ocupan
+   * una columna de ancho fijo a su derecha, así que el ancho del desplegable no
+   * depende de cuantos haya marcados.
    */
-  test('el boton enseña los marcados como chips, con tope', () => {
-    expect(FILTRO).toContain('TOPE_CHIPS');
-    expect(FILTRO).toContain('slice(0, TOPE_CHIPS)');
-    expect(FILTRO).toContain('sobran');
+  test('los tags van a la derecha del boton y el boton no se estira', () => {
+    // La columna de tags envuelve al boton.
+    expect(FILTRO).toMatch(/<div className="flex shrink-0 items-start gap-1\.5">\s*<button/);
 
-    // El chip lleva icono o punto de color, para reconocerlo sin leerlo.
-    expect(FILTRO).toContain('option.dot');
-    expect(FILTRO).toContain('option.icon');
+    // El boton no lleva ancho maximo: eso era para que los tags de dentro no lo
+    // partiesen, y ya no hace falta.
+    expect(FILTRO).not.toContain('max-w-[22rem]');
 
-    // Y el boton tiene un ancho maximo, para que el tope sea el que manda y no
-    // el ancho disponible.
-    expect(FILTRO).toMatch(/max-w-\[22rem\]/);
+    // Y solo pone el numero, como antes de los chips.
+    expect(FILTRO).toContain(
+      '{todas ? <span>{allLabel}</span> : <span className="tabular-nums">{marcadas.size}</span>}',
+    );
+  });
+
+  /**
+   * Los tags se apilan en filas de dos y bajan a la siguiente.
+   *
+   * Con nombres largos —«Elder Scrolls Online»— en una sola fila habia que
+   * recortar tanto que no seidia nada. En dos columnas caben dos nombres
+   * enteros y el tercero baja.
+   */
+  test('los tags ocupan huecos fijos y se reparten en filas', () => {
+    expect(FILTRO).toContain('POR_FILA = 2');
+    expect(FILTRO).toContain('slice(0, TOPE_TAGS)');
+
+    // La columna sale del indice, no del orden en el DOM.
+    expect(FILTRO).toContain('posicion % POR_FILA');
+    expect(FILTRO).toContain('Math.floor(posicion / POR_FILA)');
+
+    // Ancho y alto fijos: no dependen de cuantos haya ni de lo que midan.
+    expect(FILTRO).toContain('ANCHO_TAG');
+    expect(FILTRO).toContain('ALTO_TAG');
+
+    // El «+N» entra en un hueco libre, no en uno extra: si no, el ancho
+    // dependeria de cuantos haya marcados.
+    expect(FILTRO).toContain('posicion: TOPE_TAGS');
+  });
+
+  /**
+   * Al marcar o desmarcar, los tags se desplazan y el filtro de al lado no.
+   *
+   * Dos cosas distintas, y las dos se rompen solas si se descuidan:
+   *
+   * - El tag se coloca con `transform`, que es lo unico que transiciona. Con
+   *   `top`/`left` en el flujo, desmarcar uno hacia que los de detras saltaran
+   *   de golpe a su hueco en vez de deslizarse.
+   * - El hueco reserva la rejilla entera aunque este vacio. Si midiera lo que
+   *   ocupa, el filtro de estado que viene despues se moveria hacia la
+   *   izquierda cada vez que se vaciara, y eso es un salto en cada pulsacion.
+   */
+  test('el desplazamiento se anima y no arrastra al filtro de al lado', () => {
+    expect(FILTRO).toMatch(/transition:\s*\n?\s*'transform 240ms[^']*opacity/);
+
+    // Se aplica el `transform`, no `top`/`left`.
+    expect(FILTRO).toContain('transform: `translate(');
+
+    // El alto del hueco se fija aunque no haya tags.
+    expect(FILTRO).toMatch(/height:\s*ALTO_TAG/);
+  });
+
+  /** Lo que no cabe se ve al pasar por encima: el «+3» no dice cuales. */
+  test('el tooltip lleva la lista entera, no solo lo que cabe', () => {
+    expect(FILTRO).toContain('resumen');
+    expect(FILTRO).toMatch(/title=\{disabled \? disabledTitle : `\$\{label\}: \$\{resumen\}`\}/);
   });
 
   /**

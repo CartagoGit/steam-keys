@@ -8,8 +8,29 @@ import { useT } from '@/context/locale.context';
 /** Que boton del par de arriba esta encendido. */
 type TAlcance = 'ninguna' | 'todas' | 'parcial';
 
-/** Cuantos chips caben en el boton antes de que salga un «+N». */
-const TOPE_CHIPS = 3;
+/**
+ * La rejilla de los tags marcados.
+ *
+ * Tres medidas fijas y una sola variable: nada de esto depende de cuantos tags
+ * haya ni de lo que midan sus textos. Es lo que permite que el hueco tenga el
+ * mismo ancho con tres tags que con uno, y que cambiar de tres a uno **no
+ * mueva** el filtro que viene detrás.
+ *
+ * El hueco mide lo mismo vacio que lleno porque se reserva la rejilla entera:
+ * si encogiera al vaciarse, el filtro de estado se desplazaria hacia la
+ * izquierda cada vez que se desmarca la ultima plataforma, y eso es un salto
+ * de maquetacion en cada pulsacion.
+ */
+const TOPE_TAGS = 3;
+
+/** Tags por fila. Con dos caben dos nombres enteros; con uno, ninguno. */
+const POR_FILA = 2;
+
+/** Ancho de un hueco. No depende del texto: lo que no cabe se recorta. */
+const ANCHO_TAG = '4.5rem';
+
+/** Alto de una fila de huecos. */
+const ALTO_TAG = '1.25rem';
 
 /** Una opcion del desplegable. */
 export interface IFilterOption<T extends string> {
@@ -147,7 +168,9 @@ export function FilterMenu<T extends string>({
    * lo que vino a resolver este desplegable. Con tres mas el «+N», se ve
    * cuales son sin poder estar mirando como crece la fila.
    */
-  const opcionesVisibles = options.filter((option) => marcadas.has(option.value)).slice(0, TOPE_CHIPS);
+  const opcionesVisibles = options
+    .filter((option) => marcadas.has(option.value))
+    .slice(0, TOPE_TAGS);
 
   const sobran = Math.max(0, marcadas.size - opcionesVisibles.length);
 
@@ -288,105 +311,155 @@ export function FilterMenu<T extends string>({
         {label}
       </span>
 
-      <button
-        ref={botonRef}
-        type="button"
-        onClick={() => {
-          setResaltada(-1);
-          setAbierto((v) => !v);
-        }}
-        disabled={disabled}
-        aria-expanded={abierto}
-        aria-haspopup="listbox"
-        title={disabled ? disabledTitle : `${label}: ${resumen}`}
-        className={[
-          'inline-flex max-w-[22rem] items-center justify-between gap-2 rounded-full px-3 py-1 text-xs font-medium transition-colors',
-          'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-          'disabled:cursor-not-allowed',
-          // Relleno solido con el color del filtro, como la pompa del
-          // interruptor. Sin nada marcado esta apagado —no se esta filtrando—
-          // y en cuanto se marca algo se enciende entero. El menu abierto no
-          // lo enciende: abrirlo no es filtrar.
-          todas ? 'bg-hover text-t4' : [colores.relleno, colores.sobreRelleno].join(' '),
-          disabled ? 'opacity-40' : '',
-        ].join(' ')}
-      >
+      {/*
+        Los marcados salen **a la derecha** del boton, en su propia columna.
+
+        Estaban dentro, y era un error por partida doble: el boton media lo que
+        median los tags, con lo que el desplegable se estira y empuja a los
+        demas filtros de la barra fuera de la vista —justo el problema que vino
+        a resolver este filtro—, y ademas el numero y el nombre del filtro
+        acababan mezclados en el mismo sitio, sin saber donde acababa el boton
+        y empezaba la cuenta.
+
+        Ahora el boton mide lo que siempre —«Todas» o el numero— y los tags
+        ocupan una columna de ancho fijo a su derecha. El ancho de los tags no
+        depende de cuantos haya: son tres huecos fijos, y cambiar de tres a uno
+        no mueve el filtro de estado que viene despues.
+
+        Se apilan por filas de dos y bajan a la siguiente. Con nombres largos
+        —«Elder Scrolls Online»— en una sola fila habia que recortar tanto que
+        no seidia nada; en dos columnas caben dos nombres enteros y el tercero
+        baja.
+      */}
+      <div className="flex shrink-0 items-start gap-1.5">
+        <button
+          ref={botonRef}
+          type="button"
+          onClick={() => {
+            setResaltada(-1);
+            setAbierto((v) => !v);
+          }}
+          disabled={disabled}
+          aria-expanded={abierto}
+          aria-haspopup="listbox"
+          title={disabled ? disabledTitle : `${label}: ${resumen}`}
+          className={[
+            'inline-flex shrink-0 items-center justify-between gap-2 rounded-full px-3 py-1 text-xs font-medium transition-colors',
+            'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+            'disabled:cursor-not-allowed',
+            // Relleno solido con el color del filtro, como la pompa del
+            // interruptor. Sin nada marcado esta apagado —no se esta filtrando—
+            // y en cuanto se marca algo se enciende entero. El menu abierto no
+            // lo enciende: abrirlo no es filtrar.
+            todas ? 'bg-hover text-t4' : [colores.relleno, colores.sobreRelleno].join(' '),
+            disabled ? 'opacity-40' : '',
+          ].join(' ')}
+        >
+          {todas ? <span>{allLabel}</span> : <span className="tabular-nums">{marcadas.size}</span>}
+
+          {/* La flecha va en la tinta del propio boton, no en un color fijo. */}
+          <svg
+            viewBox="0 0 12 12"
+            width="10"
+            height="10"
+            aria-hidden="true"
+            className={[
+              'shrink-0 transition-transform',
+              abierto ? 'rotate-180' : '',
+              todas ? 'text-t5' : 'opacity-70',
+            ].join(' ')}
+          >
+            <path
+              d="M2.5 4.5 6 8l3.5-3.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+
         {/*
-          Los marcados se ven **en el boton**, como chips.
+          Los tags marcados, en su columna.
 
-          Antes solo ponia un numero, y un numero no dice *cuales*: con tres de
-          siete plataformas marcadas, el boton decia «3» y no habia forma de
-          saber quais eran sin abrir el menu. Eso convierte el boton en una
-          cuenta atras sin contexto, y obliga a abrirlo para recordar lo que
-          uno mismo acaba de marcar.
+          Cada uno va con `transform` y no en el flujo, que es lo que hace que el
+          desplazamiento sea **animable**: al desmarcar uno, los de detras se
+          recolocan en su hueco nuevo y se deslizan hasta alli con la
+          transicion, en vez de saltar. Lo mismo al marcar: el que aparece se
+          abre desde donde estaba y empuja a los siguientes.
 
-          Cada chip lleva su icono o su punto de color —los mismos metadatos que
-          la fila de la tabla— y el nombre corto. Con icono y color, el chip se
-          reconoce sin leerlo, que es lo que hace falta de un vistazo.
+          El hueco reserva la rejilla entera aunque no haya nada. Si midiera lo
+          que ocupa, el filtro de estado que viene despues se moveria hacia la
+          izquierda cada vez que se vaciara, y eso es un salto en cada
+          pulsacion.
 
-          Se corta a tres con «+N» detras. Sin tope, marcar las siete plataformas
-          ocuparia el ancho de media barra y empujaria a los otros filtros fuera
-          de la vista, que es exactamente el problema que vino a resolver este
-          desplegable. Tres mas el resto ya dice que hay mas, y se ven al abrir.
+          El «+N» ocupa el hueco que queda libre, no uno extra: asi el ancho
+          nunca depende de cuantos haya marcados.
         */}
-        {todas ? (
-          <span>{allLabel}</span>
-        ) : (
-          <>
-            <span className="flex min-w-0 shrink items-center gap-1">
-              {opcionesVisibles.map((option) => (
-                <span
-                  key={option.value}
-                  className="flex min-w-0 items-center gap-1 rounded-full bg-black/15 px-1.5 py-0.5"
-                >
+        <div
+          className="relative shrink-0"
+          style={{
+            width: `calc(${ANCHO_TAG} * ${POR_FILA} + 0.25rem)`,
+            height: ALTO_TAG,
+          }}
+        >
+          {[
+            ...opcionesVisibles.map((option, posicion) => ({
+              clave: String(option.value),
+              posicion,
+              nodo: (
+                <>
                   {option.dot ? (
                     <span
                       aria-hidden="true"
                       className={['h-1.5 w-1.5 shrink-0 rounded-full', option.dot].join(' ')}
                     />
                   ) : option.icon ? (
-                    <Icon name={option.icon} size={10} className="shrink-0 opacity-90" />
+                    <Icon name={option.icon} size={9} className="shrink-0 opacity-80" />
                   ) : null}
 
-                  <span className="max-w-[6.5rem] truncate">{t(option.label)}</span>
-                </span>
-              ))}
-
-              {sobran > 0 ? (
-                <span className="shrink-0 tabular-nums opacity-80">+{sobran}</span>
-              ) : null}
+                  <span className="truncate">{t(option.label)}</span>
+                </>
+              ),
+            })),
+            ...(sobran > 0
+              ? [
+                  {
+                    clave: '+resto',
+                    posicion: TOPE_TAGS,
+                    nodo: <span className="tabular-nums">+{sobran}</span>,
+                  },
+                ]
+              : []),
+          ].map(({ clave, posicion, nodo }) => (
+            <span
+              key={clave}
+              style={{
+                width: ANCHO_TAG,
+                height: ALTO_TAG,
+                // La columna y la fila salen del indice. `transform` y no
+                // `top`/`left`: es lo que transiciona.
+                transform: `translate(
+                  calc(${posicion % POR_FILA} * (${ANCHO_TAG} + 0.25rem)),
+                  calc(${Math.floor(posicion / POR_FILA)} * ${ALTO_TAG})
+                )`,
+                transition:
+                  'transform 240ms cubic-bezier(0.34, 1.3, 0.64, 1), opacity 200ms ease-out',
+              }}
+              className={[
+                'absolute top-0 left-0 flex items-center gap-1 overflow-hidden rounded-md px-1.5',
+                'bg-surface-2 text-[10px] leading-none text-t2',
+                // Sin nada marcado no hay tags, pero el hueco sigue reservando
+                // el ancho: por eso esto es `opacity` y no quitar el elemento.
+                todas ? 'opacity-0' : 'opacity-100',
+              ].join(' ')}
+            >
+              {nodo}
             </span>
-
-            {/*
-              El numero va aparte, y en tenue: la cuenta ya la dan los chips y
-              el «+N». Ponerla encima era repetirla.
-            */}
-            <span className="shrink-0 tabular-nums opacity-70">{marcadas.size}</span>
-          </>
-        )}
-
-        {/* La flecha va en la tinta del propio boton, no en un color fijo. */}
-        <svg
-          viewBox="0 0 12 12"
-          width="10"
-          height="10"
-          aria-hidden="true"
-          className={[
-            'shrink-0 transition-transform',
-            abierto ? 'rotate-180' : '',
-            todas ? 'text-t5' : 'opacity-70',
-          ].join(' ')}
-        >
-          <path
-            d="M2.5 4.5 6 8l3.5-3.5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
+          ))}
+        </div>
+      </div>
 
       {abierto ? (
         /*
