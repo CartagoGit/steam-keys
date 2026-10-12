@@ -416,4 +416,27 @@ export const DE: TranslationTable = Object.freeze({
   'toolbar.shortcuts': 'Tastenkurzel',
   'editor.restorePreviewTitle': 'Was sich aendert',
   'editor.restorePreviewNone': 'Es gibt nichts wiederherzustellen.',
+  'settings.tab.keys': 'Schluessel',
+  'settings.keys.tags': 'Markierungen',
+  'settings.keys.tags.hint':
+    'Wie die Markierungen der Sammlung benannt sind. Umbenennen aendert den Namen in allen Schluesseln, die sie verwenden.',
+  'settings.keys.tags.manage': 'Markierungen verwalten',
+  'settings.keys.tags.total': 'im Katalog',
+  'settings.keys.tags.inUseOne': '{0} in Benutzung',
+  'settings.keys.tags.inUseMany': '{0} in Benutzung',
+  'settings.keys.tags.idle': '{0} unbenutzt',
+  'settings.keys.tags.more': 'und {0} weitere',
+  'tags.manage.title': 'Markierungen',
+  'tags.manage.hint':
+    'Markierungen gehoeren zur gesamten Sammlung: Umbenennen aendert den Namen in allen Schluesseln, die sie verwenden.',
+  'tags.manage.newPlaceholder': 'Name der neuen Markierung',
+  'tags.manage.add': 'Hinzufuegen',
+  'tags.manage.rename': 'Umbenennen',
+  'tags.manage.renameLabel': 'Name der Markierung',
+  'tags.manage.mergeTitle': 'Die beiden Markierungen zusammenfuehren',
+  'tags.manage.mergeBody':
+    '«{1}» gibt es schon. «{0}» wird zu «{1}» umbenannt; Schluessel mit «{1}» aendern sich nicht und «{0}» verschwindet.',
+  'tags.manage.merge': 'Zusammenfuehren',
+  'tags.renamedOne': '«{0}» wurde umbenannt und 1 Schluessel verwendet es jetzt.',
+  'tags.renamedMany': '«{0}» wurde umbenannt und {1} Schluessel verwenden es jetzt.',
 });

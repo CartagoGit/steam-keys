@@ -579,6 +579,27 @@ export const EN: TranslationTable = Object.freeze({
   'storage.restoreWillUpdate': '{0} will be updated',
   'storage.portable.text':
     'Your keys and your backups live in a single file, steam-keys.db, next to the program and not in your user folder. If you move the executable elsewhere, move that file with it, or you will be left without your collection.',
+  'settings.tab.keys': 'Keys',
+  'settings.keys.tags': 'Tags',
+  'settings.keys.tags.hint': 'How the collection tags are named. Renaming one changes it in every key that uses it.',
+  'settings.keys.tags.manage': 'Manage tags',
+  'settings.keys.tags.total': 'in the catalogue',
+  'settings.keys.tags.inUseOne': '{0} in use',
+  'settings.keys.tags.inUseMany': '{0} in use',
+  'settings.keys.tags.idle': '{0} unused',
+  'settings.keys.tags.more': 'and {0} more',
+  'tags.manage.title': 'Tags',
+  'tags.manage.hint': 'Tags belong to the whole collection: renaming one changes it in every key that uses it.',
+  'tags.manage.newPlaceholder': 'New tag name',
+  'tags.manage.add': 'Add',
+  'tags.manage.rename': 'Rename',
+  'tags.manage.renameLabel': 'Tag name',
+  'tags.manage.mergeTitle': 'Merge the two tags',
+  'tags.manage.mergeBody': '«{1}» already exists. «{0}» will be renamed to «{1}»; keys that already have «{1}» will not change, and «{0}» will stop existing.',
+  'tags.manage.merge': 'Merge',
+  'tags.renamedOne': '«{0}» has been renamed and 1 key now uses it.',
+  'tags.renamedMany': '«{0}» has been renamed and {1} keys now use it.',
+
 });
 
 /**

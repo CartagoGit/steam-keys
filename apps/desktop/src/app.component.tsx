@@ -20,6 +20,7 @@ import { ShortcutsDialog } from './components/shortcuts-dialog.component';
 import { StoragePanel } from './components/storage-panel.component';
 import { SteamGamesTable } from './components/steam-games-table.component';
 import { SteamNotConnected } from './components/view-switch.component';
+import { TagManager } from './components/tag-manager.component';
 import { TagsDialog } from './components/tags-dialog.component';
 import { Toolbar } from './components/toolbar.component';
 import { Button } from './components/ui.component';
@@ -249,6 +250,16 @@ export function App() {
    * con la lista de claves y se vuelve a pedir cuando se crea o se quita una.
    */
   const [tags, setTags] = useState<readonly ITag[]>([]);
+
+  /**
+   * El gestor de etiquetas se abre **encima** de Ajustes.
+   *
+   * Vive dentro de los ajustes y no al lado porque edita el vocabulario de
+   * toda la coleccion, no una fila. Montarlo aqui encima del dialogo hace que
+   * al cerrar se vuelva a Ajustes en lugar de a la lista, que es donde se
+   * ha elegido ir.
+   */
+  const [gestorOpen, setGestorOpen] = useState(false);
 
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
@@ -1369,6 +1380,47 @@ export function App() {
     [conCarga, notify, recargarTags, reload, traducir],
   );
 
+  const renombrarEtiqueta = useCallback(
+    async (actual: string, nuevo: string): Promise<number | null> => {
+      try {
+        const r = await conCarga('loading.tags', async () =>
+          tagService.rename(actual, nuevo),
+        );
+
+        if (!r.ok) return null;
+
+        // Igual que al borrar: el renombrado toca claves de toda la
+        // coleccion, asi que la lista entera se queda obsoleta.
+        await Promise.all([recargarTags(), reload()]);
+
+        if (r.valor !== null) {
+          notify(
+            traducir(
+              pluralKey(r.valor, 'tags.renamedOne', 'tags.renamedMany'),
+              [nuevo, r.valor],
+            ),
+            'success',
+          );
+        }
+
+        return r.valor;
+      } catch (cause) {
+        notify(
+          cause instanceof Error ? cause.message : traducir('app.tagsFailed'),
+          'error',
+        );
+
+        return null;
+      }
+    },
+    [conCarga, notify, recargarTags, reload, traducir],
+  );
+
+  const existeEtiqueta = useCallback(
+    (nombre: string): Promise<boolean> => tagService.existe(nombre),
+    [],
+  );
+
   // ----------------------------------------------------------- ajustes ---
   const handleSaveSettings = async (
     patch: Partial<IAppSettings>,
@@ -1846,6 +1898,8 @@ export function App() {
           initialTab={settingsTab}
           settings={settings}
           cuenta={cuenta}
+          catalogo={tags}
+          onManageTags={() => setGestorOpen(true)}
           onSave={handleSaveSettings}
           onLinkSteam={handleLinkSteam}
           onForgetApiKey={handleForgetApiKey}
@@ -1939,6 +1993,24 @@ export function App() {
           onRemove={quitarEtiqueta}
           onConfirm={handleApplyTags}
           onCancel={() => setTagsOpen(false)}
+        />
+      ) : null}
+
+      {/*
+        El gestor se monta por encima del dialogo de ajustes, no dentro. Los
+        dos son modales y uno encima del otro se apilarian con el fondo
+        oscurecido del gestor tapando el de ajustes, que queda como un panel
+        muerto detras. Montandolo aqui se ve el gestor encima y, al cerrar,
+        se vuelve a los ajustes en la pestana en la que se estaban viendo.
+      */}
+      {gestorOpen ? (
+        <TagManager
+          catalogo={tags}
+          onCreate={crearEtiqueta}
+          onRename={renombrarEtiqueta}
+          onRemove={quitarEtiqueta}
+          onExists={existeEtiqueta}
+          onClose={() => setGestorOpen(false)}
         />
       ) : null}
 

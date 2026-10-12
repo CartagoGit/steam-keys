@@ -403,6 +403,142 @@ describe('el catalogo de etiquetas vive en la base de datos', () => {
   });
 });
 
+describe('renombrar una etiqueta propaga a toda la coleccion', () => {
+  test('el nombre nuevo se escribe en las claves que la llevaban', async () => {
+    const { repo, leer, limpiar } = crearRepositorio();
+
+    try {
+      await repo.insert({ ...fila('AAAA-1111-AAAA'), tags: ['humble', 'dlc'] });
+      await repo.insert({ ...fila('BBBB-2222-BBBB'), tags: ['humble'] });
+
+      await repo.syncTagsFromKeys();
+
+      expect(await repo.renameTag('humble', 'humble bundle')).toBe(2);
+
+      const claves = leer('SELECT tags FROM game_keys ORDER BY key_value') as {
+        tags: string;
+      }[];
+
+      expect(claves.map((c) => c.tags)).toEqual(['dlc,humble bundle', 'humble bundle']);
+
+      // El renombrado mueve una etiqueta, no las demas: «dlc» sigue en el
+      // catalogo con el nombre que tenia y con las mismas claves usandola.
+      expect(leer('SELECT nombre FROM tags ORDER BY nombre')).toEqual([
+        { nombre: 'dlc' },
+        { nombre: 'humble bundle' },
+      ]);
+    } finally {
+      limpiar();
+    }
+  });
+
+  test('renombrar no se lleva las etiquetas que se le parecen', async () => {
+    const { repo, leer, limpiar } = crearRepositorio();
+
+    try {
+      // Los delimitadores son lo unico que separa esto de un replace a pelo:
+      // sin ellos, «dlc» arrastraria «dlc-extra» y las dos claves que hay
+      // acabarian con el mismo texto.
+      await repo.insert({ ...fila('AAAA-1111-AAAA'), tags: ['dlc', 'dlc-extra'] });
+      await repo.insert({ ...fila('BBBB-2222-BBBB'), tags: ['dlc'] });
+
+      expect(await repo.renameTag('dlc', 'descuento')).toBe(2);
+      expect(leer('SELECT tags FROM game_keys ORDER BY key_value')).toEqual([
+        { tags: 'dlc-extra,descuento' },
+        { tags: 'descuento' },
+      ]);
+    } finally {
+      limpiar();
+    }
+  });
+
+  test('la etiqueta vieja desaparece del catalogo', async () => {
+    const { repo, leer, limpiar } = crearRepositorio();
+
+    try {
+      await repo.insert({ ...fila('AAAA-1111-AAAA'), tags: ['contexto'] });
+      await repo.syncTagsFromKeys();
+
+      await repo.renameTag('contexto', 'a contexto');
+
+      expect(leer('SELECT nombre FROM tags')).toEqual([{ nombre: 'a contexto' }]);
+    } finally {
+      limpiar();
+    }
+  });
+
+  test('renombrar a un nombre que ya existe fusiona en vez de duplicar', async () => {
+    const { repo, leer, limpiar } = crearRepositorio();
+
+    try {
+      await repo.insert({ ...fila('AAAA-1111-AAAA'), tags: ['dlc'] });
+      await repo.insert({ ...fila('BBBB-2222-BBBB'), tags: ['extra'] });
+
+      // Es lo que pasa al escribir «Humble» un dia y «humble» otro: dos
+      // nombres para lo mismo. Fusionados quedan una sola etiqueta y las dos
+      // claves con ella.
+      expect(await repo.renameTag('extra', 'dlc')).toBe(1);
+      expect(leer('SELECT nombre FROM tags ORDER BY nombre')).toEqual([
+        { nombre: 'dlc' },
+      ]);
+      expect(leer('SELECT tags FROM game_keys ORDER BY key_value')).toEqual([
+        { tags: 'dlc' },
+        { tags: 'dlc' },
+      ]);
+    } finally {
+      limpiar();
+    }
+  });
+
+  test('una clave que llevaba las dos no se queda con el nombre repetido', async () => {
+    const { repo, leer, limpiar } = crearRepositorio();
+
+    try {
+      await repo.insert({ ...fila('AAAA-1111-AAAA'), tags: ['dlc', 'extra'] });
+
+      expect(await repo.renameTag('extra', 'dlc')).toBe(1);
+      expect(leer('SELECT tags FROM game_keys')).toEqual([{ tags: 'dlc' }]);
+    } finally {
+      limpiar();
+    }
+  });
+
+  test('una etiqueta que no existe no cambia nada', async () => {
+    const { repo, leer, limpiar } = crearRepositorio();
+
+    try {
+      await repo.insert({ ...fila('AAAA-1111-AAAA'), tags: ['contexto'] });
+
+      expect(await repo.renameTag('nada', 'otra cosa')).toBe(0);
+      expect(leer('SELECT tags FROM game_keys')).toEqual([{ tags: 'contexto' }]);
+    } finally {
+      limpiar();
+    }
+  });
+
+  test('quitar una etiqueta no toca las claves con la misma combinacion', async () => {
+    const { repo, leer, limpiar } = crearRepositorio();
+
+    try {
+      // Las dos claves tienen exactamente el mismo texto en la columna. Un
+      // borrado que filtrara por el texto —y no por id— reescribiria las dos,
+      // y la que no llevaba «humble» perderia una etiqueta que no era suya.
+      await repo.insert({ ...fila('AAAA-1111-AAAA'), tags: ['humble', 'dlc'] });
+      await repo.insert({ ...fila('BBBB-2222-BBBB'), tags: ['humble', 'dlc'] });
+      await repo.insert({ ...fila('CCCC-3333-CCCC'), tags: ['dlc'] });
+
+      expect(await repo.deleteTag('humble')).toBe(2);
+      expect(leer('SELECT tags FROM game_keys ORDER BY key_value')).toEqual([
+        { tags: 'dlc' },
+        { tags: 'dlc' },
+        { tags: 'dlc' },
+      ]);
+    } finally {
+      limpiar();
+    }
+  });
+});
+
 /** Fila de importacion minima, con el estado ya disponible. */
 function fila(keyValue: string) {
   return {

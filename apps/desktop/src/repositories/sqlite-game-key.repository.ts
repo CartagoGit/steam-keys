@@ -274,22 +274,21 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
      * quitara de las claves, volveria a salir en el dialogo sin poder marcarse.
      *
      * De las claves hay que reescribir la columna entera, porque las etiquetas
-     * viven en un texto separado por comas. Los tresifos de los `replace` son:
-     *
-     * - `,nombre` y `nombre,` para quitar la suya, con comas o sin ellas.
-     * - El `trim` de `, ,` al final, que es lo que deja una clave a la que se
-     *   le ha quitado la unica etiqueta que tenia: sin el se queda con una
-     *   coma suelta o con dos, y `parseTags` las leeria como una etiqueta
-     *   vacia.
+     * viven en un texto separado por comas. Se va por `id`, no por el texto:
+     * filtrar por el texto de la columna reescribiria **todas** las claves con
+     * esa misma combinacion, no solo las que llevan la etiqueta —y dos claves
+     * distintas con las mismas etiquetas son la norma, no la excepcion.
      */
     return this.db.transaccion(async () => {
       await this.db.execute(`DELETE FROM ${TABLE_TAGS} WHERE nombre = $1`, [nombre]);
 
-      const marcadas = await this.db.select<{ tags: string }>(
-        `SELECT tags FROM ${TABLE_GAME_KEYS}
+      const marcadas = await this.db.select<{ id: number; tags: string }>(
+        `SELECT id, tags FROM ${TABLE_GAME_KEYS}
          WHERE ',' || tags || ',' LIKE '%,' || $1 || ',%'`,
         [nombre],
       );
+
+      const ahora = touchTimestamp();
 
       for (const fila of marcadas) {
         const quedan = (fila.tags ?? '')
@@ -298,12 +297,86 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
           .filter((tag) => tag.length > 0 && tag !== nombre);
 
         await this.db.execute(
-          `UPDATE ${TABLE_GAME_KEYS} SET tags = $1, updated_at = $2 WHERE tags = $3`,
-          [quedan.join(','), touchTimestamp(), fila.tags],
+          `UPDATE ${TABLE_GAME_KEYS} SET tags = $1, updated_at = $2 WHERE id = $3`,
+          [serializeTags(quedan), ahora, fila.id],
         );
       }
 
       return marcadas.length;
+    });
+  }
+
+  /**
+   * Cambia el nombre de una etiqueta en todas las claves que la llevan.
+   *
+   * Una etiqueta es una entidad por si misma, no un texto suelto: si se
+   * renombra en el catalogo y no en las claves, «humble» pasa a ser
+   * «humble bundle» en la lista de etiquetas pero las cuarenta claves que la
+   * llevan siguen saying «humble», y entonces hay dos etiquetas distintas con
+   * el mismo significado. Renombrar propaga, o no renombra.
+   *
+   * Si el destino ya existe, se fusiona: el nombre viejo desaparece y las
+   * claves que lo llevaba se quedan con el nuevo. Es lo que espera quien
+   * escribe «Humble» un dia y «humble» otro, y no una fila duplicada que
+   * solo se distingue por mayusculas.
+   */
+  async renameTag(actual: string, nuevo: string): Promise<number> {
+    if (actual === nuevo) return 0;
+
+    return this.db.transaccion(async () => {
+      /*
+       * Se traen las claves afectadas y se reescriben una a una, en vez de
+       * dejarlo a un unico UPDATE con `replace` sobre el texto.
+       *
+       * Se podria, y seria una sola sentencia. Se ha probado y no compensa:
+       * `replace` con el mismo marcador en la columna y en el patron necesita
+       * que el parametro este concatenado —nunca escrito dentro de una cadena
+       * literal, que Bun lo pisa igual— y aun asi el resultado dependia de
+       * cuantas veces aparecia el marcador. El recorte de las comas de los
+       * bordes empeora las cosas: el SQLite de Bun no entiende la forma de
+       * operador de `TRIM`. Dos coma arrastradas, dos claves con el mismo
+       * texto y una Actualizacion filtrada por esa columna dejan el texto
+       * como estaba.
+       *
+       * Renombrar es una operacion rara y la columna es de texto corto. Mil
+       * viajes a la base de datos en transaccion tardan menos que el rato
+       * que se pierde entendiendo porque el `replace` en vez de eso.
+       */
+      const afectadas = await this.db.select<{ id: number; tags: string }>(
+        `SELECT id, tags FROM ${TABLE_GAME_KEYS}
+         WHERE ',' || tags || ',' LIKE '%,' || $1 || ',%'
+            OR ',' || tags || ',' LIKE '%,' || $2 || ',%'`,
+        [actual, nuevo],
+      );
+
+      const ahora = touchTimestamp();
+
+      for (const fila of afectadas) {
+        const quedan = (fila.tags ?? '')
+          .split(',')
+          .map((tag) => tag.trim())
+          .filter((tag) => tag.length > 0 && tag !== actual && tag !== nuevo);
+
+        await this.db.execute(
+          `UPDATE ${TABLE_GAME_KEYS} SET tags = $1, updated_at = $2 WHERE id = $3`,
+          [serializeTags([...quedan, nuevo]), ahora, fila.id],
+        );
+      }
+
+      // Si el nombre nuevo ya estaba, desaparece: una etiqueta con dos nombres
+      // es dos etiquetas, y el filtro buscaria una que no lleva nadie.
+      await this.db.execute(`DELETE FROM ${TABLE_TAGS} WHERE nombre = $1`, [nuevo]);
+
+      const renombradas = await this.db.execute(
+        `UPDATE ${TABLE_TAGS} SET nombre = $1 WHERE nombre = $2`,
+        [nuevo, actual],
+      );
+
+      // La etiqueta nueva puede no existir todavia en el catalogo —nadie la ha
+      // guardado nunca— y el renombrado no la crea.
+      if (renombradas === 0) await this.createTag(nuevo);
+
+      return afectadas.filter((fila) => fila.tags.includes(actual)).length;
     });
   }
 

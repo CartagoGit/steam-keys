@@ -413,4 +413,27 @@ export const FR: TranslationTable = Object.freeze({
   'toolbar.shortcuts': 'Raccourcis',
   'editor.restorePreviewTitle': 'Ce qui va changer',
   'editor.restorePreviewNone': 'Il ny a rien a restaurer.',
+  'settings.tab.keys': 'Cles',
+  'settings.keys.tags': 'Etiquettes',
+  'settings.keys.tags.hint':
+    'Comment les etiquettes de la collection sont nommees. Renommer une change son nom dans toutes les cles qui l utilisent.',
+  'settings.keys.tags.manage': 'Gerer les etiquettes',
+  'settings.keys.tags.total': 'dans le catalogue',
+  'settings.keys.tags.inUseOne': '{0} en usage',
+  'settings.keys.tags.inUseMany': '{0} en usage',
+  'settings.keys.tags.idle': '{0} inutilisees',
+  'settings.keys.tags.more': 'et {0} de plus',
+  'tags.manage.title': 'Etiquettes',
+  'tags.manage.hint':
+    'Les etiquettes appartiennent a toute la collection : renommer une change son nom dans toutes les cles qui l utilisent.',
+  'tags.manage.newPlaceholder': 'Nom de la nouvelle etiquette',
+  'tags.manage.add': 'Ajouter',
+  'tags.manage.rename': 'Renommer',
+  'tags.manage.renameLabel': 'Nom de l etiquette',
+  'tags.manage.mergeTitle': 'Fusionner les deux etiquettes',
+  'tags.manage.mergeBody':
+    '« {1} » existe deja. « {0} » sera renommee en « {1} », les cles qui ont deja « {1} » ne changeront pas et « {0} » cessera d exister.',
+  'tags.manage.merge': 'Fusionner',
+  'tags.renamedOne': '« {0} » a ete renommee et 1 cle la porte maintenant.',
+  'tags.renamedMany': '« {0} » a ete renommee et {1} cles la portent maintenant.',
 });

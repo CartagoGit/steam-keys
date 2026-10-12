@@ -83,6 +83,17 @@ export interface IGameKeyRepository {
    */
   deleteTag(nombre: string): Promise<number>;
   /**
+   * Renombra una etiqueta en el catalogo **y en todas las claves que la
+   * llevan**. Devuelve cuantas claves se han visto afectadas.
+   *
+   * Propagar es lo que hace que la etiqueta sea una entidad por si misma y no
+   * un texto repetido: si el catalogo passara a «humble bundle» y las claves
+   * se quedaran en «humble», habria dos etiquetas con el mismo significado y
+   * el filtro dejaria de encontrar ninguna. Si el nombre nuevo ya existe, se
+   * fusiona en vez de duplicar.
+   */
+  renameTag(actual: string, nuevo: string): Promise<number>;
+  /**
    * Mete en el catalogo toda etiqueta que alguna clave lleve puesta.
    *
    * Es la vuelta que arregla los datos que ya estaban: una coleccion con

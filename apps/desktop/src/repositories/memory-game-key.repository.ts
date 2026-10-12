@@ -259,6 +259,46 @@ export class MemoryGameKeyRepository implements IGameKeyRepository {
     return this.catalogo.filter((tag) => !antes.has(tag)).length;
   }
 
+  /**
+   * Renombra la etiqueta en el catalogo y en todas las claves que la llevan.
+   *
+   * Una etiqueta es una entidad por si misma: si el catalogo dice una cosa y
+   * las claves otra, hay dos etiquetas con el mismo significado y el filtro
+   * deja de encontrar ninguna. Por eso el renombrado propaga.
+   *
+   * Si el destino ya existe, se fusiona en lugar de duplicar: las claves que
+   * lo llevaban se quedan con una sola vez el nombre nuevo.
+   */
+  async renameTag(actual: string, nuevo: string): Promise<number> {
+    if (actual === nuevo) return 0;
+
+    let afectadas = 0;
+
+    this.keys = this.keys.map((clave) => {
+      const tieneActual = clave.tags.includes(actual);
+
+      if (!tieneActual) return clave;
+
+      afectadas += 1;
+
+      // Se filtra el nombre nuevo antes de anadirlo: una clave que ya llevaba
+      // los dos nombres no puede acabar con el nuevo dos veces.
+      const quedan = clave.tags.filter((tag) => tag !== actual && tag !== nuevo);
+
+      return { ...clave, tags: [...quedan, nuevo] };
+    });
+
+    this.catalogo = [
+      ...this.catalogo.filter((tag) => tag !== actual && tag !== nuevo),
+      nuevo,
+    ];
+
+    persist(this.keys);
+    persistCatalogo(this.catalogo);
+
+    return afectadas;
+  }
+
   async countAll(): Promise<number> {
     return this.keys.length;
   }

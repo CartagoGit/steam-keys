@@ -404,4 +404,27 @@ export const PT: TranslationTable = Object.freeze({
   'toolbar.shortcuts': 'Atalhos',
   'editor.restorePreviewTitle': 'O que vai mudar',
   'editor.restorePreviewNone': 'Nao ha nada para restaurar.',
+  'settings.tab.keys': 'Chaves',
+  'settings.keys.tags': 'Etiquetas da colecao',
+  'settings.keys.tags.hint':
+    'Como se chamam as etiquetas da colecao. Renomear uma muda o nome em todas as chaves que a usam.',
+  'settings.keys.tags.manage': 'Gerir as etiquetas',
+  'settings.keys.tags.total': 'no catalogo',
+  'settings.keys.tags.inUseOne': '{0} em uso',
+  'settings.keys.tags.inUseMany': '{0} em uso',
+  'settings.keys.tags.idle': '{0} sem uso',
+  'settings.keys.tags.more': 'e mais {0}',
+  'tags.manage.title': 'Rotulos',
+  'tags.manage.hint':
+    'As etiquetas pertencem a colecao inteira: renomear uma muda o nome em todas as chaves que a usam.',
+  'tags.manage.newPlaceholder': 'Nome da nova etiqueta',
+  'tags.manage.add': 'Adicionar',
+  'tags.manage.rename': 'Renomear',
+  'tags.manage.renameLabel': 'Nome da etiqueta',
+  'tags.manage.mergeTitle': 'Juntar as duas etiquetas',
+  'tags.manage.mergeBody':
+    '«{1}» ja existe. «{0}» sera renomeada a «{1}»; as chaves que ja tem «{1}» nao mudarao e «{0}» deixara de existir.',
+  'tags.manage.merge': 'Juntar',
+  'tags.renamedOne': '«{0}» foi renomeada e 1 chave usa-a agora.',
+  'tags.renamedMany': '«{0}» foi renomeada e {1} chaves usam-na agora.',
 });

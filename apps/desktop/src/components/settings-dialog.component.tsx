@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { APP_THEME_SWATCHES, APP_THEME_VALUES, AppLocale, AppTheme, STEAM_API_KEY_URL, THEME_LABELS, type IAppSettings, type SteamAccountStatus } from '@/contracts';
+import { APP_THEME_SWATCHES, APP_THEME_VALUES, AppLocale, AppTheme, STEAM_API_KEY_URL, THEME_LABELS, type IAppSettings, type ITag, type SteamAccountStatus } from '@/contracts';
 import { Icon } from './icon.component';
 import { LocaleSelect } from './locale-select.component';
 import { Modal } from './modal.component';
+import { KeysSettings } from './settings-keys.component';
 import {
   Badge,
   Button,
@@ -28,6 +29,10 @@ export interface ISettingsDialogProps {
   initialTab?: SettingsTab;
   /** Estado actual de la conexion con Steam, para mostrarlo. */
   cuenta: SteamAccountStatus;
+  /** El catalogo de etiquetas, para el gestor de la pestana de claves. */
+  catalogo: readonly ITag[];
+  /** Abre el gestor de etiquetas. Vive aqui para poder cerrarlo desde ajustes. */
+  onManageTags: () => void;
   /** Guarda los ajustes. Puede fallar y entonces devuelve un mensaje. */
   onSave: (patch: Partial<IAppSettings>) => Promise<string | null>;
   /** Intenta conectar la cuenta de Steam. */
@@ -37,14 +42,15 @@ export interface ISettingsDialogProps {
   onClose: () => void;
 }
 
-export type SettingsTab = 'appearance' | 'account';
+export type SettingsTab = 'appearance' | 'keys' | 'account';
 
 /**
  * Dialogo de ajustes.
  *
- * Tres cosas y solo tres: tema, idioma y cuenta de Steam. La clave de la API se
- * guarda en la base de datos local, nunca se sube a ningun sitio, y se puede
- * borrar con un boton para no tener que editar el fichero a mano.
+ * Tres pestañas y solo tres: **apariencia**, **claves** y **cuenta de Steam**.
+ * La de claves es la unica que no habla de como se ve la app sino de los datos
+ * que guarda: el vocabulario de etiquetas, que es la unica parte de la
+ * coleccion que se decide aqui y no sobre una fila concreta.
  *
  * Todo el texto pasa por el traductor. Este dialogo es el que cambia el
  * idioma, asi que si sus propios textos estuvieran en espanol se veria **el
@@ -61,6 +67,8 @@ export function SettingsDialog({
   open = true,
   initialTab = 'appearance',
   cuenta,
+  catalogo,
+  onManageTags,
   onSave,
   onLinkSteam,
   onForgetApiKey,
@@ -201,6 +209,7 @@ export function SettingsDialog({
         {(
           [
             ['appearance', 'settings.tab.appearance'],
+            ['keys', 'settings.tab.keys'],
             ['account', 'settings.tab.account'],
           ] as const
         ).map(([id, clave]) => (
@@ -282,6 +291,8 @@ export function SettingsDialog({
               />
             </Field>
           </div>
+        ) : tab === 'keys' ? (
+          <KeysSettings catalogo={catalogo} onManageTags={onManageTags} />
         ) : (
           <div className="flex flex-col gap-5">
             {/* --------------------------------------------------- estado actual */}

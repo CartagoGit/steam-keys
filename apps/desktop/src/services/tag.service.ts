@@ -87,4 +87,49 @@ export const tagService = {
 
     return repository.deleteTag(normalizeTag(nombre));
   },
+
+  /**
+   * Renombra una etiqueta de toda la coleccion.
+   *
+   * Devuelve el numero de claves afectadas para poder decirlo, o `null` si el
+   * nombre escrito no sirve —esta vacio, o es el mismo que ya tenia—. Un
+   * `null` aqui no es un fallo: es «no hay nada que renombrar», y quien llama
+   * lo trata cerrando el dialogo sin avisar.
+   *
+   * Se comparan los nombres ya normalizados, no los que ha escrito la persona.
+   * Renombrar «Humble» a «humble» no es un cambio de nada, es el mismo
+   * nombre con otra caja: sin esta comparacion se reescribirian cuarenta
+   * claves para que no cambiasen.
+   */
+  async rename(actual: string, nuevo: string): Promise<number | null> {
+    const desde = normalizeTag(actual);
+    const hasta = cleanTag(nuevo);
+
+    if (hasta.length === 0 || normalizeTag(hasta) === desde) return null;
+
+    const repository = await getRepository();
+
+    return repository.renameTag(desde, hasta);
+  },
+
+  /**
+   * Si una etiqueta existe ya en el catalogo, bajo otro nombre o con otra
+   * caja.
+   *
+   * Lo pregunta el dialogo de renombrado para avisar **antes** de escribir:
+   * renombrar «dlc» a «dlc extra» cuando «dlc extra» ya existe no es un
+   * renombrado, es una fusion que se lleva por delante el nombre viejo. Es una
+   * accion valida, pero tiene que ser una decision y no un accidente de
+   * tecleo.
+   */
+  async existe(nombre: string): Promise<boolean> {
+    const repository = await getRepository();
+    const limpio = normalizeTag(nombre);
+
+    if (limpio.length === 0) return false;
+
+    return repository.listTags().then((filas) =>
+      filas.some((fila) => normalizeTag(fila.nombre) === limpio),
+    );
+  },
 };
