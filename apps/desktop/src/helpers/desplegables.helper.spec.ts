@@ -59,6 +59,7 @@ const FILTRO = fuente('components/filter-menu.component.tsx');
 const SELECTOR = fuente('components/segmented.component.tsx');
 const VISTAS = fuente('components/view-switch.component.tsx');
 const AJUSTES = fuente('components/settings-dialog.component.tsx');
+const BARRA = fuente('components/toolbar.component.tsx');
 const CSS = fuente('styles/index.css');
 
 describe('desplegables', () => {
@@ -174,12 +175,89 @@ describe('selectores con pompa', () => {
   });
 
   /**
-   * El selector se mide solo, asi que sus botones no pueden llevar el icono
-   * metido dentro a mano: si el ancho lo midiera el boton entero, con el icono
-   * dentro el texto se descuadra respecto a la pompa.
+   * El icono entra por la prop, no dentro del boton.
    */
   test('el icono entra por la prop, no dentro del boton', () => {
     expect(SELECTOR).toContain('icon?: IconName');
     expect(SELECTOR).toContain('option.icon');
+  });
+
+  /**
+   * El contador va en el tooltip, no en el texto del boton.
+   *
+   * Al meterlo en la etiqueta —`Claves (5)` en vez de `Claves`— el selector
+   * crecio lo suficiente para que la fila de la cabecera se partiera en dos,
+   * con el buscador bajar a su propia linea. El `flex-wrap` de ahi es
+   * intencionado y esta documentado, asi que no se quita: lo que no puede
+   * cambiar es cuanta anchura gasta el selector.
+   *
+   * El contador se ve igual, pero donde corresponde: al pasar por encima.
+   */
+  test('el contador de la vista no ensancha la etiqueta', () => {
+    // El texto del boton es el nombre pelado.
+    expect(VISTAS).toContain("label: t('view.keys')");
+    expect(VISTAS).toContain("label: t('view.games')");
+
+    // Y el numero va por separado, en el tooltip.
+    expect(VISTAS).toContain('title:');
+    expect(VISTAS).toContain('${claves}');
+    expect(VISTAS).toContain('${cuenta.juegos}');
+
+    // `Segmented` tiene que admitir un tooltip propio por opcion para eso.
+    expect(SELECTOR).toContain('title?: string');
+    expect(SELECTOR).toContain('option.title');
+  });
+
+  /**
+   * «Claves / Mis juegos», rectas. Los filtros, redondeadas.
+   *
+   * Una capsula casi redonda en un selector de palabras dobla tanto el borde que
+   * no se ve donde empieza el boton. Los filtros si son etiquetas, y su forma
+   * de pastilla es lo que los distingue a primera vista.
+   *
+   * Solo se mira el selector de vistas porque es el unico que se pidio recto.
+   * Las pestanas de Ajustes se dejan redondeadas: tambien son palabras, pero
+   * cambiar su forma sin haberlo pedido seria rehacer algo que no ha molestado.
+   */
+  test('el selector de vistas va recto y los filtros redondeados', () => {
+    expect(VISTAS).toContain('forma="recta"');
+
+    // Los filtros de la barra no lo dicen, asi que se quedan con la redonda.
+    expect(BARRA).not.toContain('forma="recta"');
+
+    // Y el componente tiene que ofrecer las dos formas de verdad.
+    expect(SELECTOR).toContain('CURVAS');
+    expect(SELECTOR).toContain("redonda: 'rounded-full'");
+    expect(SELECTOR).toContain("recta: 'rounded-md'");
+
+    // Y la forma se aplica a los tres sitios: pista, pompa y botones. Si la
+    // pompa se quedase redondeada sobre una pista recta se ve el desconcierto.
+    const usosDeCurva = (SELECTOR.match(/curva\b/g) ?? []).length;
+    expect(usosDeCurva).toBeGreaterThanOrEqual(4);
+  });
+
+  /**
+   * Deseleccionar tambien se ve.
+   *
+   * Al marcar tres de siete plataformas ninguna de las dos opciones del par
+   * encaja ya. Antes de esto la pompa se quedaba **puesta y opaca** con el
+   * texto en gris encima —el relleno sigue ahi, solo el color se ha ido—, que
+   * es el peor de los dos mundos: ni se ve que hay pompa ni se lee el texto.
+   *
+   * La pompa se desvanece en su sitio y el texto vuelve a su gris, y los dos
+   * tardan lo mismo para que se lean como un gesto unico.
+   */
+  test('al dejar de estar marcada ninguna, la pompa se desvanece', () => {
+    expect(FILTRO).toContain("parcial={alcance === 'parcial'}");
+
+    // Se desvanece con `opacity`, no desapareciendo: si se desmontase al volver
+    // a un estado con opcion elegida tendria que medirse otra vez, y como
+    // entonces no hay boton activo `medir` no hace nada y la pompa saltaria
+    // desde la esquina del grupo durante un fotograma.
+    expect(SELECTOR).toContain("parcial ? 'opacity-0' : ''");
+    expect(SELECTOR).toContain('activo && !parcial');
+
+    // Y la opacidad tiene que estar en la transicion, o no se desvanece.
+    expect(SELECTOR).toMatch(/TRANSICION\s*=\s*'[^']*opacity/);
   });
 });

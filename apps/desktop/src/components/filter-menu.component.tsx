@@ -317,6 +317,7 @@ export function FilterMenu<T extends string>({
               label={t('filter.menu.scope')}
               sinTitulo
               compacto
+              parcial={alcance === 'parcial'}
               tone={tone === 'sky' ? 'sky' : 'rose'}
               value={alcance}
               options={[

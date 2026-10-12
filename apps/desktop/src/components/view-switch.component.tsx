@@ -67,10 +67,16 @@ export function ViewSwitch({
       label={t('view.label')}
       sinTitulo
       tone="emerald"
+      forma="recta"
       value={view}
       options={[
-        { value: AppView.Keys, label: `${t('view.keys')} (${claves})`, icon: 'key' },
-        { value: AppView.Games, label: `${t('view.games')} (${cuenta.juegos})`, icon: 'gamepad' },
+        { value: AppView.Keys, label: t('view.keys'), title: `${t('view.keys')} (${claves})`, icon: 'key' },
+        {
+          value: AppView.Games,
+          label: t('view.games'),
+          title: `${t('view.games')} (${cuenta.juegos})`,
+          icon: 'gamepad',
+        },
       ]}
       onChange={(elegida) => {
         if (elegida === AppView.Keys) {

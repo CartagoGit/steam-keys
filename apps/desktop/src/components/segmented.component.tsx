@@ -9,6 +9,15 @@ export interface ISegmentOption<T> {
   label: string;
   /** Icono delante del texto. Va a SVG, no a glifo. */
   icon?: IconName;
+  /**
+   * Texto del tooltip, si es distinto de lo que ya se ve.
+   *
+   * El tooltip solo se esconde en la opcion elegida cuando **no** hay texto
+   * propio, porque ahi lo que se pone de mas es el mismo nombre. En cuanto se
+   * da uno, se enseña siempre: es el contador de la fila de arriba, y ese no
+   * hay que ir a buscarlo con el raton.
+   */
+  title?: string;
 }
 
 export interface ISegmentedProps<T extends string> {
@@ -35,6 +44,32 @@ export interface ISegmentedProps<T extends string> {
   sinTitulo?: boolean;
   /** Mas bajo y sin respiro, para menus. */
   compacto?: boolean;
+  /**
+   * Redondeado o casi recto.
+   *
+   * La pastilla entera (`rounded-full`) es la forma de una pastilla: por eso la
+   * usan los filtros, que son chips. En un selector de pestanas —«Claves» /
+   * «Mis juegos»— la capsula casi redonda queda rara: son palabras, no
+   * etiquetas, y el borde se dobla tanto que no se ve donde empieza el boton.
+   * `recta` los deja como botones, que es lo que son.
+   */
+  forma?: 'redonda' | 'recta';
+  /**
+   * Que **ninguna** opcion este encendida, pero el grupo siga siendo el que
+   * manda en lo que hay marcado.
+   *
+   * Es el estado «estoy filtrando, pero ni del todo». Antes de esto, al marcar
+   * tres de siete plataformas el par «Ninguna / Todas» se quedaba sin ninguna de
+   * las dos encendida y la pompa se quedaba a medio camino de un salto: el
+   * relleno se mantenia puesto y el texto volvia a gris encima de el, que es
+   * justo el color que no se lee.
+   *
+   * Con esto la pompa se **desvanece en su sitio** y el texto se devuelve a su
+   * gris con su propia transicion. Las dos cosas tardan lo mismo, asi que se
+   * leen como un solo gesto: la pastilla se suelta y el texto se apaga, en vez
+   * de que el relleno se quede puesto con el texto gris encima.
+   */
+  parcial?: boolean;
 }
 
 /**
@@ -73,7 +108,10 @@ const TONOS = {
  * primera vez— la pompa saltaba de un boton a otro sin moverse, y lo unico
  * que animaba era un `transform: none` que no cambia nunca.
  */
-const TRANSICION = 'transform 260ms cubic-bezier(0.34, 1.3, 0.64, 1), width 260ms cubic-bezier(0.34, 1.3, 0.64, 1)';
+const TRANSICION = 'transform 260ms cubic-bezier(0.34, 1.3, 0.64, 1), width 260ms cubic-bezier(0.34, 1.3, 0.64, 1), opacity 200ms ease-out';
+
+/** El mismo radio, en clase, para la pista y para la pompa. */
+const CURVAS = { redonda: 'rounded-full', recta: 'rounded-md' } as const;
 
 /** Donde esta la pompa, en pixeles dentro del grupo. */
 interface IPosicion {
@@ -116,8 +154,11 @@ export function Segmented<T extends string>({
   label,
   sinTitulo = false,
   compacto = false,
+  forma = 'redonda',
+  parcial = false,
 }: ISegmentedProps<T>) {
   const colores = TONOS[tone];
+  const curva = CURVAS[forma];
 
   const pistaRef = useRef<HTMLDivElement>(null);
   const botonesRef = useRef(new Map<string, HTMLButtonElement>());
@@ -195,7 +236,8 @@ export function Segmented<T extends string>({
       <div
         ref={pistaRef}
         className={[
-          'relative flex items-center rounded-full bg-hover',
+          'relative flex items-center bg-hover',
+          curva,
           compacto ? 'p-0.5' : 'p-1',
           disabled ? 'opacity-40' : '',
         ].join(' ')}
@@ -204,9 +246,21 @@ export function Segmented<T extends string>({
           <span
             aria-hidden="true"
             className={[
-              'pointer-events-none absolute top-1 bottom-1 left-0 rounded-full',
+              'pointer-events-none absolute top-1 bottom-1 left-0',
+              curva,
               compacto ? 'top-0.5 bottom-0.5' : '',
               colores.pompa,
+              /**
+               * En `parcial` la pompa se queda **puesta pero invisible**, en vez
+               * de desaparecer del DOM. Si se desmontase, al volver a un estado
+               * con una opcion elegida tendria que volver a medirse, y como
+               * `medir` no encuentra boton activo devuelve sin hacer nada: la
+               * pompa se quedaria en 0,0 durante un fotograma y saltaria desde
+               * la esquina del grupo. Desvaneciendola se mantiene la posicion
+               * medida y solo cambia la opacidad, que es lo unico que hace falta
+               * para la lectura.
+               */
+              parcial ? 'opacity-0' : '',
             ].join(' ')}
             style={{
               // La posicion va en `transform` porque es lo unico que
@@ -229,19 +283,28 @@ export function Segmented<T extends string>({
               aria-checked={activo}
               disabled={disabled}
               onClick={() => onChange(option.value)}
-              title={activo ? undefined : option.label}
+              title={option.title ?? (activo ? undefined : option.label)}
               ref={(nodo) => {
                 if (nodo) botonesRef.current.set(option.value, nodo);
                 else botonesRef.current.delete(option.value);
               }}
               className={[
-                'relative z-1 inline-flex items-center justify-center gap-1.5 rounded-full font-medium whitespace-nowrap transition-colors',
+                'relative z-1 inline-flex items-center justify-center gap-1.5 font-medium whitespace-nowrap transition-colors',
+                curva,
                 compacto ? 'flex-1 px-2 py-1 text-[11px]' : 'px-3.5 py-1 text-xs',
                 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
                 'disabled:cursor-not-allowed',
-                // Sin pompa: gris apagado. Con pompa: el color del filtro, y
-                // el texto encima es el que el tema marca para leerse sobre el.
-                activo ? colores.sobrePompa : 'text-t4 hover:text-t2',
+                /**
+                 * Con pompa: el color del filtro, y el texto encima es el que el
+                 * tema marca para leerse sobre el.
+                 *
+                 * En `parcial` no hay pompa visible —se esta desvaneciendo— asi
+                 * que el texto vuelve a su gris. Como el relleno tarda 200 ms en
+                 * irse y el color tambien, los dos cambios se leen como uno
+                 * solo en vez de dejar el texto claro encima de un relleno que
+                 * ya casi no se ve.
+                 */
+                activo && !parcial ? colores.sobrePompa : 'text-t4 hover:text-t2',
               ].join(' ')}
             >
               {option.icon ? (
