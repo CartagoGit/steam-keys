@@ -13,7 +13,6 @@ export interface IToolbarProps {
   /** El catalogo de etiquetas, para el filtro de etiquetas. */
   catalogo: readonly ITag[];
   sort: KeySort;
-  busy: boolean;
   searchRef: React.RefObject<HTMLInputElement | null>;
   /** Que tabla se ve ahora mismo. */
   view: AppView;
@@ -25,9 +24,6 @@ export interface IToolbarProps {
   /** Abrir los ajustes ya en la pestana de Steam. */
   onOpenSteamSettings: () => void;
   onCreate: () => void;
-  onImport: () => void;
-  onExport: () => void;
-  onOpenStorage: () => void;
   onOpenSettings: () => void;
 }
 
@@ -50,7 +46,6 @@ export function Toolbar({
   filter,
   stats,
   sort,
-  busy,
   searchRef,
   view,
   cuenta,
@@ -59,9 +54,6 @@ export function Toolbar({
   onViewChange,
   onOpenSteamSettings,
   onCreate,
-  onImport,
-  onExport,
-  onOpenStorage,
   onOpenSettings,
   catalogo,
 }: IToolbarProps) {
@@ -188,11 +180,10 @@ export function Toolbar({
           derecha al estrechar la ventana y aparece una barra de scroll
           horizontal en toda la aplicacion. Con el, bajan a la fila siguiente.
 
-          Aqui solo quedan las dos acciones que no son de la lista: «Ajustes»,
-          que son de la aplicacion, y «Anadir», que es la accion principal y
-          tiene que estar siempre a mano. Exportar, Importar y Datos se fueron
-          a la fila de filtros: son de las claves, y ahi desaparecen al cambiar
-          de vista.
+          Aqui solo quedan el buscador, el orden y «Anadir». Exportar, Importar
+          y Datos viven ya en **Ajustes > Claves**: son de la base de datos, se
+          usan una vez cada varios meses y no tenian por que ocupar la barra de
+          trabajo del dia a dia.
         */}
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
@@ -349,67 +340,6 @@ export function Toolbar({
               footHint={'filter.tags.footHint'}
             />
           ) : null}
-
-          {/*
-            Exportar, Importar y Datos, aqui y no en la barra de arriba.
-
-            Son de las claves, no de la aplicacion: exportar el TXT, importar
-            uno y abrir donde se guardan los datos tienen que ver con la lista
-            que se esta mirando. En la barra de arriba seguian ahi al cambiar a
-            «Mis juegos», junto a unas acciones que no tienen nada que ver con
-            una biblioteca de Steam —«Exportar» ofrecia exportar una biblioteca
-            que no es una lista de claves—. A la derecha del todo y con forma de
-            boton de icono, para no competir con los filtros: son tres acciones
-            de vez en cuando y cinco filtros de uso diario.
-          */}
-          <div className="flex shrink-0 items-center gap-1 self-start">
-            <button
-              type="button"
-              onClick={onExport}
-              title={t('toolbar.export')}
-              aria-label={t('toolbar.export')}
-              className={[
-                'flex h-10 w-10 shrink-0 items-center justify-center rounded-full',
-                'border border-borde bg-surface-2 text-t1 transition-colors',
-                'hover:bg-surface-3 active:bg-surface-3',
-                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-              ].join(' ')}
-            >
-              <Icon name="download" size={15} />
-            </button>
-
-            <button
-              type="button"
-              onClick={onImport}
-              disabled={busy}
-              title={t('toolbar.import')}
-              aria-label={t('toolbar.import')}
-              className={[
-                'flex h-10 w-10 shrink-0 items-center justify-center rounded-full',
-                'border border-borde bg-surface-2 text-t1 transition-colors',
-                'hover:bg-surface-3 active:bg-surface-3',
-                'disabled:cursor-not-allowed disabled:opacity-40',
-                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-              ].join(' ')}
-            >
-              <Icon name="upload" size={15} />
-            </button>
-
-            <button
-              type="button"
-              onClick={onOpenStorage}
-              title={t('toolbar.data')}
-              aria-label={t('toolbar.data')}
-              className={[
-                'flex h-10 w-10 shrink-0 items-center justify-center rounded-full',
-                'border border-borde bg-surface-2 text-t1 transition-colors',
-                'hover:bg-surface-3 active:bg-surface-3',
-                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-              ].join(' ')}
-            >
-              <Icon name="package" size={15} />
-            </button>
-          </div>
 
           {/*
             «Limpiar», con la misma forma que todo lo demas de la fila.

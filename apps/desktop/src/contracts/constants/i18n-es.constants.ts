@@ -506,6 +506,8 @@ export const ES: TranslationTable = Object.freeze({
 
  'settings.tab.keys': 'Claves',
   'settings.keys.tags': 'Etiquetas',
+  'settings.keys.file': 'El fichero',
+  'settings.keys.file.hint': 'Exportar la coleccion al TXT de siempre, importar uno, o ver donde esta el fichero y cuanto ocupa.',
   'settings.keys.tags.hint': 'Como se llaman las etiquetas de la coleccion. Renombrar una cambia el nombre en todas las claves que la llevan.',
   'settings.keys.tags.manage': 'Gestionar etiquetas',
   'settings.keys.tags.total': 'en el catalogo',

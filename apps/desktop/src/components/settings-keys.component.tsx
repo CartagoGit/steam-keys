@@ -9,21 +9,36 @@ export interface IKeysSettingsProps {
   catalogo: readonly ITag[];
   /** Abre el gestor de etiquetas. */
   onManageTags: () => void;
+  /** Exporta la coleccion al TXT de siempre. */
+  onExport: () => void;
+  /** Abre el selector de ficheros para importar un TXT. */
+  onImport: () => void;
+  /** Abre la pantalla de datos: donde vive el fichero y el tamano. */
+  onOpenStorage: () => void;
+  /** `true` mientras hay algo en marcha: «Importar» no se puede repetir. */
+  busy: boolean;
 }
 
 /**
  * Ajustes que son de las claves y no de la ventana.
  *
  * Tema e idioma son de como se ve la app; la cuenta es de la conexion con
- * Steam. Las claves son lo que queda: como se llaman sus etiquetas y que
- * significa cada una.
+ * Steam. Las claves son lo que queda: como se llaman sus etiquetas, que
+ * significa cada una, y que se puede hacer con el fichero entero.
  *
  * El catalogo se enseña resumido y se edita en el gestor. Caben todas las
  * etiquetas en una pestana de ajustes —una coleccion tiene seis, y una persona
  * llega a treinta— pero una lista de treinta filas con tres botones cada una
  * hace que el resto de los ajustes se salga de la vista.
  */
-export function KeysSettings({ catalogo, onManageTags }: IKeysSettingsProps) {
+export function KeysSettings({
+  catalogo,
+  onManageTags,
+  onExport,
+  onImport,
+  onOpenStorage,
+  busy,
+}: IKeysSettingsProps) {
   const { t } = useT();
 
   const enUso = catalogo.filter((tag) => tag.usos > 0).length;
@@ -88,6 +103,43 @@ export function KeysSettings({ catalogo, onManageTags }: IKeysSettingsProps) {
               {t('settings.keys.tags.manage')}
             </Button>
           </div>
+        </div>
+      </Field>
+
+      {/*
+        El fichero entero: exportar, importar y donde vive.
+
+        Estas tres estaban en la barra de arriba, junto al buscador y a los
+        filtros, y ahi estorbaban: son tres botones de texto mas —con su icono,
+        su relleno y su borde— para algo que se hace una vez cada varios meses
+        y que no cambia con lo que se esta mirando. Con veinte plataformas y
+        cinco estados, la barra era mas de semantica que de trabajo.
+
+        En la pestana de claves su sitio es obvio —es donde esta el fichero— y
+        la barra se queda con lo que se usa todos los dias: buscar, ordenar,
+        filtrar y anadir.
+
+        «Datos» se queda con su boton y no se abre en linea porque abre la
+        pantalla de la base de datos, que es otra cosa.
+      */}
+      <Field label={t('settings.keys.file')} hint={t('settings.keys.file.hint')}>
+        <div className="flex flex-wrap gap-2">
+          <Button icon="download" onClick={onExport} title={t('toolbar.export')}>
+            {t('toolbar.export')}
+          </Button>
+
+          <Button
+            icon="upload"
+            onClick={onImport}
+            disabled={busy}
+            title={t('toolbar.import')}
+          >
+            {t('toolbar.import')}
+          </Button>
+
+          <Button icon="package" onClick={onOpenStorage} title={t('toolbar.data')}>
+            {t('toolbar.data')}
+          </Button>
         </div>
       </Field>
     </div>

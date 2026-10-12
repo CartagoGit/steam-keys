@@ -1852,7 +1852,6 @@ export function App() {
         stats={stats}
         catalogo={tags}
         sort={sort}
-        busy={busy}
         searchRef={searchRef}
         view={vista}
         cuenta={cuenta}
@@ -1861,9 +1860,6 @@ export function App() {
         onViewChange={setVista}
         onOpenSteamSettings={() => openSettingsAt('account')}
         onCreate={handleCreate}
-        onImport={handleImport}
-        onExport={handleExport}
-        onOpenStorage={() => setStorageOpen(true)}
         onOpenSettings={() => openSettingsAt('appearance')}
       />
 
@@ -1952,6 +1948,10 @@ export function App() {
           cuenta={cuenta}
           catalogo={tags}
           onManageTags={() => setGestorOpen(true)}
+          onExport={handleExport}
+          onImport={handleImport}
+          onOpenStorage={() => setStorageOpen(true)}
+          busy={busy}
           onSave={handleSaveSettings}
           onLinkSteam={handleLinkSteam}
           onForgetApiKey={handleForgetApiKey}

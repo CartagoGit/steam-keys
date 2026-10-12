@@ -57,6 +57,21 @@ const ALTO_COLUMNA = '2.75rem';
 /** Tamano del texto del chip. Va aqui porque las utilidades no llegan. */
 const TAMANO_CHIP = '10px';
 
+/**
+ * Tamano de los dos avisos del pie: el que explica y el del candado.
+ *
+ * Los dos van aqui y no como `text-[10px]` porque uno de los dos esta en un
+ * boton, y en un boton la clase no llega: la regla de `font: inherit` de la
+ * hoja esta **fuera** de `@layer` —fuera, gana a cualquier utilidad— y como
+ * `font` es el atajo completo, pisa tambien el tamano. El candado se veia a
+ * 16 px junto a una nota a 10.
+ *
+ * Y son la misma cifra porque son la misma cosa: los dos explican el estado
+ * del filtro. Uno mas grande que el otro hacia pensar que el de abajo era el
+ * importante.
+ */
+const TAMANO_AVISO = '10px';
+
 /** Cuanto tarda en deslizarse la columna al aparecer o desaparecer un tag. */
 const TRANSICION_TAGS = 'width 240ms cubic-bezier(0.34, 1.3, 0.64, 1)';
 
@@ -662,6 +677,13 @@ export function FilterMenu<T extends string>({
         <Popover
           abierto
           esLista={false}
+          /*
+           * El panel se compone de cabecera, lista y pie, asi que se desplaza
+           * solo la del medio. Con el scroll en el panel entero, la cabecera y
+           * el pie tenian que ser `sticky` y se veian las dos barras moverse a
+           * la vez por un solo gesto de la rueda.
+           */
+          scrollCopia
           ancla={botonRef}
           resaltada={resaltada}
           altoMaximo={320}
@@ -693,7 +715,7 @@ export function FilterMenu<T extends string>({
             encendido lo dice. Con `parcial` ninguno se enciende, que es
             exactamente lo que hay que mostrar.
           */}
-          <div className="sticky top-0 z-1 border-b border-line bg-surface-1 p-1.5">
+          <div className="shrink-0 border-b border-line bg-surface-1 p-1.5">
             <Segmented
               label={t('filter.menu.scope')}
               sinTitulo
@@ -731,19 +753,25 @@ export function FilterMenu<T extends string>({
           </div>
 
           {/*
-            Sin `overflow-y-auto` aqui: el scroll es del panel, uno solo.
+            **La unica caja que se desplaza**, gracias a `scrollCopia`.
 
-            Este bloque tenia su propio `max-h-64 overflow-y-auto` y el panel
-            tambien se desplazaba, asi que se veian **dos barras de scroll** a
-            la vez: la de fuera para todo el menu y la de dentro para las
-            opciones. Con siete plataformas el menu parecia una ventana dentro
-            de otra ventana, y no se sapedia cual de las dos tocaba.
+            Con esa bandera el panel es una columna de tres: cabecera, esta
+            lista y pie. La cabecera y el pie no necesitan ni `sticky` —de ahi
+            que salieran— porque no se mueven. El sitio unico al que va la rueda
+            es este.
 
-            Aqui solo se marca la lista como tal; quien se desplaza es el
-            panel. La cabecera y el pie van `sticky` para que sigan en su sitio
-            al recorrer las opciones, que es para lo que estan.
+            Antes el panel entero era lo que se desplazaba y las dos barras
+            sticky viajaban con el: dos superficies moviendose por un solo
+            gesto de la rueda, sin saber cual mandaba. Es el «doble scroll»,
+            y lo unico que hacia falta para quitarlo era la superficie de
+            sobra.
           */}
-          <div role="listbox" aria-multiselectable aria-label={label} className="py-1">
+          <div
+            role="listbox"
+            aria-multiselectable
+            aria-label={label}
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-1"
+          >
             {options.map((option, indice) => {
               const marcada = marcadas.has(option.value);
 
@@ -816,8 +844,11 @@ export function FilterMenu<T extends string>({
             Va `sticky` abajo por lo mismo que la cabecera: si las opciones son
             muchas, la nota no puede ser lo primero que se vaya al bajar.
           */}
-          <div className="sticky bottom-0 border-t border-line bg-surface-1">
-            <p className="px-3 py-2 text-[10px] leading-relaxed text-t4">
+          <div className="shrink-0 border-t border-line bg-surface-1">
+            <p
+              className="px-3 py-2 leading-relaxed text-t4"
+              style={{ fontSize: TAMANO_AVISO }}
+            >
               {t(excluir ? 'filter.menu.footHintExcluir' : footHint)}
             </p>
 
@@ -838,30 +869,44 @@ export function FilterMenu<T extends string>({
             El texto no dice «exclusion», que no explica nada a quien no lo
             sabe: dice las dos lecturas, que es lo que hay que saber.
 
-            Y solo aparece con dos o mas marcadas: con una no hay nada que
-            combinar, y con ninguna la opcion de excluir no hace nada.
-          */}
-          {marcadas.size > 1 ? (
-            <button
-              type="button"
-              role="checkbox"
-              aria-checked={excluir}
-              onClick={() => onExcluir?.(!excluir)}
-              className={[
-                'flex w-full items-center gap-2 px-3 py-2',
-                'text-left text-[10px] leading-relaxed transition-colors',
-                excluir ? 'text-t1' : 'text-t3 hover:text-t2',
-              ].join(' ')}
-            >
-              <Icon
-                name={excluir ? 'lock' : 'lock-open'}
-                size={13}
-                className="shrink-0"
-              />
+            Y sale **siempre**, con una marcada o con cinco. Solo con dos o mas,
+            que fue como se hizo, es una opcion que aparece y desaparece de un
+            filtro a otro sin avisar: se marca la segunda etiqueta y aparece
+            una fila que antes no estaba, y al desmarcar se va. Con una sola
+            marcada la exclusion no cambia nada, asi que se ve **apagada** en
+            vez de escondida: se sabe que existe y se sabe que no aplica, que
+            es mejor que no saber que existe.
 
-              <span>{t(excluir ? 'filter.menu.excluirOn' : 'filter.menu.excluirOff')}</span>
-            </button>
-          ) : null}
+            El tamano va en el `style` y no en la clase. `text-[10px]` no llega
+            a un boton porque la regla de `font: inherit` esta **fuera** de
+            `@layer` —fuera, gana a cualquier utilidad— y el atajo completo
+            pisa tambien el tamano. Se veia a 16 px, tres veces mas grande que
+            la nota de al lado, y la fila parecia un titular.
+          */}
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={excluir}
+            disabled={marcadas.size < 2}
+            onClick={() => onExcluir?.(!excluir)}
+            style={{
+              fontSize: TAMANO_AVISO,
+              cursor: marcadas.size < 2 ? 'not-allowed' : 'pointer',
+            }}
+            className={[
+              'flex w-full items-center gap-2 px-3 py-2',
+              'text-left leading-relaxed transition-colors',
+              excluir ? 'text-t1' : marcadas.size < 2 ? 'text-t5' : 'text-t3 hover:text-t2',
+            ].join(' ')}
+          >
+            <Icon
+              name={excluir ? 'lock' : 'lock-open'}
+              size={13}
+              className="shrink-0"
+            />
+
+            <span>{t(excluir ? 'filter.menu.excluirOn' : 'filter.menu.excluirOff')}</span>
+          </button>
           </div>
         </Popover>
       ) : null}

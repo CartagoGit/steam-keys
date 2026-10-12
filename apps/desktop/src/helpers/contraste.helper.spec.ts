@@ -147,6 +147,53 @@ describe('la hoja de estilos', () => {
   });
 
   /**
+   * Lo que se pulsa enseña la manita.
+   *
+   * En Linux el navegador pone la **flecha** sobre un `<button>` y nadie la
+   * cambia: habia 34 elementos —todos los botones de la barra, los chips de los
+   * filtros, los iconos de editar y eliminar— que parecian texto hasta que se
+   * pasaba el raton por encima. En Windows y Mac ya sale la manita, asi que el
+   * fallo solo se ve en el escritorio de al lado.
+   *
+   * Se hace en la hoja y no con `cursor-pointer` en cada componente porque son
+   * treinta y cuatro y mañana treinta y cinco: un boton nuevo nace con la
+   * manita sin que nadie se acuerde.
+   *
+   * Y tiene que estar **dentro de `@layer base`**. Fuera, en CSS lo que no
+   * esta en ninguna capa gana a lo que esta, y esta regla se comeria el
+   * `cursor-not-allowed` de los apagados: botones que prometen pulsar algo y
+   * no lo hacen.
+   */
+  test('lo que se pulsa lleva la manita, y lo apagado el no', async () => {
+    const css = await Bun.file(join(RAIZ, 'styles/index.css')).text();
+
+    /**
+     * Se busca `@layer base {` con la llave, no la palabra suelta.
+     *
+     * El comentario de la regla habla de `@layer base` y al buscarlo asi el
+     * corte sale por ahi y se lleva el bloque entero. Es el fallo clasico de
+     * leer un fuente buscando un texto: hay que anclar donde se puede anclar.
+     */
+    const inicio = css.indexOf('@layer base {');
+    expect(inicio).toBeGreaterThan(-1);
+
+    const capa = css.slice(inicio, css.indexOf('\n}', inicio));
+
+    // Los dos cursores estan ahi dentro.
+    expect(capa).toContain('cursor: pointer');
+    expect(capa).toContain('cursor: not-allowed');
+
+    /**
+     * Y los apagados se miran con `:disabled` y no con una utilidad.
+     *
+     * Con `disabled:` de Tailwind se genera un `&:disabled` que solo gana si
+     * la regla de los pulsables esta en una capa —si no, se come la manita—.
+     */
+    expect(capa).toContain('button:disabled');
+    expect(capa).toContain(':not(:disabled)');
+  });
+
+  /**
    * Quien pida menos movimiento no ve animaciones.
    *
    * Con parkinson o con migrañas una transicion de escala en cada dialogo no es

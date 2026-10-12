@@ -428,6 +428,9 @@ export const DE: TranslationTable = Object.freeze({
   'editor.restorePreviewNone': 'Es gibt nichts wiederherzustellen.',
   'settings.tab.keys': 'Schluessel',
   'settings.keys.tags': 'Markierungen',
+  'settings.keys.file': 'Die Datei',
+  'settings.keys.file.hint':
+    'Die Sammlung in die gewohnte TXT exportieren, eine importieren, oder sehen, wo die Datei liegt und wie gross sie ist.',
   'settings.keys.tags.hint':
     'Wie die Markierungen der Sammlung benannt sind. Umbenennen aendert den Namen in allen Schluesseln, die sie verwenden.',
   'settings.keys.tags.manage': 'Markierungen verwalten',

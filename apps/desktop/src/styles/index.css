@@ -722,6 +722,60 @@ body {
   }
 }
 
+/* ---------------------------------------------------------------- raton
+   Lo que se pulsa enseña la manita; lo que no, no.
+
+   Sin esto habia 34 elementos con la flecha —todos los botones de la barra, los
+   chips de los filtros, los iconos de editar y eliminar— porque en Linux el
+   navegador pone la flecha en un `<button>` y nadie se molesto en cambiarla.
+   En Windows y Mac ya sale la manita, asi que el fallo solo se ve en el
+   escritorio de al lado: exactamente el tipo de cosa que parece un capricho
+   hasta que se usa.
+
+   Se hace aqui y no poniendo `cursor-pointer` en cada componente porque son
+   treinta y cuatro y mañana treinta y cinco. Un boton nuevo nace con la
+   manita sin que nadie se acuerde.
+
+   **Va dentro de `@layer base` a proposito.** Fuera, en CSS lo que no esta en
+   ninguna capa gana a lo que esta, y esta regla se comeria el
+   `cursor-not-allowed` de los botones apagados y el `cursor-default` del
+   `<select>` de la barra: apagados que parecen pulsables y un desplegable que
+   no lo parece.
+
+   Los apagados se hacen aqui tambien, con `:disabled`, y no con una utilidad,
+   porque `disabled:` de Tailwind genera un `&:disabled` que solo gana si la
+   regla de arriba esta en una capa.
+   */
+@layer base {
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  [role='radio']:not([aria-disabled='true']),
+  [role='checkbox']:not([aria-disabled='true']),
+  [role='option']:not([aria-disabled='true']),
+  [role='switch']:not([aria-disabled='true']),
+  [role='tab']:not([aria-disabled='true']),
+  a[href],
+  select,
+  summary,
+  label:has(> input[type='checkbox']:not(:disabled)),
+  label:has(> input[type='radio']:not(:disabled)) {
+    cursor: pointer;
+  }
+
+  /*
+   * Lo apagado, en el mismo sitio y por el mismo motivo: la manita de «pulse
+   * aqui» sobre un boton que no hace nada es peor que la flecha, porque
+   * promete algo que no va a pasar.
+   */
+  button:disabled,
+  [aria-disabled='true'],
+  input:disabled,
+  select:disabled,
+  textarea:disabled {
+    cursor: not-allowed;
+  }
+}
+
 /* ---------------------------------------------------------------- focus
    El color del anillo viene del tema. Con un azul fijo, en el tema papel el
    contorno de teclado quedaba casi del mismo color que el fondo y no se veia

@@ -56,6 +56,7 @@ function fuente(relativa: string): string {
 
 const POPOVER = fuente('components/popover.component.tsx');
 const DIALOGO = fuente('components/modal.component.tsx');
+const CLAVES_AJUSTES = fuente('components/settings-keys.component.tsx');
 const FILTRO = fuente('components/filter-menu.component.tsx');
 const SELECTOR = fuente('components/segmented.component.tsx');
 const VISTAS = fuente('components/view-switch.component.tsx');
@@ -68,20 +69,39 @@ const FILTRAR = fuente('helpers/filter-keys.helper.ts');
 const APP = fuente('app.component.tsx');
 
 describe('desplegables', () => {
-  test('el panel es el unico que se desplaza', () => {
-    /**
-     * Ni el filtro ni ningun otro pone su propio desplazamiento dentro.
-     *
-     * Se mira tambien `max-h-` seguido de `overflow`, que es como se
-     * describia el problema: un `max-h-64 overflow-y-auto` en la lista de
-     * opciones, con el panel desplazandose tambien.
-     */
-    expect(FILTRO).not.toMatch(/max-h-[\w[\]/.]+\s+overflow/);
-    expect(FILTRO).not.toContain('overflow-y-auto');
-    expect(FILTRO).not.toContain('overflow-auto');
+  /**
+   * Se desplaza **una sola** caja de toda la aplicacion.
+   *
+   * El «doble scroll» del filtro venia de que el panel entero se desplazaba
+   * —cabecera, opciones y pie— y las dos barras `sticky` de los extremos
+   * viajaban con el. Dos superficies moviendose por un solo gesto de la rueda,
+   * sin saber cual de las dos mandaba.
+   *
+   * La solucion es que el panel sea una columna de tres y solo la del medio
+   * tenga `overflow-y-auto`. Con eso la cabecera y el pie no necesitan ni
+   * `sticky`: no se mueven.
+   */
+  test('solo se desplaza la lista de opciones, no el panel entero', () => {
+    // Una sola caja con scroll en el filtro, y es la lista.
+    const conScroll = FILTRO.match(/overflow-y-auto/g) ?? [];
 
-    // El que se desplaza es el panel.
-    expect(POPOVER).toContain('overflow-y-auto');
+    expect(conScroll).toHaveLength(1);
+    expect(FILTRO).toContain('min-h-0 flex-1 overflow-y-auto overscroll-contain py-1');
+
+    // Y el panel se lo pasa al filtro para que no se desplace el.
+    expect(FILTRO).toContain('scrollCopia');
+    expect(POPOVER).toContain('scrollCopia ?');
+    expect(POPOVER).toContain("'flex flex-col overflow-hidden'");
+
+    /**
+     * Ni `sticky` ni `overscroll`.
+     *
+     * `overscroll-contain` va en la lista, no en el panel: es lo que impide
+     * que al llegar al final de las opciones la rueda siga desplazando la
+     * pagina de detras. Puesto en el panel haria lo contrario —conteneria el
+     * scroll de la pagina entera desde el desplegable—.
+     */
+    expect(FILTRO).not.toContain('sticky');
   });
 
   test('cerrar tambien se ve, no solo abrir', () => {
@@ -161,8 +181,15 @@ describe('desplegables', () => {
   });
 
   test('la cabecera y el pie se quedan fijos al recorrer las opciones', () => {
-    expect(FILTRO).toContain('sticky top-0');
-    expect(FILTRO).toContain('sticky bottom-0');
+    // Con el scroll solo en la lista, cabecera y pie no se mueven. `sticky`
+    // sobra y ademas estorba: con `position: sticky` dentro de un contenedor
+    // que no se desplaza, el navegador aun reserva la capa y se ven dos
+    // superficies animandose por el mismo gesto.
+    expect(FILTRO).not.toContain('sticky');
+
+    // Los dos se afinan para que el flex no les robe alto a las opciones.
+    expect(FILTRO).toContain('shrink-0 border-b border-line bg-surface-1 p-1.5');
+    expect(FILTRO).toContain('shrink-0 border-t border-line bg-surface-1');
   });
 });
 
@@ -906,58 +933,74 @@ describe('el filtro de etiquetas', () => {
   });
 
   /**
-   * Exportar, Importar y Datos viven con las claves, no con la aplicacion.
+   * Exportar, Importar y Datos viven en **Ajustes > Claves**.
    *
    * Estaban en la barra de arriba, que es comun a las dos tablas. Al cambiar a
    * «Mis juegos» seguian ahi: unas acciones para exportar, importar y abrir
    * los datos de una lista de claves, al lado de una biblioteca de Steam que
    * no es una lista de claves y que no se puede exportar ni importar.
    *
-   * En la fila de filtros desaparecen con la vista, que es lo que toca, y de
-   * paso bajan de texto: tres acciones de vez en cuando no pueden ocupar el
-   * mismo ancho que cinco filtros de uso diario. Con `aria-label` no pierden el
-   * nombre para el lector de pantalla —y el `title` para el raton—.
+   * Movidas a la fila de filtros tampoco era: ahi se confunden con los filtros
+   * —que filtran lo que se ve— cuando son de lo contrario, y encima lo unico
+   * que las distingue es que son botones redondos al lado de otros redondos.
+   * Su sitio es la pestana de claves, donde se ve de que son: del fichero.
+   *
+   * Se comprueba en los dos sitios: que no esten en la barra —ni como texto
+   * ni como icono, que fue el primer intento y tambien fallaba— y que esten
+   * en la pestana de claves de Ajustes.
    */
-  test('exportar, importar y datos estan en la fila de claves y solo con el icono', () => {
-    // Los tres, con su icono y con nombre para quien no ve el icono.
-    expect(BARRA).toMatch(/aria-label=\{t\('toolbar\.export'\)\}/);
-    expect(BARRA).toMatch(/aria-label=\{t\('toolbar\.import'\)\}/);
-    expect(BARRA).toMatch(/aria-label=\{t\('toolbar\.data'\)\}/);
+  test('exportar, importar y datos estan en ajustes > claves, no en la barra', () => {
+    // Ni con texto ni en la barra de arriba ni en la fila de filtros.
+    expect(BARRA).not.toMatch(/toolbar\.export/);
+    expect(BARRA).not.toMatch(/toolbar\.import/);
+    expect(BARRA).not.toMatch(/toolbar\.data/);
 
-    // Y ya no salen como botones con texto en la barra de arriba.
-    expect(BARRA).not.toMatch(/variant="ghost" icon="download"/);
-    expect(BARRA).not.toMatch(/variant="ghost" icon="upload"/);
-    expect(BARRA).not.toMatch(/variant="ghost" icon="package"/);
+    expect(BARRA).not.toMatch(/icon="download"/);
+    expect(BARRA).not.toMatch(/icon="upload"/);
+    expect(BARRA).not.toMatch(/icon="package"/);
+
+    // Y las props dejan de pasar por la barra.
+    expect(BARRA).not.toContain('onExport');
+    expect(BARRA).not.toContain('onImport');
+    expect(BARRA).not.toContain('onOpenStorage');
+
+    // En la pestana de claves, con su texto y con la seccion que los explica.
+    expect(CLAVES_AJUSTES).toContain('onExport: () => void');
+    expect(CLAVES_AJUSTES).toContain('onImport: () => void');
+    expect(CLAVES_AJUSTES).toContain('onOpenStorage: () => void');
+
+    expect(CLAVES_AJUSTES).toContain("t('toolbar.export')");
+    expect(CLAVES_AJUSTES).toContain("t('toolbar.import')");
+    expect(CLAVES_AJUSTES).toContain("t('toolbar.data')");
 
     /**
-     * En la fila de filtros, y solo ahi.
+     * Y «Ajustes» y «Anadir» se quedan arriba, que no son de la lista.
      *
-     * Se comprueba que el bloque de los tres este **despues** de la apertura de
-     * la fila —`{view === AppView.Keys ? (`— y no antes, que es lo que hacia
-     * que siguieran ahi en la vista de juegos.
+     * Con regex y no con `toContain`: el boton de Ajustes lleva los atributos
+     * en cuatro lineas y el de Anadir en una, y un `toContain` de la cadena
+     * entera solo encontraria uno de los dos —el que este partido de otra
+     * forma el dia que se edite—. Lo que importa es que existan.
      */
-    const fila = BARRA.indexOf('{view === AppView.Keys ? (');
-    const acciones = BARRA.indexOf('aria-label={t(\'toolbar.export\')}');
-
-    expect(fila).toBeGreaterThan(-1);
-    expect(acciones).toBeGreaterThan(fila);
-
-    // Y «Ajustes» y «Anadir» se quedan arriba, que no son de la lista.
-    expect(BARRA.indexOf('variant="ghost" icon="settings"')).toBeLessThan(fila);
-    expect(BARRA.indexOf('variant="primary" icon="plus"')).toBeLessThan(fila);
+    expect(BARRA).toMatch(/<Button\s+variant="ghost"\s+icon="settings"/);
+    expect(BARRA).toMatch(/<Button\s+variant="primary"\s+icon="plus"/);
   });
 
   /**
-   * Los tres botones de icono son cuadrados y del alto de la fila.
+   * La seccion del fichero dice lo que es, en vez de ser tres botones sueltos.
    *
-   * `h-10 w-10` y no un `px`: un boton de icono con relleno horizontal y sin
-   * ancho fijo sale mas ancho que alto, que es un boton que parece un
-   * «continuar». Y miden 40 como la fila, no 42 como los botones de texto.
+   * Sin el titulo, tres botones con icono —descargar, subir, un paquete— en
+   * una pestana que ya tiene otro boton con icono son cuatro pulsadores sin
+   * jerarquia. Con el, se lee «esto es sobre el fichero» y los tres cuelgan
+   * de ahi.
    */
-  test('los botones de icono son cuadrados', () => {
-    const cuadrados = BARRA.match(/flex h-10 w-10 shrink-0 items-center justify-center rounded-full/g) ?? [];
+  test('las tres acciones cuelgan de una seccion con nombre', () => {
+    expect(CLAVES_AJUSTES).toContain("t('settings.keys.file')");
+    expect(CLAVES_AJUSTES).toContain("t('settings.keys.file.hint')");
 
-    expect(cuadrados).toHaveLength(3);
+    // Y la seccion va **despues** de las etiquetas, que es lo que ya estaba.
+    expect(CLAVES_AJUSTES.indexOf("t('settings.keys.file')")).toBeGreaterThan(
+      CLAVES_AJUSTES.indexOf("t('settings.keys.tags')"),
+    );
   });
 
   /**
@@ -1006,20 +1049,29 @@ describe('el filtro de etiquetas', () => {
    * es «con una basta» y cerrado es «hay que tenerlas todas», que es
    * exactamente lo que distingue a un candado de una casilla.
    *
-   * Y el boton lleva el icono **solo cuando esta activo**. Antes de decidir no
-   * hay nada que avisar, y un icono permanente seria ruido en tres filtros que
-   * de normal no lo usan.
+   * Y sale **siempre**. Antes solo con dos o mas marcadas, que es lo unico que
+   * se habia pedido: una fila que aparece al marcar la segunda etiqueta y se
+   * va al desmarcar, sin avisar. Con una sola marcada no se esconde, se ve
+   * **apagada**: se sabe que existe y que no aplica, que es mejor que no
+   * saber que existe.
    */
-  test('la exclusion es un candado y solo se ve cuando esta activa', () => {
+  test('la exclusion es un candado que sale siempre', () => {
     // El boton del panel, con su estado para el lector de pantalla.
     expect(FILTRO).toMatch(/role="checkbox"/);
     expect(FILTRO).toContain('aria-checked={excluir}');
     expect(FILTRO).toContain("name={excluir ? 'lock' : 'lock-open'}");
 
-    // Solo con dos o mas marcadas: con una no hay nada que combinar.
-    expect(FILTRO).toContain('{marcadas.size > 1 ? (');
+    /**
+     * Siempre en el DOM, y apagado por `:disabled`.
+     *
+     * Se comprueba que no haya ninguna condicion de renderizado alrededor:
+     * con `{marcadas.size > 1 ? (…)}` la fila aparecia y desaparecia segun
+     * cuantas etiquetas hubiera.
+     */
+    expect(FILTRO).not.toContain('{marcadas.size > 1 ? (');
+    expect(FILTRO).toContain('disabled={marcadas.size < 2}');
 
-    // Y el icono del boton va condicionado, no siempre.
+    // Y el icono del boton va condicionado al estado, no a que exista.
     expect(FILTRO).toMatch(/\{excluir \? \(\s*<Icon\s*name="lock"/);
 
     // El texto explica las dos lecturas, en vez de decir «exclusion».
@@ -1027,6 +1079,23 @@ describe('el filtro de etiquetas', () => {
 
     // Y la nota de abajo cambia con el modo, que es donde se lee la regla.
     expect(FILTRO).toContain("t(excluir ? 'filter.menu.footHintExcluir' : footHint)");
+
+    /**
+     * El tamano va en el `style`, y es el mismo que el de la nota.
+     *
+     * `text-[10px]` no llega a un boton: la regla de `font: inherit` esta
+     * **fuera** de `@layer` —fuera, gana a cualquier utilidad— y como `font`
+     * es el atajo completo, pisa tambien el tamano. El candado se veia a 16 px
+     * junto a una nota a 10: tres veces mas grande, y la fila parecia un
+     * titular en vez de de una nota al pie.
+     */
+    expect(FILTRO).toContain("const TAMANO_AVISO = '10px'");
+    expect(FILTRO).toMatch(/style=\{\{\s*fontSize: TAMANO_AVISO,\s*cursor:/);
+    expect(FILTRO).toMatch(/<p[\s\S]{0,120}style=\{\{ fontSize: TAMANO_AVISO \}\}/);
+
+    // Y el apagado no promete nada: ni manita ni color de accion.
+    expect(FILTRO).toContain("cursor: marcadas.size < 2 ? 'not-allowed' : 'pointer'");
+    expect(FILTRO).toContain("marcadas.size < 2 ? 'text-t5'");
   });
 
   test('los dos modos de combinar llegan al filtro y se limpian juntos', () => {

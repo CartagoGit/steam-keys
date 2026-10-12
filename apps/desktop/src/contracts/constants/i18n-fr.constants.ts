@@ -425,6 +425,9 @@ export const FR: TranslationTable = Object.freeze({
   'editor.restorePreviewNone': 'Il ny a rien a restaurer.',
   'settings.tab.keys': 'Cles',
   'settings.keys.tags': 'Etiquettes',
+  'settings.keys.file': 'Le fichier',
+  'settings.keys.file.hint':
+    'Exporter la collection dans le TXT habituel, en importer un, ou voir ou est le fichier et combien il occupe.',
   'settings.keys.tags.hint':
     'Comment les etiquettes de la collection sont nommees. Renommer une change son nom dans toutes les cles qui l utilisent.',
   'settings.keys.tags.manage': 'Gerer les etiquettes',

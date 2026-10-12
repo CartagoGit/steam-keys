@@ -590,6 +590,8 @@ export const EN: TranslationTable = Object.freeze({
     'Your keys and your backups live in a single file, steam-keys.db, next to the program and not in your user folder. If you move the executable elsewhere, move that file with it, or you will be left without your collection.',
   'settings.tab.keys': 'Keys',
   'settings.keys.tags': 'Tags',
+  'settings.keys.file': 'The file',
+  'settings.keys.file.hint': 'Export the collection to the usual TXT, import one, or see where the file is and how big it is.',
   'settings.keys.tags.hint': 'How the collection tags are named. Renaming one changes it in every key that uses it.',
   'settings.keys.tags.manage': 'Manage tags',
   'settings.keys.tags.total': 'in the catalogue',

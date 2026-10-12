@@ -36,6 +36,20 @@ export interface IPopoverProps {
    * encuentra con mas cosas.
    */
   esLista?: boolean;
+  /**
+   * `true` para que se desplace **solo** la lista de dentro.
+   *
+   * El panel se desplaza entero por defecto, lo que incluye la cabecera y el
+   * pie. Con `sticky` se quedan a la vista y funciona, pero se ve el doble
+   * desplazamiento: las dos barras del panel y —en un menu alto— la de la
+   * pagina de detras. Dos o tres superficies que se mueven a la vez por un
+   * solo gesto de la rueda, y no se sabe cual de las dos manda.
+   *
+   * Con esto el panel es una columna de tres cajas —cabecera, lista, pie— y
+   * la unica que se desplaza es la del medio. La cabecera y el pie dejan de
+   * necesitar `sticky` y pasan a estar fijas de verdad.
+   */
+  scrollCopia?: boolean;
   className?: string;
   children: React.ReactNode;
 }
@@ -110,6 +124,7 @@ export function Popover({
   altoMaximo = 256,
   resaltada,
   esLista = true,
+  scrollCopia = false,
   className = '',
   children,
 }: IPopoverProps) {
@@ -333,7 +348,20 @@ export function Popover({
         transformOrigin: `${lado === 'derecha' ? 'right' : 'left'} ${posicion.arriba ? 'bottom' : 'top'}`,
       } as React.CSSProperties}
       className={[
-        'z-50 overflow-y-auto overscroll-contain rounded-lg bg-surface-1 p-1 shadow-lg',
+        'z-50 rounded-lg bg-surface-1 p-1 shadow-lg',
+        /**
+         * `flex flex-col` solo con `scrollCopia`.
+         *
+         * El panel pasa a ser una columna de tres cajas —cabecera, lista, pie—
+         * y la del medio es la unica con `overflow-y-auto`. La cabecera y el
+         * pie se quedan quietas de verdad, sin `sticky`, y la rueda lleva a un
+         * sitio unico.
+         *
+         * Sin esto el panel entero es lo que se desplaza y las dos barras
+         * sticky viajan con el: se ven dos superficies moviendose a la vez por
+         * un solo gesto de la rueda, y no se sabe cual manda.
+         */
+        scrollCopia ? 'flex flex-col overflow-hidden' : 'overflow-y-auto overscroll-contain',
         'shadow-black/30 ring-1 ring-line-strong',
         saliendo ? 'animate-popover-out' : 'animate-popover-in',
         className,

@@ -34,6 +34,18 @@ export interface ISettingsDialogProps {
   catalogo: readonly ITag[];
   /** Abre el gestor de etiquetas. Vive aqui para poder cerrarlo desde ajustes. */
   onManageTags: () => void;
+  /**
+   * Las acciones sobre el fichero entero.
+   *
+   * Vivian en la barra de arriba y ahora estan aqui, en la pestana de claves.
+   * Son de la base de datos, no de la lista que se esta mirando, y usarlas una
+   * vez cada varios meses no les da sitio en la barra de trabajo.
+   */
+  onExport: () => void;
+  onImport: () => void;
+  onOpenStorage: () => void;
+  /** `true` mientras hay algo en marcha: «Importar» no se puede repetir. */
+  busy: boolean;
   /** Guarda los ajustes. Puede fallar y entonces devuelve un mensaje. */
   onSave: (patch: Partial<IAppSettings>) => Promise<string | null>;
   /** Intenta conectar la cuenta de Steam. */
@@ -70,6 +82,10 @@ export function SettingsDialog({
   cuenta,
   catalogo,
   onManageTags,
+  onExport,
+  onImport,
+  onOpenStorage,
+  busy,
   onSave,
   onLinkSteam,
   onForgetApiKey,
@@ -294,7 +310,14 @@ export function SettingsDialog({
             </Field>
           </div>
         ) : tab === 'keys' ? (
-          <KeysSettings catalogo={catalogo} onManageTags={onManageTags} />
+          <KeysSettings
+            catalogo={catalogo}
+            onManageTags={onManageTags}
+            onExport={onExport}
+            onImport={onImport}
+            onOpenStorage={onOpenStorage}
+            busy={busy}
+          />
         ) : (
           <div className="flex flex-col gap-5">
             {/* --------------------------------------------------- estado actual */}
