@@ -145,6 +145,12 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="M21 4v5h-5" />
     </>
   ),
+  undo: (
+    <>
+      <path d="M3 7v6h6" />
+      <path d="M3.5 13a9 9 0 1 0 2.6-6.4L3 9" />
+    </>
+  ),
   settings: (
     <>
       <circle cx="12" cy="12" r="3" />

@@ -14,7 +14,13 @@ export class SteamError extends Error {
       | 'idInvalido'
       | 'perfilPrivado'
       | 'http'
-      | 'vacio',
+      | 'vacio'
+      /**
+       * El propio usuario pulso la X. No es un fallo y no se enseña como tal:
+       * avisar de un error que ha pedido el usuario es la peor forma de
+       * confirmar que se le ha parado algo.
+       */
+      | 'cancelado',
   ) {
     super(message);
     this.name = 'SteamError';
@@ -113,29 +119,69 @@ try {
 }
 
 export const steamService = {
-  /** Tu biblioteca. Necesita clave. */
-  async getOwnedGames(apiKey: string, steamId: string): Promise<ISteamOwnedGame[]> {
-    const url =
-      `${WEB_API}/ISteamUser/GetOwnedGames/v0001/` +
-      `?key=${encodeURIComponent(apiKey)}` +
-      `&steamid=${encodeURIComponent(steamId)}` +
-      `&include_appinfo=1&include_played_free_games=1`;
+  /**
+   * Tu biblioteca. Necesita clave.
+   *
+   * Steam devuelve los juegos **por paginas** y no dice cuantas hay: hay que
+   * seguir pidiendo hasta que una pagina viene vacia. Sin esto, con mas de unos
+   * pocos cientos de juegos la biblioteca aparecia a medias y no habia forma de
+   * saber que faltaban, que es justo el caso en el que mas duele.
+   *
+   * Las peticiones van encadenadas, no en paralelo: el limite de Steam es de
+   * unas cinco llamadas cada diez segundos, y pedirlas todas a la vez es la via
+   * rapida a que respondan con un 429 y a que la biblioteca se quede a medias.
+   *
+   * `signal` cancela de verdad: es un `fetch` y se puede matar. Es lo que
+   * permite que la X del indicador de carga corte una sincronizacion en vez de
+   * dejarla esperando a que Steam conteste.
+   */
+  async getOwnedGames(
+    apiKey: string,
+    steamId: string,
+    signal?: AbortSignal,
+  ): Promise<ISteamOwnedGame[]> {
+    const juegos: ISteamOwnedGame[] = [];
 
-    const datos = await pedirJson<{ response?: { games?: unknown[] } }>(url);
+    // Tope de seguridad. Con la cuenta mas grande que se ha visto quedan muy
+    // por debajo; lo que evita es que un cambio de API que devuelva siempre la
+    // misma pagina se convierta en un bucle infinito de peticiones.
+    const MAX_PAGINAS = 100;
 
-    const juegos = datos.response?.games;
+    for (let pagina = 0; pagina < MAX_PAGINAS; pagina += 1) {
+      const url =
+        `${WEB_API}/ISteamUser/GetOwnedGames/v0001/` +
+        `?key=${encodeURIComponent(apiKey)}` +
+        `&steamid=${encodeURIComponent(steamId)}` +
+        `&include_appinfo=1&include_played_free_games=1` +
+        `&page=${pagina}`;
 
-    if (!Array.isArray(juegos)) {
-      // Steam devuelve un objeto vacio sin error cuando la clave es valida pero
-      // el perfil es privado. Es el fallo mas desconcertante que hay, asi que
-      // se distingue del resto para poder explicarlo bien.
-      throw new SteamError(
-        'La biblioteca vino vacia. Comprueba que tu perfil sea publico.',
-        'perfilPrivado',
-      );
+      const datos = await pedirJson<{ response?: { games?: unknown[] } }>(url, signal);
+
+      const paginaJuegos = datos.response?.games;
+
+      if (!Array.isArray(paginaJuegos)) {
+        // Steam devuelve un objeto vacio sin error cuando la clave es valida pero
+        // el perfil es privado. Es el fallo mas desconcertante que hay, asi que
+        // se distingue del resto para poder explicarlo bien.
+        //
+        // Solo en la **primera** pagina: en las siguientes es simplemente el fin
+        // de los juegos, y ahi no hay nada que explicar.
+        if (pagina === 0) {
+          throw new SteamError(
+            'La biblioteca vino vacia. Comprueba que tu perfil sea publico.',
+            'perfilPrivado',
+          );
+        }
+
+        break;
+      }
+
+      juegos.push(...paginaJuegos.map(normalizarJuego));
+
+      if (paginaJuegos.length === 0) break;
     }
 
-    return juegos.map(normalizarJuego);
+    return juegos;
   },
 
   /**
@@ -292,8 +338,26 @@ function normalizarJuego(bruto: unknown): ISteamOwnedGame {
   };
 }
 
-async function pedirJson<T>(url: string): Promise<T> {
-  const respuesta = await fetch(url);
+/**
+ * Pide JSON a Steam.
+ *
+ * `signal` se pasa al `fetch`, que es lo que hace que la peticion sea
+ * realmente cancelable y no solo «dejar de esperarla». Cuando se aborta, el
+ * `fetch` lanza `AbortError`, y aqui se distingue de un fallo de red para que
+ * quien llama pueda no avisar de un error que el propio usuario acaba de pedir.
+ */
+async function pedirJson<T>(url: string, signal?: AbortSignal): Promise<T> {
+  let respuesta: Response;
+
+  try {
+    respuesta = await fetch(url, signal === undefined ? undefined : { signal });
+  } catch (cause) {
+    if (signal?.aborted === true || (cause as Error)?.name === 'AbortError') {
+      throw new SteamError('Sincronizacion cancelada.', 'cancelado');
+    }
+
+    throw new SteamError('No se pudo contactar con Steam.', 'http');
+  }
 
   if (!respuesta.ok) {
     if (respuesta.status === 403 || respuesta.status === 401) {

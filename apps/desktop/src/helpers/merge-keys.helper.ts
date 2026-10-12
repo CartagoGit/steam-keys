@@ -92,3 +92,45 @@ export async function mergeKeysFromBackup(
 
   return { total: filas.length, inserted, skipped, updated };
 }
+
+/**
+ * Cuenta lo que haria una restauracion, sin escribir nada.
+ *
+ * Es el mismo reparto que `mergeKeysFromBackup`, pero solo mirando: las filas
+ * que ya existen se saltan y no se tocan. Sirve para enseñar «van a entrar 12 y
+ * se van a actualizar 3» **antes** de confirmar, que es cuando esa informacion
+ * decide si se restaura o no.
+ *
+ * Sin esto, el dialogo decia cuanto se iba a escribir pero no cuanto de eso
+ * eran altas y cuanto cambios sobre claves que ya tenias: las dos cosas tienen
+ * consecuencias muy distintas y solo se averiguaban despues de aplicarlas.
+ *
+ * Va por la misma consulta que la fusion real a proposito: si un dia una de las
+ * dos cambia la condicion, el aviso y lo que ocurre dejan de cuadrar.
+ */
+export async function resumirRestauracion(
+  db: IDatabaseClient,
+  filas: readonly IGameKeyRow[],
+  mode: RestoreMode,
+): Promise<IRestoreSummary> {
+  let inserted = 0;
+  let skipped = 0;
+  let updated = 0;
+
+  for (const fila of filas) {
+    const existentes = await db.select<{ id: number }>(
+      `SELECT id FROM ${TABLE_GAME_KEYS} WHERE key_value = $1`,
+      [normalizeKey(fila.key_value)],
+    );
+
+    if (existentes[0]?.id === undefined) {
+      inserted += 1;
+      continue;
+    }
+
+    if (mode === RestoreMode.Sobrescribir) updated += 1;
+    else skipped += 1;
+  }
+
+  return { total: filas.length, inserted, skipped, updated };
+}

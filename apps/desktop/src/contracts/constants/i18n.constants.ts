@@ -54,16 +54,16 @@ export const EN: TranslationTable = Object.freeze({
   'empty.import': 'Import TXT',
   'empty.create': 'Add key',
   'empty.noResults': 'No results',
-  'empty.noResultsHint': 
+  'empty.noResultsHint':
     'Try a different search or clear one of the filters.',
   'empty.clearFilters': 'Clear filters',
 
   // ------------------------------------------------------- first run ---
   'firstRun.title': 'There is no database yet',
-  'firstRun.body': 
+  'firstRun.body':
     'None has been created. It will be created when you add or import your first key, next to the program, in {0}.',
   'firstRun.moved.title': 'You copied the program from somewhere else',
-  'firstRun.moved.body': 
+  'firstRun.moved.body':
     'Your keys, your settings and your Steam account all live inside {0}. If you only copied the executable, copy that file from the original folder too and leave it next to it; otherwise you would start from scratch.',
   'firstRun.bring': 'Bring the database',
   'firstRun.create': 'Start from scratch',
@@ -326,23 +326,23 @@ export const EN: TranslationTable = Object.freeze({
   'data.close':
     'Close data',
   'data.title': 'Data and backups',
-  'data.subtitle': 
+  'data.subtitle':
     'Where your collection lives and how to get it back if something goes wrong.',
   'storage.created': 'Backup created: {0}',
-  'storage.restored': 
+  'storage.restored':
     'Restored {0} keys: {1} added, {2} updated, {3} unchanged.',
   'file.pick.title': 'Choose the TXT file with your keys',
   'file.save.title': 'Save the list of keys',
   'file.filter.text': 'Text',
-  'bulk.blocked.notOwned': 
+  'bulk.blocked.notOwned':
     'You do not have it any more: giving it away again is not possible',
-  'bulk.blocked.needRecipient': 
+  'bulk.blocked.needRecipient':
     'You still have to say who you gave it to',
-  'selection.blockedOne': 
+  'selection.blockedOne':
     'Switch the filter to "Only available" to leave that one out',
-  'selection.blockedMany': 
+  'selection.blockedMany':
     'Switch the filter to "Only available" to leave these {0} out',
-  'selection.blockedNone': 
+  'selection.blockedNone':
     'Switch the filter to "Only available" to act on the selection',
   'selection.blockedExpired': 'They were all already expired',
   'export.title': 'export',
@@ -378,11 +378,11 @@ export const EN: TranslationTable = Object.freeze({
   'storage.mode.desktop': 'Desktop app',
   'storage.mode.devBridge': 'Development (separate database)',
   'storage.mode.memory': 'Preview in the browser',
-  'storage.notice.desktop': 
+  'storage.notice.desktop':
     'Your keys are on your disk, in a SQLite database, with automatic backups.',
-  'storage.notice.devBridge': 
+  'storage.notice.devBridge':
     'You are looking at a development database, separate from the one the app uses, in .dev/. Whatever you edit here does not touch your real keys; this is where the interface gets tested.',
-  'storage.notice.memory': 
+  'storage.notice.memory':
     'Preview in the browser: the data lives in localStorage and is lost if you clear the browser data.',
   'app.loadFailed': 'Could not read the collection.',
   'app.nothingSelected': 'Nothing selected.',
@@ -418,16 +418,16 @@ export const EN: TranslationTable = Object.freeze({
   'storage.data.where': 'Storage',
   'storage.data.whereHint': 'Where your keys are being stored right now.',
   'storage.data.unknown': 'To review',
-  'storage.data.unknownHint': 
+  'storage.data.unknownHint':
     'Keys whose platform could not be determined.',
   'storage.data.location': 'Location',
-  'storage.backups.none': 
+  'storage.backups.none':
     'No backups yet. They are made automatically before each import or restore, and you can also press «Copy now».',
-  'storage.backups.desktopOnly': 
+  'storage.backups.desktopOnly':
     'Here the data lives in the browser, not in a database, so there is nowhere to keep copies.',
   'storage.backups.keysOne': '{0} key',
   'storage.backups.keysMany': '{0} keys',
-  'storage.backups.keep': 
+  'storage.backups.keep':
     'The 10 most recent copies are kept inside the database itself, and they are made automatically before each import or restore.',
   'storage.refresh': 'Refresh',
   'storage.reason.manual': 'Manual',
@@ -436,19 +436,19 @@ export const EN: TranslationTable = Object.freeze({
   'storage.reason.onMigrate': 'On migration',
   'storage.reason.fromFiles': 'Brought from files',
   'storage.restoreTitle': 'Restore {0}',
-  'storage.restoreHint': 
+  'storage.restoreHint':
     'A copy of the current state is made before anything is applied, so this can be undone too.',
   'storage.merge.title': 'Only add what is missing',
-  'storage.merge.text': 
+  'storage.merge.text':
     'Recovers the keys you do not have. Leaves the existing ones alone.',
   'storage.overwrite.title': 'Add and update statuses',
-  'storage.overwrite.text': 
+  'storage.overwrite.text':
     'It also puts every key back the way it was in the copy. Useful if you changed statuses by mistake.',
-  'storage.restoreSafe': 
+  'storage.restoreSafe':
     'Neither option deletes keys: restoring never shrinks your collection.',
   'row.delete': 'Delete key',
   'row.delete.body':
-    '«{0}» will be removed from your collection. This cannot be undone.',
+    '«{0}» will be removed from your collection. You can bring it back with Ctrl+Z.',
   'app.linkFailed': 'Could not link the account.',
   'gift.hint': 'Mark the selected keys as already gifted',
   'select.markExpired': 'Mark as expired',
@@ -456,11 +456,50 @@ export const EN: TranslationTable = Object.freeze({
   'footer.games': '{0} games on Steam',
   'footer.shortcutSearch': 'search',
   'footer.shortcutNew': 'new',
-  'footer.showing': 
+  'footer.showing':
     'Showing {0} of {1}. Narrow the search to see the rest.',
   'platform.unknown': 'Undetermined',
   'storage.portable.title': 'Portable mode',
-  'storage.portable.text': 
+  'loading.more': 'and {0} more',
+  'loading.cancel': 'Cancel',
+  'loading.cancelNoAbort': 'Stop waiting',
+  'loading.saving': 'Saving',
+  'loading.deleting': 'Deleting',
+  'loading.importing': 'Importing',
+  'loading.exporting': 'Exporting',
+  'loading.syncing': 'Syncing with Steam',
+
+  'loading.gifting': 'Marking as gifted',
+  'loading.expiring': 'Marking as expired',
+  'loading.status': 'Changing the status',
+  'loading.tags': 'Saving the tags',
+  'shortcuts.title': 'Keyboard shortcuts',
+  'shortcuts.groupGeneral': 'Anywhere',
+  'shortcuts.groupSelection': 'Selection',
+  'shortcuts.groupActions': 'Actions',
+  'shortcuts.search': 'Go to the search box',
+  'shortcuts.new': 'Add a key',
+  'shortcuts.thisDialog': 'Show these shortcuts',
+  'shortcuts.close': 'Close whatever is open',
+  'shortcuts.selectAll': 'Select every visible key',
+  'shortcuts.selectFail': 'Select the ones that fail',
+  'shortcuts.undo': 'Undo the last action',
+  'shortcuts.hint': 'Inside a text field only Escape and Enter apply.',
+  'app.duplicateKey': 'You already have that key, under «{0}».',
+  'app.undoDone': 'Undone: {0}',
+  'app.undoAvailable': 'Undo: {0}',
+  'app.nothingToUndo': 'There is nothing to undo.',
+  'app.undoHint': 'You can undo with Ctrl+Z.',
+  'app.saveTimedOut': 'Saving is taking too long. Try again.',
+  'app.exportFiltered': 'Exporting the {0} keys you are seeing.',
+  'app.exportFilteredNone': 'There are no visible keys to export.',
+  'toolbar.shortcuts': 'Shortcuts',
+  'editor.restorePreviewTitle': 'What will change',
+  'editor.restorePreviewNone': 'There is nothing to restore.',
+  'storage.restoreCounting': 'Working out what will change…',
+  'storage.restoreWillAdd': '{0} new keys will be added',
+  'storage.restoreWillUpdate': '{0} will be updated',
+  'storage.portable.text':
     'Your keys and your backups live in a single file, steam-keys.db, next to the program and not in your user folder. If you move the executable elsewhere, move that file with it, or you will be left without your collection.',
 });
 

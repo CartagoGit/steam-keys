@@ -1,6 +1,6 @@
 import { supportsBackups } from '@/helpers/runtime.helper';
 import { BackupReason, KeyPlatform, RestoreMode, StorageHealth, TABLE_GAME_KEYS, type IBackup, type IDatabaseClient, type IRestoreSummary } from '@/contracts';
-import { mergeKeysFromBackup } from '@/helpers/merge-keys.helper';
+import { mergeKeysFromBackup, resumirRestauracion } from '@/helpers/merge-keys.helper';
 import { backupRepository } from '@/repositories/backup.repository';
 
 /**
@@ -63,6 +63,23 @@ export const backupService = {
     const filas = await backupRepository.rowsOf(db, name);
 
     return mergeKeysFromBackup(db, filas, mode);
+  },
+
+  /**
+   * Dice cuanto haria una restauracion sin tocar la base.
+   *
+   * La misma cuenta que `restore`, pero sin escribir. Va aparte y no como un
+   * parametro de la de verdad porque leer la copia no tiene el coste de
+   * escribir: el dialogo puede pedirlo cada vez que se cambia de modo.
+   */
+  async previewRestore(
+    db: IDatabaseClient,
+    name: string,
+    mode: RestoreMode,
+  ): Promise<IRestoreSummary> {
+    const filas = await backupRepository.rowsOf(db, name);
+
+    return resumirRestauracion(db, filas, mode);
   },
 
   /**

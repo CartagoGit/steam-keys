@@ -87,31 +87,44 @@ export function statusesUsables(filter: IKeyFilter): boolean {
   return filter.scope === KeyScope.All;
 }
 
-/** Orden estable segun el criterio elegido. */
+/**
+ * Orden estable segun el criterio elegido.
+ *
+ * Todas las ramas acaban en `id`: dos claves con el mismo titulo —el mismo
+ * juego con dos claves, que es lo normal— comparten todos los campos por los
+ * que se ordena, y sin ese desempate el orden entre ellas depende de como
+ * llegara cada lista. Se notaba al quitar un filtro: las filas cambiaban de
+ * sitio sin que hubiera cambiado nada.
+ */
 export function sortKeys(keys: readonly IGameKey[], sort: KeySort): readonly IGameKey[] {
   const sorted = [...keys];
 
   switch (sort) {
     case KeySort.Alfabetico:
-      return sorted.sort((a, b) => a.title.localeCompare(b.title, 'es'));
+      return sorted.sort(
+        (a, b) => a.title.localeCompare(b.title, 'es') || a.id - b.id,
+      );
     case KeySort.Estado:
       return sorted.sort(
         (a, b) =>
           a.status.localeCompare(b.status, 'es') ||
-          a.title.localeCompare(b.title, 'es'),
+          a.title.localeCompare(b.title, 'es') ||
+          a.id - b.id,
       );
     case KeySort.Plataforma:
       return sorted.sort(
         (a, b) =>
           a.platform.localeCompare(b.platform, 'es') ||
-          a.title.localeCompare(b.title, 'es'),
+          a.title.localeCompare(b.title, 'es') ||
+          a.id - b.id,
       );
     case KeySort.Reciente:
     default:
       return sorted.sort(
         (a, b) =>
           (b.addedOn ?? b.createdAt).localeCompare(a.addedOn ?? a.createdAt) ||
-          a.title.localeCompare(b.title, 'es'),
+          a.title.localeCompare(b.title, 'es') ||
+          a.id - b.id,
       );
   }
 }

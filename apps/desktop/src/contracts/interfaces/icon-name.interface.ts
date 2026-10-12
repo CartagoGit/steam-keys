@@ -38,5 +38,7 @@ export type IconName =
   | 'globe'
   | 'palette'
   | 'refresh'
+  /** Flecha que vuelve atras: la accion de deshacer. */
+  | 'undo'
   | 'external'
   | 'info';

@@ -214,6 +214,9 @@ describe('cobertura de las traducciones', () => {
         // palabra en los dos idiomas, escrita igual.
         'storage.reason.manual', 'storage.reason.beforeImport',
         'storage.reason.beforeRestore',
+        // Cognado: en portugues se dice «cancelar» igual que en castellano. No
+        // es un descuido de traduccion, es la palabra correcta.
+        'loading.cancel',
       ],
       de: ['sort.alpha', 'editor.titlePlaceholder', 'editor.keyPlaceholder',
         'editor.parentPlaceholder', 'editor.tagsPlaceholder', 'owned.dlc'],

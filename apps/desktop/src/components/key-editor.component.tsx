@@ -5,6 +5,7 @@ import { Icon } from './icon.component';
 import { Modal } from './modal.component';
 import { useT } from '@/context/locale.context';
 import { parseTags } from '@/helpers/normalize-text.helper';
+import { conTiempoLimite } from '@/helpers/use-loading.helper';
 
 export interface IKeyEditorProps {
   /** `null` para crear una key nueva. */
@@ -75,8 +76,37 @@ export function KeyEditor({ entry, onSave, onClose }: IKeyEditorProps) {
     setSaving(true);
     setError(null);
 
+    /**
+     * Tope de espera.
+     *
+     * Sin esto, un `onSave` que no resolviera dejaba el boton apagado para
+     * siempre y el dialogo sin decir nada: se pulsaba «Anadir clave», no
+     * pasaba nada, y no habia forma de saber si estaba guardando o colgado. Con
+     * el tope, a los quince segundos el boton se vuelve a encender con un aviso
+     * que dice que intente otra vez.
+     *
+     * Quince y no tres: guardar es una escritura local y deberia ser
+     * instantaneo. Si tarda es que algo va mal de verdad, y avisar antes
+     * compensa.
+     */
+    const ESPERA_MAXIMA_MS = 15_000;
+
     try {
-      await onSave({ ...draft, tags: parsedTags });
+      const r = await conTiempoLimite(
+        // `onSave` admite devolver `void` —los dos dialogos que lo usan hacen
+        // una cosa sincronica—, y `Promise.resolve` lo convierte en promesa sin
+        // obligar a los dos a declarar lo mismo.
+        Promise.resolve(onSave({ ...draft, tags: parsedTags })),
+        ESPERA_MAXIMA_MS,
+      );
+
+      // `ok: false` no es un fallo del guardado —el error real, si lo hay, lo
+      // habria lanzado `onSave`— sino que no se ha podido saber. Se distinguen
+      // para no mentir sobre lo que ha pasado.
+      if (!r.ok) {
+        setError(t('app.saveTimedOut'));
+        setSaving(false);
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t('editor.saveError'));
       setSaving(false);

@@ -113,6 +113,20 @@ export const storageService = {
   },
 
   /**
+   * Cuenta lo que haria `restore` sin escribir nada.
+   *
+   * Va antes del dialogo de confirmacion para poder decir «entran 12 y se
+   * actualizan 3» con los numeros en la mano. La copia del estado actual que
+   * crea `restore` **no** se hace aqui: esto es una pregunta, no una accion, y
+   * no deberia dejar rastro cada vez que se abre el dialogo.
+   */
+  async previewRestore(name: string, mode: RestoreMode): Promise<IRestoreSummary> {
+    if (!supportsBackups()) return { total: 0, inserted: 0, skipped: 0, updated: 0 };
+
+    return backupService.previewRestore(await getDatabaseClient(), name, mode);
+  },
+
+  /**
    * Lee un TXT y lo deja preparado, sin escribir nada.
    *
    * El contenido se devuelve al usuario para que lo confirme: asi el dialogo

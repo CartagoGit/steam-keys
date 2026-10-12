@@ -350,6 +350,58 @@ function RestoreDialog({
   const { t, locale } = useT();
   const [mode, setMode] = useState<RestoreMode>(RestoreMode.Fusionar);
 
+  /**
+   * Lo que se va a escribir, en una linea.
+   *
+   * Sin esto el dialogo pide confirmar a ciegas: solo dice cuantas claves hay
+   * en la copia, y de esas parte ya estan y parte no. Que entren 12 y se
+   * actualicen 3 no es lo mismo que entren 15, asi que el numero va desglosado.
+   *
+   * `null` es «todavia no ha vuelto la cuenta», y sale dicho en vez de
+   * teaching ceros, que serian mentira.
+   */
+  const [resumen, setResumen] = useState<IRestoreSummary | null>(null);
+
+  useEffect(() => {
+    let vigente = true;
+
+    const pedir = async (): Promise<void> => {
+      try {
+        const cuenta = await storageService.previewRestore(backup.name, mode);
+
+        if (vigente) setResumen(cuenta);
+      } catch {
+        // Sin resumen no se confirma: mejor un boton apagado que un numero
+        // inventado.
+        if (vigente) setResumen(null);
+      }
+    };
+
+    void pedir();
+
+    return () => {
+      vigente = false;
+    };
+  }, [backup.name, mode]);
+
+  const linea = (): string => {
+    if (resumen === null) return t('storage.restoreCounting');
+
+    const partes: string[] = [];
+
+    if (resumen.inserted > 0) {
+      partes.push(t('storage.restoreWillAdd', [resumen.inserted]));
+    }
+
+    if (resumen.updated > 0) {
+      partes.push(t('storage.restoreWillUpdate', [resumen.updated]));
+    }
+
+    if (partes.length === 0) return t('editor.restorePreviewNone');
+
+    return partes.join(' · ');
+  };
+
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-6 backdrop-blur-sm">
       <div className="animate-scale-in w-full max-w-md rounded-2xl bg-surface-1 p-5 shadow-2xl ring-1 ring-line">
@@ -375,6 +427,13 @@ function RestoreDialog({
           />
         </div>
 
+        <div className="mt-3 rounded-lg bg-surface-2 px-3 py-2.5 ring-1 ring-line-soft">
+          <p className="text-[11px] tracking-wide text-t4 uppercase">
+            {t('editor.restorePreviewTitle')}
+          </p>
+          <p className="mt-1 text-xs text-t2">{linea()}</p>
+        </div>
+
         <p className="mt-3 flex items-start gap-1.5 text-[11px] leading-relaxed text-t4">
           <Icon name="info" size={12} className="mt-0.5" />
           {t('storage.restoreSafe')}
@@ -387,7 +446,7 @@ function RestoreDialog({
           <Button
             variant="primary"
             icon="refresh"
-            disabled={working}
+            disabled={working || resumen === null}
             onClick={() => onConfirm(backup, mode)}
           >
             {working ? t('storage.restoring') : t('storage.restore')}

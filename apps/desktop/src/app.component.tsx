@@ -11,8 +11,10 @@ import { Icon } from './components/icon.component';
 import { ImportPreview } from './components/import-preview.component';
 import { KeyEditor } from './components/key-editor.component';
 import { KeyRow } from './components/key-row.component';
+import { LoadingIndicator } from './components/loading-indicator.component';
 import { SelectionBar } from './components/selection-bar.component';
 import { SettingsDialog, type SettingsTab } from './components/settings-dialog.component';
+import { ShortcutsDialog } from './components/shortcuts-dialog.component';
 import { StoragePanel } from './components/storage-panel.component';
 import { SteamGamesTable } from './components/steam-games-table.component';
 import { SteamNotConnected } from './components/view-switch.component';
@@ -24,8 +26,10 @@ import { AppTheme, AppView, DEFAULT_VIEW, KEY_STATUS_VALUES, KeyPlatform, Storag
 import { computeStats, emptyFilter, filterKeys, sortKeys } from '@/helpers/filter-keys.helper';
 import { analyzeSelection, claveGrupo, groupByTitle, isGiftable, podarSeleccion, type SelectAction } from '@/helpers/selection.helper';
 import { useKeepMounted } from '@/helpers/use-exit-animation.helper';
+import { useLoading, type TConTiempo } from '@/helpers/use-loading.helper';
+import { borradorDe, useUndo, type IUndoEntry } from '@/helpers/undo.helper';
 import type { IStartup } from '@/services/startup.service';
-import { gameKeyService } from '@/services/game-key.service';
+import { gameKeyService, DuplicateKeyError } from '@/services/game-key.service';
 import { settingsService, DEFAULT_SETTINGS } from '@/services/settings.service';
 import { storageService } from '@/services/storage.service';
 import { inspectStartup } from '@/services/startup.service';
@@ -194,8 +198,55 @@ export function App() {
     preview: IImportSummary;
   } | null>(null);
 
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+
   const searchRef = useRef<HTMLInputElement>(null);
   const nextToastId = useRef(1);
+
+  // ---------------------------------------------------------- carga en curso ---
+  /**
+   * Lo que esta pasando ahora mismo, con forma de cancelarlo.
+   *
+   * `busy` (abajo) apaga botones; esto explica **que** esta pasando y deja
+   * salir. Son cosas distintas: `busy` se limpia solo, y si algo se queda
+   * esperando no hay forma de que la interfaz vuelva a ser usable.
+   */
+  const carga = useLoading();
+
+  /**
+   * Envoltorio de las acciones que pasan por la base de datos.
+   *
+   * Sustituye al `setBusy(true)` / `setBusy(false)` suelto. Hace tres cosas a
+   * la vez que antes estaban repartidas y se olvidaban: apaga los botones,
+   * enciende el indicador, y garantiza que el indicador se apague pase lo que
+   * pase —incluido un error— porque va en el `finally`.
+   *
+   * `abortable` marca las que se pueden cortar de verdad. Cancelar una que no lo
+   * es devuelve `{ ok: false }` sin haber escrito nada: la interfaz se
+   * desbloquea, pero la operacion de debajo sigue, y quien llama decide si eso
+   * merece un aviso.
+   */
+  const conCarga = useCallback(
+    async <T,>(
+      label: string,
+      accion: (senal: AbortSignal) => Promise<T>,
+      abortable = false,
+    ): Promise<TConTiempo<T>> => {
+      const tarea = carga.empezar(traducir(label), abortable);
+
+      setBusy(true);
+
+      try {
+        const valor = await accion(tarea.signal);
+
+        return tarea.cancelado() ? { ok: false } : { ok: true, valor };
+      } finally {
+        tarea.fin();
+        setBusy(false);
+      }
+    },
+    [carga, traducir],
+  );
 
   // ------------------------------------------------------ cierre animado ---
   // Los dialogos se desmontan en cuanto su condicion pasa a `false`, y ahi no
@@ -208,6 +259,7 @@ export function App() {
   const expireVivo = useKeepMounted(expireDialogOpen);
   const bulkVivo = useKeepMounted(bulkStatusOpen);
   const tagsVivo = useKeepMounted(tagsOpen);
+  const shortcutsVivo = useKeepMounted(shortcutsOpen);
 
   // ------------------------------------------------------------- avisos ---
   const notify = useCallback((message: string, tone: ToastTone = 'info'): void => {
@@ -273,6 +325,80 @@ export function App() {
     void reload();
   }, [reload, arranque]);
 
+  // ---------------------------------------------------------------- deshacer ---
+  /**
+   * Devuelve las claves a como estaban antes de la ultima accion.
+   *
+   * Hay dos caminos porque hay dos cosas que recuperar. Un cambio de estado o de
+   * etiquetas se deshace actualizando las filas que siguen existiendo; un
+   * borrado se deshace creandolas de nuevo, porque la fila ya no esta y un
+   * `update` sobre ella no escribiria nada —se quedaria todo en un «0 filas
+   * afectadas» sin decir nada—.
+   *
+   * Se re-crean tal cual estaban, con su fecha de alta y su nota, y no «como
+   * nuevas»: deshacer un borrado y encontrarse la clave ordenada al final de la
+   * lista, con la fecha de hoy, no es la misma clave que se borro.
+   */
+  const deshacerEntrada = useCallback(
+    async (entrada: IUndoEntry): Promise<void> => {
+      const tarea = carga.empezar(traducir('loading.saving'));
+      setBusy(true);
+
+      try {
+        if (entrada.borradas) {
+          for (const foto of entrada.antes) {
+            await gameKeyService.create({
+              title: foto.title,
+              keyValue: foto.keyValue,
+              platform: foto.platform,
+              status: foto.status,
+              giftedTo: foto.giftedTo,
+              parentTitle: foto.parentTitle,
+              note: foto.note,
+              tags: foto.tags,
+              addedOn: foto.addedOn,
+            });
+          }
+        } else {
+          // El `id` no viene en la foto, asi que se empareja por el valor de la
+          // clave: es lo unico que la base garantiza unico y no cambia al
+          // deshacer, porque lo que se restauraron son justo esos campos.
+          const actuales = await gameKeyService.list();
+          const porClave = new Map(actuales.map((clave) => [clave.keyValue, clave.id]));
+
+          for (const foto of entrada.antes) {
+            const id = porClave.get(foto.keyValue);
+
+            if (id === undefined) continue;
+
+            await gameKeyService.update(id, borradorDe(foto));
+          }
+        }
+
+        await reload();
+
+        notify(traducir('app.undoDone', [entrada.label]), 'success');
+      } catch (cause) {
+        notify(
+          cause instanceof Error ? cause.message : traducir('app.saveFailed'),
+          'error',
+        );
+      } finally {
+        tarea.fin();
+        setBusy(false);
+      }
+    },
+    [carga, notify, reload, traducir],
+  );
+
+  const deshacer = useUndo(deshacerEntrada);
+
+  const deshacerUltima = useCallback(async (): Promise<void> => {
+    const habia = await deshacer.deshacer();
+
+    if (!habia) notify(traducir('app.nothingToUndo'), 'info');
+  }, [deshacer, notify, traducir]);
+
   /** Carga los ajustes y, si ya habia una cuenta conectada, su biblioteca. */
   useEffect(() => {
     if (arranque?.database !== 'ready') return;
@@ -287,19 +413,26 @@ export function App() {
         setVista(cargados.lastView);
 
         if (cargados.steamApiKey && cargados.steamId) {
-          const juegos = await steamService.getOwnedGames(
-            cargados.steamApiKey,
-            cargados.steamId,
-          );
+          const tarea = carga.empezar(traducir('loading.syncing'), true);
 
-          setOwned(juegos);
-          setCuenta({
-            conectado: true,
-            steamId: cargados.steamId,
-            juegos: juegos.length,
-            sincronizadoAt: cargados.steamSyncedAt,
-            perfilPrivado: false,
-          });
+          try {
+            const juegos = await steamService.getOwnedGames(
+              cargados.steamApiKey,
+              cargados.steamId,
+              tarea.signal,
+            );
+
+            setOwned(juegos);
+            setCuenta({
+              conectado: true,
+              steamId: cargados.steamId,
+              juegos: juegos.length,
+              sincronizadoAt: cargados.steamSyncedAt,
+              perfilPrivado: false,
+            });
+          } finally {
+            tarea.fin();
+          }
         }
       } catch {
         // Sin ajustes, sin biblioteca, sin problema: la app sigue con las claves.
@@ -534,6 +667,11 @@ export function App() {
       // capa, de mas nuevo a mas viejo: si no, Escape cerraria el dialogo de
       // atras sin llegar al de delante, que es como se siente al pulsar una vez
       // y ver que no pasa nada.
+      if (event.key === 'Escape' && shortcutsOpen) {
+        setShortcutsOpen(false);
+        return;
+      }
+
       if (event.key === 'Escape' && giftDialogOpen) {
         setGiftDialogOpen(false);
         return;
@@ -579,9 +717,23 @@ export function App() {
 
       if (typing) return;
 
+      // Ctrl+Z deshace la ultima accion—even con el foco en un campo de texto,
+      // porque ahi escribir «Ctrl+Z» no significa nada—. Va antes del filtro de
+      // `typing` justamente por eso.
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+        event.preventDefault();
+        void deshacerUltima();
+        return;
+      }
+
       if (event.key === SEARCH_SHORTCUT) {
         event.preventDefault();
         searchRef.current?.focus();
+      }
+
+      if (event.key === '?') {
+        setShortcutsOpen(true);
+        return;
       }
 
       if (event.key.toLowerCase() === 'n') {
@@ -599,9 +751,11 @@ export function App() {
     giftDialogOpen,
     selection.size,
     settingsOpen,
+    shortcutsOpen,
     storageOpen,
     tagsOpen,
     clearSelection,
+    deshacerUltima,
   ]);
 
   // ------------------------------------------------------------ acciones ---
@@ -616,35 +770,56 @@ export function App() {
   };
 
   const handleSave = async (draft: IGameKeyDraft): Promise<void> => {
-    if (editing) {
-      await gameKeyService.update(editing.id, draft);
-      notify(traducir('app.saved'), 'success');
-    } else {
-      await gameKeyService.create({
-        title: draft.title,
-        keyValue: draft.keyValue,
-        platform: draft.platform,
-        status: draft.status,
-        giftedTo: draft.giftedTo,
-        parentTitle: draft.parentTitle,
-        note: draft.note,
-        tags: draft.tags,
-        addedOn: draft.addedOn,
+    // Una clave repetida salta aqui, no en la base. El editor la enseña como
+    // error normal, sin cerrar, y el dialogo se queda abierto con lo escrito.
+    try {
+      await conCarga('loading.saving', async () => {
+        if (editing) {
+          await gameKeyService.update(editing.id, draft);
+          notify(traducir('app.saved'), 'success');
+        } else {
+          await gameKeyService.create({
+            title: draft.title,
+            keyValue: draft.keyValue,
+            platform: draft.platform,
+            status: draft.status,
+            giftedTo: draft.giftedTo,
+            parentTitle: draft.parentTitle,
+            note: draft.note,
+            tags: draft.tags,
+            addedOn: draft.addedOn,
+          });
+          notify(traducir('app.created'), 'success');
+        }
       });
-      notify(traducir('app.created'), 'success');
-    }
 
-    setEditorOpen(false);
-    setEditing(null);
-    await reload();
+      setEditorOpen(false);
+      setEditing(null);
+      await reload();
+    } catch (cause) {
+      if (cause instanceof DuplicateKeyError) {
+        // Aqui se traduce: el servicio no sabe en que idioma esta la app, y el
+        // editor enseña el mensaje tal cual le llega.
+        throw new Error(traducir('app.duplicateKey', [cause.juegoExistente]));
+      }
+
+      throw cause;
+    }
   };
 
   const handleDelete = async (): Promise<void> => {
     if (!deleting) return;
 
-    await gameKeyService.remove(deleting.id);
+    // Se apunta **antes** de borrar: despues ya no hay fila de la que sacar
+    // la foto, y el deshacer necesita el contenido, no solo el id.
+    deshacer.registrar(deleting.title, [deleting], true);
+
+    await conCarga('loading.deleting', async () => {
+      await gameKeyService.remove(deleting.id);
+    });
+
     setDeleting(null);
-    notify(traducir('app.deleted'), 'success');
+    notify(traducir('app.deleted') + ' ' + traducir('app.undoHint'), 'success');
     await reload();
   };
 
@@ -687,11 +862,21 @@ export function App() {
 
     if (aplicables.length === 0) return 0;
 
+    // Se apunta antes de escribir: hace falta la fila tal como estaba, y
+    // despues del `setStatusMany` ya no la hay.
+    deshacer.registrar(
+      traducir(pluralKey(aplicables.length, 'bulk.doneOne', 'bulk.doneMany'), [aplicables.length]),
+      aplicables.map((id) => porId.get(id)!).filter((clave) => clave !== undefined),
+    );
+
     // Una sola operacion en vez de una por clave: con cuatrocientas filas
     // marcadas son cuatrocientas escrituras, y cada una es una ida y vuelta a
     // la base de datos. Ademas, escribir de una en una deja la coleccion a
     // medias si algo falla a mitad.
-    await gameKeyService.setStatusMany(aplicables, status);
+    await conCarga('loading.status', async () => {
+      await gameKeyService.setStatusMany(aplicables, status);
+    });
+
     await reload();
 
     // El aviso va **ademas** del mensaje del dialogo, no en vez de el: el
@@ -705,7 +890,15 @@ export function App() {
     const index = STATUS_CYCLE.indexOf(entry.status);
     const next = STATUS_CYCLE[(index + 1) % STATUS_CYCLE.length] ?? KeyStatus.Available;
 
-    await gameKeyService.setStatus(entry.id, next);
+    // Un clic en la pastilla es el cambio mas frecuente de todos, y tan facil de
+    // Pulsar por error como de hacer bien. Quedaba fuera del deshacer por no
+    // tocar mas de una clave a la vez, y era justo el hueco que mas dolia.
+    deshacer.registrar(entry.title, [entry]);
+
+    await conCarga('loading.status', async () => {
+      await gameKeyService.setStatus(entry.id, next);
+    });
+
     await reload();
   };
 
@@ -718,10 +911,16 @@ export function App() {
   const handleExportGift = async (): Promise<void> => {
     if (actionableKeys.length === 0) return;
 
-    setBusy(true);
-
     try {
-      const resultado = await gameKeyService.exportGiftSelection(actionableKeys);
+      const r = await conCarga('loading.exporting', () =>
+        gameKeyService.exportGiftSelection(actionableKeys),
+      );
+
+      // Cancelado: el dialogo de guardado se cerro o se pulso la X, y no ha
+      // pasado nada que avisar.
+      if (!r.ok) return;
+
+      const resultado = r.valor;
 
       if (resultado === null) {
         notify(traducir('app.noFile'), 'info');
@@ -740,8 +939,6 @@ export function App() {
         cause instanceof Error ? cause.message : traducir('app.fileFailed'),
         'error',
       );
-    } finally {
-      setBusy(false);
     }
   };
 
@@ -757,14 +954,21 @@ export function App() {
 
     if (actionableKeys.length === 0) return;
 
-    setBusy(true);
+    const total = actionableKeys.length;
+
+    // El destinatario va en el aviso, asi que el deshacer tambien lo nombra: sin
+    // el, el aviso que sale tras deshacer no dice a quien se habia regalado.
+    deshacer.registrar(
+      traducir(pluralKey(total, 'app.giftedOne', 'app.giftedMany'), [total, limpio]),
+      actionableKeys,
+    );
 
     try {
-      const total = actionableKeys.length;
-
-      await gameKeyService.giftMany(
-        actionableKeys.map((key) => ({ id: key.id, giftedTo: limpio })),
-      );
+      await conCarga('loading.gifting', async () => {
+        await gameKeyService.giftMany(
+          actionableKeys.map((key) => ({ id: key.id, giftedTo: limpio })),
+        );
+      });
 
       setSelection(new Set());
       setGiftDialogOpen(false);
@@ -791,15 +995,20 @@ export function App() {
 
     if (affected.length === 0) return;
 
-    setBusy(true);
+    const total = affected.length;
+
+    deshacer.registrar(
+      traducir(pluralKey(total, 'app.expiredOne', 'app.expiredMany'), [total]),
+      affected,
+    );
 
     try {
-      const total = affected.length;
-
-      await gameKeyService.setStatusMany(
-        affected.map((key) => key.id),
-        KeyStatus.Expired,
-      );
+      await conCarga('loading.expiring', async () => {
+        await gameKeyService.setStatusMany(
+          affected.map((key) => key.id),
+          KeyStatus.Expired,
+        );
+      });
 
       setSelection(new Set());
       setExpireDialogOpen(false);
@@ -814,8 +1023,6 @@ export function App() {
         cause instanceof Error ? cause.message : traducir('app.markFailed'),
         'error',
       );
-    } finally {
-      setBusy(false);
     }
   };
 
@@ -829,18 +1036,23 @@ export function App() {
   const handleApplyTags = async (tags: readonly string[]): Promise<void> => {
     if (selectionIds.length === 0) return;
 
-    setBusy(true);
+    const total = selectionIds.length;
+
+    deshacer.registrar(
+      traducir(pluralKey(total, 'app.tagsOne', 'app.tagsMany'), [total]),
+      selectedKeys,
+    );
 
     try {
-      const total = selectionIds.length;
+      await conCarga('loading.tags', async () => {
+        for (const key of selectedKeys) {
+          const juntadas = mergeTags(key.tags, tags);
+          const sinLasNuevas = removeTags(juntadas, tags);
+          const final = [...sinLasNuevas, ...tags.filter((tag) => !sinLasNuevas.includes(tag))];
 
-      for (const key of selectedKeys) {
-        const juntadas = mergeTags(key.tags, tags);
-        const sinLasNuevas = removeTags(juntadas, tags);
-        const final = [...sinLasNuevas, ...tags.filter((tag) => !sinLasNuevas.includes(tag))];
-
-        await gameKeyService.setTagsMany([key.id], final);
-      }
+          await gameKeyService.setTagsMany([key.id], final);
+        }
+      });
 
       setSelection(new Set());
       setTagsOpen(false);
@@ -855,8 +1067,6 @@ export function App() {
         cause instanceof Error ? cause.message : traducir('app.tagsFailed'),
         'error',
       );
-    } finally {
-      setBusy(false);
     }
   };
 
@@ -961,22 +1171,20 @@ export function App() {
    * podia acabar importando un fichero distinto del que habia visto.
    */
   const handleImport = async (): Promise<void> => {
-    setBusy(true);
-
     try {
-      const contents = await storageService.stageTxt();
-      if (contents === null) return;
+      await conCarga('loading.importing', async () => {
+        const contents = await storageService.stageTxt();
+        if (contents === null) return;
 
-      const preview = await storageService.previewImport(contents);
+        const preview = await storageService.previewImport(contents);
 
-      setStagedImport({ fileName: 'steam-keys.txt', contents, preview });
+        setStagedImport({ fileName: 'steam-keys.txt', contents, preview });
+      });
     } catch (cause) {
       notify(
         cause instanceof Error ? cause.message : traducir('app.readFileFailed'),
         'error',
       );
-    } finally {
-      setBusy(false);
     }
   };
 
@@ -984,40 +1192,72 @@ export function App() {
   const handleConfirmImport = async (): Promise<void> => {
     if (!stagedImport) return;
 
-    setBusy(true);
-
     try {
-      const result = await storageService.commitImport(stagedImport.contents);
+      const r = await conCarga('loading.importing', async () => {
+        const guardado = await storageService.commitImport(stagedImport.contents);
 
-      notify(
-        traducir(
-          pluralKey(result.inserted, 'app.importedOne', 'app.importedMany'),
-          [result.inserted],
-        ) +
-          (result.alreadyInDb > 0
-            ? traducir('app.importedDupes', [result.alreadyInDb])
-            : ''),
-        'success',
-      );
+        notify(
+          traducir(
+            pluralKey(guardado.inserted, 'app.importedOne', 'app.importedMany'),
+            [guardado.inserted],
+          ) +
+            (guardado.alreadyInDb > 0
+              ? traducir('app.importedDupes', [guardado.alreadyInDb])
+              : ''),
+          'success',
+        );
 
-      setStagedImport(null);
-      await reload();
+        setStagedImport(null);
+
+        return guardado;
+      });
+
+      if (r.ok) await reload();
     } catch (cause) {
       notify(
         cause instanceof Error ? cause.message : traducir('app.importFailed'),
         'error',
       );
-    } finally {
-      setBusy(false);
     }
   };
 
+  /**
+   * Exporta **lo que se esta viendo**, no la coleccion entera.
+   *
+   * Si hay filtros puestos y se exporta el TXT, lo que casi siempre se quiere
+   * son esas claves y no las demas: se ha elegido «Solo disponibles», se ha
+   * buscado un juego, se ha pulsado una plataforma. Exportar las cuatrocientas
+   * obligaba a borrar a mano lo que no interesa.
+   *
+   * El aviso lo dice, con el numero, para que no salga por sorpresa un TXT mas
+   * corto de lo que se esperaba.
+   */
   const handleExport = async (): Promise<void> => {
+    if (visible.length === 0) {
+      notify(traducir('app.exportFilteredNone'), 'info');
+      return;
+    }
+
     try {
-      const result = await gameKeyService.exportToDialog();
+      const r = await conCarga('loading.exporting', () =>
+        gameKeyService.exportToDialog(visible),
+      );
+
+      if (!r.ok) return;
+
+      const result = r.valor;
+
       if (!result) return;
 
-      notify(traducir('app.exported', [result.total]), 'success');
+      const filtrado = visible.length < keys.length;
+
+      notify(
+        (filtrado
+          ? traducir('app.exportFiltered', [result.total])
+          : traducir('app.exported', [result.total])) +
+          (result.path === '' ? '' : ` · ${result.path}`),
+        'success',
+      );
     } catch (cause) {
       notify(cause instanceof Error ? cause.message : traducir('app.exportFailed'), 'error');
     }
@@ -1046,13 +1286,26 @@ export function App() {
   }, [keys]);
 
   const handleRefreshSteam = useCallback(async (): Promise<void> => {
-    setBusy(true);
-
     try {
-      const juegos = await steamService.getOwnedGames(
-        settings.steamApiKey,
-        settings.steamId,
-      );
+      // Es la unica operacion **abortable de verdad**: son peticiones HTTP y el
+      // indicador pasa su senal. Cancelar mata el `fetch` en vez de solo dejar
+      // de mirarlo, y por eso el aviso de error se salta cuando el fallo es
+      // `cancelado`: seria avisar de un fallo que ha pedido el propio usuario.
+      const tarea = carga.empezar(traducir('loading.syncing'), true);
+
+      setBusy(true);
+
+      let juegos;
+      try {
+        juegos = await steamService.getOwnedGames(
+          settings.steamApiKey,
+          settings.steamId,
+          tarea.signal,
+        );
+      } finally {
+        tarea.fin();
+        setBusy(false);
+      }
 
       setOwned(juegos);
       setCuenta((current) => ({
@@ -1064,14 +1317,14 @@ export function App() {
       await settingsService.set('steamSyncedAt', new Date().toISOString());
       notify(traducir('app.synced', [juegos.length]), 'success');
     } catch (cause) {
+      if (cause instanceof SteamError && cause.codigo === 'cancelado') return;
+
       notify(
         cause instanceof Error ? cause.message : traducir('app.syncFailed'),
         'error',
       );
-    } finally {
-      setBusy(false);
     }
-  }, [notify, settings.steamApiKey, settings.steamId]);
+  }, [carga, notify, settings.steamApiKey, settings.steamId, traducir]);
 
   return (
     <LocaleContext.Provider value={t}>
@@ -1177,6 +1430,30 @@ export function App() {
         </span>
         )}
         <span className="flex items-center gap-3">
+          {/*
+            Deshacer vive en el pie y no solo como atajo: es la unica accion de
+            las que no tienen boton en la barra de seleccion, y sin algo visible
+            no se sabe que se puede deshacer. El `Ctrl+Z` del dialogo de atajos
+            es la via rapida; esta, la que se ve.
+
+            El texto va en imperativo —«Deshacer: …»— y no en pasado. Es un
+            boton: si dijera «Deshecho» antes de pulsarlo, diria que ya se ha
+            deshecho. El punto final lo trae la etiqueta de la accion.
+          */}
+          {deshacer.entrada !== null ? (
+            <button
+              type="button"
+              onClick={() => void deshacerUltima()}
+              title={traducir('shortcuts.undo')}
+              className="flex items-center gap-1.5 rounded-md px-1.5 py-0.5 transition hover:bg-hover hover:text-t2"
+            >
+              <Icon name="undo" size={12} />
+              <span className="max-w-40 truncate">
+                {traducir('app.undoAvailable', [deshacer.entrada.label])}
+              </span>
+            </button>
+          ) : null}
+
           <span
             title={traducir(STORAGE_MODE_NOTICE[getStorageMode()])}
             className={[
@@ -1187,6 +1464,17 @@ export function App() {
             <Icon name="package" size={12} />
             {traducir(STORAGE_MODE_LABEL[getStorageMode()])}
           </span>
+
+          <button
+            type="button"
+            onClick={() => setShortcutsOpen(true)}
+            title={traducir('shortcuts.thisDialog')}
+            className="flex items-center gap-1.5 rounded-md px-1.5 py-0.5 transition hover:bg-hover hover:text-t2"
+          >
+            <Icon name="help" size={12} />
+            {traducir('toolbar.shortcuts')}
+          </button>
+
           <span>
             <kbd className="rounded border border-white/10 px-1 py-0.5">{SEARCH_SHORTCUT}</kbd>{' '}
             {traducir('footer.shortcutSearch')} ·{' '}
@@ -1307,6 +1595,20 @@ export function App() {
           onCancel={() => setTagsOpen(false)}
         />
       ) : null}
+
+      {shortcutsVivo ? (
+        <ShortcutsDialog
+          open={shortcutsOpen}
+          onClose={() => setShortcutsOpen(false)}
+        />
+      ) : null}
+
+      {/*
+        El indicador va fuera del `LocaleContext.Provider` interior que cierra
+        el resto: es fijo sobre la barra y no empuja el contenido, para que
+        aparecer y desaparecer no mueva ni un pixel la lista.
+      */}
+      <LoadingIndicator tareas={carga.tareas} onCancel={carga.cancelar} />
 
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
         </>
