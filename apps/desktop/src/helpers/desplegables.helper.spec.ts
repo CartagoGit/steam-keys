@@ -260,4 +260,29 @@ describe('selectores con pompa', () => {
     // Y la opacidad tiene que estar en la transicion, o no se desvanece.
     expect(SELECTOR).toMatch(/TRANSICION\s*=\s*'[^']*opacity/);
   });
+
+  /**
+   * Un selector sin titulo no se estira; uno desplegado, si.
+   *
+   * `w-full` venia heredado de `sinTitulo`, y al usarlo «Claves / Mis juegos»
+   * en la cabecera pidio el ancho entero del contenedor: un selector de dos
+   * palabras de 120 px que se iba a su propia fila y dejaba el resto de la
+   * barra repartido alrededor.
+   *
+   * La cabecera debe seguir siendo **una fila** en cuanto hay sitio, y solo
+   * partirse cuando de verdad no cabe —el buscador baja a su propia linea por
+   * debajo de 900 px, que es lo que hace el `max-[900px]` de ahi—.
+   */
+  test('el ancho completo es opt-in, no se hereda de sinTitulo', () => {
+    // La raiz solo se estira si alguien lo pide.
+    expect(SELECTOR).toMatch(/completo\s*\?\s*'flex w-full'/);
+    expect(SELECTOR).toMatch(/:\s*sinTitulo\s*\n?\s*\?\s*'flex'\s*\n?\s*:\s*'flex shrink-0/);
+
+    // Y lo pide uno solo: el desplegable, que vive dentro de un panel con su
+    // propia medida.
+    expect(FILTRO).toContain('completo');
+
+    // El selector de vistas, en la cabecera, no lo pide.
+    expect(VISTAS).not.toContain('completo');
+  });
 });

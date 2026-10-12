@@ -45,6 +45,20 @@ export interface ISegmentedProps<T extends string> {
   /** Mas bajo y sin respiro, para menus. */
   compacto?: boolean;
   /**
+   * Ocupa todo el ancho de donde esta.
+   *
+   * Es para los desplegables, que se abren en un panel con su propia medida: el
+   * selector tiene que llenar el panel o se queda en una esquina con un hueco
+   * al lado que parece un error de maquetacion.
+   *
+   * **No se hereda de `sinTitulo`.** Lo estaba, y al usarlo «Claves / Mis
+   * juegos» en la cabecera se llevo el 100 % del ancho del contenedor y se fue
+   * a su propia fila: era un selector de dos palabras de 120 px, pero pedia
+   * el ancho entero. Los dos son selectores sin titulo y solo uno quiere
+   * estirarse, asi que son dos cosas distintas.
+   */
+  completo?: boolean;
+  /**
    * Redondeado o casi recto.
    *
    * La pastilla entera (`rounded-full`) es la forma de una pastilla: por eso la
@@ -154,6 +168,7 @@ export function Segmented<T extends string>({
   label,
   sinTitulo = false,
   compacto = false,
+  completo = false,
   forma = 'redonda',
   parcial = false,
 }: ISegmentedProps<T>) {
@@ -215,7 +230,13 @@ export function Segmented<T extends string>({
       role="radiogroup"
       aria-label={label}
       title={disabled ? disabledTitle : undefined}
-      className={sinTitulo ? 'flex w-full' : 'flex shrink-0 flex-col gap-1.5'}
+      className={
+        completo
+          ? 'flex w-full'
+          : sinTitulo
+            ? 'flex'
+            : 'flex shrink-0 flex-col gap-1.5'
+      }
     >
       {sinTitulo ? null : (
         <span
@@ -238,6 +259,7 @@ export function Segmented<T extends string>({
         className={[
           'relative flex items-center bg-hover',
           curva,
+          completo ? 'flex-1' : '',
           compacto ? 'p-0.5' : 'p-1',
           disabled ? 'opacity-40' : '',
         ].join(' ')}
