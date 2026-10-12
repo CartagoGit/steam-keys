@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 /**
  * Una tarea en curso, de las que se enseñan en el indicador de carga.
@@ -24,7 +24,16 @@ export interface ILoadingHandle {
   signal: AbortSignal;
   /** Cierra el indicador. Se llama siempre en el `finally`. */
   fin: () => void;
-  /** `true` si se pulso la X mientras corria esta tarea. */
+  /**
+   * `true` si se pulso la X mientras corria esta tarea.
+   *
+   * Se guarda **en el cierre**, no en un conjunto compartido, y por un motivo
+   * concreto: el indicador se apaga en cuanto se cancela, y con el se iba el
+   * conjunto de marcas. El `await` que viene detras necesita poder preguntar
+   * «¿me cancelaron?» mucho despues, cuando ya no queda ninguna tarea en
+   * pantalla, y entonces recibia un `false` y anunciaba como hecha una
+   * operacion que el usuario habia abandonado.
+   */
   cancelado: () => boolean;
 }
 
@@ -45,6 +54,18 @@ export interface ILoadingApi {
 }
 
 /**
+ * Una tarea viva, con su control de cancelacion pegado.
+ *
+ * El controlador y la marca van juntos porque tienen que morir juntos: al
+ * cancelar se borra la entrada del mapa, y si la marca viviera aparte se
+ * perderia justo cuando hay que consultarla.
+ */
+interface IViva {
+  controller: AbortController;
+  cancelado: boolean;
+}
+
+/**
  * Registro de tareas en curso, para poder enseñarlas y cancelar una.
  *
  * Resuelve un agujero que el `busy` no cubre: apaga botones, pero no dice **que**
@@ -61,12 +82,16 @@ export interface ILoadingApi {
  *
  * Es un hook y no un servicio porque el estado tiene que provocar repintado, y
  * eso solo lo hace React.
+ *
+ * Lo que devuelve tiene **identidad estable** entre renders: `empezar` y
+ * `cancelar` son los mismos `useCallback` y el resto se envuelve en un
+ * `useMemo`. Sin eso, quien use este hook en una lista de dependencias la
+ * reinstaria en cada repintado, que es justo lo que se pretendia evitar.
  */
 export function useLoading(): ILoadingApi {
   const [tareas, setTareas] = useState<readonly ILoadingTask[]>([]);
   const siguienteId = useRef(1);
-  const cancelados = useRef(new Set<number>());
-  const vivos = useRef(new Map<number, AbortController>());
+  const vivos = useRef(new Map<number, IViva>());
 
   const cerrar = useCallback((id: number): void => {
     vivos.current.delete(id);
@@ -76,20 +101,26 @@ export function useLoading(): ILoadingApi {
   const empezar = useCallback(
     (label: string, abortable = false): ILoadingHandle => {
       const id = siguienteId.current++;
-      const controller = new AbortController();
+      const viva: IViva = {
+        controller: new AbortController(),
+        cancelado: false,
+      };
 
-      vivos.current.set(id, controller);
+      // El estado vive **aquí**, no en el mapa de ids. Al cancelar se borra el
+      // mapa, y con el se perdia la marca; el `await` que viene detras ya no
+      // tendria a quien preguntar si se cancelo.
+      vivos.current.set(id, viva);
       setTareas((actuales) => [...actuales, { id, label, abortable }]);
 
       return {
-        signal: controller.signal,
+        signal: viva.controller.signal,
         fin: () => {
           // Abortar al terminar tambien: si la promesa ya resolvio es un no-op,
           // y si no, evita que un `fetch` siga vivo despues del unmount.
-          controller.abort();
+          viva.controller.abort();
           cerrar(id);
         },
-        cancelado: () => cancelados.current.has(id),
+        cancelado: () => viva.cancelado,
       };
     },
     [cerrar],
@@ -97,20 +128,18 @@ export function useLoading(): ILoadingApi {
 
   const cancelar = useCallback(
     (id: number): void => {
-      cancelados.current.add(id);
-      vivos.current.get(id)?.abort();
+      const viva = vivos.current.get(id);
+
+      // Si no hay, la tarea ya se cerro sola: no hay nada que parar ni marca que
+      // poner.
+      if (viva === undefined) return;
+
+      viva.cancelado = true;
+      viva.controller.abort();
       cerrar(id);
     },
     [cerrar],
   );
-
-  // Los ids cancelados se limpian cuando ya no queda ninguna tarea en curso: si
-  // no, el conjunto crece sin limite durante una sesion larga.
-  useEffect(() => {
-    if (tareas.length > 0) return;
-
-    cancelados.current.clear();
-  }, [tareas]);
 
   // Al desmontar se aborta todo lo que quede vivo. Sin esto, una peticion a
   // Steam que colgase seguiria escribiendo en un componente que ya no existe.
@@ -118,12 +147,15 @@ export function useLoading(): ILoadingApi {
     const pendientes = vivos.current;
 
     return () => {
-      for (const controller of pendientes.values()) controller.abort();
+      for (const viva of pendientes.values()) viva.controller.abort();
       pendientes.clear();
     };
   }, []);
 
-  return { tareas, empezar, cancelar, hayCarga: tareas.length > 0 };
+  return useMemo(
+    () => ({ tareas, empezar, cancelar, hayCarga: tareas.length > 0 }),
+    [tareas, empezar, cancelar],
+  );
 }
 
 /**

@@ -26,17 +26,25 @@ export interface IUndoEntry {
   borradas: boolean;
 }
 
-/** Lo que hace falta para volver a poner una clave como estaba. */
+/**
+ * Lo que hace falta para volver a poner una clave como estaba.
+ *
+ * Incluye `source` y `lastUsedAt` aunque `update` no los escriba, porque el
+ * borrado se deshace recreando la fila y ahi si se perderian: una clave
+ * importada del TXT volveria como manual y sin la marca de cuando se canjeo.
+ */
 export interface IUndoSnapshot {
   title: string;
   keyValue: string;
   platform: IGameKey['platform'];
   status: IGameKey['status'];
+  source: IGameKey['source'];
   giftedTo: string | null;
   parentTitle: string | null;
   note: string | null;
   tags: readonly string[];
   addedOn: string | null;
+  lastUsedAt: string | null;
 }
 
 /** Como deshacer una entrada concreta. */
@@ -47,7 +55,13 @@ export interface IUndoApi {
   entrada: IUndoEntry | null;
   /** Apunta una accion para poder deshacerla. */
   registrar: (label: string, claves: readonly IGameKey[], borradas?: boolean) => void;
-  /** Deshace la ultima y devuelve `true` si habia algo. */
+  /**
+   * Deshace la ultima y devuelve `true` si habia algo que deshacer.
+   *
+   * `true` significa «habia una accion», no «se aplico bien». Si la operacion
+   * falla la entrada vuelve a la pila y el error sube, para que quien llame lo
+   * avise.
+   */
   deshacer: () => Promise<boolean>;
 }
 
@@ -66,11 +80,13 @@ export function instantaneaDe(claves: readonly IGameKey[]): IUndoSnapshot[] {
     keyValue: clave.keyValue,
     platform: clave.platform,
     status: clave.status,
+    source: clave.source,
     giftedTo: clave.giftedTo,
     parentTitle: clave.parentTitle,
     note: clave.note,
     tags: [...clave.tags],
     addedOn: clave.addedOn,
+    lastUsedAt: clave.lastUsedAt,
   }));
 }
 
@@ -97,17 +113,18 @@ export function borradorDe(foto: IUndoSnapshot): IGameKeyDraft {
  * deshacer hay que editarlas una a una, y son cuarenta viajes al editor.
  *
  * Solo se guardan las acciones de la sesion actual y en memoria: nada se
- * escribe en la base. Un «deshacer» que sobrevive al cierre del programa ya
- * no es un deshacer, es un historial, y un historial tiene fecha de caducidad.
+ * escribe en la base. Un «deshacer» que sobrevive al cierre del programa ya no
+ * es un deshacer, es un historial, y un historial tiene fecha de caducidad.
  */
 export function useUndo(aplicar: UndoApplier): IUndoApi {
   const [pila, setPila] = useState<readonly IUndoEntry[]>([]);
   const siguienteId = useRef(1);
-  const aplicarRef = useRef(aplicar);
+  const aplicandoRef = useRef(false);
 
   // El `aplicar` cambia en cada render porque captura estado del componente. Se
   // guarda en un ref para que el callback de `deshacer` no cambie de identidad
   // y no pueda provocar efectos que lo vuelvan a ejecutar.
+  const aplicarRef = useRef(aplicar);
   aplicarRef.current = aplicar;
 
   const registrar = useCallback(
@@ -127,17 +144,41 @@ export function useUndo(aplicar: UndoApplier): IUndoApi {
   );
 
   const deshacer = useCallback(async (): Promise<boolean> => {
+    /**
+     * Una deshecha en curso bloquea la siguiente.
+     *
+     * Sin esto, dos Ctrl+Z seguidos con una accion de cuarenta claves
+     * inconten a la vez: las dos escriben, y el `reload()` de la mas rapida
+     * puede dejar la lista mostrando el estado anterior al de la mas lenta.
+     */
+    if (aplicandoRef.current) return false;
+
     const entrada = pila[pila.length - 1];
 
     if (entrada === undefined) return false;
 
-    // Se saca antes de aplicar: si la operacion falla, deshacer otra vez tiene
-    // que intentar lo mismo, no saltarse a una accion que no se todavia.
+    aplicandoRef.current = true;
+
+    /**
+     * Se saca antes de aplicar para que un doble Ctrl+Z no la deshaga dos
+     * veces. Pero **vuelve a la pila si falla**.
+     *
+     * El comentario que habia aqui decia que un fallo deberia poder
+     * reintentarse, y el codico no lo hacia: la entrada se perdia y el pie
+     * dejaba de ofrecer deshacer. Perderla justo cuando algo ha fallado es
+     * cuando mas molesta, que es cuando mas hace falta.
+     */
     setPila((actual) => actual.slice(0, -1));
 
-    await aplicarRef.current(entrada);
-
-    return true;
+    try {
+      await aplicarRef.current(entrada);
+      return true;
+    } catch (cause) {
+      setPila((actual) => [...actual, entrada]);
+      throw cause;
+    } finally {
+      aplicandoRef.current = false;
+    }
   }, [pila]);
 
   return { entrada: pila[pila.length - 1] ?? null, registrar, deshacer };

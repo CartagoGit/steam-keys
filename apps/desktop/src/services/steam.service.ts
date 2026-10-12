@@ -20,7 +20,13 @@ export class SteamError extends Error {
        * avisar de un error que ha pedido el usuario es la peor forma de
        * confirmar que se le ha parado algo.
        */
-      | 'cancelado',
+      | 'cancelado'
+      /**
+       * Steam ha dicho «has ido demasiado rapido» (429). Tampoco es un fallo
+       * para el usuario: lo resuelve quien llama esperando y reintentando, y no
+       * llega a verse nunca.
+       */
+      | 'limite',
   ) {
     super(message);
     this.name = 'SteamError';
@@ -140,14 +146,40 @@ export const steamService = {
     steamId: string,
     signal?: AbortSignal,
   ): Promise<ISteamOwnedGame[]> {
-    const juegos: ISteamOwnedGame[] = [];
+    /**
+     * Lo ya recogido, por appid.
+     *
+     * No es solo una comodidad: Steam no documenta que `page=` se respete con
+     * `include_appinfo=1`. Si dejara de hacerlo devolveria la misma pagina una
+     * y otra vez, y sin este mapa el bucle acabaria con cien copias de la misma
+     * biblioteca y un numero en la barra que no corresponde a nada.
+     *
+     * Es un `Map` y no un `Set` porque hay que **conservar el juego entero**,
+     * no solo su id: con un conjunto habria que normalizar dos veces.
+     */
+    const vistos = new Map<number, ISteamOwnedGame>();
 
-    // Tope de seguridad. Con la cuenta mas grande que se ha visto quedan muy
-    // por debajo; lo que evita es que un cambio de API que devuelva siempre la
-    // misma pagina se convierta en un bucle infinito de peticiones.
+    /**
+     * Tope de paginas.
+     *
+     * Con la cuenta mas grande que se ha visto quedan muy por debajo. Es la
+     * ultima red, no la primera: `vistos` ya corta la repeticion, y esto protege
+     * de un API que devuelva paginas distintas y nunca termine.
+     */
     const MAX_PAGINAS = 100;
 
+    /**
+     * Pausa entre paginas.
+     *
+     * Encadenar no es limitar: sin esto, una biblioteca de tres paginas son tres
+     * peticiones seguidas y la tercera se come el 429. El limite de Steam es de
+     * unos cinco por cada diez segundos, asi que 300 ms entre ellas lo evitan.
+     */
+    const PAUSA_ENTRE_PAGINAS_MS = 300;
+
     for (let pagina = 0; pagina < MAX_PAGINAS; pagina += 1) {
+      if (pagina > 0) await esperar(PAUSA_ENTRE_PAGINAS_MS, signal);
+
       const url =
         `${WEB_API}/ISteamUser/GetOwnedGames/v0001/` +
         `?key=${encodeURIComponent(apiKey)}` +
@@ -155,7 +187,10 @@ export const steamService = {
         `&include_appinfo=1&include_played_free_games=1` +
         `&page=${pagina}`;
 
-      const datos = await pedirJson<{ response?: { games?: unknown[] } }>(url, signal);
+      const datos = await pedirConMargen<{ response?: { games?: unknown[] } }>(
+        url,
+        signal,
+      );
 
       const paginaJuegos = datos.response?.games;
 
@@ -176,12 +211,25 @@ export const steamService = {
         break;
       }
 
-      juegos.push(...paginaJuegos.map(normalizarJuego));
-
       if (paginaJuegos.length === 0) break;
+
+      let nuevos = 0;
+
+      for (const bruto of paginaJuegos) {
+        const juego = normalizarJuego(bruto);
+
+        if (vistos.has(juego.appId)) continue;
+
+        vistos.set(juego.appId, juego);
+        nuevos += 1;
+      }
+
+      // Una pagina entera sin nada nuevo es la misma pagina repetida: seguir
+      // pidiendo solo gastaria el margen de peticiones para acabar igual.
+      if (nuevos === 0) break;
     }
 
-    return juegos;
+    return [...vistos.values()];
   },
 
   /**
@@ -346,28 +394,102 @@ function normalizarJuego(bruto: unknown): ISteamOwnedGame {
  * `fetch` lanza `AbortError`, y aqui se distingue de un fallo de red para que
  * quien llama pueda no avisar de un error que el propio usuario acaba de pedir.
  */
+/**
+ * Pide JSON a Steam.
+ *
+ * `signal` se pasa al `fetch`, que es lo que hace que la peticion sea
+ * realmente cancelable y no solo «dejar de mirarla». Cuando se aborta, el
+ * `fetch` lanza `AbortError`, y aqui se distingue de un fallo de red para que
+ * quien llama pueda no avisar de un error que el propio usuario acaba de pedir.
+ *
+ * El `try` cubre **el cuerpo entero**, no solo la cabecera. Con la biblioteca
+ * grande el stream tarda, y la cancelacion cae casi siempre mientras se lee el
+ * cuerpo: si `json()` se quedara fuera, su `AbortError` pasaria como fallo
+ * normal y el usuario veria un aviso de error por algo que el mismo acaba de
+ * cancelar.
+ *
+ * El 429 no se propaga como fallo. Es «has ido demasiado rapido», lo unico que
+ * Steam responde con codigo y lo unico que tiene arreglo; lo distingue
+ * `pedirConMargen`, que espera y lo reintenta.
+ */
 async function pedirJson<T>(url: string, signal?: AbortSignal): Promise<T> {
-  let respuesta: Response;
-
   try {
-    respuesta = await fetch(url, signal === undefined ? undefined : { signal });
+    const respuesta = await fetch(url, signal === undefined ? undefined : { signal });
+
+    if (!respuesta.ok) {
+      if (respuesta.status === 429) {
+        throw new SteamError('demasiado-rapido', 'limite');
+      }
+
+      if (respuesta.status === 403 || respuesta.status === 401) {
+        throw new SteamError('La clave de la API no es valida.', 'idInvalido');
+      }
+
+      throw new SteamError('Steam no ha contestado.', 'http');
+    }
+
+    return (await respuesta.json()) as T;
   } catch (cause) {
+    // Lo que sale con forma de `SteamError` es una decision ya tomada: se
+    // propaga tal cual en vez de reinterpretarse como fallo de red.
+    if (cause instanceof SteamError) throw cause;
+
     if (signal?.aborted === true || (cause as Error)?.name === 'AbortError') {
       throw new SteamError('Sincronizacion cancelada.', 'cancelado');
     }
 
     throw new SteamError('No se pudo contactar con Steam.', 'http');
   }
+}
 
-  if (!respuesta.ok) {
-    if (respuesta.status === 403 || respuesta.status === 401) {
-      throw new SteamError('La clave de la API no es valida.', 'idInvalido');
+/** Espera que se pueda cortar, para no dejar un temporizador vivo. */
+function esperar(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    const reloj = setTimeout(resolve, ms);
+
+    signal?.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(reloj);
+        resolve();
+      },
+      { once: true },
+    );
+  });
+}
+
+/**
+ * Pide JSON, esperando y reintentando si Steam dice «demasiado rapido».
+ *
+ * Encadenar peticiones no es limitar el ritmo: sin una pausa, una biblioteca de
+ * tres paginas son tres peticiones seguidas y la tercera se come el 429. El
+ * dorsal ademas espera entre paginas, que es lo que hace el limite real de unos
+ * cinco por diez segundos.
+ */
+async function pedirConMargen<T>(
+  url: string,
+  signal?: AbortSignal,
+  intentos = 3,
+): Promise<T> {
+  for (let intento = 0; intento < intentos; intento += 1) {
+    try {
+      return await pedirJson<T>(url, signal);
+    } catch (cause) {
+      const esLimite = cause instanceof SteamError && cause.codigo === 'limite';
+
+      if (!esLimite) throw cause;
+
+      // En el ultimo intento no hay mas margen: se convierte en el fallo de red
+      // de siempre, que es lo que el usuario sabe entender.
+      if (intento === intentos - 1) {
+        throw new SteamError('Steam no ha contestado.', 'http');
+      }
+
+      await esperar(1000 * (intento + 1), signal);
     }
-
-    throw new SteamError('Steam no ha contestado.', 'http');
   }
 
-  return (await respuesta.json()) as T;
+  throw new SteamError('Steam no ha contestado.', 'http');
 }
 
 /* -------------------------------------------------------------------------- */
