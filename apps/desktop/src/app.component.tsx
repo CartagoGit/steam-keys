@@ -34,6 +34,12 @@ import { borradorDe, useUndo, type IUndoEntry } from '@/helpers/undo.helper';
 import { gameKeyService, DuplicateKeyError } from '@/services/game-key.service';
 import { settingsService, DEFAULT_SETTINGS } from '@/services/settings.service';
 import { storageService } from '@/services/storage.service';
+import { inspectStartup } from '@/services/startup.service';
+import {
+  legacyBackupsMigrated,
+  migrateLegacyBackups,
+} from '@/services/legacy-backups.service';
+import { getDatabaseClient } from '@/repositories/repository.factory';
 import { FirstRun } from '@/components/first-run.component';
 import { steamService, SteamError, resolveSteamId, bestCandidate, cuentaComoPropio } from '@/services/steam.service';
 
@@ -45,6 +51,40 @@ import { steamService, SteamError, resolveSteamId, bestCandidate, cuentaComoProp
  * vuelta por los antiguos.
  */
 const STATUS_CYCLE = KEY_STATUS_VALUES;
+
+/**
+ * El nombre que se enseña de lo que se esta importando.
+ *
+ * Va en una constante y no a mano porque el servicio devuelve **solo el
+ * contenido**: el nombre se inventa. El usuario elige `mis-claves.txt` y la
+ * previsualizacion decia «steam-keys.txt», que es justo el bug que la
+ * importacion en un solo paso pretendia arreglar —que se importara el fichero
+ * que se habia visto—. Si el nombre es de mentira, el titulo tambien lo es.
+ */
+const IMPORT_FILE_NAME = 'steam-keys.txt';
+
+/**
+ * De donde saca el arranque lo que necesita.
+ *
+ * Van como constantes de modulo y no como `useMemo` porque no dependen de nada
+ * del componente: son las funciones de los servicios, que no cambian nunca. Lo
+ * que se les pasa al hook `useArranque` va por parametro para que el hook no
+ * importe servicios —un hook en `helpers/` solo puede mirar `contracts`— y para
+ * que la dependencia se vea en la llamada en vez de escondida en un import.
+ */
+const ARRANQUE = {
+  inspeccionar: inspectStartup,
+  migrarCopias: async (): Promise<void> => {
+    const db = await getDatabaseClient();
+
+    // El propio servicio marca «ya no hace falta hacerlo». Si ya esta marcado,
+    // no se toca nada: es la senal de que esto ya corrio en un arranque
+    // anterior y no hay que repetirlo.
+    if (await legacyBackupsMigrated(db)) return;
+
+    await migrateLegacyBackups(db);
+  },
+} as const;
 
 /**
  * El filtro arranca con lo que se dejo la ultima vez.
@@ -157,7 +197,7 @@ export function App() {
    * El orden —mirar el fichero, fijar el idioma, migrar las copias antiguas— lo
    * pone el hook, no las listas de dependencias.
    */
-  const { arranque, setArranque } = useArranque(setIdioma);
+  const { arranque, setArranque } = useArranque(setIdioma, ARRANQUE);
 
   const t = useMemo<ITranslator>(
     () => ({
@@ -305,13 +345,30 @@ export function App() {
     // anterior si el usuario cambia de idioma con la lista ya cargada.
   }, [notify, traducir]);
 
+  /**
+   * Carga las claves **una vez**, cuando la base pasa a estar disponible.
+   *
+   * Va por ref y no por dependencia directa a proposito. `reload` depende de
+   * `traducir`, que depende del idioma, asi que con `[reload, arranque]` cada
+   * vez que se elegia otro idioma se releian cuatrocientas filas desde SQLite
+   * sin `setLoading(true)` que lo justificara: con la base en un disco lento o
+   * en red —el modo portable la deja al lado del ejecutable— se notaba.
+   *
+   * El ref mantiene la version **actual** de la funcion sin que su identidad
+   * dispare nada. El error de carga si sale en el idioma bueno, que era lo que
+   * se queria: lo unico que hace falta es que el mensaje se traduzca al
+   * escribirse, no que la lista se recarge al cambiar de idioma.
+   */
+  const reloadRef = useRef(reload);
+  reloadRef.current = reload;
+
   useEffect(() => {
     // Sin base de datos no se toca nada: ni claves, ni ajustes. Es lo que
     // mantiene el programa sin crear un fichero vacio al abrirlo.
     if (arranque?.database !== 'ready') return;
 
-    void reload();
-  }, [reload, arranque]);
+    void reloadRef.current();
+  }, [arranque?.database]);
 
   // ---------------------------------------------------------------- deshacer ---
   /**
@@ -387,7 +444,18 @@ export function App() {
     if (!habia) notify(traducir('app.nothingToUndo'), 'info');
   }, [deshacer, notify, traducir]);
 
-  /** Carga los ajustes y, si ya habia una cuenta conectada, su biblioteca. */
+  /**
+   * Carga los ajustes, una vez, cuando la base pasa a estar disponible.
+   *
+   * Solo ajustes. La sincronizacion de Steam vive en el efecto siguiente, y no
+   * por estetica: si estuviera aqui, el efecto necesitaria `conCarga` —para que
+   * el indicador dijera algo— y `conCarga` depende de `traducir`, que depende
+   * del idioma. El efecto se volveria a disparar en cada cambio de idioma,
+   * releeria los ajustes, pondria el idioma guardado, y esepondria otra vez a
+   * disparar el efecto. Un bucle disfrazado de recarga.
+   *
+   * Separados, cada uno depende solo de lo que de verdad lo dispara.
+   */
   useEffect(() => {
     if (arranque?.database !== 'ready') return;
 
@@ -399,31 +467,8 @@ export function App() {
         applyTheme(cargados.theme);
         setFilter(initialFilter(cargados));
         setVista(cargados.lastView);
-
-        if (cargados.steamApiKey && cargados.steamId) {
-          const tarea = carga.empezar(traducir('loading.syncing'), true);
-
-          try {
-            const juegos = await steamService.getOwnedGames(
-              cargados.steamApiKey,
-              cargados.steamId,
-              tarea.signal,
-            );
-
-            setOwned(juegos);
-            setCuenta({
-              conectado: true,
-              steamId: cargados.steamId,
-              juegos: juegos.length,
-              sincronizadoAt: cargados.steamSyncedAt,
-              perfilPrivado: false,
-            });
-          } finally {
-            tarea.fin();
-          }
-        }
       } catch {
-        // Sin ajustes, sin biblioteca, sin problema: la app sigue con las claves.
+        // Sin ajustes: la app sigue con las claves, que es lo que importa.
       } finally {
         // Se marca aqui y no dentro del `try`: aunque la carga falle, a partir
         // de este punto ya se puede guardar. Dejarlo en el `try` haria que una
@@ -434,7 +479,71 @@ export function App() {
     };
 
     void cargar();
-  }, [arranque]);
+  }, [arranque?.database, setIdioma]);
+
+  /**
+   * Trae la biblioteca de Steam si ya hay una cuenta conectada.
+   *
+   * Depende de las **credenciales**, no de los ajustes enteros: si no, una
+   * escritura cualquiera —cambiar el ambito del filtro, por ejemplo— releeria
+   * veinte paginas de la biblioteca sin que nadie lo haya pedido.
+   */
+  const conCargaRef = useRef(conCarga);
+  conCargaRef.current = conCarga;
+
+  /**
+   * Lo mismo con la marca de la ultima sincronizacion: leerla del objeto
+   * `settings` dentro del efecto la haria depender de el entero, y entonces
+   * cualquier ajuste guardado —el tema, un filtro— releeria la biblioteca.
+   */
+  const steamSyncedAtRef = useRef(settings.steamSyncedAt);
+  steamSyncedAtRef.current = settings.steamSyncedAt;
+
+  useEffect(() => {
+    const apiKey = settings.steamApiKey;
+    const steamId = settings.steamId;
+
+    if (arranque?.database !== 'ready' || !apiKey || !steamId) return;
+
+    const sincronizar = async (): Promise<void> => {
+      try {
+        const r = await conCargaRef.current(
+          'loading.syncing',
+          async (senal) => steamService.getOwnedGames(apiKey, steamId, senal),
+          true,
+        );
+
+        if (!r.ok) return;
+
+        setOwned(r.valor);
+        setCuenta({
+          conectado: true,
+          steamId,
+          juegos: r.valor.length,
+          sincronizadoAt: steamSyncedAtRef.current,
+          perfilPrivado: false,
+        });
+      } catch {
+        /**
+         * Un fallo al sincronizar no rompe el arranque.
+         *
+         * Antes este `catch` era el de fuera —el que traga tambien el fallo de
+         * leer los ajustes— y no decia nada: una clave caducada o Steam caido
+         * dejaban la pestana de juegos vacia, sin aviso y sin reintento. Al
+         * menos se marca la cuenta como conectada pero sin juegos, para que se
+         * vea que el fallo es de la sincronizacion y no del arranque, y quien
+         * pulse «Actualizar» lo reintenta.
+         */
+        setOwned([]);
+        setCuenta((actual) => ({ ...actual, conectado: true, juegos: 0 }));
+      }
+    };
+
+    void sincronizar();
+    // `conCarga` va por ref y no en la lista: depende de `traducir`, que
+    // depende del idioma, y entonces cambiar de idioma releeria veinte
+    // paginas de la biblioteca de Steam sin que nadie lo haya pedido.
+  }, [arranque?.database, settings.steamApiKey, settings.steamId]);
 
 
   // --------------------------------------------------------------- filtros ---
@@ -677,12 +786,23 @@ export function App() {
     // Una clave repetida salta aqui, no en la base. El editor la enseña como
     // error normal, sin cerrar, y el dialogo se queda abierto con lo escrito.
     try {
-      await conCarga('loading.saving', async () => {
+      /**
+       * El aviso sale **despues**, no dentro de la accion.
+       *
+       * Estando dentro ya habia salido cuando el usuario pulsa la X del
+       * indicador: se cerraba el editor con un «Clave anadida» en pantalla y la
+       * escritura de debajo —que una escritura en la base no se puede parar—
+       * siguiendo su curso. Ahora el editor se cierra solo si la operacion no
+       * se ha cancelado, y el aviso va con ella.
+       */
+      const r = await conCarga('loading.saving', async () => {
         if (editing) {
           await gameKeyService.update(editing.id, draft);
-          notify(traducir('app.saved'), 'success');
-        } else {
-          await gameKeyService.create({
+          return { creada: null as IGameKey | null };
+        }
+
+        return {
+          creada: await gameKeyService.create({
             title: draft.title,
             keyValue: draft.keyValue,
             platform: draft.platform,
@@ -692,10 +812,31 @@ export function App() {
             note: draft.note,
             tags: draft.tags,
             addedOn: draft.addedOn,
-          });
-          notify(traducir('app.created'), 'success');
-        }
+          }),
+        };
       });
+
+      if (!r.ok) return;
+
+      const creada = r.valor.creada;
+
+      /**
+       * Guardar tambien se deshace.
+       *
+       * Editar devuelve la clave a como estaba, con la foto de `editing` que es
+       * el estado anterior. Crear se deshace borrando, y para eso hace falta la
+       * clave **tal como ha quedado**: si el usuario le pone destinatario o
+       * etiquetas antes de guardar, esa es la fila que hay que volver a quitar.
+       */
+      if (creada === null) {
+        if (editing !== null) deshacer.registrar(editing.title, [editing]);
+      } else {
+        // `true` = se deshace borrando, porque la fila es nueva y no hay a que
+        // devolverla a ningun sitio: solo hay que quitar lo que se creo.
+        deshacer.registrar(creada.title, [creada], true);
+      }
+
+      notify(traducir(editing === null ? 'app.created' : 'app.saved'), 'success');
 
       setEditorOpen(false);
       setEditing(null);
@@ -1089,7 +1230,7 @@ export function App() {
           // Se resuelve lo que haya puesto: un numero de 17 cifras pasa
           // tal cual y un nombre de perfil se traduce contra el XML
           // publico de Steam, que no necesita clave.
-          const id = await resolveSteamId(steamId);
+          const id = await resolveSteamId(steamId, senal);
 
           const juegos = await steamService.getOwnedGames(
             apiKey.trim(),
@@ -1136,7 +1277,23 @@ export function App() {
       return null;
     } catch (cause) {
       if (cause instanceof SteamError) {
+        /**
+         * Cancelar no es un fallo.
+         *
+         * Cuando el usuario pulsa la X, la accion **lanza** en vez de
+         * devolver: por eso el `catch` de arriba no se encarga y hay que
+         * distinguirlo aqui. Sin esta linea el dialogo pintaba «Sincronizacion
+         * cancelada» en rojo, que es avisar de un error que el propio usuario
+         * acaba de pedir.
+         *
+         * Y de paso no se pisa `perfilPrivado` con un `false`: si la cuenta
+         * estaba marcada como privada por un intento anterior, un 429 la
+         * borraba sin que nada lo dijera.
+         */
+        if (cause.codigo === 'cancelado') return null;
+
         setCuenta((actual) => ({ ...actual, perfilPrivado: cause.codigo === 'perfilPrivado' }));
+
         return cause.message;
       }
 
@@ -1145,17 +1302,34 @@ export function App() {
   };
 
   const handleForgetApiKey = async (): Promise<void> => {
-    await settingsService.forgetApiKey();
-    setSettings(await settingsService.load());
-    setOwned([]);
-    setCuenta({
-      conectado: false,
-      steamId: '',
-      juegos: 0,
-      sincronizadoAt: null,
-      perfilPrivado: false,
-    });
-    notify(traducir('app.keyForgotten'), 'info');
+    /**
+     * Con `try/catch`, como todos los demas.
+     *
+     * El dialogo de ajustes llama a esto desde un `onClick` con un
+     * `try/finally` **sin** `catch`: si `forgetApiKey()` fallaba —base
+     * bloqueada, permisos— el rechazo no lo recogia nadie, saltaba a la
+     * consola y el boton se rehabilitaba sin decir nada. El usuario pulsaba
+     * «Olvidar clave», no pasaba nada visible y el campo seguia enseñando la
+     * clave como si la cuenta siguiera conectada.
+     */
+    try {
+      await settingsService.forgetApiKey();
+      setSettings(await settingsService.load());
+      setOwned([]);
+      setCuenta({
+        conectado: false,
+        steamId: '',
+        juegos: 0,
+        sincronizadoAt: null,
+        perfilPrivado: false,
+      });
+      notify(traducir('app.keyForgotten'), 'info');
+    } catch (cause) {
+      notify(
+        cause instanceof Error ? cause.message : traducir('app.saveFailed'),
+        'error',
+      );
+    }
   };
 
   // --------------------------------------------------------- importacion ---
@@ -1168,14 +1342,29 @@ export function App() {
    */
   const handleImport = async (): Promise<void> => {
     try {
-      await conCarga('loading.importing', async () => {
+      /**
+       * La previsualizacion se abre **fuera** de la accion.
+       *
+       * Estando dentro, pulsar la X solo conseguia que `conCarga` devolviera
+       * `{ ok: false }` a un sitio que no lo miraba, y el dialogo se abria
+       * igualmente: el usuario creia haber cancelado la lectura del fichero y
+       * se leaba entero. Es la otra forma del mismo bug, con estado en vez de
+       * aviso.
+       */
+      const r = await conCarga('loading.importing', async () => {
         const contents = await storageService.stageTxt();
-        if (contents === null) return;
 
-        const preview = await storageService.previewImport(contents);
+        if (contents === null) return null;
 
-        setStagedImport({ fileName: 'steam-keys.txt', contents, preview });
+        return {
+          contents,
+          preview: await storageService.previewImport(contents),
+        };
       });
+
+      if (!r.ok || r.valor === null) return;
+
+      setStagedImport({ fileName: IMPORT_FILE_NAME, ...r.valor });
     } catch (cause) {
       notify(
         cause instanceof Error ? cause.message : traducir('app.readFileFailed'),
@@ -1283,35 +1472,54 @@ export function App() {
 
   const handleRefreshSteam = useCallback(async (): Promise<void> => {
     try {
-      // Es la unica operacion **abortable de verdad**: son peticiones HTTP y el
-      // indicador pasa su senal. Cancelar mata el `fetch` en vez de solo dejar
-      // de mirarlo, y por eso el aviso de error se salta cuando el fallo es
-      // `cancelado`: seria avisar de un fallo que ha pedido el propio usuario.
-      const tarea = carga.empezar(traducir('loading.syncing'), true);
+      /**
+       * Por `conCarga`, como todo lo demas.
+       *
+       * Era lo unico que se quedaba con el `empezar` + `setBusy` a mano, y le
+       * pasaba exactamente lo que se le reprochaba a `handleLinkSteam` antes de
+       * arreglarlo: si el `fetch` no volvia, la barra entera se quedaba
+       * apagada y el indicador —que el usuario puede cerrar, pero no siempre
+       * mira— era lo unico visible.
+       *
+       * `abortable` es `true` de verdad: son peticiones HTTP y la senal mata el
+       * `fetch`, no solo deja de mirarlo.
+       */
+      const r = await conCarga(
+        'loading.syncing',
+        async (senal) =>
+          steamService.getOwnedGames(
+            settings.steamApiKey,
+            settings.steamId,
+            senal,
+          ),
+        true,
+      );
 
-      setBusy(true);
+      // Cancelado: no se anuncia nada ni se guarda fecha de una sincronizacion
+      // que el usuario acabo de cancelar.
+      if (!r.ok) return;
 
-      let juegos;
-      try {
-        juegos = await steamService.getOwnedGames(
-          settings.steamApiKey,
-          settings.steamId,
-          tarea.signal,
-        );
-      } finally {
-        tarea.fin();
-        setBusy(false);
-      }
+      const ahora = new Date().toISOString();
 
-      setOwned(juegos);
+      /**
+       * Se guarda **antes** de pintar el estado.
+       *
+       * Al reves —primero `setCuenta`, luego el `set`— la interfaz decia «sincronizado
+       * a las HH:MM» aunque el guardado fallara, y ademas la marca de tiempo se
+       * calculaba dos veces: la que se guardaba y la que se enseñaban nunca
+       * eran la misma, asi que la pantalla mentia por unos segundos sobre lo
+       * que hay en la base.
+       */
+      await settingsService.set('steamSyncedAt', ahora);
+
+      setOwned(r.valor);
       setCuenta((current) => ({
         ...current,
-        juegos: juegos.length,
-        sincronizadoAt: new Date().toISOString(),
+        juegos: r.valor.length,
+        sincronizadoAt: ahora,
       }));
 
-      await settingsService.set('steamSyncedAt', new Date().toISOString());
-      notify(traducir('app.synced', [juegos.length]), 'success');
+      notify(traducir('app.synced', [r.valor.length]), 'success');
     } catch (cause) {
       if (cause instanceof SteamError && cause.codigo === 'cancelado') return;
 
@@ -1320,7 +1528,7 @@ export function App() {
         'error',
       );
     }
-  }, [carga, notify, settings.steamApiKey, settings.steamId, traducir]);
+  }, [conCarga, notify, settings.steamApiKey, settings.steamId, traducir]);
 
   return (
     <LocaleContext.Provider value={t}>
