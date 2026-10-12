@@ -13,6 +13,7 @@
   "scripts": {
     "install:all": "bun install",
     "dev": "cd apps/desktop && bun run dev",
+    "web": "bun tools/scripts/web.script.ts",
     "dev:tauri": "cd apps/desktop && bun run tauri dev",
     "dev:tauri:web": "cd apps/desktop && bun run tauri dev --no-watch",
     "build": "bun run build:front",
