@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 
 import { Icon, type IconName } from './icon.component';
 import { Popover, PopoverOption } from './popover.component';
@@ -247,6 +247,44 @@ export function FilterMenu<T extends string>({
       : opcionesVisibles.map((option) => t(option.label)).join(', ');
 
   const { ancho: anchoTags, alto: altoTags } = medida;
+
+  /**
+   * El chip, **el mismo** para el que se ve y para el que mide.
+   *
+   * Escribirlos por separado es tentador —uno lleva fondo y `title`, el otro
+   * ni se ve— y no funciona: estuvo escrito asi y se separaron de tres formas
+   * distintas a la vez, sin que nada protestara.
+   *
+   * - El que mide no llevaba `text-[10px]`, asi que media los tags a 16 px. El
+   *   ancho salia un 60 % mayor y la columna se comia 71 px de aire a la
+   *   derecha de los chips. Ese era el hueco fantasma.
+   * - Solo el que media llevaba el tope de ancho, de modo que en cuanto un
+   *   nombre largo lo tocaba los dos dabian numeros distintos.
+   *
+   * Ahora los dos son el mismo elemento y lo unico que cambia es si se ve.
+   */
+  const chip = (option: IFilterOption<T>, visible: boolean): ReactNode => (
+    <span
+      key={String(option.value)}
+      title={visible ? t(option.label) : undefined}
+      className={[
+        'flex h-5 min-w-0 items-center gap-1 px-1.5 text-[10px] leading-none',
+        visible ? 'overflow-hidden rounded-md bg-surface-2 text-t2' : '',
+      ].join(' ')}
+      style={{ maxWidth: ANCHO_MAX_TAG }}
+    >
+      {option.dot ? (
+        <span
+          aria-hidden="true"
+          className={['h-1.5 w-1.5 shrink-0 rounded-full', option.dot].join(' ')}
+        />
+      ) : option.icon ? (
+        <Icon name={option.icon} size={9} className="shrink-0 opacity-80" />
+      ) : null}
+
+      <span className="truncate">{t(option.label)}</span>
+    </span>
+  );
 
   const alternar = (valor: T): void => {
     const siguiente = marcadas.has(valor)
@@ -502,51 +540,30 @@ export function FilterMenu<T extends string>({
               width: 'max-content',
             }}
           >
-            {opcionesVisibles.map((option) => (
-              <span
-                key={String(option.value)}
-                className="flex h-5 min-w-0 items-center gap-1 px-1.5"
-                style={{ maxWidth: ANCHO_MAX_TAG }}
-              >
-                {option.dot ? (
-                  <span
-                    aria-hidden="true"
-                    className={['h-1.5 w-1.5 shrink-0 rounded-full', option.dot].join(' ')}
-                  />
-                ) : option.icon ? (
-                  <Icon name={option.icon} size={9} className="shrink-0 opacity-80" />
-                ) : null}
-
-                <span className="truncate">{t(option.label)}</span>
-              </span>
-            ))}
+            {opcionesVisibles.map((option) => chip(option, false))}
           </div>
 
+          {/*
+            Y esta se ve. Va tambien a `max-content`, **no** al ancho medido.
+
+            Ponerle el ancho medido parece lo natural —es el mismo numero— y
+            hace lo contrario: una rejilla con ancho definido reparte el
+            sobrante entre las columnas en vez de quedarse cada una con lo que
+            pide, asi que las columnas se acortan y el aire que sobra se queda
+            a la derecha como un margen invisible. Media 243 px y ocupaba 172.
+
+            El recorte lo pone el de fuera, que es el que tiene el ancho
+            transitioning: mientras este se estrecha, el hijo —mas ancho que el
+            — se sale y `overflow-hidden` lo corta. Eso es lo que quiere.
+          */}
           <div
             className="grid gap-1"
             style={{
               gridTemplateColumns: `repeat(${POR_FILA}, minmax(0, max-content))`,
-              width: `${anchoTags}px`,
+              width: 'max-content',
             }}
           >
-            {opcionesVisibles.map((option) => (
-              <span
-                key={String(option.value)}
-                title={t(option.label)}
-                className="flex h-5 min-w-0 items-center gap-1 overflow-hidden rounded-md bg-surface-2 px-1.5 text-[10px] leading-none text-t2"
-              >
-                {option.dot ? (
-                  <span
-                    aria-hidden="true"
-                    className={['h-1.5 w-1.5 shrink-0 rounded-full', option.dot].join(' ')}
-                  />
-                ) : option.icon ? (
-                  <Icon name={option.icon} size={9} className="shrink-0 opacity-80" />
-                ) : null}
-
-                <span className="truncate">{t(option.label)}</span>
-              </span>
-            ))}
+            {opcionesVisibles.map((option) => chip(option, true))}
           </div>
         </div>
       </div>

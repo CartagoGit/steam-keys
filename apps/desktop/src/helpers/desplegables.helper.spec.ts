@@ -588,6 +588,110 @@ describe('el filtro de etiquetas', () => {
     expect(FILTRO).toMatch(/violet:\s*\{\s*relleno: 'bg-accent',\s*sobreRelleno: 'text-on-accent',\s*titulo: 'text-accent'/);
     expect(SELECTOR).toMatch(/violet:\s*\{\s*pompa: 'bg-accent',\s*sobrePompa: 'text-on-accent',\s*titulo: 'text-accent'/);
   });
+
+  /**
+   * El chip que se ve y el que mide son **el mismo chip**.
+   *
+   * Estaba escrito dos veces y se separaron de dos formas, sin que nada
+   * protestara:
+   *
+   * - El que mide no llevaba `text-[10px]`, de modo que media los tags a 16 px.
+   *   La columna salia un 60 % mas ancha y se comia 71 px de aire a la derecha
+   *   de los chips: el hueco fantasma.
+   * - Solo el que media llevaba el tope de ancho.
+   *
+   * Dos copias de lo mismo siempre se separan tarde o temprano. Este test
+   * ata las dos cajas al mismo renderizador, que es lo que lo hace imposible.
+   */
+  test('las dos cajas pintan el chip con el mismo codigo', () => {
+    expect(FILTRO).toMatch(/const chip = \(option: IFilterOption<T>, visible: boolean\)/);
+
+    // Y las dos cajas lo usan. Ni una tercera copia, ni el chip escrito a mano.
+    expect(FILTRO).toContain('opcionesVisibles.map((option) => chip(option, false))');
+    expect(FILTRO).toContain('opcionesVisibles.map((option) => chip(option, true))');
+  });
+
+  /**
+   * Las dos cajas van a `max-content`, y la de fuera a `max-content` tambien.
+   *
+   * Ponerle a la visible el ancho medido parece lo natural —es el mismo
+   * numero— y hace lo contrario: una rejilla con ancho definido reparte el
+   * sobrante entre las columnas en vez de quedarse cada una con lo que pide.
+   * Las columnas se acortan y el aire se queda a la derecha como un margen
+   * invisible: media 243 px y ocupaba 172.
+   *
+   * El recorte lo pone la caja de fuera, que es la que tiene el ancho
+   * transicionando.
+   */
+  test('ninguna caja fuerza un ancho: el recorte lo pone la de fuera', () => {
+    expect(FILTRO).not.toMatch(/width: `\$\{anchoTags\}px`,?\n\s*\}\}\n\s*\}/);
+
+    // Las dos rejillas, identicas y a `max-content`.
+    const anchos = FILTRO.match(/width: 'max-content'/g);
+
+    expect(anchos).toHaveLength(2);
+
+    // Y el ancho medido solo va en la caja que transiciona.
+    expect(FILTRO).toContain('width: `${anchoTags}px`');
+  });
+
+  /**
+   * Los controles de formulario heredan la fuente **dentro de una capa**.
+   *
+   * En CSS, lo que no esta en ninguna capa gana a todo lo que esta, por muy
+   * especifica que sea la regla. La regla de heredar la fuente estaba fuera, y
+   * como `font` es el atajo completo, `font: inherit` pisaba tambien el tamano:
+   * **`text-xs` no hacia nada en ningun boton, input, select o textarea de la
+   * aplicacion** y todos se veian a 16 px. Dentro de `@layer base`, las
+   * utilidades vuelven a mandar.
+   */
+  test('heredar la fuente de los controles va dentro de base', () => {
+    expect(CSS).toMatch(/@layer base \{\s*input,\s*select,\s*textarea,\s*button \{\s*font: inherit;/);
+
+    // Y la regla no puede aparecer suelta por ahi: dos veces, una gana a
+    // Tailwind y la otra no. Una sola, y dentro de la capa.
+    const reglas = CSS.match(/font: inherit/g);
+
+    expect(reglas).toHaveLength(1);
+  });
+
+  /**
+   * La fila de filtros se alinea arriba, no al centro.
+   *
+   * Con `items-center` cada bloque se centraba dentro de su linea, y mientras
+   * todos median igual no se notaba. En cuanto un filtro cambia de alto —que es
+   * lo que hace la columna de tags al crecer— la linea adopta su altura y los
+   * demas se hunden: «Estado» y «Etiquetas» quedaban treinta y tantos pixeles
+   * por debajo, con los titulos descentrados.
+   */
+  test('la fila de filtros arranca arriba', () => {
+    expect(BARRA).toContain('flex flex-wrap items-start gap-x-5 gap-y-3');
+    expect(BARRA).not.toContain('flex flex-wrap items-center gap-x-5 gap-y-3');
+  });
+
+  /**
+   * «Limpiar» es un boton como los demas, no un enlace suelto.
+   *
+   * Era texto con subrayado y sin fondo en una fila de cinco botones
+   * redondeados: se leia como una nota al pie de la barra. Y salia
+   * descuadrado, porque el texto suelto mide 16 px y el boton 20.
+   *
+   * El hueco de arriba lleva un titulo invisible con las mismas clases que los
+   * de los filtros, que es lo unico que alinea la fila sin un numero magico, y
+   * `self-start` porque la fila ya no centra.
+   */
+  test('limpiar es un boton alineado con los demas y a la derecha', () => {
+    expect(BARRA).toMatch(/<div className="ml-auto flex shrink-0 flex-col gap-1\.5 self-start">/);
+    expect(BARRA).toMatch(/<span aria-hidden="true" className="invisible text-\[10px\] font-medium tracking-wide uppercase">/);
+
+    // Mismo radio y misma caja que los botones del desplegable.
+    expect(BARRA).toMatch(/inline-flex shrink-0 items-center justify-center rounded-full px-3 py-1/);
+    expect(BARRA).toMatch(/bg-surface-2 text-t3 hover:bg-surface-3 hover:text-t1/);
+
+    // Y limpia las etiquetas tambien, o el filtro se queda puesto sin que lo
+    // diga nadie.
+    expect(BARRA).toMatch(/onFilterChange\(\{[\s\S]{0,400}?tags: \[\],/);
+  });
 });
 
 describe('arranque sin salto de estilos', () => {

@@ -274,7 +274,21 @@ export function Toolbar({
       */}
       {view === AppView.Keys ? (
       <div className="border-t border-line px-4 py-2.5">
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
+        {/*
+          `items-start`, no `items-center`.
+
+          Con `items-center` cada bloque se centraba dentro de la linea, y
+          mientras todos median lo mismo no se notaba. En cuanto un filtro
+          cambio de alto —que es lo que hace la columna de tags al growar— la
+          linea la marco su alto y los demas se hundieron: «Estado» y
+          «Etiquetas» quedaron treinta y tantos pixeles por debajo de
+          «Plataforma», con sus titulos descentrados y sus botones en otra
+          fila visual.
+
+          Arriba, todos los titulos comparten linea y todos los botones
+          tambien, que es de lo que se trata en una fila de filtros.
+        */}
+        <div className="flex flex-wrap items-start gap-x-5 gap-y-3">
           {/*
             Los cuatro filtros, cada uno con su color.
 
@@ -356,33 +370,54 @@ export function Toolbar({
           ) : null}
 
           {/*
-            Limpiar va **junto** a los filtros, no clavado a la derecha con
-            `ml-auto`. Es lo que limpia, asi que cerania a ellos; y sobre todo,
-            con `ml-auto` se quedaba pegado al borde mientras la columna de
-            tags crecia al lado, de modo que el empuje —que es justo lo que
-            avisa de que el filtro se ha hecho estrecho— no se veia nada. Sin
-            el `ml-auto`, «Limpiar» es el vecino de verdad y se desplaza con
-            la animacion.
+            «Limpiar», como los demas: boton, no texto suelto.
+
+            Era un enlace con subrayado y sin fondo, en una fila de cinco
+            botones redondeados. Se leia como otra cosa —como una nota al pie de
+            la barra— y ademas salia descuadrado, porque el boton mide 20 px y
+            el texto suelto 16, asi que su base no coincidia con la de los
+            demas.
+
+            El hueco de arriba lleva un titulo invisible con las mismas clases
+            que los titulos de los filtros. Es lo unico que alinea la fila sin
+            un numero magico: si mañana los titulos cambian de tamano, el hueco
+            cambia con ellos y «Limpiar» sigue cayendo donde toca.
+
+            Y va con `self-start` porque la fila va con `items-center`: sin eso
+            el bloque —que es mucho mas bajo que un filtro con cuatro filas de
+            tags— se centraba en vez de arrancar arriba, y el boton se quedaba
+            treinta pixeles por debajo de los demas.
           */}
-          <button
-            type="button"
-            onClick={() =>
-              onFilterChange({
-                search: '',
-                scope: KeyScope.Available,
-                kind: KeyKind.All,
-                platforms: [],
-                statuses: [],
-                // Sin esto el filtro de etiquetas sobrevive a «Limpiar»: la
-                // lista se queda filtrada y el boton dice todo lo contrario.
-                tags: [],
-              })
-            }
-            className="self-start text-xs text-t4 underline-offset-2 hover:text-t2 hover:underline"
-            title={t('filter.reset')}
-          >
-            {t('action.clear')}
-          </button>
+          <div className="ml-auto flex shrink-0 flex-col gap-1.5 self-start">
+            <span aria-hidden="true" className="invisible text-[10px] font-medium tracking-wide uppercase">
+              {t('filter.reset')}
+            </span>
+
+            <button
+              type="button"
+              onClick={() =>
+                onFilterChange({
+                  search: '',
+                  scope: KeyScope.Available,
+                  kind: KeyKind.All,
+                  platforms: [],
+                  statuses: [],
+                  // Sin esto el filtro de etiquetas sobrevive a «Limpiar»: la
+                  // lista se queda filtrada y el boton dice todo lo contrario.
+                  tags: [],
+                })
+              }
+              title={t('filter.reset')}
+              className={[
+                'inline-flex shrink-0 items-center justify-center rounded-full px-3 py-1',
+                'text-xs font-medium transition-colors',
+                'bg-surface-2 text-t3 hover:bg-surface-3 hover:text-t1',
+                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+              ].join(' ')}
+            >
+              {t('action.clear')}
+            </button>
+          </div>
         </div>
       </div>
       ) : null}

@@ -600,12 +600,28 @@ body {
   outline-offset: 2px;
 }
 
-/* ---------------------------------------------------------------- inputs */
-input,
-select,
-textarea,
-button {
-  font: inherit;
+/* ---------------------------------------------------------------- inputs
+   Los controles de formulario heredan la fuente de la app, y no la que
+  bring el navegador.
+
+   **Tiene que ir dentro de `@layer base`.** Fuera, esta regla gana a todas las
+   utilidades de Tailwind: en CSS, lo que no esta en ninguna capa tiene mas
+   prioridad que lo que esta, por muy especifica que sea la utilidad. Y como
+   `font` es el atajo completo, `font: inherit` no solo heredaba el cuerpo de
+   letra: tambien pisaba el tamano.
+
+   O sea, que `text-xs`, `text-sm` o cualquier `text-*` nohacian nada en
+   ningun boton, input, select o textarea de la aplicacion, y todos se veian a
+   16 px. Dentro de la capa, las utilidades vuelven a mandar y el boton sale al
+   tamano que pide su clase.
+   */
+@layer base {
+  input,
+  select,
+  textarea,
+  button {
+    font: inherit;
+  }
 }
 
 /* ---------------------------------------------------------------- dnd */
