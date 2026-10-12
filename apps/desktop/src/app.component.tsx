@@ -673,12 +673,14 @@ export function App() {
    * biblioteca, y el umbral de `bestCandidate` evita lo contrario: que un
    * «Portal» se tome por el «Portal 2» que tienes.
    */
-  const propios = useMemo(() => {
-    if (owned.length === 0) return new Set<string>();
+  const emparejado = useMemo(() => {
+    const titulos = new Set<string>();
+    const appIds = new Set<number>();
+
+    if (owned.length === 0) return { titulos, appIds };
 
     const indice = buildOwnershipIndex(owned);
     const exactos = new Set(owned.map((juego) => normalizeForMatch(juego.name)));
-    const encontrados = new Set<string>();
 
     for (const clave of keys) {
       // Solo las claves de Steam: una de Battle.net no la tiene una cuenta de
@@ -688,7 +690,7 @@ export function App() {
       const normalizado = normalizeForMatch(clave.title);
 
       if (exactos.has(normalizado)) {
-        encontrados.add(normalizado);
+        titulos.add(normalizado);
         continue;
       }
 
@@ -696,13 +698,30 @@ export function App() {
 
       if (candidatos.length === 0) continue;
 
-      const { confianza } = bestCandidate(clave.title, candidatos);
+      const { elegido, confianza } = bestCandidate(clave.title, candidatos);
 
-      if (cuentaComoPropio(confianza)) encontrados.add(normalizado);
+      if (!cuentaComoPropio(confianza)) continue;
+
+      titulos.add(normalizado);
+
+      /**
+       * El mismo emparejamiento que da el badge de la clave da aqui el
+       * `appId` del juego, que es lo que necesita la tabla de juegos.
+       *
+       * Antes salia de un `key.steamAppId` que no existe en ningun sitio, asi
+       * que el conjunto era siempre vacio y la columna se caia entera en
+       * «sin verificar». No se anade `steamAppId` al esquema a proposito: eso
+       * es una migracion y una columna que habria que rellenar a mano para
+       * cuatrocientas claves, cuando el emparejado por nombre ya esta hecho,
+       * con su indice y su umbral, y sus tests.
+       */
+      if (elegido !== null) appIds.add(elegido.appId);
     }
 
-    return encontrados;
+    return { titulos, appIds };
   }, [keys, owned]);
+
+  const propios = emparejado.titulos;
 
   const esPropio = useCallback(
     (title: string): boolean => propios.has(normalizeForMatch(title)),
@@ -1523,21 +1542,6 @@ export function App() {
     setSettingsOpen(true);
   }, []);
 
-  /** AppIds de la coleccion, para marcar en la tabla que ya hay clave. */
-  const appIdsConClave = useMemo(() => {
-    const ids = new Set<number>();
-
-    for (const key of keys) {
-      const appId = (key as { steamAppId?: number | null }).steamAppId;
-
-      if (typeof appId === 'number' && Number.isFinite(appId)) {
-        ids.add(appId);
-      }
-    }
-
-    return ids;
-  }, [keys]);
-
   const handleRefreshSteam = useCallback(async (): Promise<void> => {
     try {
       /**
@@ -1656,7 +1660,7 @@ export function App() {
               incompleta={bibliotecaIncompleta}
               juegos={owned}
               cuenta={cuenta}
-              conClave={appIdsConClave}
+              conClave={emparejado.appIds}
               onRefresh={handleRefreshSteam}
               busy={busy}
             />
