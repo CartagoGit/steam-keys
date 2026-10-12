@@ -1,11 +1,15 @@
 import { describe, expect, test } from 'bun:test';
 
 import {
+  bestCandidate,
+  confidenceFor,
   buildOwnershipIndex,
+  cuentaComoPropio,
+  levenshtein,
   ownershipCandidates,
   palabraInicial,
+  similarity,
 } from './match-owned.helper';
-import { bestCandidate, cuentaComoPropio, similarity } from '@/services/steam.service';
 import type { ISteamOwnedGame } from '@/contracts';
 
 /**
@@ -171,5 +175,99 @@ describe('el umbral de «ya lo tienes»', () => {
     // `i` a secas es la primera persona, no el numero uno. Si se tradujera,
     // «I Am Alive» y «I Am Alive Remastered» se emparejarian de mas.
     expect(similarity('I Am Alive', 'I Am Alive Remastered')).toBeLessThan(0.85);
+  });
+});
+
+describe('distancia entre titulos', () => {
+  test('dos cadenas iguales valen 1', () => {
+    expect(similarity('Celeste', 'Celeste')).toBe(1);
+  });
+
+  test('solo los puntos separan dos titulos', () => {
+    expect(similarity('Cities: Skylines', 'Cities Skylines')).toBeCloseTo(1, 2);
+  });
+
+  test('dos juegos sin relacion valen casi 0', () => {
+    expect(similarity('Witcher 3', 'Twisted Metal')).toBeLessThan(0.4);
+  });
+
+  test('levenshtein cuenta los cambios minimos', () => {
+    expect(levenshtein('kitten', 'sitting')).toBe(3);
+    expect(levenshtein('', 'abc')).toBe(3);
+    expect(levenshtein('abc', 'abc')).toBe(0);
+  });
+});
+
+describe('la confianza del emparejamiento', () => {
+  test('un nombre identico es exacto', () => {
+    expect(confidenceFor(1, 1)).toBe('exact');
+  });
+
+  test('un parecido alto con varios candidatos es dudoso', () => {
+    expect(confidenceFor(0.9, 5)).toBe('loose');
+  });
+
+  test('un parecido alto con un solo candidato es probable', () => {
+    expect(confidenceFor(0.9, 1)).toBe('likely');
+  });
+
+  test('un parecido bajo no se empareja', () => {
+    expect(confidenceFor(0.3, 1)).toBe('none');
+  });
+});
+
+describe('elegir el mejor candidato de una busqueda', () => {
+  test('sin candidatos no hay nada que devolver', () => {
+    const r = bestCandidate('Celeste', []);
+
+    expect(r.elegido).toBeNull();
+    expect(r.confianza).toBe('none');
+  });
+
+  test('elige el juego que mas se parece, no el primero', () => {
+    const r = bestCandidate('Middle-earth: Shadow of Mordor', [
+      juego(1, 'Middle-earth: Shadow of Mordor - Power of Shadow', true),
+      juego(2, 'Middle-earth: Shadow of Mordor'),
+      juego(3, 'Middle-earth: Shadow of Mordor - Berserks Warband', true),
+    ]);
+
+    expect(r.elegido?.appId).toBe(2);
+    expect(r.confianza).toBe('exact');
+  });
+
+  test('queda el DLC cuando es lo que mas se parece', () => {
+    const r = bestCandidate('Cities Skylines Snowfall', [
+      juego(420610, 'Cities: Skylines - Snowfall', true),
+      juego(255960, 'Cities: Skylines'),
+    ]);
+
+    // El titulo de la key es *del DLC*, asi que el DLC es la respuesta
+    // correcta: la pregunta es "tengo esto", no "tengo el juego base".
+    expect(r.elegido?.appId).toBe(420610);
+  });
+
+  test('con un solo DLC y sin alternativa devuelve el DLC', () => {
+    const r = bestCandidate('Cities Skylines Snowfall', [
+      juego(420610, 'Cities: Skylines - Snowfall', true),
+    ]);
+
+    expect(r.elegido?.appId).toBe(420610);
+  });
+
+  test('un titulo sin nada parecido no se empareja', () => {
+    const r = bestCandidate('Witcher 3', [
+      juego(1, 'Counter-Strike'),
+      juego(2, 'Team Fortress'),
+    ]);
+
+    expect(r.elegido?.appId).not.toBeNull();
+    expect(r.confianza).toBe('none');
+  });
+
+  test('devuelve todas las puntuaciones para poder revisar', () => {
+    const r = bestCandidate('Celeste', [juego(1, 'Celeste'), juego(2, 'Celeste Classic')]);
+
+    expect(r.puntuaciones).toHaveLength(2);
+    expect(r.puntuaciones[0]).toBeGreaterThanOrEqual(r.puntuaciones[1]!);
   });
 });

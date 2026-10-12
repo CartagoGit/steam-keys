@@ -41,7 +41,8 @@ import {
 } from '@/services/legacy-backups.service';
 import { getDatabaseClient } from '@/repositories/repository.factory';
 import { FirstRun } from '@/components/first-run.component';
-import { steamService, SteamError, textoDeSteamError, resolveSteamId, bestCandidate, cuentaComoPropio } from '@/services/steam.service';
+import { steamService, SteamError, textoDeSteamError, resolveSteamId } from '@/services/steam.service';
+import { bestCandidate, cuentaComoPropio } from '@/helpers/match-owned.helper';
 
 /**
  * Ciclo de estados al pulsar sobre la pastilla de una fila.

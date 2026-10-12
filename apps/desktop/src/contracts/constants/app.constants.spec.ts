@@ -11,7 +11,7 @@ import { APP_IDENTIFIER, APP_NAME } from './app.constants';
  * El identificador y el nombre del producto estan ahi porque es lo que Tauri
  * lee de verdad: es el que va al ejecutable, al registro de Windows y a la
  * carpeta de datos. Las constantes del front son una copia, y una copia sin
- * vigilancia se desincroniza sin ruido — el后果uencia es que la app se
+ * vigilancia se desincroniza sin ruido — ella consecuenciauencia es que la app se
  * instala con un identificador y escribe sus datos con otro.
  *
  * Que no se usen en el front es lo de menos: estan aqui justamente para poder
