@@ -414,6 +414,8 @@ export const PT: TranslationTable = Object.freeze({
   'settings.keys.tags.inUseMany': '{0} em uso',
   'settings.keys.tags.idle': '{0} sem uso',
   'settings.keys.tags.more': 'e mais {0}',
+  'tags.addOne': 'Adicionar etiqueta',
+  'tags.removeOne': 'Remover a etiqueta {0} desta chave',
   'tags.manage.title': 'Rotulos',
   'tags.manage.hint':
     'As etiquetas pertencem a colecao inteira: renomear uma muda o nome em todas as chaves que a usam.',

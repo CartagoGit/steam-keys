@@ -127,7 +127,7 @@ export const DE: TranslationTable = Object.freeze({
   'editor.noteHint': 'Herkunft, Datum, Anleitung…',
   'editor.notePlaceholder': 'Juni 2018 Humble Monthly',
   'editor.tags': 'Schlagworte',
-  'editor.tagsHint': 'Mit Komma getrennt.',
+  'editor.tagsHint': 'Aus der Liste waehlen oder eine neue schreiben. Umbenennen und aus der Sammlung entfernen: Einstellungen.',
   'editor.tagsPlaceholder': 'humble, dlc, promo',
   'gift.title': 'Als verschenkt markieren',
   'gift.placeholder': 'Name der Person, die ihn bekommt',
@@ -426,6 +426,8 @@ export const DE: TranslationTable = Object.freeze({
   'settings.keys.tags.inUseMany': '{0} in Benutzung',
   'settings.keys.tags.idle': '{0} unbenutzt',
   'settings.keys.tags.more': 'und {0} weitere',
+  'tags.addOne': 'Markierung hinzufuegen',
+  'tags.removeOne': 'Markierung {0} von diesem Schluessel entfernen',
   'tags.manage.title': 'Markierungen',
   'tags.manage.hint':
     'Markierungen gehoeren zur gesamten Sammlung: Umbenennen aendert den Namen in allen Schluesseln, die sie verwenden.',

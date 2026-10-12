@@ -423,6 +423,8 @@ export const FR: TranslationTable = Object.freeze({
   'settings.keys.tags.inUseMany': '{0} en usage',
   'settings.keys.tags.idle': '{0} inutilisees',
   'settings.keys.tags.more': 'et {0} de plus',
+  'tags.addOne': 'Ajouter une etiquette',
+  'tags.removeOne': 'Retirer l etiquette {0} de cette cle',
   'tags.manage.title': 'Etiquettes',
   'tags.manage.hint':
     'Les etiquettes appartiennent a toute la collection : renommer une change son nom dans toutes les cles qui l utilisent.',

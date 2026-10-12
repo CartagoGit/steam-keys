@@ -1910,6 +1910,9 @@ export function App() {
       {editorVivo ? (
         <KeyEditor
           entry={editing}
+          catalogo={tags}
+          onCreateTag={crearEtiqueta}
+          onManageTags={() => setGestorOpen(true)}
           onSave={handleSave}
           onClose={() => {
             setEditorOpen(false);

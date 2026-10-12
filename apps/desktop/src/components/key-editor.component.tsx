@@ -1,16 +1,28 @@
-import { useEffect, useMemo, useState } from 'react';
-import { KeyPlatform, KeyStatus, TRANSLATIONS, platformOptions, statusOptions, type IGameKey, type IGameKeyDraft } from '@/contracts';
+import { useEffect, useState } from 'react';
+import { KeyPlatform, KeyStatus, TRANSLATIONS, platformOptions, statusOptions, type IGameKey, type IGameKeyDraft, type ITag } from '@/contracts';
 import { Button, Field, INPUT_CLASS } from './ui.component';
 import { MetaSelect } from './meta-select.component';
 import { Icon } from './icon.component';
 import { Modal } from './modal.component';
+import { TagField } from './tag-field.component';
 import { useT } from '@/context/locale.context';
-import { parseTags } from '@/helpers/normalize-text.helper';
 import { conTiempoLimite } from '@/helpers/use-loading.helper';
 
 export interface IKeyEditorProps {
   /** `null` para crear una key nueva. */
   entry: IGameKey | null;
+  /**
+   * El catalogo de etiquetas, para no tener que escribirlas de memoria.
+   *
+   * Lo carga quien abre el dialogo, no el dialogo: el editor no habla con la
+   * base de datos —eso es de los servicios— y asi la lista esta lista cuando
+   * se ve el formulario, sin un parpadeo de «cargando» en cada apertura.
+   */
+  catalogo: readonly ITag[];
+  /** Crea una etiqueta en el catalogo. Devuelve el nombre ya limpio. */
+  onCreateTag: (nombre: string) => Promise<string | null>;
+  /** Abre el gestor de etiquetas de la coleccion. */
+  onManageTags: () => void;
   onSave: (draft: IGameKeyDraft) => Promise<void> | void;
   onClose: () => void;
 }
@@ -28,11 +40,17 @@ const EMPTY_DRAFT: IGameKeyDraft = {
 };
 
 /** Formulario de alta y edicion. */
-export function KeyEditor({ entry, onSave, onClose }: IKeyEditorProps) {
+export function KeyEditor({
+  entry,
+  catalogo,
+  onCreateTag,
+  onManageTags,
+  onSave,
+  onClose,
+}: IKeyEditorProps) {
   const { t, locale } = useT();
 
   const [draft, setDraft] = useState<IGameKeyDraft>(EMPTY_DRAFT);
-  const [tagsText, setTagsText] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,7 +69,6 @@ export function KeyEditor({ entry, onSave, onClose }: IKeyEditorProps) {
 
     if (!entry) {
       setDraft(EMPTY_DRAFT);
-      setTagsText('');
       return;
     }
 
@@ -66,17 +83,12 @@ export function KeyEditor({ entry, onSave, onClose }: IKeyEditorProps) {
       tags: entry.tags,
       addedOn: entry.addedOn,
     });
-    setTagsText(entry.tags.join(', '));
   }, [entry]);
 
   const patch = (changes: Partial<IGameKeyDraft>): void => {
     setDraft((current) => ({ ...current, ...changes }));
   };
 
-  // `parseTags`, que es lo que usa el resto del proyecto para cortar la lista.
-  // Aqui se hacia a mano con `split`/`trim`/`filter`; es la misma operacion
-  // escrita dos veces, y si un dia cambia una, la otra se queda hairy.
-  const parsedTags = useMemo(() => parseTags(tagsText), [tagsText]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
@@ -109,7 +121,7 @@ export function KeyEditor({ entry, onSave, onClose }: IKeyEditorProps) {
         // `onSave` admite devolver `void` —los dos dialogos que lo usan hacen
         // una cosa sincronica—, y `Promise.resolve` lo convierte en promesa sin
         // obligar a los dos a declarar lo mismo.
-        Promise.resolve(onSave({ ...draft, tags: parsedTags })),
+        Promise.resolve(onSave(draft)),
         ESPERA_MAXIMA_MS,
       );
 
@@ -246,11 +258,13 @@ export function KeyEditor({ entry, onSave, onClose }: IKeyEditorProps) {
 
           <div className="sm:col-span-2">
             <Field label={t('editor.tags')} hint={t('editor.tagsHint')}>
-              <input
-                className={INPUT_CLASS}
-                value={tagsText}
-                onChange={(event) => setTagsText(event.target.value)}
-                placeholder={t('editor.tagsPlaceholder')}
+              <TagField
+                value={draft.tags}
+                catalogo={catalogo}
+                onChange={(tags) => patch({ tags })}
+                onCreate={onCreateTag}
+                onManage={onManageTags}
+                disabled={saving}
               />
             </Field>
           </div>

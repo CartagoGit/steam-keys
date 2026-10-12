@@ -167,7 +167,7 @@ export const ES: TranslationTable = Object.freeze({
   'editor.noteHint': 'Promo de origen, fecha, instrucciones…',
   'editor.notePlaceholder': 'Junio 2018 Humble Monthly',
   'editor.tags': 'Etiquetas',
-  'editor.tagsHint': 'Separadas por comas.',
+  'editor.tagsHint': 'Elige de la lista o escribe una nueva. Renombrar y quitar de la coleccion, en Ajustes.',
   'editor.tagsPlaceholder': 'humble, dlc, promo',
 
   // --------------------------------------------------------------- gift ---
@@ -504,6 +504,8 @@ export const ES: TranslationTable = Object.freeze({
   'settings.keys.tags.inUseMany': '{0} en uso',
   'settings.keys.tags.idle': '{0} sin usar',
   'settings.keys.tags.more': 'y {0} mas',
+  'tags.addOne': 'Anadir etiqueta',
+  'tags.removeOne': 'Quitar la etiqueta {0} de esta clave',
   'tags.manage.title': 'Etiquetas',
   'tags.manage.hint': 'Las etiquetas son de la coleccion entera: renombrar una cambia el nombre en todas las claves que la llevan.',
   'tags.manage.newPlaceholder': 'Nombre de la etiqueta nueva',

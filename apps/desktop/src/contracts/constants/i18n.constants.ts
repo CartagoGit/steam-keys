@@ -302,7 +302,7 @@ export const EN: TranslationTable = Object.freeze({
   'editor.tags':
     'Tags',
   'editor.tagsHint':
-    'Separated by commas.',
+    'Pick from the list or type a new one. Renaming and removing from the collection is in Settings.',
   'editor.tagsPlaceholder':
     'humble, dlc, promo',
   'gift.title':
@@ -588,6 +588,8 @@ export const EN: TranslationTable = Object.freeze({
   'settings.keys.tags.inUseMany': '{0} in use',
   'settings.keys.tags.idle': '{0} unused',
   'settings.keys.tags.more': 'and {0} more',
+  'tags.addOne': 'Add tag',
+  'tags.removeOne': 'Remove tag {0} from this key',
   'tags.manage.title': 'Tags',
   'tags.manage.hint': 'Tags belong to the whole collection: renaming one changes it in every key that uses it.',
   'tags.manage.newPlaceholder': 'New tag name',
