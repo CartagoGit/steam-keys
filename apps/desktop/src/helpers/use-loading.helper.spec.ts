@@ -79,11 +79,13 @@ describe('deshacer', () => {
       keyValue: 'ABCDE-11111-22222-33333',
       platform: KeyPlatform.Steam,
       status: KeyStatus.Available,
+      source: KeySource.Manual,
       giftedTo: null,
       parentTitle: null,
       note: 'humble',
       tags: ['humble'],
       addedOn: '2020-01-01',
+      lastUsedAt: null,
     });
   });
 

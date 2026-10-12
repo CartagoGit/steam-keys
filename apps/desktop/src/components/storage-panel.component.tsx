@@ -366,6 +366,19 @@ function RestoreDialog({
     let vigente = true;
 
     const pedir = async (): Promise<void> => {
+      /**
+       * Se vacia **antes** de preguntar, no despues de tener respuesta.
+       *
+       * `previewRestore` tarda, y mientras tarda se seguian viendo los numeros
+       * del modo anterior con el boton de confirmar ya habilitado: cambiar de
+       * «solo anadir» a «anadir y actualizar» mostraba «se anadiran 0 claves»
+       * —el numero del otro modo— con un boton que ya no correspondia a lo que
+       * se leia. Ademas `vigente` puede dejar `resumen` puesto si el efecto se
+       * desmonta antes de que vuelva la cuenta, y entonces el panel se queda
+       * con un resumen que no es de nada.
+       */
+      setResumen(null);
+
       try {
         const cuenta = await storageService.previewRestore(backup.name, mode);
 

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import { mergeKeysFromBackup } from './merge-keys.helper';
+import { mergeKeysFromBackup, resumirRestauracion } from './merge-keys.helper';
 import { KeyPlatform, KeySource, KeyStatus, RestoreMode, type IDatabaseClient, type IGameKeyRow } from '@/contracts';
 
 /**
@@ -79,6 +79,14 @@ function fila(overrides: Partial<IGameKeyRow> = {}): IGameKeyRow {
   };
 }
 
+/** Cuatro filas, de las que dos ya estan en la coleccion. */
+const MEZCLA: readonly IGameKeyRow[] = [
+  fila({ key_value: 'MQ7RT-29XKL-ZPN84', title: 'Celeste' }),
+  fila({ key_value: 'B4KMD-58RQW-LNCT3', title: 'Hollow Knight' }),
+  fila({ key_value: 'ZR92N-7JDMK-QPW45', title: 'Grim Dawn' }),
+  fila({ key_value: 'TL93F-1HWZJ-9XDMV', title: 'Undertale' }),
+];
+
 describe('restaurar una copia sin perder lo actual', () => {
   test('una clave que no existe se inserta', async () => {
     const db = new FakeDatabase();
@@ -137,15 +145,7 @@ describe('restaurar una copia sin perder lo actual', () => {
   test('mezcla de nuevas y existentes', async () => {
     const db = new FakeDatabase(['MQ7RT-29XKL-ZPN84']);
 
-    const resumen = await mergeKeysFromBackup(
-      db,
-      [
-        fila({ key_value: 'MQ7RT-29XKL-ZPN84' }),
-        fila({ key_value: 'B4KMD-58RQW-LNCT3', title: 'Hollow Knight' }),
-        fila({ key_value: 'ZR92N-7JDMK-QPW45', title: 'Grim Dawn' }),
-      ],
-      RestoreMode.Sobrescribir,
-    );
+    const resumen = await mergeKeysFromBackup(db, MEZCLA.slice(0, 3), RestoreMode.Sobrescribir);
 
     expect(resumen).toEqual({ total: 3, inserted: 2, skipped: 0, updated: 1 });
     expect(db.existentes.size).toBe(3);
@@ -185,5 +185,93 @@ describe('restaurar una copia sin perder lo actual', () => {
 
     expect(resumen).toEqual({ total: 0, inserted: 0, skipped: 0, updated: 0 });
     expect(db.inserts).toHaveLength(0);
+  });
+});
+
+/**
+ * El resumen es lo que el dialogo enseña **antes** de confirmar.
+ *
+ * Si el numero no cuadra con lo que hace la restauracion, el dialogo esta
+ * mintiendo con una operacion irreversible delante. Por eso se atan las dos
+ * funciones con tests de paridad: comparten el mismo reparto y solo se
+ * separan en que la segunda escribe.
+ */
+describe('el resumen cuenta exactamente lo que hace la restauracion', () => {
+  for (const modo of [RestoreMode.Fusionar, RestoreMode.Sobrescribir]) {
+    const nombre = modo === RestoreMode.Fusionar ? 'fusionando' : 'sobrescribiendo';
+
+    test(`coincide ${nombre}`, async () => {
+      const existentes = ['MQ7RT-29XKL-ZPN84', 'ZR92N-7JDMK-QPW45'];
+
+      const contado = await resumirRestauracion(
+        new FakeDatabase(existentes),
+        MEZCLA,
+        modo,
+      );
+
+      const hecho = await mergeKeysFromBackup(
+        new FakeDatabase(existentes),
+        MEZCLA,
+        modo,
+      );
+
+      expect(contado).toEqual(hecho);
+    });
+  }
+
+  test('el resumen no escribe nada', async () => {
+    const db = new FakeDatabase(['MQ7RT-29XKL-ZPN84']);
+
+    await resumirRestauracion(db, MEZCLA, RestoreMode.Sobrescribir);
+
+    // Es la diferencia entre «enseñar lo que va a pasar» y «hacerlo»: si el
+    // resumen escribiera, abrir el dialogo y cancelarlo habria cambiado algo.
+    expect(db.inserts).toHaveLength(0);
+    expect(db.updates).toHaveLength(0);
+    expect(db.existentes.size).toBe(1);
+  });
+
+  test('al fusionar cuenta las nuevas y se salta las que ya hay', async () => {
+    const db = new FakeDatabase(['MQ7RT-29XKL-ZPN84', 'ZR92N-7JDMK-QPW45']);
+
+    const resumen = await resumirRestauracion(db, MEZCLA, RestoreMode.Fusionar);
+
+    expect(resumen).toEqual({ total: 4, inserted: 2, skipped: 2, updated: 0 });
+  });
+
+  test('al sobrescribir cuenta las nuevas y actualiza las que ya hay', async () => {
+    const db = new FakeDatabase(['MQ7RT-29XKL-ZPN84', 'ZR92N-7JDMK-QPW45']);
+
+    const resumen = await resumirRestauracion(db, MEZCLA, RestoreMode.Sobrescribir);
+
+    expect(resumen).toEqual({ total: 4, inserted: 2, skipped: 0, updated: 2 });
+  });
+
+  test('las tres cifras suman el total: no queda nada sin contabilizar', async () => {
+    // Un reparto al que le falta una cifra no se nota mirando una, pero
+    // significa que hay claves que ni se insertan ni se anuncian.
+    const db = new FakeDatabase(['MQ7RT-29XKL-ZPN84']);
+
+    for (const modo of [RestoreMode.Fusionar, RestoreMode.Sobrescribir]) {
+      const resumen = await resumirRestauracion(db, MEZCLA, modo);
+
+      expect(resumen.inserted + resumen.skipped + resumen.updated).toBe(resumen.total);
+    }
+  });
+
+  test('la comparacion ignora mayusculas y espacios, como al restaurar', async () => {
+    const db = new FakeDatabase(['  mq7rt-29xkl-zpn84  ']);
+
+    const resumen = await resumirRestauracion(db, [fila()], RestoreMode.Fusionar);
+
+    // Si el resumen normalizara distinto que la fusion, el dialogo prometeria
+    // «van a entrar 1» y luego la restauracion no entraria ninguna.
+    expect(resumen).toEqual({ total: 1, inserted: 0, skipped: 1, updated: 0 });
+  });
+
+  test('una copia vacia da un resumen de ceros, no falla', async () => {
+    const resumen = await resumirRestauracion(new FakeDatabase(), [], RestoreMode.Fusionar);
+
+    expect(resumen).toEqual({ total: 0, inserted: 0, skipped: 0, updated: 0 });
   });
 });

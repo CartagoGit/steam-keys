@@ -211,6 +211,18 @@ export function App() {
   const carga = useLoading();
 
   /**
+   * Solo `empezar`, suelto.
+   *
+   * `useLoading()` devuelve un objeto **nuevo** cada vez que una tarea
+   * arranca o termina, porque `tareas` es estado. Meter el objeto entero
+   * en una lista de dependencias hacia que `conCarga` —y con ella todo lo
+   * que la usa— cambiara de identidad cada vez que se encendia el
+   * indicador, que es justo en el repintado que ya hay bastante.
+   * `empezar` es un `useCallback` y no cambia nunca.
+   */
+  const empezar = carga.empezar;
+
+  /**
    * Envoltorio de las acciones que pasan por la base de datos.
    *
    * Sustituye al `setBusy(true)` / `setBusy(false)` suelto. Hace tres cosas a
@@ -229,7 +241,7 @@ export function App() {
       accion: (senal: AbortSignal) => Promise<T>,
       abortable = false,
     ): Promise<TConTiempo<T>> => {
-      const tarea = carga.empezar(traducir(label), abortable);
+      const tarea = empezar(traducir(label), abortable);
 
       setBusy(true);
 
@@ -242,7 +254,7 @@ export function App() {
         setBusy(false);
       }
     },
-    [carga, traducir],
+    [empezar, setBusy, traducir],
   );
 
   // ------------------------------------------------------ cierre animado ---
@@ -338,7 +350,7 @@ export function App() {
    */
   const deshacerEntrada = useCallback(
     async (entrada: IUndoEntry): Promise<void> => {
-      const tarea = carga.empezar(traducir('loading.saving'));
+      const tarea = empezar(traducir('loading.saving'));
       setBusy(true);
 
       try {
@@ -385,7 +397,7 @@ export function App() {
         setBusy(false);
       }
     },
-    [carga, notify, reload, traducir],
+    [empezar, notify, reload, setBusy, traducir],
   );
 
   const deshacer = useUndo(deshacerEntrada);
@@ -670,6 +682,8 @@ export function App() {
       storageDialog: storageOpen,
       editorDialog: editorOpen,
       shortcutsDialog: shortcutsOpen,
+      deleteDialog: deleting !== null,
+      importDialog: stagedImport !== null,
     },
     onClose: {
       gift: () => setGiftDialogOpen(false),
@@ -686,9 +700,12 @@ export function App() {
         setEditing(null);
       },
       shortcuts: () => setShortcutsOpen(false),
+      deleteDialog: () => setDeleting(null),
+      importDialog: () => setStagedImport(null),
     },
     haySeleccion: selection.size > 0,
     onClearSelection: clearSelection,
+    onSelectAll: selectAll,
     onOpenShortcuts: () => setShortcutsOpen(true),
     onOpenNewKey: () => {
       setEditing(null);
@@ -750,17 +767,32 @@ export function App() {
   const handleDelete = async (): Promise<void> => {
     if (!deleting) return;
 
-    // Se apunta **antes** de borrar: despues ya no hay fila de la que sacar
-    // la foto, y el deshacer necesita el contenido, no solo el id.
-    deshacer.registrar(deleting.title, [deleting], true);
+    // La foto sale del objeto en memoria, no de la base, asi que se
+    // puede apuntar **despues** de borrar. Apuntarlo antes era peor de lo
+    // que parecia: si el `remove` fallaba la pila guardaba un borrado que
+    // no habia ocurrido, y el primer Ctrl+Z devolvia una clave que nunca
+    // se fue. Con la X de "¿Seguro?" al lado, un fallo de disco era
+    // raro pero no imposible.
+    try {
+      const r = await conCarga('loading.deleting', async () => {
+        await gameKeyService.remove(deleting.id);
+      });
 
-    await conCarga('loading.deleting', async () => {
-      await gameKeyService.remove(deleting.id);
-    });
+      // Cancelado: la operacion de debajo puede haber seguido, asi que
+      // no se apunta nada que el usuario ya ha decidido deshacer.
+      if (!r.ok) return;
 
-    setDeleting(null);
-    notify(traducir('app.deleted') + ' ' + traducir('app.undoHint'), 'success');
-    await reload();
+      deshacer.registrar(deleting.title, [deleting], true);
+
+      setDeleting(null);
+      notify(traducir('app.deleted') + ' ' + traducir('app.undoHint'), 'success');
+      await reload();
+    } catch (cause) {
+      notify(
+        cause instanceof Error ? cause.message : traducir('app.deleteFailed'),
+        'error',
+      );
+    }
   };
 
   /**
@@ -802,28 +834,52 @@ export function App() {
 
     if (aplicables.length === 0) return 0;
 
-    // Se apunta antes de escribir: hace falta la fila tal como estaba, y
-    // despues del `setStatusMany` ya no la hay.
-    deshacer.registrar(
-      traducir(pluralKey(aplicables.length, 'bulk.doneOne', 'bulk.doneMany'), [aplicables.length]),
-      aplicables.map((id) => porId.get(id)!).filter((clave) => clave !== undefined),
-    );
+    const afectadas = aplicables
+      .map((id) => porId.get(id))
+      .filter((clave): clave is IGameKey => clave !== undefined);
 
-    // Una sola operacion en vez de una por clave: con cuatrocientas filas
-    // marcadas son cuatrocientas escrituras, y cada una es una ida y vuelta a
-    // la base de datos. Ademas, escribir de una en una deja la coleccion a
-    // medias si algo falla a mitad.
-    await conCarga('loading.status', async () => {
-      await gameKeyService.setStatusMany(aplicables, status);
-    });
+    try {
+      // Una sola operacion en vez de una por clave: con cuatrocientas
+      // filas marcadas son cuatrocientas escrituras, y cada una es una
+      // ida y vuelta a la base de datos. Ademas, escribir de una en una
+      // deja la coleccion a medias si algo falla a mitad.
+      const r = await conCarga('loading.status', async () => {
+        await gameKeyService.setStatusMany(aplicables, status);
+      });
 
-    await reload();
+      if (!r.ok) return 0;
 
-    // El aviso va **ademas** del mensaje del dialogo, no en vez de el: el
-    // dialogo se puede cerrar sin leer y el cambio ya esta hecho.
-    notify(traducir(pluralKey(aplicables.length, 'bulk.doneOne', 'bulk.doneMany'), [aplicables.length]), 'success');
+      // La foto sale de la lista en memoria, que ya estaba copiada antes
+      // de escribir. Apuntar **despues** evita que un fallo deje en la
+      // pila un cambio que no llego a ocurrir, que al primer Ctrl+Z
+      // devolveria estados inventados.
+      deshacer.registrar(
+        traducir(pluralKey(afectadas.length, 'bulk.doneOne', 'bulk.doneMany'), [
+          afectadas.length,
+        ]),
+        afectadas,
+      );
 
-    return aplicables.length;
+      await reload();
+
+      // El aviso va **ademas** del mensaje del dialogo, no en vez de el:
+      // el dialogo se puede cerrar sin leer y el cambio ya esta hecho.
+      notify(
+        traducir(pluralKey(afectadas.length, 'bulk.doneOne', 'bulk.doneMany'), [
+          afectadas.length,
+        ]),
+        'success',
+      );
+
+      return afectadas.length;
+    } catch (cause) {
+      notify(
+        cause instanceof Error ? cause.message : traducir('app.markFailed'),
+        'error',
+      );
+
+      return 0;
+    }
   };
 
   const handleCycleStatus = async (entry: IGameKey): Promise<void> => {
@@ -833,13 +889,28 @@ export function App() {
     // Un clic en la pastilla es el cambio mas frecuente de todos, y tan facil de
     // Pulsar por error como de hacer bien. Quedaba fuera del deshacer por no
     // tocar mas de una clave a la vez, y era justo el hueco que mas dolia.
-    deshacer.registrar(entry.title, [entry]);
+    try {
+      const r = await conCarga('loading.status', async () => {
+        await gameKeyService.setStatus(entry.id, next);
+      });
 
-    await conCarga('loading.status', async () => {
-      await gameKeyService.setStatus(entry.id, next);
-    });
+      // El estado anterior viaja en `entry`, que es una foto del render
+      // anterior: se puede apuntar sin volver a leer la base, y solo si
+      // la escritura ha funcionado de verdad.
+      if (!r.ok) return;
 
-    await reload();
+      deshacer.registrar(entry.title, [entry]);
+
+      await reload();
+    } catch (cause) {
+      // Sin esto, un fallo soltava un rechazo sin capturar desde un
+      // manejador de evento — donde no hay nadie que lo recoja — y la
+      // fila se quedaba mostrando el estado viejo sin explicar por que.
+      notify(
+        cause instanceof Error ? cause.message : traducir('app.markFailed'),
+        'error',
+      );
+    }
   };
 
   /**
@@ -923,8 +994,6 @@ export function App() {
         cause instanceof Error ? cause.message : traducir('app.markFailed'),
         'error',
       );
-    } finally {
-      setBusy(false);
     }
   };
 
@@ -1039,15 +1108,39 @@ export function App() {
       return traducir('app.needApiKey');
     }
 
-    setBusy(true);
-
     try {
-      // Se resuelve lo que haya puesto: un numero de 17 cifras pasa tal cual
-      // y un nombre de perfil se traduce contra el XML publico de Steam, que
-      // no necesita clave.
-      const id = await resolveSteamId(steamId);
+      /**
+       * Por el indicador de carga y no con `setBusy` a mano.
+       *
+       * Era lo unico de la app que **no** pasaba por `conCarga`, y se
+       * notaba: el boton se apagaba sin que el indicador dijera nada, de
+       * modo que si Steam no contestaba la pantalla se quedaba muda con
+       * los controles muertos y sin forma de salir. Ademas es la unica
+       * llamada que se puede cortar de verdad, asi que sale con la X.
+       */
+      const r = await conCarga(
+        'loading.syncing',
+        async (senal) => {
+          // Se resuelve lo que haya puesto: un numero de 17 cifras pasa
+          // tal cual y un nombre de perfil se traduce contra el XML
+          // publico de Steam, que no necesita clave.
+          const id = await resolveSteamId(steamId);
 
-      const juegos = await steamService.getOwnedGames(apiKey.trim(), id);
+          const juegos = await steamService.getOwnedGames(
+            apiKey.trim(),
+            id,
+            senal,
+          );
+
+          return { id, juegos };
+        },
+        true,
+      );
+
+      // Cancelado: no se guarda una clave a medio enlazar.
+      if (!r.ok) return traducir('app.linkCancelled');
+
+      const { id, juegos } = r.valor;
       const ahora = new Date().toISOString();
 
       await settingsService.setMany({
@@ -1083,8 +1176,6 @@ export function App() {
       }
 
       return traducir('app.linkFailed');
-    } finally {
-      setBusy(false);
     }
   };
 
@@ -1316,7 +1407,7 @@ export function App() {
           )
         ) : loading ? (
           <div className="flex h-full items-center justify-center text-sm text-t4">
-            Cargando coleccion…
+            {traducir('app.loadingCollection')}
           </div>
         ) : visible.length === 0 ? (
           <EmptyState
@@ -1454,12 +1545,16 @@ export function App() {
       {expireVivo ? (
         <ConfirmDialog
           title={traducir('select.markExpired')}
-          message={
-            facts.expirable === 1
-              ? `"${selectedKeys.find((key) => key.status !== KeyStatus.Expired)?.title}" quedara como caducada y saldra de la lista de disponibles. Puedes cambiarlo luego con el toggle de estado.`
-              : `Las ${facts.expirable} claves seleccionadas quedaran como caducadas y saldran de la lista de disponibles. Puedes cambiarlas luego con el toggle de estado.`
-          }
-          confirmLabel="Marcar caducadas"
+          message={traducir(
+            facts.expirable === 1 ? 'expire.bodyOne' : 'expire.bodyMany',
+            [
+              facts.expirable === 1
+                ? (selectedKeys.find((key) => key.status !== KeyStatus.Expired)
+                    ?.title ?? '')
+                : facts.expirable,
+            ],
+          )}
+          confirmLabel={traducir('expire.confirm')}
           onConfirm={handleConfirmExpire}
           onCancel={() => setExpireDialogOpen(false)}
         />
