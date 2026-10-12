@@ -61,6 +61,7 @@ const VISTAS = fuente('components/view-switch.component.tsx');
 const AJUSTES = fuente('components/settings-dialog.component.tsx');
 const BARRA = fuente('components/toolbar.component.tsx');
 const CSS = fuente('styles/index.css');
+const UI = fuente('components/ui.component.tsx');
 const FILTRO_CLAVE = fuente('contracts/interfaces/key-filter.interface.ts');
 const FILTRAR = fuente('helpers/filter-keys.helper.ts');
 const APP = fuente('app.component.tsx');
@@ -758,18 +759,63 @@ describe('el filtro de etiquetas', () => {
    * Con superficie y borde son 6,4:1 en oscuro y 10,3:1 en claro. El borde es
    * la mitad del arreglo: sin el, el fondo no se distingue de la barra en la
    * que esta pegado por mucho que se le suba.
+   *
+   * Y el texto a `text-t1`, la tinta de la app. Con `text-t2` el boton se leia
+   * bien pero la letra seguía pareciendose al fondo de lo que hay al lado: el
+   * objetivo de un accionable es que se lea de un vistazo, no que se lea.
    */
-  test('los controles apagados tienen superficie y borde, no solo texto', () => {
-    expect(FILTRO).toMatch(/todas \? 'border border-line bg-surface-2 text-t2'/);
+  test('los controles apagados tienen superficie y borde, y texto de tinta', () => {
+    expect(FILTRO).toMatch(/todas \? 'border border-borde bg-surface-2 text-t1'/);
     expect(FILTRO).not.toContain("todas ? 'bg-hover text-t4'");
 
     // Y la pista de los toggles, que estaba en el mismo estado.
-    expect(SELECTOR).toContain("'relative flex items-center border border-line bg-surface-2',");
+    expect(SELECTOR).toContain("'relative flex items-center border border-borde bg-surface-2',");
     expect(SELECTOR).not.toContain("'relative flex items-center bg-hover',");
 
-    // El texto de los no marcados tambien: con `text-t4` sobre la pista nueva
-    // seguia sin leerse.
-    expect(SELECTOR).toContain("'text-t2 hover:text-t1'");
+    // El texto de los no marcados tambien sube a la tinta mas alta.
+    expect(SELECTOR).toContain("'text-t1 hover:text-t1'");
+  });
+
+  /**
+   * El borde de los controles esta en `--borde`, no en `--line`.
+   *
+   * `--line` da 1,3:1 contra su propia superficie —medido en los nueve temas—,
+   * y la WCAG 1.4.11 pide 3:1 para el contorno que identifica un control. Con
+   * el texto en 7:1 y el borde en 1,5:1 lo unico que se notaba era la letra.
+   *
+   * `--line` no se toca porque para lo que sirve —separar la cabecera del
+   * cuerpo, el filo de una tabla— un 1,3:1 es justo lo que debe ser: si no,
+   * las separaciones gritan mas que los botones.
+   */
+  test('el borde de los controles usa --borde, y --line se queda para separar', () => {
+    expect(CSS).toContain('--color-borde: var(--borde)');
+
+    // Y cada `--borde` va pegado al `--line` de su tema, que es donde se
+    // busca. Se comprueba hacia atras y no contando: que haya tantos pares
+    // como `--borde` no dice nada si sobran dos `--borde` y faltan dos
+    // `--line`.
+    const lineas = CSS.split('\n');
+
+    const huerfanos = lineas
+        .map((linea, indice) => ({ linea, indice }))
+        .filter(({ linea }) => linea.includes('--borde: #'))
+        .filter(
+            ({ indice }) =>
+                !lineas
+                    .slice(Math.max(0, indice - 40), indice)
+                    .some((anterior) => anterior.includes('--line: #')),
+        );
+
+    expect(huerfanos.map(({ linea }) => linea.trim())).toEqual([]);
+
+    // El boton, el desplegable y la pista de los toggles, los tres.
+    expect(FILTRO).toContain('border border-borde bg-surface-2 text-t1');
+    expect(SELECTOR).toContain('border border-borde bg-surface-2');
+    expect(UI).toMatch(/border border-borde bg-surface-2/);
+
+    // Y el input tambien, que tenia un `ring-1 ring-line` que no llegaba a 3:1.
+    expect(UI).toContain('border border-borde bg-surface-2 px-3 py-2');
+    expect(UI).not.toContain('ring-1 ring-line');
   });
 
   test('el desplegable y limpiar miden lo mismo que los toggles', () => {
@@ -813,6 +859,52 @@ describe('el filtro de etiquetas', () => {
     // Y limpia las etiquetas tambien, o el filtro se queda puesto sin que lo
     // diga nadie.
     expect(BARRA).toMatch(/onFilterChange\(\{[\s\S]{0,400}?tags: \[\],/);
+  });
+
+  /**
+   * El candado de la exclusion.
+   *
+   * Con varias marcadas sale lo que lleva cualquiera de ellas, y eso casi
+   * siempre es lo que se quiere. Pero «cumplidos **y** regalados» no se puede
+   * pedir de ninguna otra forma, y sin este boton el filtro se queda corto sin
+   * avisar: se marca, no sale lo esperado y no hay forma de saber por que.
+   *
+   * Va con candado y no con una casilla porque no es «activar algo»: abierto
+   * es «con una basta» y cerrado es «hay que tenerlas todas», que es
+   * exactamente lo que distingue a un candado de una casilla.
+   *
+   * Y el boton lleva el icono **solo cuando esta activo**. Antes de decidir no
+   * hay nada que avisar, y un icono permanente seria ruido en tres filtros que
+   * de normal no lo usan.
+   */
+  test('la exclusion es un candado y solo se ve cuando esta activa', () => {
+    // El boton del panel, con su estado para el lector de pantalla.
+    expect(FILTRO).toMatch(/role="checkbox"/);
+    expect(FILTRO).toContain('aria-checked={excluir}');
+    expect(FILTRO).toContain("name={excluir ? 'lock' : 'lock-open'}");
+
+    // Solo con dos o mas marcadas: con una no hay nada que combinar.
+    expect(FILTRO).toContain('{marcadas.size > 1 ? (');
+
+    // Y el icono del boton va condicionado, no siempre.
+    expect(FILTRO).toMatch(/\{excluir \? \(\s*<Icon\s*name="lock"/);
+
+    // El texto explica las dos lecturas, en vez de decir «exclusion».
+    expect(FILTRO).toContain("t(excluir ? 'filter.menu.excluirOn' : 'filter.menu.excluirOff')");
+
+    // Y la nota de abajo cambia con el modo, que es donde se lee la regla.
+    expect(FILTRO).toContain("t(excluir ? 'filter.menu.footHintExcluir' : footHint)");
+  });
+
+  test('los dos modos de combinar llegan al filtro y se limpian juntos', () => {
+    expect(FILTRO_CLAVE).toMatch(/excluir\?: boolean/);
+
+    // Y «Limpiar» los quita los dos, o el filtro sigue acotando sin avisar.
+    expect(BARRA).toMatch(/onFilterChange\(\{[\s\S]{0,400}?tags: \[\],[\s\S]{0,120}?excluir: false,/);
+
+    // La exclusion se la pasa a la barra solo el filtro de etiquetas, que es el
+    // unico donde tiene sentido: con plataformas o estados, «todas» no existe.
+    expect(BARRA).toMatch(/tone="violet"[\s\S]{0,200}?excluir=\{filter\.excluir\}/);
   });
 });
 

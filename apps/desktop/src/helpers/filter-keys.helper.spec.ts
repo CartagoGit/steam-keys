@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import { sortKeys } from './filter-keys.helper';
+import { emptyFilter, filterKeys, sortKeys } from './filter-keys.helper';
 import { KeyPlatform, KeySource, KeyStatus, KeySort, type IGameKey } from '@/contracts';
 
 function clave(id: number, over: Partial<IGameKey> = {}): IGameKey {
@@ -77,3 +77,69 @@ describe('orden estable', () => {
     expect(entrada).toEqual(copia);
   });
 });
+/**
+ * La exclusion: varias etiquetas marcadas, «y» o «o».
+ *
+ * Con OR sale lo que lleva **cualquiera** de las marcadas, que es lo que se
+ * quiere casi siempre. Con `excluir` hay que llevarlas todas, que es el otro
+ * filtro que se quiere a veces y que con OR no se puede pedir.
+ */
+describe('combinar varias etiquetas', () => {
+  const catalogo = [
+    clave(1, { tags: ['cumplidos', 'regalo'] }),
+    clave(2, { tags: ['cumplidos'] }),
+    clave(3, { tags: ['regalo'] }),
+    clave(4, { tags: [] }),
+  ];
+
+  const titulos = (keys: readonly IGameKey[]) => keys.map((k) => k.title + '#' + k.id);
+
+  test('sin marcar nada se ve todo, y da igual el modo', () => {
+    expect(titulos(filterKeys(catalogo, emptyFilter()))).toHaveLength(4);
+    expect(titulos(filterKeys(catalogo, { ...emptyFilter(), excluir: true }))).toHaveLength(4);
+  });
+
+  test('con una sola marcada los dos modos coinciden', () => {
+    const base = { ...emptyFilter(), tags: ['cumplidos'] };
+
+    expect(titulos(filterKeys(catalogo, base))).toEqual(['Juego#1', 'Juego#2']);
+    expect(titulos(filterKeys(catalogaPor(catalogo), { ...base, excluir: true }))).toEqual(['Juego#1', 'Juego#2']);
+  });
+
+  test('sin excluir sale lo que lleva alguna: es una disyunion', () => {
+    const r = filterKeys(catalogo, { ...emptyFilter(), tags: ['cumplidos', 'regalo'] });
+
+    expect(titulos(r)).toEqual(['Juego#1', 'Juego#2', 'Juego#3']);
+  });
+
+  test('excluyendo sale lo que lleva todas: es una conjuncion', () => {
+    const r = filterKeys(catalogo, { ...emptyFilter(), tags: ['cumplidos', 'regalo'], excluir: true });
+
+    expect(titulos(r)).toEqual(['Juego#1']);
+  });
+
+  test('excluyendo con tres marcadas es casi siempre vacio, y hay que verlo asi', () => {
+    // Con AND y tres etiquetas, casi ninguna clave las lleva todas. Devolver la
+    // lista vacia es la respuesta correcta —y hay que decirla, no disimularla
+    // quitando la exclusion sin avisar.
+    const r = filterKeys(catalogo, {
+      ...emptyFilter(),
+      tags: ['cumplidos', 'regalo', 'nunca'],
+      excluir: true,
+    });
+
+    expect(r).toEqual([]);
+  });
+
+  test('la exclusion no toca las etiquetas de las claves', () => {
+    const r = filterKeys(catalogo, { ...emptyFilter(), tags: ['cumplidos'], excluir: true });
+
+    expect(r[0].tags).toEqual(['cumplidos', 'regalo']);
+    expect(catalogo[0].tags).toEqual(['cumplidos', 'regalo']);
+  });
+});
+
+/** Copia la lista, para comprobar que el filtro no toca el original. */
+function catalogaPor(origen: readonly IGameKey[]): readonly IGameKey[] {
+  return origen.map((k) => ({ ...k, tags: [...k.tags] }));
+}

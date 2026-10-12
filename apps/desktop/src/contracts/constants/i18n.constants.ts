@@ -104,6 +104,10 @@ export const EN: TranslationTable = Object.freeze({
   'filter.tags': 'Tags',
   'filter.tags.footHint': 'With none marked, everything shows. Several marked: anything carrying one shows.',
   'filter.menu.footHint': 'With none marked, everything shows. Mark several to see only those.',
+  'filter.menu.footHintExcluir':
+    'With none marked, everything shows. With several marked, only what carries all of them.',
+  'filter.menu.excluirOff': 'Unlocked: anything carrying one of the marked shows.',
+  'filter.menu.excluirOn': 'Locked: only what carries all of them shows.',
   'filter.reset': 'Clear search and filters',
 
   // ---------------------------------------------------------- selection ---

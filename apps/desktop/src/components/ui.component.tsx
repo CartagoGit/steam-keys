@@ -53,8 +53,14 @@ type TVariant = NonNullable<IButtonProps['variant']>;
 const VARIANTS: Record<TVariant, string> = {
   primary:
     'bg-accent text-on-accent hover:brightness-110 active:brightness-95 shadow-sm',
-  ghost: 'text-t2 hover:bg-hover hover:text-t1 active:bg-hover-2',
-  subtle: 'bg-hover text-t1 ring-1 ring-line hover:bg-hover-2',
+  /**
+   * Antes era solo texto con fondo al pasar por encima, que es indistinguible
+   * de una etiqueta. Con `ghost` los botones del header parecian texto plano:
+   * el texto se leia bien, 7:1, pero no habia ni superficie ni borde que
+   * dijera «esto se pulsa». Ahora tiene las dos, con el borde en 3:1.
+   */
+  ghost: 'border border-borde bg-surface-2 text-t1 hover:bg-surface-3 hover:text-t1 active:bg-surface-3',
+  subtle: 'border border-borde bg-surface-2 text-t1 hover:bg-surface-3 active:bg-surface-3',
   danger: 'bg-danger text-on-accent hover:brightness-110 active:brightness-95',
 };
 
@@ -161,9 +167,18 @@ export function ExternalLink({ url, children, showUrl = false }: IExternalLinkPr
   );
 }
 
+/**
+ * El borde va en `--borde` y no en `--line`.
+ *
+ * `--line` da 1,3:1 contra la propia superficie, que para separar bloques
+ * vale, pero para el contorno de un campo deja el rectangulo deshilachado: se
+ * ve el texto y no se ve donde acaba el campo. `--borde` llega a 3:1 en los
+ * nueve temas, que es lo que pide la WCAG 1.4.11 para el contorno de un
+ * control.
+ */
 export const INPUT_CLASS =
-  'w-full rounded-lg bg-surface-2 px-3 py-2 text-sm text-t1 ring-1 ring-line ' +
-  'placeholder:text-t5 transition focus:bg-surface-3 focus:ring-2 focus:ring-accent focus:outline-none';
+  'w-full rounded-lg border border-borde bg-surface-2 px-3 py-2 text-sm text-t1 ' +
+  'placeholder:text-t4 transition focus:bg-surface-3 focus:border-accent focus:outline-none';
 
 export const SELECT_CLASS = `${INPUT_CLASS} appearance-none cursor-pointer`;
 

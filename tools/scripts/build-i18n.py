@@ -407,6 +407,7 @@ TRADUCCIONES['fr'] = {
  'storage.restoreCounting': 'Calcul de ce qui va changer…',
  'storage.restoreWillAdd': '{0} nouvelles cles seront ajoutees',
  'storage.restoreWillUpdate': '{0} seront mises a jour',
+ 'filter.menu.footHintExcluir': 'Sans rien de coche, tout s affiche. Plusieurs cochees: seulement ce qui les porte toutes.',  'filter.menu.excluirOff': 'Cadenas ouvert: tout ce qui porte une des coches apparait.',  'filter.menu.excluirOn': 'Cadenas ferme: seulement ce qui les porte toutes apparait.',
  }
 TRADUCCIONES['pt'] = {
  'export.title': 'exportacao',
@@ -763,6 +764,7 @@ TRADUCCIONES['pt'] = {
  'storage.restoreCounting': 'A calcular o que vai mudar…',
  'storage.restoreWillAdd': '{0} chaves novas entram',
  'storage.restoreWillUpdate': '{0} vao ser atualizadas',
+ 'filter.menu.footHintExcluir': 'Sem marcar nenhuma, ve-se todas. Com varias marcadas: so as que as tenham todas.',  'filter.menu.excluirOff': 'Cadado aberto: sai o que tiver alguma das marcadas.',  'filter.menu.excluirOn': 'Cadado fechado: sai so o que as tiver todas.',
  }
 TRADUCCIONES['de'] = {
  'export.title': 'Export',
@@ -1120,6 +1122,7 @@ TRADUCCIONES['de'] = {
  'storage.restoreCounting': 'Berechne, was sich andaern wird…',
  'storage.restoreWillAdd': '{0} neue Schluessel kommen hinzu',
  'storage.restoreWillUpdate': '{0} werden aktualisiert',
+ 'filter.menu.footHintExcluir': 'Ohne Markierte zeigt alles. Mit mehreren Markierten: nur was alle traegt.',  'filter.menu.excluirOff': 'Offen: alles, was eines davon traegt, erscheint.',  'filter.menu.excluirOn': 'Verschlossen: nur was alle davon traegt, erscheint.',
  }
 def limpiar_vacios(texto: str) -> str:
     return re.sub(r'\n{3,}', '\n\n', texto)

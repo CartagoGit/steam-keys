@@ -16,6 +16,7 @@ export function emptyFilter(): IKeyFilter {
     platforms: [],
     statuses: [],
     tags: [],
+    excluir: false,
   };
 }
 
@@ -56,11 +57,26 @@ export function filterKeys(
     if (statuses.size > 0 && !statuses.has(key.status)) return false;
 
     /**
-     * Varias etiquetas a la vez son **OR**, no AND: con «canducadas» y
-     * «regalo» marcadas sale lo que lleva cualquiera de las dos. Con AND casi
-     * nunca saldria nada, que es la sensacion de filtro roto.
+     * Varias etiquetas a la vez son **OR** por defecto: con «canducadas» y
+     * «regalo» marcadas sale lo que lleva cualquiera de las dos, que es lo que
+     * se espera al buscar «lo mio de este tema».
+     *
+     * Con `excluir` se invierte a **AND**: hay que llevar las todas. Es el otro
+     * filtro que se quiere a veces —«cumplidos **y** regalados»— y con OR no
+     * hay manera de pedirlo.
+     *
+     * Con ninguna marcada no dice nada, asi que el `size > 0` sale antes y en
+     * los dos modos se ve la lista entera. Con AND y cero marcadas, «tiene
+     * todos los vacios» es cierto para todo, asi que tambien daria todo —pero
+     * explicitandolo se entiende que el filtro esta apagado, que es distinto.
      */
-    if (tags.size > 0 && !key.tags.some((tag) => tags.has(tag))) return false;
+    if (tags.size > 0) {
+      if (filter.excluir) {
+        if (![...tags].every((tag) => key.tags.includes(tag))) return false;
+      } else if (!key.tags.some((tag) => tags.has(tag))) {
+        return false;
+      }
+    }
 
     if (needle.length === 0) return true;
 

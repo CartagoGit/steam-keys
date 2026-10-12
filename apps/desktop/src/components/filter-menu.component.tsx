@@ -92,6 +92,19 @@ export interface IFilterMenuProps<T extends string> {
    * que pedia y no sabe si el filtro va mal.
    */
   footHint?: string;
+  /**
+   * Que las marcadas se combinen con «y» en vez de con «o».
+   *
+   * `false` por defecto: sale lo que lleva cualquiera de ellas. `true`: hay que
+   * llevarlas todas. Solo tiene sentido con dos o mas marcadas, y con una da
+   * lo mismo en los dos modos.
+   *
+   * El boton lleva el candado **solo cuando esta activo**: antes de decidir no
+   * hay nada que avisar, y un icono permanente seria ruido en los tres filtros
+   * que de normal no lo usan.
+   */
+  excluir?: boolean;
+  onExcluir?: (excluir: boolean) => void;
   disabled?: boolean;
   disabledTitle?: string;
 }
@@ -148,6 +161,8 @@ export function FilterMenu<T extends string>({
   allLabel,
   tone,
   footHint = 'filter.menu.footHint',
+  excluir = false,
+  onExcluir,
   disabled = false,
   disabledTitle,
 }: IFilterMenuProps<T>) {
@@ -497,11 +512,25 @@ export function FilterMenu<T extends string>({
             // del 4,5 que pide la norma, y el boton no pare pulsable sino un
             // texto con una flecha pegada. Con superficie, borde y `text-t2`
             // son 6,4:1 en el tema oscuro y 10,3:1 en el claro.
-            todas ? 'border border-line bg-surface-2 text-t2' : [colores.relleno, colores.sobreRelleno].join(' '),
+            todas ? 'border border-borde bg-surface-2 text-t1' : [colores.relleno, colores.sobreRelleno].join(' '),
             disabled ? 'opacity-40' : '',
           ].join(' ')}
         >
           {todas ? <span>{allLabel}</span> : <span className="tabular-nums">{marcadas.size}</span>}
+
+          {/*
+            El candado solo cuando la exclusion esta encendida. Encendido o
+            apagado, el boton pone un numero: el icono de al lado solo dice como
+            hay que leer ese numero, y mientras no se haya decidido no hay nada
+            que leer de otra forma.
+          */}
+          {excluir ? (
+            <Icon
+              name="lock"
+              size={11}
+              className={todas ? 'shrink-0 text-t4' : 'shrink-0 opacity-80'}
+            />
+          ) : null}
 
           {/* La flecha va en la tinta del propio boton, no en un color fijo. */}
           <svg
@@ -787,9 +816,53 @@ export function FilterMenu<T extends string>({
             Va `sticky` abajo por lo mismo que la cabecera: si las opciones son
             muchas, la nota no puede ser lo primero que se vaya al bajar.
           */}
-          <p className="sticky bottom-0 border-t border-line bg-surface-1 px-3 py-2 text-[10px] leading-relaxed text-t4">
-            {t(footHint)}
-          </p>
+          <div className="sticky bottom-0 border-t border-line bg-surface-1">
+            <p className="px-3 py-2 text-[10px] leading-relaxed text-t4">
+              {t(excluir ? 'filter.menu.footHintExcluir' : footHint)}
+            </p>
+
+          {/*
+            La exclusion, con su candado.
+
+            Con varias marcadas sale lo que lleva **cualquiera** de ellas, que
+            es lo que se quiere casi siempre. Pero hay un caso que con OR no se
+            puede pedir: «cumplidos **y** regalados». Es lo unico que hace este
+            boton, y sin el el filtro se queda corto sin avisar.
+
+            Va debajo de la nota, no junto a las opciones, porque no es una mas
+            de las opciones: cambia lo que significan todas las de arriba. Y
+            lleva candado en vez de una casilla porque no es «activar algo» sino
+            «cerrar el paso a las demas»: abierto es «con una basta», cerrado
+            es «hay que tenerlas todas».
+
+            El texto no dice «exclusion», que no explica nada a quien no lo
+            sabe: dice las dos lecturas, que es lo que hay que saber.
+
+            Y solo aparece con dos o mas marcadas: con una no hay nada que
+            combinar, y con ninguna la opcion de excluir no hace nada.
+          */}
+          {marcadas.size > 1 ? (
+            <button
+              type="button"
+              role="checkbox"
+              aria-checked={excluir}
+              onClick={() => onExcluir?.(!excluir)}
+              className={[
+                'flex w-full items-center gap-2 px-3 py-2',
+                'text-left text-[10px] leading-relaxed transition-colors',
+                excluir ? 'text-t1' : 'text-t3 hover:text-t2',
+              ].join(' ')}
+            >
+              <Icon
+                name={excluir ? 'lock' : 'lock-open'}
+                size={13}
+                className="shrink-0"
+              />
+
+              <span>{t(excluir ? 'filter.menu.excluirOn' : 'filter.menu.excluirOff')}</span>
+            </button>
+          ) : null}
+          </div>
         </Popover>
       ) : null}
     </div>

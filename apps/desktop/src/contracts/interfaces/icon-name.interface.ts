@@ -41,4 +41,8 @@ export type IconName =
   /** Flecha que vuelve atras: la accion de deshacer. */
   | 'undo'
   | 'external'
-  | 'info';
+  | 'info'
+  /** Cerrojo cerrado: el filtro es excluyente, hay que cumplir todos los marcados. */
+  | 'lock'
+  /** Cerrojo abierto: el filtro es disyuntivo, con uno basta. */
+  | 'lock-open';

@@ -39,11 +39,28 @@ export interface IKeyFilter {
    * tienen que ser la misma cadena para poder compararse con `===` sin
    * canonicalizar en cada comparacion.
    *
-   * Varias a la vez significa «OR»: una clave que lleve cualquiera de ellas
-   * sale. Es lo que espera quien marca tres etiquetas para ver «lo mio de este
-   * tema», no «lo que lleva las tres», que no suele ser nada.
+   * Varias a la vez significa «OR» por defecto: una clave que lleve cualquiera
+   * de ellas sale. Es lo que espera quien marca tres etiquetas para ver «lo mio
+   * de este tema», no «lo que lleva las tres», que no suele ser nada.
+   *
+   * Con `excluir` la cosa se da vuelta y pasa a ser «AND»: hay que llevar
+   * **todas** las marcadas. Es el otro filtro que se quiere a veces —«cumplidos
+   * **y** regalados»— y con OR no hay manera de pedirlo, porque sale tambien lo
+   * que solo cumple una.
    */
   tags: readonly string[];
+
+  /**
+   * Que varias etiquetas marcadas sean «una o la otra» o «esta y la otra».
+   *
+   * `false` —lo normal— es OR. `true` es AND.
+   *
+   * Vive en el filtro y no dentro de las etiquetas porque es una pregunta por
+   * filtro, no una propiedad de las etiquetas: applies igual a plataformas,
+   * estados y etiquetas. Con ninguna marcada no dice nada, asi que en los dos
+   * modos el resultado es el mismo.
+   */
+  excluir?: boolean;
 }
 
 /** Resumen para la barra de estadisticas. */

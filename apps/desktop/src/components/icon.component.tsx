@@ -185,6 +185,20 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="M12 11v5M12 7.8v.1" />
     </>
   ),
+  lock: (
+    <>
+      {/* Cerrado: el arco cierra sobre el cuerpo y el candado se ve entero. */}
+      <rect x="5" y="10.5" width="14" height="9.5" rx="2" />
+      <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" />
+    </>
+  ),
+  'lock-open': (
+    <>
+      {/* Abierto: el arco se abre hacia un lado, que es lo que dice «no hace falta todos». */}
+      <rect x="5" y="10.5" width="14" height="9.5" rx="2" />
+      <path d="M8 10.5V7.5a4 4 0 0 1 7.6-1.7" />
+    </>
+  ),
 };
 
 /**

@@ -56,6 +56,10 @@ export const DE: TranslationTable = Object.freeze({
   'filter.tags.footHint':
     'Ohne Markierte zeigt alles. Mehrere markiert: alles, was eines davon traegt.',
   'filter.menu.footHint': 'Ohne Markierte zeigt alles. Markiere mehrere, um nur die zu sehen.',
+  'filter.menu.footHintExcluir':
+    'Ohne Markierte zeigt alles. Mit mehreren Markierten: nur was alle traegt.',
+  'filter.menu.excluirOff': 'Offen: alles, was eines davon traegt, erscheint.',
+  'filter.menu.excluirOn': 'Verschlossen: nur was alle davon traegt, erscheint.',
   'filter.reset': 'Suche und Filter zuruecksetzen',
   'select.one': '{0} ausgewaehlt',
   'select.many': '{0} ausgewaehlt',

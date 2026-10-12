@@ -361,6 +361,8 @@ export function Toolbar({
               onChange={(tags) => onFilterChange({ tags: [...tags] })}
               allLabel={t('filter.menu.all')}
               tone="violet"
+              excluir={filter.excluir}
+              onExcluir={(excluir) => onFilterChange({ excluir })}
               // Entre llaves y con comillas simples, no como atributo pelado:
               // el guard de claves muertas busca el literal con comillas
               // simples y en el atributo no lo encontraria, y daria por buena
@@ -406,6 +408,9 @@ export function Toolbar({
                   // Sin esto el filtro de etiquetas sobrevive a «Limpiar»: la
                   // lista se queda filtrada y el boton dice todo lo contrario.
                   tags: [],
+                  // Y tampoco la exclusion, que si no el filtro sigue
+                  // acotando con un «y» que ya no se ve en ninguna parte.
+                  excluir: false,
                 })
               }
               title={t('filter.reset')}

@@ -260,7 +260,7 @@ export function Segmented<T extends string>({
       <div
         ref={pistaRef}
         className={[
-          'relative flex items-center border border-line bg-surface-2',
+          'relative flex items-center border border-borde bg-surface-2',
           curva,
           completo ? 'flex-1' : '',
           compacto ? 'p-0.5' : 'p-1',
@@ -329,7 +329,7 @@ export function Segmented<T extends string>({
                  * solo en vez de dejar el texto claro encima de un relleno que
                  * ya casi no se ve.
                  */
-                activo && !parcial ? colores.sobrePompa : 'text-t2 hover:text-t1',
+                activo && !parcial ? colores.sobrePompa : 'text-t1 hover:text-t1',
               ].join(' ')}
             >
               {option.icon ? (

@@ -80,6 +80,10 @@ export const ES: TranslationTable = Object.freeze({
   'filter.tags': 'Etiquetas',
   'filter.tags.footHint': 'Sin marcar ninguna, se ven todas. Varias marcadas: sale lo que lleva alguna.',
   'filter.menu.footHint': 'Sin marcar ninguna, se ven todas. Marcar varias, solo esas.',
+  'filter.menu.footHintExcluir':
+    'Sin marcar ninguna, se ven todas. Con varias marcadas, solo las que las tengan todas.',
+  'filter.menu.excluirOff': 'Con candado abierto: sale lo que tenga alguna de las marcadas.',
+  'filter.menu.excluirOn': 'Con candado cerrado: sale solo lo que tenga todas.',
   'filter.reset': 'Quitar busqueda y filtros',
 
   // ---------------------------------------------------------- selection ---
