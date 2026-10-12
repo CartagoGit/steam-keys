@@ -36,6 +36,18 @@ export function KeyEditor({ entry, onSave, onClose }: IKeyEditorProps) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    /**
+     * `error` y `saving` tambien se vacian al cambiar de entrada.
+     *
+     * El editor se reutiliza: se abre para la clave A, se cierra y se abre
+     * para la B sin que React lo desmonte. Sin esto el error de A se queda
+     * puesto encima del formulario de B —avisando de algo que ya no es
+     * cierto— y, si A se dejo a medio guardar, el boton de B nace apagado y
+     * no hay forma de encenderlo sin recargar la ventana entera.
+     */
+    setError(null);
+    setSaving(false);
+
     if (!entry) {
       setDraft(EMPTY_DRAFT);
       setTagsText('');
@@ -103,13 +115,17 @@ export function KeyEditor({ entry, onSave, onClose }: IKeyEditorProps) {
       // `ok: false` no es un fallo del guardado —el error real, si lo hay, lo
       // habria lanzado `onSave`— sino que no se ha podido saber. Se distinguen
       // para no mentir sobre lo que ha pasado.
-      if (!r.ok) {
-        setError(t('app.saveTimedOut'));
-        setSaving(false);
-      }
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t('editor.saveError'));
+      //
+      // `saving` se apaga en los tres caminos, no solo en los dos malos. En el
+      // bueno casi nunca se ve —el padre cierra el dialogo al guardar—, pero
+      // si decide no cerrarlo el boton se queda apagado para siempre y el
+      // formulario parece congelado.
       setSaving(false);
+
+      if (!r.ok) setError(t('app.saveTimedOut'));
+    } catch (cause) {
+      setSaving(false);
+      setError(cause instanceof Error ? cause.message : t('editor.saveError'));
     }
   };
 

@@ -36,6 +36,17 @@ export function StoragePanel({ onClose, onChanged, notify }: IStoragePanelProps)
   const [working, setWorking] = useState(false);
   const [pendingRestore, setPendingRestore] = useState<IBackup | null>(null);
 
+  /**
+   * Lee el estado del almacenamiento.
+   *
+   * `t` esta en las dependencias, y no por prudencia. Sin el, React compara
+   * el `useCallback` contra el array de siempre, ve que no ha cambiado y
+   * **no vuelve a crear la funcion**: el error del `catch` se queda
+   * capturado en el idioma de aquella llamada aunque el usuario haya
+   * cambiado de idioma despues. El efecto de abajo solo la invoca una vez,
+   * asi que el fallo salia en el idioma del arranque y se quedaba ahi para
+   * siempre.
+   */
   const refresh = useCallback(async () => {
     try {
       setInfo(await storageService.info());
@@ -47,7 +58,7 @@ export function StoragePanel({ onClose, onChanged, notify }: IStoragePanelProps)
     } finally {
       setLoading(false);
     }
-  }, [notify]);
+  }, [notify, t]);
 
   useEffect(() => {
     void refresh();
@@ -118,11 +129,56 @@ export function StoragePanel({ onClose, onChanged, notify }: IStoragePanelProps)
   };
 
   // ------------------------------------------------------------------ vista ---
+  /**
+   * Cerrar pasa por aqui siempre, no directamente por `onClose`.
+   *
+   * Dos cosas se resuelven de golpe:
+   *
+   * El panel no se desmonta al cerrarse —`useKeepMounted` lo deja vivo 140 ms
+   * para que se vea la salida— y el dialogo de restaurar vive **fuera** del
+   * panel, como hermano. Al cerrar con una restauracion a medio confirmar,
+   * ese dialogo se quedaba encima del panel que ya se iba, y si se volvia a
+   * abrir deprisa seguia ahi: una confirmacion de sobrescribir la base entera
+   * aparecida de la nada.
+   *
+   * Y mientras hay una operacion en marcha no se cierra. Cerrar por debajo
+   * deja la escritura corriendo sin pantalla donde se vea ni donde se
+   * deshaga.
+   */
+  const cerrar = useCallback((): void => {
+    if (working) return;
+
+    setPendingRestore(null);
+    onClose();
+  }, [onClose, working]);
+
+  /**
+   * Escape cierra, como en cualquier otro dialogo.
+   *
+   * El panel va escrito a mano —no usa `Modal`— y se le habia olvidado el
+   * teclado: tocaba acertar con el raton en «Cerrar» o fuera del panel.
+   */
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape') return;
+
+      // Si hay un dialogo encima es el suyo, no el del panel: su propio
+      // `Modal` ya escucha la misma tecla y esta habria cerrando los dos.
+      if (pendingRestore !== null) return;
+
+      cerrar();
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [cerrar, pendingRestore]);
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6 backdrop-blur-sm"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
+        if (event.target === event.currentTarget) cerrar();
       }}
     >
       <div className="animate-scale-in flex max-h-full w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-surface-1 shadow-2xl ring-1 ring-line">
@@ -307,7 +363,7 @@ export function StoragePanel({ onClose, onChanged, notify }: IStoragePanelProps)
         </div>
 
         <footer className="flex justify-end gap-2 border-t border-line px-5 py-3">
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={cerrar}>
             {t('action.close')}
           </Button>
           <Button

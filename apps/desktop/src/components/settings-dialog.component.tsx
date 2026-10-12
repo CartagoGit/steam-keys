@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { APP_THEME_SWATCHES, APP_THEME_VALUES, AppLocale, AppTheme, STEAM_API_KEY_URL, THEME_LABELS, type IAppSettings, type SteamAccountStatus } from '@/contracts';
 import { Icon } from './icon.component';
 import { LocaleSelect } from './locale-select.component';
@@ -69,6 +69,21 @@ export function SettingsDialog({
   const { t } = useT();
 
   const [tab, setTab] = useState<SettingsTab>(initialTab);
+
+  /**
+   * El dialogo no se desmonta al cerrarse —queda montado para que cambiar el
+   * tema no parpadee—, asi que `initialTab` solo se leeria laprimera vez que
+   * se abrio. A partir de ahi pedir «Ajustes > Cuenta» no movia nada: se
+   * abria en la pestana en la que se hubiera dejado, y el boton de conectar
+   * con Steam parecia no hacer nada.
+   *
+   * Se sincroniza **con el prop**, no con nada mas. Si el usuario cambia de
+   * pestana a mano, `initialTab` no cambia y este efecto no se dispara, asi que
+   * no le quita el control a nadie.
+   */
+  useEffect(() => {
+    setTab(initialTab);
+  }, [initialTab]);
 
   const [tema, setTema] = useState<AppTheme>(settings.theme);
   const [idioma, setIdioma] = useState<AppLocale>(settings.locale);
