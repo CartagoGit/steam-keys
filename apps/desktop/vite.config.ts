@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
 import { devBridgePlugin, devBridgeStubPlugin } from './dev-bridge.vite-plugin';
+import { puertoVite } from '../../tools/scripts/support/puertos.helper';
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 
@@ -31,7 +32,20 @@ export default defineConfig({
 
   // ------------------------------------------------------------- servidor ---
   server: {
-    port: 5273,
+    /**
+     * 4200 para `bun run dev` y 4500 para `bun run web`.
+     *
+     * El puerto lo pasa `web.script.ts` con `PUERTO_VITE` en vez de hardcodeado
+     * aqui, porque si no el script no podria mirar si el puerto esta libre
+     * antes de lanzar: miraria el de `dev` y creeria que esta ocupado cuando
+     * lo que hay es un `web` de hace un rato.
+     *
+     * `strictPort` para que, si aun asi esta ocupado, Vite falle en vez de
+     * cogerse el siguiente libre: si se moviera solo, la URL que dice el
+     * aviso no seria la que hay que abrir y se acabaria probando en la
+     * ventana equivocada.
+     */
+    port: puertoVite(),
     strictPort: true,
     host: '127.0.0.1',
     watch: {

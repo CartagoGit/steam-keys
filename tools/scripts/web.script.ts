@@ -30,23 +30,21 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { databasePath } from './support/db-path.helper';
+import { PUERTO_DEV, PUERTO_WEB } from './support/puertos.helper';
 
 const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const APP_DIR = join(RAIZ, 'apps', 'desktop');
 const CARPETA_COPIAS = join(RAIZ, '.dev', 'web-backups');
 
-/** El mismo puerto que usa Vite, declarado aqui para poder mirarlo antes. */
-const PUERTO = 5273;
-
 /**
- * `true` si ya hay alguien escuchando en el puerto de Vite.
+ * `true` si ya hay alguien escuchando en el puerto de este script.
  *
- * Importa mas de lo que parece. `bun run dev` y `bun run web` usan el mismo
- * puerto, pero **no** la misma base de datos: si hay un `dev` corriendo y se
- * lanza `web`, Vite falla con «Port 5273 is already in use» y no queda claro
- * que se ha dejado de usar la coleccion de verdad sin querer. Peor: si el
- * mensaje pasara desapercibido, abriria el navegador contra la base de datos
- * de descarte creyendo que es la buena.
+ * Antes `dev` y `web` compartian el 5273 y esto era imprescindible: al fallar
+ * el arranque por el puerto ocupado, el navegador se acababa abriendo contra el
+ * `dev` que ya estaba vivo, que tiene otra base de datos, y se pensaba que se
+ * estaba tocando la coleccion buena. Ahora cada uno va en su puerto y esa
+ * confusion no puede darse, asi que esto solo avisa de que ya hay un `web`
+ * corriendo y que conviene pararlo en vez de acumular ventanas.
  *
  * Se comprueba con una conexion de un solo uso: abrirla y cerrarla es lo
  * unico que hace falta para saber si el puerto esta ocupado, y no deja la
@@ -54,7 +52,7 @@ const PUERTO = 5273;
  */
 function puertoOcupado(): Promise<boolean> {
   return new Promise((hecho) => {
-    const socket = connect({ host: '127.0.0.1', port: PUERTO });
+    const socket = connect({ host: '127.0.0.1', port: PUERTO_WEB });
 
     const responder = (ocupado: boolean): void => {
       socket.destroy();
@@ -105,11 +103,14 @@ function copiarAntes(): string | null {
 
 async function principal(): Promise<void> {
   if (await puertoOcupado()) {
-    console.log(`\n  Ya hay un servidor escuchando en el puerto ${PUERTO}.`);
-    console.log('\n  Puede ser otro `bun run dev`, que usa una base de datos de');
-    console.log('  descarte distinta de la tuya. Para no liarse, este script no');
-    console.log('  se carga encima: para con el que ya este corriendo (Ctrl+C en su');
-    console.log('  terminal) y vuelve a lanzarlo.\n');
+    console.log(`\n  Ya hay un servidor escuchando en el puerto ${PUERTO_WEB}.`);
+    console.log('\n  Casi seguro es otro `bun run web`. Para no liarse con dos');
+    console.log('  ventanas abiertas contra la coleccion de verdad, este script');
+    console.log('  para con el que ya este corriendo (Ctrl+C en su terminal) y');
+    console.log('  vuelve a lanzarlo.\n');
+    console.log(`  Si lo que quieres es trabajar sin riesgo, usa \`bun run dev\`: este`);
+    console.log(`  usa el ${PUERTO_WEB} y aquel el ${PUERTO_DEV}, asi que pueden`);
+    console.log('  convivir sin pisarse.\n');
 
     process.exit(1);
   }
@@ -118,12 +119,14 @@ async function principal(): Promise<void> {
   const copia = copiarAntes();
 
   console.log('\n  steam-keys en el navegador');
+  console.log(`  http://127.0.0.1:${PUERTO_WEB}`);
   console.log(`  base de datos: ${ruta}`);
 
   if (copia !== null) console.log(`  copia previa:  ${copia}`);
 
   console.log('\n  ESTA ES LA COLECCION DE VERDAD. Lo que pruebes aqui se guarda.');
-  console.log('  Para trabajar sin riesgo, usa `bun run dev` (base de datos aparte).');
+  console.log(`  Para trabajar sin riesgo, usa \`bun run dev\` (puerto ${PUERTO_DEV}, base de`);
+  console.log('  datos aparte): pueden estar los dos a la vez.');
   console.log('  Ctrl+C para salir.\n');
 
   const hijo = spawn('bun', ['run', 'dev'], {
@@ -135,12 +138,15 @@ async function principal(): Promise<void> {
       // absoluta: el proceso hijo arranca en `apps/desktop` y una ruta
       // relativa ahi apuntaria a otro sitio.
       STEAM_KEYS_DB_PATH: ruta,
+      // El hijo es `vite`, que por defecto usa el puerto de `dev`. Sin esto
+      // los dos coexistirian en el mismo puerto y habria que elegir uno.
+      PUERTO_VITE: String(PUERTO_WEB),
     },
   });
 
   // Sin esto, Ctrl+C mata al script y el servidor de Vite se queda por ahi
-  // con el puerto 5273 ocupado: el siguiente `bun run web` falla con un error
-  // de puerto que no dice nada del motivo.
+  // con el puerto ocupado: el siguiente `bun run web` falla con un error de
+  // puerto que no dice nada del motivo.
   const terminar = (senal: NodeJS.Signals | 'exit'): void => {
     if (hijo.exitCode === null) hijo.kill(senal === 'exit' ? 'SIGTERM' : senal);
   };
