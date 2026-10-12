@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { KeyPlatform, cleanTag, normalizeTag, suggestionsFor, type IGameKey } from '@/contracts';
+import { cleanTag, normalizeTag, platformTags, type IGameKey, type ITag, type KeyPlatform } from '@/contracts';
 import { Icon } from './icon.component';
 import { Modal } from './modal.component';
 import { Button, INPUT_CLASS } from './ui.component';
+import { ConfirmDialog } from './feedback.component';
 import { useT } from '@/context/locale.context';
 import { pluralKey } from '@/helpers/i18n.helper';
 
@@ -11,12 +12,25 @@ export interface ITagsDialogProps {
   entries: readonly IGameKey[];
   /** `false` reproduce la animacion de salida antes de desaparecer. */
   open?: boolean;
-  /** Todas las claves de la coleccion, para saber que etiquetas existen. */
-  todas: readonly IGameKey[];
+  /** Plataformas de la seleccion, para ofrecer sus etiquetas primero. */
+  plataformas: readonly KeyPlatform[];
   /** Las etiquetas finales, ya calculadas por quien abre el dialogo. */
   iniciales: readonly string[];
-  /** Plataformas implicadas en la seleccion, para sugerir etiquetas. */
-  plataformas: readonly KeyPlatform[];
+  /**
+   * El catalogo de la base de datos, con su recuento de usos.
+   *
+   * Lo carga quien abre, no el dialogo: el dialogo no habla con la base de
+   * datos —eso es de los servicios— y asi la lista esta lista cuando se ve,
+   * sin un parpadeo de «cargando» en cada apertura.
+   */
+  catalogo: readonly ITag[];
+  /** Crea una etiqueta en el catalogo. Devuelve el nombre ya limpio. */
+  onCreate: (nombre: string) => Promise<string | null>;
+  /**
+   * Quita la etiqueta del catalogo y de las claves que la llevan. Devuelve
+   * cuantas claves se han visto afectadas.
+   */
+  onRemove: (nombre: string) => Promise<number>;
   onConfirm: (tags: readonly string[]) => void;
   onCancel: () => void;
 }
@@ -24,17 +38,30 @@ export interface ITagsDialogProps {
 /**
  * Dialogo para poner etiquetas a varias claves de una vez.
  *
- * Se muestran todas las etiquetas que ya existen en la coleccion mas las
- * sugerencias de cada plataforma implicada. Al confirmar se devuelven las
- * etiquetas finales ya calculadas: quien llama decide si la operacion es
- * anadir, quitar o reemplazar, porque aqui solo se edita el conjunto.
+ * La lista sale del **catalogo** de la base de datos, no de aplanar la
+ * coleccion en memoria como se hacia antes. La diferencia se nota en las tres
+ * cosas que se pueden hacer con una etiqueta:
+ *
+ * - **Crearla** de verdad, para que exista aunque se cancele y aunque todavia
+ *   no la lleve ninguna clave. Antes solo se anadia a la seleccion, y cancelar
+ *   la dejaba en la nada.
+ * - **Quitarla**, para que una etiqueta que ha dejado de servir no aparezca en
+ *   todas las listas hasta el final de los tiempos. Antes no habia forma.
+ * - **Ver cuantas claves la usan**, que es lo que distingue «dlc», en cuarenta
+ *   claves, de una etiqueta experimental en una.
+ *
+ * Al confirmar se devuelven las etiquetas finales ya calculadas: quien llama
+ * decide si la operacion es anadir, quitar o reemplazar, porque aqui solo se
+ * edita el conjunto.
  */
 export function TagsDialog({
   entries,
   open = true,
-  todas,
-  iniciales,
   plataformas,
+  iniciales,
+  catalogo,
+  onCreate,
+  onRemove,
   onConfirm,
   onCancel,
 }: ITagsDialogProps) {
@@ -44,6 +71,17 @@ export function TagsDialog({
   );
 
   const [nueva, setNueva] = useState('');
+
+  /**
+   * La etiqueta pendiente de borrar, o `null`.
+   *
+   * No se borra en el acto: primero se pregunta. Quitar una etiqueta la
+   * arranca de **todas** las claves que la llevan, y eso no se deshace con
+   * Ctrl+Z —el deshacer de la app solo mira el estado de una clave, no de un
+   * cambio de vocabulario. Asi que hace falta un paso intermedio.
+   */
+  const [porBorrar, setPorBorrar] = useState<string | null>(null);
+  const [ocupado, setOcupado] = useState(false);
 
   /**
    * Las etiquetas se reponen **al abrir**, no al montar.
@@ -71,21 +109,55 @@ export function TagsDialog({
 
     setSeleccionadas(new Set(iniciales.map(normalizeTag)));
     setNueva('');
+    setPorBorrar(null);
   }, [open]);
 
-  /** Etiquetas que ya hay en la coleccion, mas las sugerencias. */
-  const sugeridas = useMemo(() => {
-    const existentes = todas.flatMap((key) => key.tags);
-    const vistas = new Set<string>();
+  /**
+   * La lista de etiquetas del catalogo, con el catalogo de la plataforma
+   * delante.
+   *
+   * Las de la plataforma —«battlenet», «blizzard» para Battle.net— se ofrecen
+   * primero porque son las que casi siempre hacen falta en ese momento, y no
+   * se repiten si ya estan en el catalogo. Lo que viene del catalogo son las
+   * que ya existen en la app, ordenadas por uso.
+   */
+  const plataforma = useMemo(
+    () => (plataformas[0] === undefined ? [] : platformTags(plataformas[0])),
+    [plataformas],
+  );
 
-    for (const platform of plataformas) {
-      for (const tag of suggestionsFor(platform, existentes)) {
-        if (!vistas.has(normalizeTag(tag))) vistas.add(normalizeTag(tag));
-      }
+  const sugeridas = useMemo(() => {
+    const vistas = new Set<string>();
+    const salida: ITag[] = [];
+
+    for (const nombre of plataforma) {
+      const clave = normalizeTag(nombre);
+
+      if (clave.length === 0 || vistas.has(clave)) continue;
+
+      vistas.add(clave);
+
+      // Las de plataforma que ya estan en el catalogo toman su recuento de
+      // ahi, para que «dlc» salga con el mismo numero de usos vaya donde vaya.
+      salida.push(
+        catalogo.find((tag) => normalizeTag(tag.nombre) === clave) ?? {
+          nombre: cleanTag(nombre),
+          usos: 0,
+        },
+      );
     }
 
-    return [...vistas];
-  }, [todas, plataformas]);
+    for (const tag of catalogo) {
+      const clave = normalizeTag(tag.nombre);
+
+      if (clave.length === 0 || vistas.has(clave)) continue;
+
+      vistas.add(clave);
+      salida.push(tag);
+    }
+
+    return salida;
+  }, [catalogo, plataforma]);
 
   const alternar = (tag: string): void => {
     setSeleccionadas((anterior) => {
@@ -99,13 +171,60 @@ export function TagsDialog({
     });
   };
 
-  const anadirNueva = (): void => {
-    const limpia = cleanTag(nueva);
+  /**
+   * Anade la etiqueta escrita y la deja marcada.
+   *
+   * Se escribe **en la base de datos**, no solo en la seleccion. Es la
+   * diferencia entre una etiqueta y un borrador: si se cancela el dialogo, una
+   * sigue existiendo y se puede volver a marcar en cualquier momento. Antes
+   * vivia solo en la seleccion, y cancelar la dejaba en la nada.
+   */
+  const anadirNueva = async (): Promise<void> => {
+    if (ocupado) return;
 
-    if (limpia.length === 0) return;
+    setOcupado(true);
 
-    setSeleccionadas((anterior) => new Set([...anterior, limpia]));
-    setNueva('');
+    try {
+      const creada = await onCreate(nueva);
+
+      if (creada !== null) {
+        setSeleccionadas((anterior) => new Set([...anterior, creada]));
+        setNueva('');
+      }
+    } finally {
+      setOcupado(false);
+    }
+  };
+
+  /**
+   * Quita la etiqueta del catalogo y de las claves que la llevan.
+   *
+   * Sale un aviso con el numero de claves afectadas **antes** de hacerlo, y
+   * por dos motivos: porque quitar una etiqueta de la coleccion entera no es
+   * lo mismo que quitarla de este grupo, y porque ese cambio no lo recoge el
+   * deshacer de la app, que solo recuerda el estado de una clave. Sin el aviso
+   * no habria forma de saber que era una accion de otro alcance.
+   */
+  const confirmarBorrado = async (): Promise<void> => {
+    if (porBorrar === null || ocupado) return;
+
+    setOcupado(true);
+
+    try {
+      await onRemove(porBorrar);
+
+      setSeleccionadas((anterior) => {
+        const siguiente = new Set(anterior);
+
+        siguiente.delete(normalizeTag(porBorrar));
+
+        return siguiente;
+      });
+
+      setPorBorrar(null);
+    } finally {
+      setOcupado(false);
+    }
   };
 
   return (
@@ -143,7 +262,7 @@ export function TagsDialog({
               onKeyDown={(event) => {
                 if (event.key === 'Enter') {
                   event.preventDefault();
-                  anadirNueva();
+                  void anadirNueva();
                 }
               }}
               placeholder={t('tags.new')}
@@ -152,8 +271,8 @@ export function TagsDialog({
             <Button
               variant="subtle"
               icon="plus"
-              onClick={anadirNueva}
-              disabled={cleanTag(nueva).length === 0}
+              onClick={() => void anadirNueva()}
+              disabled={ocupado || cleanTag(nueva).length === 0}
               title={t('tags.addHint')}
             >
               {t('action.add')}
@@ -168,24 +287,61 @@ export function TagsDialog({
           ) : (
             <div className="mt-4 flex flex-wrap gap-2">
               {sugeridas.map((tag) => {
-                const activa = seleccionadas.has(normalizeTag(tag));
+                const activa = seleccionadas.has(normalizeTag(tag.nombre));
 
                 return (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => alternar(tag)}
-                    aria-pressed={activa}
+                  /*
+                   * Cada etiqueta es un grupo con su boton y su papelera, no
+                   * un boton suelto: el de borrar tiene que estar **al lado**
+                   * de la etiqueta a la que pertenece, y dentro del mismo
+                   * `aria-pressed` no se puede meter un segundo boton.
+                   */
+                  <span
+                    key={tag.nombre}
                     className={[
-                      'rounded-full px-3 py-1.5 text-xs transition',
+                      'inline-flex items-center gap-0.5 rounded-full pr-1 transition',
                       activa
                         ? 'bg-accent text-on-accent ring-1 ring-accent'
                         : 'bg-hover text-t2 ring-1 ring-line hover:bg-hover-2',
                     ].join(' ')}
                   >
-                    {activa ? <Icon name="check" size={11} className="mr-1 inline" /> : null}
-                    {tag}
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => alternar(tag.nombre)}
+                      aria-pressed={activa}
+                      className="rounded-full py-1.5 pl-3 pr-1.5 text-xs"
+                    >
+                      {activa ? (
+                        <Icon name="check" size={11} className="mr-1 inline" />
+                      ) : null}
+
+                      {tag.nombre}
+
+                      {/*
+                        El numero de usos va en la propia pastilla y no en el
+                        `title`: el texto emergente no sale hasta que el
+                        raton lleva un rato encima, y esto es justo el dato
+                        que hace falta para decidir si la etiqueta se puede
+                        borrar sin miedo.
+                      */}
+                      {tag.usos > 0 ? (
+                        <span className="ml-1.5 text-[10px] opacity-70">
+                          {tag.usos}
+                        </span>
+                      ) : null}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setPorBorrar(tag.nombre)}
+                      disabled={ocupado}
+                      title={t('tags.removeHint')}
+                      aria-label={t('tags.removeLabel', [tag.nombre])}
+                      className="rounded-full p-1 opacity-50 transition hover:bg-danger/20 hover:text-danger hover:opacity-100 disabled:opacity-30"
+                    >
+                      <Icon name="trash" size={11} />
+                    </button>
+                  </span>
                 );
               })}
             </div>
@@ -208,6 +364,27 @@ export function TagsDialog({
             </Button>
           </div>
         </footer>
+
+        {/*
+          La confirmacion va **dentro** del dialogo, no como otro modal por
+          encima. `Modal` ya se encarga de la trampa de foco y de que Escape
+          suba un nivel en vez de cerrar todo, y un segundo modal anidado
+          tendria que volver a hacer las dos cosas.
+        */}
+        {porBorrar !== null ? (
+          <ConfirmDialog
+            title={t('tags.removeTitle')}
+            message={t('tags.removeBody', [
+              porBorrar,
+              t(pluralKey(catalogo.find((tag) => tag.nombre === porBorrar)?.usos ?? 0, 'tags.usesOne', 'tags.usesMany'), [
+                catalogo.find((tag) => tag.nombre === porBorrar)?.usos ?? 0,
+              ]),
+            ])}
+            confirmLabel={t('action.delete')}
+            onConfirm={() => void confirmarBorrado()}
+            onCancel={() => setPorBorrar(null)}
+          />
+        ) : null}
     </Modal>
   );
 }

@@ -24,7 +24,7 @@ import { TagsDialog } from './components/tags-dialog.component';
 import { Toolbar } from './components/toolbar.component';
 import { Button } from './components/ui.component';
 
-import { AppTheme, AppView, DEFAULT_VIEW, KEY_STATUS_VALUES, KeyPlatform, KeyScope, KeySort, KeyStatus, PAGE_SIZE, mergeTags, type AppLocale, type IAppSettings, type IGameKey, type IGameKeyDraft, type IImportSummary, type IKeyFilter, type ISteamOwnedGame, type SteamAccountStatus, type TranslationArgs, type Translator } from '@/contracts';
+import { AppTheme, AppView, DEFAULT_VIEW, KEY_STATUS_VALUES, KeyPlatform, KeyScope, KeySort, KeyStatus, PAGE_SIZE, mergeTags, type AppLocale, type IAppSettings, type IGameKey, type IGameKeyDraft, type IImportSummary, type IKeyFilter, type ISteamOwnedGame, type ITag, type SteamAccountStatus, type TranslationArgs, type Translator } from '@/contracts';
 import { computeStats, emptyFilter, filterKeys, sortKeys } from '@/helpers/filter-keys.helper';
 import { analyzeSelection, claveGrupo, groupByTitle, isGiftable, podarSeleccion, type SelectAction } from '@/helpers/selection.helper';
 import { useKeepMounted } from '@/helpers/use-exit-animation.helper';
@@ -41,6 +41,7 @@ import {
 } from '@/services/legacy-backups.service';
 import { FirstRun } from '@/components/first-run.component';
 import { steamService, SteamError, textoDeSteamError, resolveSteamId } from '@/services/steam.service';
+import { tagService } from '@/services/tag.service';
 import { bestCandidate, cuentaComoPropio } from '@/helpers/match-owned.helper';
 
 /**
@@ -239,6 +240,16 @@ export function App() {
     preview: IImportSummary;
   } | null>(null);
 
+  /**
+   * El catalogo de etiquetas, con su recuento de usos.
+   *
+   * Vive en el componente porque lo pinta el dialogo de etiquetas, que se
+   * monta y se desmonta: leerlo de la base de datos en cada apertura daria un
+   * parpadeo de «cargando» cada vez que se quisiera etiquetar algo. Se carga
+   * con la lista de claves y se vuelve a pedir cuando se crea o se quita una.
+   */
+  const [tags, setTags] = useState<readonly ITag[]>([]);
+
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   const searchRef = useRef<HTMLInputElement>(null);
@@ -343,7 +354,6 @@ export function App() {
     // `traducir` tambien: sin el, el error de carga se queda en el idioma
     // anterior si el usuario cambia de idioma con la lista ya cargada.
   }, [notify, traducir]);
-
   /**
    * Carga las claves **una vez**, cuando la base pasa a estar disponible.
    *
@@ -367,6 +377,7 @@ export function App() {
     if (arranque?.database !== 'ready') return;
 
     void reloadRef.current();
+    void tagService.list().then(setTags).catch(() => undefined);
   }, [arranque?.database]);
 
   // ---------------------------------------------------------------- deshacer ---
@@ -1277,6 +1288,87 @@ export function App() {
     }
   };
 
+  /**
+   * Crea una etiqueta en el catalogo y recarga la lista.
+   *
+   * El dialogo pinta lo que hay en este estado, asi que despues de crear o de
+   * quitar hay que volver a pedirlo: si no, la etiqueta nueva se veria
+   * marcada pero no saldria en la lista, y la quitada seguiria apareciendo
+   * hasta que se cerrara y se abriera el dialogo otra vez.
+   */
+  const recargarTags = useCallback(async (): Promise<void> => {
+    try {
+      setTags(await tagService.list());
+    } catch (cause) {
+      notify(
+        cause instanceof Error ? cause.message : traducir('app.loadFailed'),
+        'error',
+      );
+    }
+  }, [notify, traducir]);
+
+  const crearEtiqueta = useCallback(
+    async (nombre: string): Promise<string | null> => {
+      try {
+        const r = await conCarga('loading.saving', async () =>
+          tagService.create(nombre),
+        );
+
+        if (!r.ok) return null;
+
+        await recargarTags();
+
+        return r.valor;
+      } catch (cause) {
+        notify(
+          cause instanceof Error ? cause.message : traducir('app.saveFailed'),
+          'error',
+        );
+
+        return null;
+      }
+    },
+    [conCarga, notify, recargarTags, traducir],
+  );
+
+  const quitarEtiqueta = useCallback(
+    async (nombre: string): Promise<number> => {
+      try {
+        const r = await conCarga('loading.tags', async () =>
+          tagService.remove(nombre),
+        );
+
+        if (!r.ok) return 0;
+
+        const afectadas = r.valor;
+
+        // Quitar una etiqueta toca claves de toda la coleccion, no solo las
+        // seleccionadas, asi que la lista entera se queda obsoleta. Sin
+        // recargar, las filas seguirian mostrando una etiqueta que ya no
+        // tienen.
+        await Promise.all([recargarTags(), reload()]);
+
+        notify(
+          traducir(
+            pluralKey(afectadas, 'tags.removedOne', 'tags.removedMany'),
+            [afectadas],
+          ),
+          'success',
+        );
+
+        return afectadas;
+      } catch (cause) {
+        notify(
+          cause instanceof Error ? cause.message : traducir('app.tagsFailed'),
+          'error',
+        );
+
+        return 0;
+      }
+    },
+    [conCarga, notify, recargarTags, reload, traducir],
+  );
+
   // ----------------------------------------------------------- ajustes ---
   const handleSaveSettings = async (
     patch: Partial<IAppSettings>,
@@ -1840,9 +1932,11 @@ export function App() {
         <TagsDialog
           open={tagsOpen}
           entries={selectedKeys}
-          todas={keys}
           iniciales={etiquetasComunes(selectedKeys)}
           plataformas={[...new Set(selectedKeys.map((key) => key.platform))]}
+          catalogo={tags}
+          onCreate={crearEtiqueta}
+          onRemove={quitarEtiqueta}
           onConfirm={handleApplyTags}
           onCancel={() => setTagsOpen(false)}
         />

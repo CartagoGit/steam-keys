@@ -19,10 +19,10 @@ export {
   STORAGE_KEY_PREFIX,
 } from './app.constants';
 
-export { KEY_PLATFORM_META, platformLabel } from './key-platform.constants';
+export { KEY_PLATFORM_META, platformLabel, platformOptions } from './key-platform.constants';
 export type { IPlatformMeta } from './key-platform.constants';
 
-export { KEY_STATUS_META, statusMeta } from './key-status.constants';
+export { KEY_STATUS_META, statusMeta, statusOptions } from './key-status.constants';
 export type { IStatusMeta, IStatusMetaResuelta } from './key-status.constants';
 
 export {
@@ -34,6 +34,7 @@ export {
   TABLE_APP_SETTINGS,
   TABLE_BACKUPS,
   TABLE_GAME_KEYS,
+  TABLE_TAGS,
 } from './db-schema.constants';
 
 export { EN, ES, TRANSLATIONS } from './i18n.constants';

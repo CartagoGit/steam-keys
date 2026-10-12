@@ -130,6 +130,15 @@ export const EN: TranslationTable = Object.freeze({
   'footer.countMany': '{0} of {1} keys',
 
   // -------------------------------------------------------- tags modal ---
+  'tags.usesOne': '{0} key',
+  'tags.usesMany': '{0} keys',
+  'tags.removeHint': 'Remove this tag from the collection',
+  'tags.removeTitle': 'Remove the tag',
+  'tags.removeBody':
+    '«{0}» will be removed from the collection and from the {1} that use it. This cannot be undone.',
+  'tags.removeLabel': 'Remove the tag {0}',
+  'tags.removedOne': 'Removed from {0} key.',
+  'tags.removedMany': 'Removed from {0} keys.',
   'tags.title': 'Tags',
   'tags.new': 'New tag',
 

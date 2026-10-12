@@ -293,6 +293,116 @@ describe('dar de alta una clave', () => {
   });
 });
 
+describe('el catalogo de etiquetas vive en la base de datos', () => {
+  test('las etiquetas que ya usan las claves entran solas en el catalogo', async () => {
+    const { repo, leer, limpiar } = crearRepositorio();
+
+    try {
+      await repo.insert({ ...fila('AAAA-1111-AAAA'), tags: ['contexto', 'dlc'] });
+      await repo.insert({ ...fila('BBBB-2222-BBBB'), tags: ['contexto'] });
+
+      // Nadie ha pedido todavia el catalogo: las claves ya estaban ahi.
+      expect(await repo.syncTagsFromKeys()).toBe(2);
+      expect(leer('SELECT nombre FROM tags ORDER BY nombre')).toEqual([
+        { nombre: 'contexto' },
+        { nombre: 'dlc' },
+      ]);
+    } finally {
+      limpiar();
+    }
+  });
+
+  test('sincronizar dos veces no duplica nada', async () => {
+    const { repo, limpiar } = crearRepositorio();
+
+    try {
+      await repo.insert({ ...fila('AAAA-1111-AAAA'), tags: ['contexto'] });
+
+      expect(await repo.syncTagsFromKeys()).toBe(1);
+      expect(await repo.syncTagsFromKeys()).toBe(0);
+    } finally {
+      limpiar();
+    }
+  });
+
+  test('una etiqueta nueva se puede anadir aunque no la use ninguna clave', async () => {
+    const { repo, limpiar } = crearRepositorio();
+
+    try {
+      await repo.createTag('promo invierno');
+
+      expect(await repo.listTags()).toEqual([{ nombre: 'promo invierno' }]);
+    } finally {
+      limpiar();
+    }
+  });
+
+  test('anadir dos veces la misma etiqueta no la duplica', async () => {
+    const { repo, limpiar } = crearRepositorio();
+
+    try {
+      await repo.createTag('dlc');
+      await repo.createTag('dlc');
+
+      expect(await repo.listTags()).toEqual([{ nombre: 'dlc' }]);
+    } finally {
+      limpiar();
+    }
+  });
+
+  test('quitar una etiqueta la borra del catalogo y de las claves que la llevan', async () => {
+    const { repo, leer, limpiar } = crearRepositorio();
+
+    try {
+      await repo.insert({ ...fila('AAAA-1111-AAAA'), tags: ['contexto', 'dlc'] });
+      await repo.insert({ ...fila('BBBB-2222-BBBB'), tags: ['contexto'] });
+      await repo.insert({ ...fila('CCCC-3333-CCCC'), tags: ['dlc'] });
+
+      // El catalogo se llena al leerlo, no al insertar: por eso la app sincroniza
+      // antes de enseñar la lista.
+      await repo.syncTagsFromKeys();
+
+      expect(await repo.deleteTag('dlc')).toBe(2);
+
+      const claves = leer('SELECT tags FROM game_keys ORDER BY key_value') as {
+        tags: string;
+      }[];
+
+      expect(claves.map((c) => c.tags)).toEqual(['contexto', 'contexto', '']);
+      expect(leer('SELECT nombre FROM tags')).toEqual([{ nombre: 'contexto' }]);
+    } finally {
+      limpiar();
+    }
+  });
+
+  test('quitar una etiqueta no toca las que se le parecen', async () => {
+    const { repo, leer, limpiar } = crearRepositorio();
+
+    try {
+      // El `LIKE` con comas es lo que separa esto de un `LIKE` normal: sin
+      // los delimitadores, quitar «dlc» tambien se llevaria «dlc-extra».
+      await repo.insert({ ...fila('AAAA-1111-AAAA'), tags: ['dlc', 'dlc-extra'] });
+
+      expect(await repo.deleteTag('dlc')).toBe(1);
+      expect(leer('SELECT tags FROM game_keys')[0]).toEqual({ tags: 'dlc-extra' });
+    } finally {
+      limpiar();
+    }
+  });
+
+  test('quitar una etiqueta que no existe no cambia nada', async () => {
+    const { repo, limpiar } = crearRepositorio();
+
+    try {
+      await repo.insert({ ...fila('AAAA-1111-AAAA'), tags: ['contexto'] });
+
+      expect(await repo.deleteTag('nada')).toBe(0);
+    } finally {
+      limpiar();
+    }
+  });
+});
+
 /** Fila de importacion minima, con el estado ya disponible. */
 function fila(keyValue: string) {
   return {

@@ -27,6 +27,8 @@ export type {
 } from './game-key.interface';
 
 export type { IconName } from './icon-name.interface';
+export type { IMetaOption } from './meta-option.interface';
+export type { ITag, ITagRow } from './tag.interface';
 
 export type {
   IGameKeyRow,

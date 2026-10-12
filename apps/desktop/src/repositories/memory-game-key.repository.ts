@@ -1,4 +1,4 @@
-import { KeyPlatform, KeySource, KeyStatus, STORAGE_KEY_PREFIX, type IGameKey, type IGameKeyDraft, type IGameKeyInput, type IGameKeyRepository, type IImportRow, type IImportSummary } from '@/contracts';
+import { KeyPlatform, KeySource, KeyStatus, STORAGE_KEY_PREFIX, type IGameKey, type IGameKeyDraft, type IGameKeyInput, type IGameKeyRepository, type IImportRow, type IImportSummary, type ITagRow } from '@/contracts';
 import { keyFingerprint, normalizeKey, parseTags, serializeTags } from '@/helpers/normalize-text.helper';
 import { nowSqliteTimestamp } from '@/helpers/format-date.helper';
 
@@ -12,8 +12,20 @@ import { nowSqliteTimestamp } from '@/helpers/format-date.helper';
 export class MemoryGameKeyRepository implements IGameKeyRepository {
   private keys: IGameKey[] = [];
 
+  /**
+   * Las etiquetas que existen en la app, aparte de las que lleva cada clave.
+   *
+   * Van en su propia lista y no se deducen al vuelo porque hacen falta dos
+   * cosas que no salen de las claves: **crear** una etiqueta que todavia no
+   * usa nadie, y **borrar** una que se ha quedado sin usar. Si se dedujeran,
+   * las dos serian imposibles.
+   */
+  private catalogo: string[] = [];
+
   constructor() {
     this.keys = loadFromStorage();
+    this.catalogo = loadCatalogo();
+    this.syncCatalogo();
   }
 
   async listAll(): Promise<readonly IGameKey[]> {
@@ -171,6 +183,82 @@ export class MemoryGameKeyRepository implements IGameKeyRepository {
     return this.keys.find((key) => keyFingerprint(key.keyValue) === fingerprint) ?? null;
   }
 
+  // ------------------------------------------------------- catalogo de etiquetas ---
+
+  /**
+   * Rellena el catalogo con lo que ya usan las claves y lo guarda.
+   *
+   * Se llama al construir, para que el navegador no se vea con un catalogo
+   * vacio: las etiquetas de la coleccion ya existen aunque el catalogo no las
+   * tenga, y sin esta vuelta serian inelegibles. En SQLite lo hace
+   * `syncTagsFromKeys()`; aqui se hace de golpe porque no hay nada mas que
+   * sincronizar.
+   */
+  private syncCatalogo(): void {
+    const vistas = new Set<string>();
+
+    for (const clave of this.keys) {
+      for (const tag of clave.tags) {
+        const limpia = tag.trim();
+
+        if (limpia.length > 0) vistas.add(limpia);
+      }
+    }
+
+    this.catalogo = [...vistas];
+    persistCatalogo(this.catalogo);
+  }
+
+  async listTags(): Promise<readonly ITagRow[]> {
+    return this.catalogo.map((nombre) => ({ nombre }));
+  }
+
+  async createTag(nombre: string): Promise<void> {
+    if (this.catalogo.includes(nombre)) return;
+
+    this.catalogo = [...this.catalogo, nombre];
+    persistCatalogo(this.catalogo);
+  }
+
+  /**
+   * Quita la etiqueta del catalogo y de todas las claves que la llevan.
+   *
+   * Se reescriben las filas enteras antes de guardarlas, asi que o se quita
+   * de las dos partes o de ninguna: a medias, el catalogo y las claves
+   * dirian cosas distintas y el boton de borrar pareceria no hacer nada.
+   */
+  async deleteTag(nombre: string): Promise<number> {
+    let afectadas = 0;
+
+    this.keys = this.keys.map((clave) => {
+      if (!clave.tags.includes(nombre)) return clave;
+
+      afectadas += 1;
+
+      return { ...clave, tags: clave.tags.filter((tag) => tag !== nombre) };
+    });
+
+    this.catalogo = this.catalogo.filter((tag) => tag !== nombre);
+
+    persist(this.keys);
+    persistCatalogo(this.catalogo);
+
+    return afectadas;
+  }
+
+  /**
+   * Solo anade: para quitar esta `deleteTag`, que ademas limpia las claves.
+   * Una sincronizacion que borrara por su cuenta desharia el borrado que el
+   * usuario acaba de hacer a proposito.
+   */
+  async syncTagsFromKeys(): Promise<number> {
+    const antes = new Set(this.catalogo);
+
+    this.syncCatalogo();
+
+    return this.catalogo.filter((tag) => !antes.has(tag)).length;
+  }
+
   async countAll(): Promise<number> {
     return this.keys.length;
   }
@@ -237,6 +325,36 @@ export class MemoryGameKeyRepository implements IGameKeyRepository {
  * el valor es identico.
  */
 const STORAGE_KEY = `${STORAGE_KEY_PREFIX}:memory-repository`;
+
+/**
+ * Clave aparte para el catalogo de etiquetas.
+ *
+ * No se guarda dentro del mismo valor que las claves porque su forma es otra
+ * —una lista de cadenas, no de objetos— y porque asi una coleccion ya
+ * guardada se sigue leyendo igual, sin conversion ni migracion.
+ */
+const STORAGE_KEY_CATALOGO = `${STORAGE_KEY_PREFIX}:memory-tags`;
+
+function loadCatalogo(): string[] {
+  if (typeof localStorage === 'undefined') return [];
+
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_CATALOGO);
+    return raw ? (JSON.parse(raw) as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistCatalogo(catalogo: readonly string[]): void {
+  if (typeof localStorage === 'undefined') return;
+
+  try {
+    localStorage.setItem(STORAGE_KEY_CATALOGO, JSON.stringify(catalogo));
+  } catch {
+    // Cuota superada o modo privado: la app sigue funcionando en memoria.
+  }
+}
 
 function loadFromStorage(): IGameKey[] {
   if (typeof localStorage === 'undefined') return [];

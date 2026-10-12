@@ -5,7 +5,7 @@ import {
   normalizeKey,
   serializeTags,
 } from '@/helpers/normalize-text.helper';
-import { GAME_KEY_COLUMNS, KeyPlatform, KeySource, KeyStatus, TABLE_GAME_KEYS, type IDatabaseClient, type IGameKey, type IGameKeyDraft, type IGameKeyInput, type IGameKeyRepository, type IGameKeyRow, type IImportRow, type IImportSummary } from '@/contracts';
+import { GAME_KEY_COLUMNS, KeyPlatform, KeySource, KeyStatus, TABLE_GAME_KEYS, TABLE_TAGS, type IDatabaseClient, type IGameKey, type IGameKeyDraft, type IGameKeyInput, type IGameKeyRepository, type IGameKeyRow, type IImportRow, type IImportSummary, type ITagRow } from '@/contracts';
 
 /**
  * Repositorio de keys sobre SQLite.
@@ -247,6 +247,109 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
 
     const row = rows[0];
     return row ? mapRowToGameKey(row) : null;
+  }
+
+// ------------------------------------------------------- catalogo de etiquetas ---
+
+  async listTags(): Promise<readonly ITagRow[]> {
+    return this.db.select<ITagRow>(`SELECT nombre FROM ${TABLE_TAGS}`);
+  }
+
+  async createTag(nombre: string): Promise<void> {
+    // `OR IGNORE` y no un `SELECT` antes: la clave primaria ya lo garantiza, y
+    // un `SELECT` previo deja hueco para dos llamadas a la vez.
+    await this.db.execute(
+      `INSERT OR IGNORE INTO ${TABLE_TAGS} (nombre) VALUES ($1)`,
+      [nombre],
+    );
+  }
+
+  async deleteTag(nombre: string): Promise<number> {
+    /**
+     * La etiqueta sale del catalogo **y** de todas las claves que la llevan.
+     *
+     * Las dos cosas o ninguna, y en transaccion. Si solo se quitara del
+     * catalogo, la proxima sincronizacion la volveria a meter —alguien sigue
+     * usandola— y el boton de borrar pareceria no hacer nada. Si solo se
+     * quitara de las claves, volveria a salir en el dialogo sin poder marcarse.
+     *
+     * De las claves hay que reescribir la columna entera, porque las etiquetas
+     * viven en un texto separado por comas. Los tresifos de los `replace` son:
+     *
+     * - `,nombre` y `nombre,` para quitar la suya, con comas o sin ellas.
+     * - El `trim` de `, ,` al final, que es lo que deja una clave a la que se
+     *   le ha quitado la unica etiqueta que tenia: sin el se queda con una
+     *   coma suelta o con dos, y `parseTags` las leeria como una etiqueta
+     *   vacia.
+     */
+    return this.db.transaccion(async () => {
+      await this.db.execute(`DELETE FROM ${TABLE_TAGS} WHERE nombre = $1`, [nombre]);
+
+      const marcadas = await this.db.select<{ tags: string }>(
+        `SELECT tags FROM ${TABLE_GAME_KEYS}
+         WHERE ',' || tags || ',' LIKE '%,' || $1 || ',%'`,
+        [nombre],
+      );
+
+      for (const fila of marcadas) {
+        const quedan = (fila.tags ?? '')
+          .split(',')
+          .map((tag) => tag.trim())
+          .filter((tag) => tag.length > 0 && tag !== nombre);
+
+        await this.db.execute(
+          `UPDATE ${TABLE_GAME_KEYS} SET tags = $1, updated_at = $2 WHERE tags = $3`,
+          [quedan.join(','), touchTimestamp(), fila.tags],
+        );
+      }
+
+      return marcadas.length;
+    });
+  }
+
+  async syncTagsFromKeys(): Promise<number> {
+    /**
+     * Meten en el catalogo todo lo que ya usan las claves.
+     *
+     * Es la vuelta que recoge los datos que ya estaban: una coleccion con
+     * cuatrocientas claves tiene dentro decenas de etiquetas —«contexto»,
+     * «promo winter»— que nunca se escribieron en el catalogo, porque
+     * hasta ahora el catalogo no existia. Sin esta vuelta no se podrian
+     * volver a marcar nunca, y las etiquetas que ya tienes serian las unicas
+     * que no se pueden volver a usar.
+     *
+     * Solo anade, nunca quita: para eso esta `deleteTag`, que ademas limpia
+     * las claves. Aqui solo se rellena un hueco.
+     */
+    const filas = await this.db.select<{ tags: string }>(
+      `SELECT tags FROM ${TABLE_GAME_KEYS}`,
+    );
+
+    const vistas = new Set<string>();
+
+    for (const fila of filas) {
+      for (const tag of (fila.tags ?? '').split(',')) {
+        const limpia = tag.trim();
+
+        if (limpia.length > 0) vistas.add(limpia);
+      }
+    }
+
+    if (vistas.size === 0) return 0;
+
+    let anadidas = 0;
+
+    for (const nombre of vistas) {
+      // `execute` devuelve las filas afectadas, y con `OR IGNORE` eso es
+      // exactamente lo que se ha anadido de verdad: si la etiqueta ya estaba
+      // en el catalogo devuelve 0, sin haber hecho falta preguntar antes.
+      anadidas += await this.db.execute(
+        `INSERT OR IGNORE INTO ${TABLE_TAGS} (nombre) VALUES ($1)`,
+        [nombre],
+      );
+    }
+
+    return anadidas;
   }
 
   async countAll(): Promise<number> {

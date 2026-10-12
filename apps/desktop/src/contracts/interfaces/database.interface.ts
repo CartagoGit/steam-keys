@@ -4,6 +4,7 @@ import type {
   IGameKeyInput,
 } from './game-key.interface';
 import type { IImportRow, IImportSummary } from './import-summary.interface';
+import type { ITagRow } from './tag.interface';
 import type { KeyStatus } from '../enums/key-status.enum';
 
 /**
@@ -66,6 +67,30 @@ export interface IGameKeyRepository {
   markUsed(id: number, usedAt?: string): Promise<void>;
   findByKey(keyValue: string): Promise<IGameKey | null>;
   countAll(): Promise<number>;
+
+  // ------------------------------------------------------- catalogo de etiquetas ---
+  /** Las etiquetas que existen en la app, tal cual estan guardadas. */
+  listTags(): Promise<readonly ITagRow[]>;
+  /** Anade una etiqueta al catalogo. Si ya existe, no hace nada. */
+  createTag(nombre: string): Promise<void>;
+  /**
+   * Quita una etiqueta del catalogo **y de todas las claves que la llevan**.
+   *
+   * Las dos cosas juntas, y a proposito: si solo se quitara del catalogo, la
+   * proxima sincronizacion la volveria a meter porque alguna clave sigue
+   * usandola, y el boton de borrar pareceria no hacer nada. Si solo se quitara
+   * de las claves, volveria a salir en el dialogo sin poder marcarse.
+   */
+  deleteTag(nombre: string): Promise<number>;
+  /**
+   * Mete en el catalogo toda etiqueta que alguna clave lleve puesta.
+   *
+   * Es la vuelta que arregla los datos que ya estaban: una coleccion con
+   * cuatrocientas claves tiene dentro decenas de etiquetas que nunca se
+   * escribieron en el catalogo, y sin esto no se podrian volver a marcar.
+   * Devuelve cuantas han entrado de verdad.
+   */
+  syncTagsFromKeys(): Promise<number>;
   /** Insercion masiva en transaccion, ignorando claves ya presentes. */
   importRows(rows: readonly IImportRow[]): Promise<IImportSummary>;
   /** Todas las claves existentes, para deduplicar antes de importar. */

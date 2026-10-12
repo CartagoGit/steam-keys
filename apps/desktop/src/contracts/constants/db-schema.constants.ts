@@ -39,6 +39,33 @@ export const SCHEMA_STATEMENTS: readonly string[] = [
      ON game_keys (title);`,
 
   /**
+   * El catalogo de etiquetas, en su propia tabla.
+   *
+   * Las etiquetas de cada clave siguen viviendo en su columna de texto, en
+   * `game_keys.tags`. Normalizar eso a una tabla puente obligaria a migrar las
+   * cuatrocientas filas que ya hay y a reescribir cada consulta, y no mejora
+   * nada que se note: cuatrocientas filas con unas pocas etiquetas cada una
+   * se leen enteras sin problema.
+   *
+   * Lo que faltaba era el **catalogo**: la lista de etiquetas que existen en la
+   * app y se pueden volver a usar. Antes se reconstruia en memoria cada vez
+   * que se abria el dialogo, aplanando todas las filas, y por eso no habia
+   * forma de quitar una etiqueta que hubiera dejado de servir ni de saber
+   * cuantas claves usaban cada una.
+   *
+   * Solo el nombre, sin id ni contador. Los usos se cuentan leyendo la columna
+   * de las claves, que es la unica que dice la verdad: un contador guardado
+   * aqui se desincroniza en cuanto una etiqueta se pone o se quita a una clave
+   * por cualquier via.
+   *
+   * `nombre` es la clave primaria ya normalizada, asi que «humble» y «Humble »
+   * son la misma fila y no pueden coexistir.
+   */
+  `CREATE TABLE IF NOT EXISTS tags (
+     nombre TEXT PRIMARY KEY
+   );`,
+
+  /**
    * Ajustes de la aplicacion, en pares clave/valor.
    *
    * Se guardan asi a proposito, y no como columnas: anadir un ajuste nuevo
@@ -96,6 +123,7 @@ export const MAX_BACKUPS = 10;
 export const TABLE_GAME_KEYS = 'game_keys';
 export const TABLE_APP_SETTINGS = 'app_settings';
 export const TABLE_BACKUPS = 'backups';
+export const TABLE_TAGS = 'tags';
 
 /**
  * Columnas de `game_keys` que se escriben, en el orden del esquema.

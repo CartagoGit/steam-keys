@@ -131,6 +131,15 @@ export const ES: TranslationTable = Object.freeze({
     'No consta cuando caduca o si se puede comprobar.',
 
   // --------------------------------------------------------- tags modal ---
+  'tags.usesOne': '{0} clave',
+  'tags.usesMany': '{0} claves',
+  'tags.removeHint': 'Quitar esta etiqueta de la coleccion',
+  'tags.removeTitle': 'Quitar la etiqueta',
+  'tags.removeBody':
+    'Se quitara «{0}» de la coleccion y de las {1} que la llevan. No se puede deshacer.',
+  'tags.removeLabel': 'Quitar la etiqueta {0}',
+  'tags.removedOne': 'Se quito de {0} clave.',
+  'tags.removedMany': 'Se quito de {0} claves.',
   'tags.title': 'Etiquetas',
   'tags.new': 'Etiqueta nueva',
   'tags.addHint': 'Anadir la etiqueta a la seleccion',
