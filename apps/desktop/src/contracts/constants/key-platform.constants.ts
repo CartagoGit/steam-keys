@@ -1,5 +1,6 @@
-import { KeyPlatform } from '../enums/key-platform.enum';
+import { KeyPlatform, KEY_PLATFORM_VALUES } from '../enums/key-platform.enum';
 import type { IconName } from '../interfaces/icon-name.interface';
+import type { IMetaOption } from '../interfaces/meta-option.interface';
 import type { TranslationKey, TranslationTable } from './i18n.constants';
 
 export interface IPlatformMeta {
@@ -86,4 +87,25 @@ export function platformLabel(platform: KeyPlatform, tabla: TranslationTable): s
   // `in tabla` no estrecha el tipo, asi que se comprueba con `undefined`: una
   // clave presente siempre tiene texto, y una ausente devuelve undefined.
   return tabla[label] ?? label;
+}
+
+/**
+ * Las plataformas como opciones de desplegable, ya traducidas.
+ *
+ * Igual que `statusOptions`, y por el mismo motivo: sale de `KEY_PLATFORM_META`,
+ * que es el mismo objeto del que saca su color el chip de plataforma que hay en
+ * la tabla. Cambiar el color de Steam en un sitio lo cambia en los dos.
+ */
+export function platformOptions(tabla: TranslationTable): readonly IMetaOption[] {
+  return KEY_PLATFORM_VALUES.map((platform) => {
+    const meta = KEY_PLATFORM_META[platform];
+
+    return {
+      value: platform,
+      label: platformLabel(platform, tabla),
+      short: meta.short,
+      icon: meta.icon,
+      tone: meta.tone,
+    };
+  });
 }

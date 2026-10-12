@@ -1,5 +1,6 @@
-import { KeyStatus } from '../enums/key-status.enum';
+import { KeyStatus, KEY_STATUS_VALUES } from '../enums/key-status.enum';
 import type { IconName } from '../interfaces/icon-name.interface';
+import type { IMetaOption } from '../interfaces/meta-option.interface';
 import type { TranslationTable } from './i18n.constants';
 
 /**
@@ -92,4 +93,24 @@ export function statusMeta(
     tone: meta.tone,
     icon: meta.icon,
   };
+}
+
+/**
+ * Los estados como opciones de desplegable, ya traducidas.
+ *
+ * No es una lista paralela a `KEY_STATUS_META`: sale de ahi, con el mismo
+ * `statusMeta` que pinta la pastilla de cada fila. Es lo que permite que el
+ * desplegable del editor se vea igual que la tabla —mismo color, mismo icono—
+ * sin que haya que acordarse de mantener las dos cosas en paralelo.
+ *
+ * Antes el editor usaba un `<select>` nativo, que solo admite texto: el estado
+ * se elegia leyendo cinco palabras en fila y sin ningun color que indicara cual
+ * era cual.
+ */
+export function statusOptions(t: TranslationTable): readonly IMetaOption[] {
+  return KEY_STATUS_VALUES.map((status) => {
+    const meta = statusMeta(status, t);
+
+    return { value: status, label: meta.label, icon: meta.icon, tone: meta.tone };
+  });
 }

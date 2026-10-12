@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { KEY_PLATFORM_VALUES, KEY_STATUS_VALUES, KeyPlatform, KeyStatus, TRANSLATIONS, platformLabel, statusMeta, type IGameKey, type IGameKeyDraft } from '@/contracts';
-import { Button, Field, INPUT_CLASS, SELECT_CLASS } from './ui.component';
+import { KeyPlatform, KeyStatus, TRANSLATIONS, platformOptions, statusOptions, type IGameKey, type IGameKeyDraft } from '@/contracts';
+import { Button, Field, INPUT_CLASS } from './ui.component';
+import { MetaSelect } from './meta-select.component';
 import { Icon } from './icon.component';
 import { Modal } from './modal.component';
 import { useT } from '@/context/locale.context';
@@ -183,31 +184,21 @@ export function KeyEditor({ entry, onSave, onClose }: IKeyEditorProps) {
           </div>
 
           <Field label={t('editor.platform')}>
-            <select
-              className={SELECT_CLASS}
+            <MetaSelect
+              label={t('editor.platform')}
               value={draft.platform}
-              onChange={(event) => patch({ platform: event.target.value as KeyPlatform })}
-            >
-              {KEY_PLATFORM_VALUES.map((platform) => (
-                <option key={platform} value={platform}>
-                  {platformLabel(platform, TRANSLATIONS[locale])}
-                </option>
-              ))}
-            </select>
+              onChange={(valor) => patch({ platform: valor as KeyPlatform })}
+              options={platformOptions(TRANSLATIONS[locale])}
+            />
           </Field>
 
           <Field label={t('editor.status')}>
-            <select
-              className={SELECT_CLASS}
+            <MetaSelect
+              label={t('editor.status')}
               value={draft.status}
-              onChange={(event) => patch({ status: event.target.value as KeyStatus })}
-            >
-              {KEY_STATUS_VALUES.map((status) => (
-                <option key={status} value={status}>
-                  {statusMeta(status, TRANSLATIONS[locale]).label}
-                </option>
-              ))}
-            </select>
+              onChange={(valor) => patch({ status: valor as KeyStatus })}
+              options={statusOptions(TRANSLATIONS[locale])}
+            />
           </Field>
 
           {/*
