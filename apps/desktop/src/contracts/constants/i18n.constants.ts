@@ -88,7 +88,7 @@ export const EN: TranslationTable = Object.freeze({
   'filter.status': 'Status',
 
   // -------------------------------------------------------------- scope ---
-  'filter.scope.label': 'Status',
+  'filter.scope.label': 'Availability',
   'filter.scope.all': 'All',
   'filter.scope.available': 'Available only',
 
@@ -98,8 +98,9 @@ export const EN: TranslationTable = Object.freeze({
   'filter.kind.games': 'Games only',
   'filter.kind.dlc': 'DLC only',
 
-  'filter.status.locked':
-    'With “Available only” you are already seeing the keys that are neither gifted nor redeemed, so filtering by status at the same time does nothing.',
+  'filter.menu.all': 'All',
+  'filter.menu.none': 'None',
+  'filter.menu.footHint': 'With none marked, everything shows. Mark several to see only those.',
   'filter.reset': 'Clear search and filters',
 
   // ---------------------------------------------------------- selection ---

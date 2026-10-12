@@ -64,7 +64,7 @@ export const ES: TranslationTable = Object.freeze({
   'filter.status': 'Estado',
 
   // ------------------------------------------------------------- ambito ---
-  'filter.scope.label': 'Estado',
+  'filter.scope.label': 'Disponibles',
   'filter.scope.all': 'Todos',
   'filter.scope.available': 'Solo disponibles',
 
@@ -74,8 +74,9 @@ export const ES: TranslationTable = Object.freeze({
   'filter.kind.games': 'Solo juegos',
   'filter.kind.dlc': 'Solo DLC',
 
-  'filter.status.locked':
-    'Con «Solo disponibles» ya se ven solo las que no estan regaladas ni canjeadas: no se puede filtrar por estado a la vez.',
+  'filter.menu.all': 'Todas',
+  'filter.menu.none': 'Ninguna',
+  'filter.menu.footHint': 'Sin marcar ninguna, se ven todas. Marcar varias, solo esas.',
   'filter.reset': 'Quitar busqueda y filtros',
 
   // ---------------------------------------------------------- selection ---

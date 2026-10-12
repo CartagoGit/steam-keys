@@ -1,13 +1,11 @@
-import { AppView, KEY_PLATFORM_META, KEY_PLATFORM_VALUES, KEY_STATUS_VALUES, KeyKind, KeyPlatform, KeyScope, KeySort, KeyStatus, SEARCH_SHORTCUT, TRANSLATIONS, platformLabel, statusMeta, type IKeyFilter, type IKeyStats, type SteamAccountStatus } from '@/contracts';
+import { useMemo } from 'react';
+import { AppView, KEY_PLATFORM_META, KEY_PLATFORM_VALUES, KEY_STATUS_VALUES, KeyKind, KeyScope, KeySort, SEARCH_SHORTCUT, TRANSLATIONS, platformLabel, statusMeta, type IKeyFilter, type IKeyStats, type SteamAccountStatus } from '@/contracts';
 import { Icon } from './icon.component';
 import { Button, INPUT_CLASS, SELECT_CLASS } from './ui.component';
-import { Chip, ChipGroup } from './chip.component';
+import { FilterMenu } from './filter-menu.component';
 import { Segmented } from './segmented.component';
 import { ViewSwitch } from './view-switch.component';
 import { useT } from '@/context/locale.context';
-import {
-  statusesUsables,
-} from '@/helpers/filter-keys.helper';
 
 export interface IToolbarProps {
   filter: IKeyFilter;
@@ -66,21 +64,39 @@ export function Toolbar({
 }: IToolbarProps) {
   const { t, locale } = useT();
 
-  const togglePlatform = (platform: KeyPlatform): void => {
-    const next = filter.platforms.includes(platform)
-      ? filter.platforms.filter((item) => item !== platform)
-      : [...filter.platforms, platform];
+  /**
+   * Los recuentos de plataforma, para la lista del desplegable.
+   *
+   * Salen de `stats`, que ya viene calculado, en vez de contarlos aqui: es
+   * el mismo dato que hay en el `byPlatform` de la barra y en el de abajo.
+   */
+  const opcionesPlataforma = useMemo(
+    () =>
+      KEY_PLATFORM_VALUES.map((platform) => ({
+        value: platform,
+        label: platformLabel(platform, TRANSLATIONS[locale]),
+        icon: KEY_PLATFORM_META[platform].icon,
+        count: stats.byPlatform[platform] ?? 0,
+      })),
+    [locale, stats.byPlatform],
+  );
 
-    onFilterChange({ platforms: next });
-  };
-
-  const toggleStatus = (status: KeyStatus): void => {
-    const next = filter.statuses.includes(status)
-      ? filter.statuses.filter((item) => item !== status)
-      : [...filter.statuses, status];
-
-    onFilterChange({ statuses: next });
-  };
+  /**
+   * Las etiquetas de estado, con su color.
+   *
+   * El color es el del propio estado —el que ya se usa en la tabla y en las
+   * pastillas—, no uno generico para el filtro entero. Es lo que permite
+   * reconocer «canducadas» por el color sin leer el nombre.
+   */
+  const opcionesEstado = useMemo(
+    () =>
+      KEY_STATUS_VALUES.map((status) => ({
+        value: status,
+        label: statusMeta(status, TRANSLATIONS[locale]).label,
+        dot: statusMeta(status, TRANSLATIONS[locale]).tone,
+      })),
+    [locale],
+  );
 
   return (
     <header className="shrink-0 border-b border-line bg-surface-1">
@@ -237,6 +253,20 @@ export function Toolbar({
       {view === AppView.Keys ? (
       <div className="border-t border-line px-4 py-2.5">
         <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
+          {/*
+            Los cuatro filtros, cada uno con su color.
+
+            No es decoracion: son cuatro preguntas distintas —cuales veo, de
+            que tipo, de que plataforma, en que estado— y con el mismo color
+            los cuatro parecian el mismo filtro cuatro veces. Con el color se
+            distinguen de reojo y no hace falta leer el titulo.
+
+            El de disponibilidad va en verde porque es el estado «bueno» por
+            definicion: «solo disponibles» es una opinion sobre la clave, no
+            una categoria. El de tipo en ambar, el de plataforma en azul y el
+            de estado en rojo, que es donde acaban las claves que ya no
+            sirven.
+          */}
           <Segmented
             options={[
               { value: KeyScope.All, label: t('filter.scope.all') },
@@ -260,56 +290,23 @@ export function Toolbar({
             label={t('filter.kind.label')}
           />
 
-          {/*
-            Los chips de plataforma y de estado van en recuadros distintos,
-            cada uno con su titulo: a primera vista los de plataforma son
-            rectangulos azules y los de estado redondos con su punto de color.
-            Antes eran dos hileras de pastillas iguales y no se distinguian
-            sin leer los titulos.
-          */}
-          <ChipGroup label={t('filter.platform')} tone="sky">
-            {KEY_PLATFORM_VALUES.map((platform) => {
-              const meta = KEY_PLATFORM_META[platform];
-              const active = filter.platforms.includes(platform);
-              const count = stats.byPlatform[platform] ?? 0;
+          <FilterMenu
+            label={t('filter.platform')}
+            options={opcionesPlataforma}
+            selected={filter.platforms}
+            onChange={(platforms) => onFilterChange({ platforms: [...platforms] })}
+            allLabel={t('filter.menu.all')}
+            tone="sky"
+          />
 
-              return (
-                <Chip
-                  key={platform}
-                  label={meta.short}
-                  count={count}
-                  active={active}
-                  icon={meta.icon}
-                  onClick={() => togglePlatform(platform)}
-                  title={`${platformLabel(platform, TRANSLATIONS[locale])} — ${count}`}
-                />
-              );
-            })}
-          </ChipGroup>
-
-          <ChipGroup
+          <FilterMenu
             label={t('filter.status')}
-            tone="emerald"
-            disabled={!statusesUsables(filter)}
-            disabledTitle={t('filter.status.locked')}
-          >
-            {KEY_STATUS_VALUES.map((status) => {
-              const meta = statusMeta(status, TRANSLATIONS[locale]);
-              const active = filter.statuses.includes(status);
-
-              return (
-                <Chip
-                  key={status}
-                  label={meta.label}
-                  active={active}
-                  icon={meta.icon}
-                  dot={meta.tone}
-                  onClick={() => toggleStatus(status)}
-                  title={meta.hint}
-                />
-              );
-            })}
-          </ChipGroup>
+            options={opcionesEstado}
+            selected={filter.statuses}
+            onChange={(statuses) => onFilterChange({ statuses: [...statuses] })}
+            allLabel={t('filter.menu.all')}
+            tone="rose"
+          />
 
           <button
             type="button"

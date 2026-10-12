@@ -70,22 +70,6 @@ export function filterKeys(
   });
 }
 
-/**
- * `true` si el filtro de estado puede usarse con el ambito actual.
- *
- * Solo se bloquea el de **estado**, nunca el de tipo. Son filtros de
- * distinta naturaleza: "solo disponibles" ya dice que todas las claves que se
- * ven estan disponibles, asi que pedir ademas "solo las regaladas" solo puede
- * devolver la lista vacia. En cambio "solo DLC" con "solo disponibles" quiere
- * decir "los DLC que aun tengo", que es una consulta perfectamente valida y de
- * las mas utiles con una coleccion grande.
- *
- * Antes los dos se bloqueaban a la vez, por simetria, y lo unico que se
- * administro fue impedir responder preguntas legitimas.
- */
-export function statusesUsables(filter: IKeyFilter): boolean {
-  return filter.scope === KeyScope.All;
-}
 
 /**
  * Orden estable segun el criterio elegido.
