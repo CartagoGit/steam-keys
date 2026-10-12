@@ -1104,25 +1104,51 @@ describe('el filtro de etiquetas', () => {
     expect(FILTRO).not.toContain('disabled={marcadas.size < 2}');
 
     /**
-     * El icono del boton va **a la derecha del todo**, despues de la flecha.
+     * El candado va junto al **titulo** del filtro, no dentro del boton.
      *
-     * Estaba entre el numero y la flecha, y ahi se leia como parte de la
-     * cuenta —«2 candado v»— en vez de como el matiz del filtro. Los tres se
-     * leen de izquierda a derecha segun lo que significan: lo marcado, como se
-     * abre, y el matiz.
+     * Dentro del boton se leia como parte de la cuenta —«2 candado flecha»— y
+     * ademas desaparecia al desmarcar todo: con cero marcadas y el modo
+     * cerrado el filtro no acota, pero el modo sigue puesto y no se veia en
+     * ninguna parte. El modo es del **filtro**, y su sitio es el nombre del
+     * filtro, que es donde se lee de que filtro se esta hablando.
+     *
+     * El boton es solo el que abre el menu, y abrirlo no cambia el filtro:
+     * el candado no tiene nada que ver con el y por eso no va ahi.
      */
-    expect(FILTRO).toMatch(/\{excluir \? <Icon name="lock"/);
+    expect(FILTRO).toMatch(/\{excluir \? \(\s*<Icon\s*name="lock"/);
+
+    // Y esta **antes** del boton en el fuente, que es lo mismo que estar
+    // encima: el titulo va arriba y el boton debajo.
+    const candado = FILTRO.indexOf('<Icon\n            name="lock"');
+    const boton = FILTRO.indexOf('<button');
+
+    expect(candado).toBeGreaterThan(-1);
+    expect(candado).toBeLessThan(boton);
 
     // Y sale siempre que el modo este puesto, sin mirar si hay algo marcado.
     expect(FILTRO).not.toMatch(/excluir \? \(<Icon[\s\S]{0,120}todas \?/);
 
     // El texto sale de `modoExclusion`, porque no es el mismo en los tres
-    // filtros: en etiquetas es «incluye algunas / todas» y en los otros
-    // «incluye solo estas / no incluye estas».
+    // filtros: en etiquetas «alguna / todas las seleccionadas» y en los otros
+    // «solo las seleccionadas / todas menos las seleccionadas».
     expect(FILTRO).toContain("modoExclusion === 'or-and' ? 'filter.menu.orAnd' : 'filter.menu.acota'");
 
-    // Y la nota de abajo cambia con el modo, que es donde se lee la regla.
-    expect(FILTRO).toContain("t(excluir ? 'filter.menu.footHintExcluir' : footHint)");
+    /**
+     * La nota del pie **no** cambia con el candado.
+     *
+     * Antes decia «Con el candado abierto solo incluye las que llevan todas»,
+     * y sale con el candado **cerrado**. Ademas en plataforma y estado el
+     * candado no exige las que llevan todas: las descarta, que es otra cosa, y
+     * con AND sobre una sola plataforma la lista saldria vacia. Es decir, la
+     * nota era falsa en dos de los tres filtros.
+     *
+     * Y no hace falta que cambie: el operador ya lo nombra el boton de al
+     * lado, palabra por palabra, y ese si depende del modo. La nota solo tiene
+     * que explicar lo que no se deduce —que no marcar nada no filtra— y eso es
+     * cierto con el candado como esté.
+     */
+    expect(FILTRO).toContain('t(footHint)');
+    expect(FILTRO).not.toContain('footHintExcluir');
 
     /**
      * El tamano va en el `style`, y es el mismo que el de la nota.
@@ -1158,10 +1184,10 @@ describe('el filtro de etiquetas', () => {
   test('el candado nombra el operador, en vez de repetir el icono', () => {
     // Corto, porque lo que explica esta en la nota de al lado. Y son **cuatro**
     // textos, no dos: el candado de plataforma y estado no dice OR/AND.
-    expect(I18N_ES).toContain("'filter.menu.orAnd.off': 'Incluye algunas'");
-    expect(I18N_ES).toContain("'filter.menu.orAnd.on': 'Incluye todas'");
-    expect(I18N_ES).toContain("'filter.menu.acota.off': 'Incluye solo estas'");
-    expect(I18N_ES).toContain("'filter.menu.acota.on': 'No incluye estas'");
+    expect(I18N_ES).toContain("'filter.menu.orAnd.off': 'Elementos que contengan alguna seleccionada.'");
+    expect(I18N_ES).toContain("'filter.menu.orAnd.on': 'Elementos que contengan todas las seleccionadas.'");
+    expect(I18N_ES).toContain("'filter.menu.acota.off': 'Solo las seleccionadas.'");
+    expect(I18N_ES).toContain("'filter.menu.acota.on': 'Todas menos las seleccionadas.'");
 
     /**
      * Ni una palabra de las que se quitaron.
@@ -1180,7 +1206,7 @@ describe('el filtro de etiquetas', () => {
     ]) {
       const linea = I18N_ES.split('\n').find((l) => l.includes(`'${clave}'`)) ?? '';
 
-      for (const palabra of ['candado', 'sale ', 'descartar', 'coincide']) {
+      for (const palabra of ['candado', 'sale ', 'descartar', 'coincide', 'incluye']) {
         expect(`${clave}:${palabra}:${linea.toLowerCase().includes(palabra)}`).toBe(`${clave}:${palabra}:false`);
       }
     }
@@ -1205,12 +1231,25 @@ describe('el filtro de etiquetas', () => {
    * esta marcando etiquetas, y lo de verdad lo dice OR y AND.
    */
   test('la nota del pie dice las tres reglas del filtro', () => {
-    expect(I18N_ES).toContain('Sin marcar ninguna, se ve todo. Con varias marcadas, el filtro incluye las que llevan alguna, o solo las que las llevan todas si abres el candado.');
+    /**
+     * Y dice «si cierras el candado», no «si abres».
+     *
+     * Decia «abres», que es justo lo contrario: el candado nace abierto, asi
+     * que «solo las que las llevan todas» —que es lo que hace el filtro en
+     * modo cerrado— no se obtiene abriéndolo sino cerrándolo. Ademas el boton
+     * de al lado ya trae su candado, y la nota se leia como si el icono de la
+     * izquierda marcara el modo, cuando el icono va en el **titulo** y lo que
+     * se pulsa es el boton de abajo.
+     */
+    expect(I18N_ES).toContain('Sin marcar ninguna, se ve todo. Con varias marcadas, el filtro incluye las que llevan alguna, o solo las que las llevan todas si cierras el candado.');
     expect(I18N_ES).toContain('Sin marcar ninguna, se ve todo. Con varias marcadas, el filtro incluye las que llevan alguna.');
-    expect(I18N_ES).toContain('Sin marcar ninguna, se ve todo. Con el candado abierto solo incluye las que llevan todas.');
+    // Y sin nota para el candado cerrado, porque no tendria que ser cierta
+    // para los tres filtros: no hay una regla comun a «exige todas» y
+    // «descarta las marcadas».
+    expect(I18N_ES).not.toContain('footHintExcluir');
 
     // Y el texto entero, no un esqueleto: es lo unico que explica el filtro.
-    for (const nota of ['filter.tags.footHint', 'filter.menu.footHint', 'filter.menu.footHintExcluir']) {
+    for (const nota of ['filter.tags.footHint', 'filter.menu.footHint']) {
       const linea = I18N_ES.split('\n').find((l) => l.includes(`'${nota}'`)) ?? '';
 
       expect(`${nota}:${linea.length}`).not.toBe(`${nota}:0`);
@@ -1359,5 +1398,45 @@ describe('arranque sin salto de estilos', () => {
     // En el `finally`, no en el `try`: si la lectura falla, la pantalla tiene
     // que ensenar el error, no quedarse esperando para siempre.
     expect(APP).toMatch(/finally\s*\{\s*setClavesCargadas\(true\)/);
+  });
+});
+/**
+ * El candado nace **abierto**.
+ *
+ * Cerrado es el caso raro: obliga a que la clave lleve todas las marcadas, y
+ * con «cumplidos y regalados» sobre una coleccion de mil eso no devuelve nada
+ * hasta que se acumulan las etiquetas. Es un filtro que de entrada parece
+ * roto, y es exactamente lo que se ve al empezar.
+ *
+ * Ademas el abierto es lo que se espera al marcar: se marca «lo mio de este
+ * tema» y sale lo de ese tema. Cerrado es para quien busca deliberadamente el
+ * cruce, que se pulsa a proposito.
+ *
+ * Y «Limpiar» lo devuelve a abierto, que es lo unico que hace que el boton no
+ * conserve un filtro puesto que no se ve en ninguna parte.
+ */
+describe('el candado nace abierto', () => {
+  test('el filtro por defecto tiene los tres modos abiertos', () => {
+    // Los tres, en `emptyFilter`, que es lo que se usa al arrancar y al
+    // pulsar «Limpiar».
+    expect(FILTRAR).toMatch(/excluir: false,/);
+    expect(FILTRAR).toMatch(/excluirPlataformas: false,/);
+    expect(FILTRAR).toMatch(/excluirEstados: false,/);
+  });
+
+  test('el filtro por defecto no acota por nada', () => {
+    // Si `excluir` se.COLOCA por error en `emptyFilter`, con el filtro
+    // sin marcar no se notaria —no hay nada que excluir— y en cuanto se
+    // marcara algo apareceria una lista vacia sin explicacion.
+    expect(FILTRAR).toMatch(/tags: \[\],[\s\S]{0,120}?excluir: false,[\s\S]{0,60}?excluirPlataformas: false,[\s\S]{0,60}?excluirEstados: false,/);
+  });
+
+  test('limpiar devuelve los tres modos a abierto', () => {
+    expect(BARRA).toMatch(/excluir: false,\s*excluirPlataformas: false,\s*excluirEstados: false,/);
+  });
+
+  test('las props del componente tambien arrancan en abierto', () => {
+    // `excluir = false` por defecto: un filtro que no lo pase sale abierto.
+    expect(FILTRO).toMatch(/excluir = false,/);
   });
 });

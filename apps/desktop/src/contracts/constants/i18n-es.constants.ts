@@ -79,15 +79,14 @@ export const ES: TranslationTable = Object.freeze({
   'filter.menu.scope': 'Cuantas marcar',
   'filter.tags': 'Etiquetas',
   'filter.tags.footHint':
-    'Sin marcar ninguna, se ve todo. Con varias marcadas, el filtro incluye las que llevan alguna, o solo las que las llevan todas si abres el candado.',
+    'Sin marcar ninguna, se ve todo. Con varias marcadas, el filtro incluye las que llevan alguna, o solo las que las llevan todas si cierras el candado.',
   'filter.menu.footHint':
     'Sin marcar ninguna, se ve todo. Con varias marcadas, el filtro incluye las que llevan alguna.',
-  'filter.menu.footHintExcluir':
-    'Sin marcar ninguna, se ve todo. Con el candado abierto solo incluye las que llevan todas.',
-  'filter.menu.orAnd.off': 'Incluye algunas',
-  'filter.menu.orAnd.on': 'Incluye todas',
-  'filter.menu.acota.off': 'Incluye solo estas',
-  'filter.menu.acota.on': 'No incluye estas',
+  'filter.menu.orAnd.off': 'Elementos que contengan alguna seleccionada.',
+  'filter.menu.orAnd.on': 'Elementos que contengan todas las seleccionadas.',
+  'filter.menu.acota.off': 'Solo las seleccionadas.',
+  'filter.menu.acota.on': 'Todas menos las seleccionadas.',
+  'filter.menu.lockOn': 'Filtro cerrado: exige todas',
   'filter.reset': 'Quitar busqueda y filtros',
 
   // ---------------------------------------------------------- selection ---

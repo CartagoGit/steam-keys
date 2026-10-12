@@ -409,7 +409,7 @@ TRADUCCIONES['fr'] = {
  'storage.restoreCounting': 'Calcul de ce qui va changer…',
  'storage.restoreWillAdd': '{0} nouvelles cles seront ajoutees',
  'storage.restoreWillUpdate': '{0} seront mises a jour',
- 'filter.menu.footHintExcluir': 'Sans rien de coche, tout s affiche. Cadenas ferme: il inclut seulement ce qui les porte toutes.',  'filter.menu.orAnd.off': 'Inclut certaines',  'filter.menu.orAnd.on': 'Inclut toutes',  'filter.menu.acota.off': 'Inclut seulement celles-ci',  'filter.menu.acota.on': 'N inclut pas celles-ci',
+ 'filter.menu.orAnd.off': 'Elements contenant au moins un des selectionnes.',  'filter.menu.orAnd.on': 'Elements contenant tous les selectionnes.',  'filter.menu.acota.off': 'Seulement les selectionnes.',  'filter.menu.acota.on': 'Tout sauf les selectionnes.',  'filter.menu.lockOn': 'Filtre ferme : exige tous',
  }
 TRADUCCIONES['pt'] = {
  'export.title': 'exportacao',
@@ -768,7 +768,7 @@ TRADUCCIONES['pt'] = {
  'storage.restoreCounting': 'A calcular o que vai mudar…',
  'storage.restoreWillAdd': '{0} chaves novas entram',
  'storage.restoreWillUpdate': '{0} vao ser atualizadas',
- 'filter.menu.footHintExcluir': 'Sem nada marcado ve-se tudo. Com o cadado fechado so inclui as que as tem todas.',  'filter.menu.orAnd.off': 'Inclui algumas',  'filter.menu.orAnd.on': 'Inclui todas',  'filter.menu.acota.off': 'Inclui so estas',  'filter.menu.acota.on': 'Nao inclui estas',
+ 'filter.menu.orAnd.off': 'Itens que contenham alguma das marcadas.',  'filter.menu.orAnd.on': 'Itens que contenham todas as marcadas.',  'filter.menu.acota.off': 'Apenas as marcadas.',  'filter.menu.acota.on': 'Todas menos as marcadas.',  'filter.menu.lockOn': 'Filtro fechado: exige todas',
  }
 TRADUCCIONES['de'] = {
  'export.title': 'Export',
@@ -1128,7 +1128,7 @@ TRADUCCIONES['de'] = {
  'storage.restoreCounting': 'Berechne, was sich andaern wird…',
  'storage.restoreWillAdd': '{0} neue Schluessel kommen hinzu',
  'storage.restoreWillUpdate': '{0} werden aktualisiert',
- 'filter.menu.footHintExcluir': 'Ohne Markierte zeigt alles. Geschlossen nimmt er nur auf, was alle traegt.',  'filter.menu.orAnd.off': 'Nimmt einige auf',  'filter.menu.orAnd.on': 'Nimmt alle auf',  'filter.menu.acota.off': 'Nimmt nur diese auf',  'filter.menu.acota.on': 'Nimmt diese nicht auf',
+ 'filter.menu.orAnd.off': 'Eintraege, die mindestens einen ausgewaehlten tragen.',  'filter.menu.orAnd.on': 'Eintraege, die alle ausgewaehlten tragen.',  'filter.menu.acota.off': 'Nur die ausgewaehlten.',  'filter.menu.acota.on': 'Alle ausser den ausgewaehlten.',  'filter.menu.lockOn': 'Geschlossener Filter: verlangt alle',
  }
 def limpiar_vacios(texto: str) -> str:
     return re.sub(r'\n{3,}', '\n\n', texto)
