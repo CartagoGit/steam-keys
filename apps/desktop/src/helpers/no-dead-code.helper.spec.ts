@@ -71,6 +71,21 @@ function fuentes(): IFuente[] {
 const DECLARA = /^\s*export\s+(?:async\s+)?(function|const|class)\s+([A-Za-z_$][\w$]*)/gm;
 
 /**
+ * Las mismas declaraciones, pero **sin `export`**.
+ *
+ * El `\s*` inicial y el grupo que empieza por `(?!\s*export)` de `DECLARA` son lo
+ * que separa las dos listas: `DECLARA` exige `export` justo despues de los
+ * espacios, y aqui se exige que **no** haya. Un `export` detras —`export default`,
+ * `export { X }` en el barrel— no cuela porque el patrón exige un identificador
+ * justo a continuacion.
+ *
+ * Sin el `(?!\s*export)` un nombre exportado se contaria dos veces, una por cada
+ * lista, y el test privado lo daria por muerto.
+ */
+const PRIVADO =
+  /^\s*(?!export\b)(?:async\s+)?(function|const|class)\s+([A-Za-z_$][\w$]*)/gm;
+
+/**
  * Metodos de un objeto exportado.
  *
  * Antes esto era un agujero: el guard miraba `export function`, `export
@@ -265,6 +280,55 @@ describe('codigo muerto', () => {
     }
 
     expect(muertos).toEqual([]);
+  });
+
+  /**
+   * Declaraciones **sin exportar** que no se usan ni en su fichero.
+   *
+   * Los dos tests anteriores solo miran lo exportado, asi que todo lo privado
+   * se les escapaba. No es teoria: al reescribir `segmented.component.tsx` se
+   * dejaron un mapa de glifos y su funcion, con la prop `icon` que los alimentaba,
+   * y los tres se Cairon el guard en verde porque no uno solo se exporta. El
+   * boton no llevaba icono desde antes: el codigo estaba muerto desde el primer dia
+   * y solo habia que mirar el fichero para verlo.
+   *
+   * Solo se comprueba el **ambito del modulo**, no el de bloque: dentro de una
+   * funcion, un `const` declarado justo ahi y usado dos lineas mas abajo cuesta
+   * mas de medir que de mantener, y los que sobran los ense\u00f1a el compilador.
+   */
+  test('no hay constantes ni funciones privadas sin usar', () => {
+    const muertas: string[] = [];
+
+    for (const fuente of todos) {
+      if (fuente.esBarril) continue;
+
+      PRIVADO.lastIndex = 0;
+
+      let encontrado: RegExpExecArray | null;
+
+      while ((encontrado = PRIVADO.exec(fuente.limpio)) !== null) {
+        const nombre = encontrado[2];
+
+        if (!nombre) continue;
+
+        // Igual que mas arriba: `t`, `id` y `map` colisionarian con todo.
+        if (nombre.length <= 3) continue;
+
+        const patron = new RegExp(`\\b${nombre}\\b`, 'g');
+
+        /**
+         * Una aparicion es la propia declaracion; el resto son usos. Se cuenta
+         * **dentro del mismo fichero**: lo privado no se puede usar fuera, asi que
+         * buscarlo en la aplicacion entera solo daria falsos positivos por nombres
+         * repetidos.
+         */
+        const usos = (fuente.limpio.match(patron) ?? []).length;
+
+        if (usos <= 1) muertas.push(`${fuente.ruta}: ${nombre}`);
+      }
+    }
+
+    expect(muertas).toEqual([]);
   });
 
   test('los barrels no reexportan nada que ya no exista', () => {

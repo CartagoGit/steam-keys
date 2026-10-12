@@ -1,13 +1,10 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 
-import type { IconName } from './icon.component';
-
 /** Una opcion de un grupo de opciones excluyentes. */
 export interface ISegmentOption<T> {
   value: T;
   /** Clave de traduccion del texto. */
   label: string;
-  icon?: IconName;
 }
 
 export interface ISegmentedProps<T extends string> {
@@ -219,7 +216,7 @@ export function Segmented<T extends string>({
                 else botonesRef.current.delete(option.value);
               }}
               className={[
-                'relative z-1 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-xs font-medium whitespace-nowrap transition-colors',
+                'relative z-1 rounded-full px-3.5 py-1 text-xs font-medium whitespace-nowrap transition-colors',
                 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
                 'disabled:cursor-not-allowed',
                 // Sin pompa: gris apagado. Con pompa: el color del filtro, y
@@ -227,7 +224,6 @@ export function Segmented<T extends string>({
                 activo ? colores.sobrePompa : 'text-t4 hover:text-t2',
               ].join(' ')}
             >
-              {option.icon ? <IconGlyph name={option.icon} /> : null}
               {option.label}
             </button>
           );
@@ -236,31 +232,3 @@ export function Segmented<T extends string>({
     </div>
   );
 }
-
-/** El icono del boton, del mismo tamano que el texto. */
-function IconGlyph({ name }: { name: IconName }) {
-  return <span className="text-[13px] leading-none">{GLIFOS[name] ?? '·'}</span>;
-}
-
-/**
- * Glifos en texto plano.
- *
- * Se usan en vez de iconos SVG porque en un boton de 28 px de alto un SVG pesa
- * mas que el texto y lo descuadra; ademas el color lo hereda del boton sin
- * tener que pasarle clases.
- *
- * El tipo sale de `IconName`, no de `Record<string, string>`: con el tipo
- * abierto, anadir un icono nuevo a la enumeracion no obliga a decidir aqui si
- * lleva glifo o no, y el `?? '·'` de `IconGlyph` se traga el olvido sin avisar.
- * `Partial` mantiene esa red de seguridad sin fingir que todos los iconos
- * tienen glifo: hoy `check-circle` comparte glifo con `check`, y el resto
- * (flechas, lapiz...) no se usan en este boton y se dibujarian como punto.
- */
-const GLIFOS: Partial<Readonly<Record<IconName, string>>> = {
-  check: '✓',
-  'check-circle': '✓',
-  gamepad: '\u{1F3AE}',
-  package: '\u{1F4E6}',
-  filter: '\u{1F50D}',
-  layers: '\u{1F5C2}',
-};
