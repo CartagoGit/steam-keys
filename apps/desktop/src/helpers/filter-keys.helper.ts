@@ -1,5 +1,4 @@
 import { GIFTABLE_STATUSES, KeyKind, KeyPlatform, KeyScope, KeySort, KeyStatus, type IGameKey, type IKeyFilter, type IKeyStats } from '@/contracts';
-import { keyFingerprint } from '@/helpers/normalize-text.helper';
 
 /**
  * Filtro por defecto: solo las claves que siguen disponibles.
@@ -199,20 +198,16 @@ export function computeStats(
   };
 }
 
-/** Agrupa las keys por titulo normalizado: un juego con varias claves. */
-export function groupByTitle(keys: readonly IGameKey[]): ReadonlyMap<string, IGameKey[]> {
-  const groups = new Map<string, IGameKey[]>();
-
-  for (const key of keys) {
-    const fingerprint = keyFingerprint(key.title);
-    const bucket = groups.get(fingerprint);
-
-    if (bucket) bucket.push(key);
-    else groups.set(fingerprint, [key]);
-  }
-
-  return groups;
-}
+/*
+ * Aqui **no** hay un agrupar-por-titulo.
+ *
+ * Habia uno, y llevaba el mismo nombre que el de `selection.helper`, que si se
+ * usa. La guarda de codigo muerto lo daba por vivo porque encontraba una
+ * llamada con ese nombre, que era la del otro fichero: dos funciones
+ * llamadas igual tapando la muerte la una de la otra. Renombrarlas —esta
+ * `clavesPorTitulo` y la otra `resumenPorTitulo`— fue lo que dejo ver que
+ * esta no la llamaba nadie, y se borro.
+ */
 
 function normalize(value: string): string {
   return value.trim().toLowerCase();

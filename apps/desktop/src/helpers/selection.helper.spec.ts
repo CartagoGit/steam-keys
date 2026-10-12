@@ -4,7 +4,7 @@ import { translate } from '@/helpers/i18n.helper';
 
 import {
   analyzeSelection,
-  groupByTitle,
+  resumenPorTitulo,
   isExpirable,
   isGiftable,
   podarSeleccion,
@@ -225,7 +225,7 @@ describe('varias claves del mismo juego', () => {
   });
 
   test('agrupa por titulo ignorando mayusculas y acentos', () => {
-    const mapa = groupByTitle([
+    const mapa = resumenPorTitulo([
       clave(1, KeyStatus.Available, 'Knights of Pen and Paper + 1 Edition'),
       clave(2, KeyStatus.Gifted, 'Knights of Pen & Paper +1 Edition'),
       clave(3, KeyStatus.Available, 'Otro juego'),

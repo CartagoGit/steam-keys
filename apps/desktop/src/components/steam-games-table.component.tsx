@@ -3,6 +3,7 @@ import { Icon } from './icon.component';
 import { useT } from '@/context/locale.context';
 import { LOCALE_BCP47, type ISteamOwnedGame, type SteamAccountStatus } from '@/contracts';
 import { formatShortDate } from '@/helpers/format-date.helper';
+import { formatHours } from '@/helpers/format-hours.helper';
 
 /**
  * Tabla de juegos de Steam.
@@ -142,7 +143,7 @@ export function SteamGamesTable({
                 <td className="px-3 py-2 text-right text-xs text-t3 tabular-nums">
                   {juego.playtimeForever > 0
                     ? t('library.playtime', [
-                        (juego.playtimeForever / 60).toFixed(1),
+                        formatHours(juego.playtimeForever, locale),
                       ])
                     : '—'}
                 </td>

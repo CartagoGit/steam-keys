@@ -27,7 +27,7 @@ import { Button } from './components/ui.component';
 
 import { AppTheme, AppView, DEFAULT_VIEW, KEY_STATUS_VALUES, KeyPlatform, KeyScope, KeySort, KeyStatus, PAGE_SIZE, mergeTags, type AppLocale, type IAppSettings, type IGameKey, type IGameKeyDraft, type IImportSummary, type IKeyFilter, type ISteamOwnedGame, type ITag, type SteamAccountStatus, type TranslationArgs, type Translator } from '@/contracts';
 import { computeStats, emptyFilter, filterKeys, sortKeys } from '@/helpers/filter-keys.helper';
-import { analyzeSelection, claveGrupo, groupByTitle, isGiftable, podarSeleccion, type SelectAction } from '@/helpers/selection.helper';
+import { analyzeSelection, claveGrupo, isGiftable, podarSeleccion, resumenPorTitulo, type SelectAction } from '@/helpers/selection.helper';
 import { useKeepMounted } from '@/helpers/use-exit-animation.helper';
 import { useShortcuts } from '@/helpers/use-shortcuts.helper';
 import { useLoading, type TConTiempo } from '@/helpers/use-loading.helper';
@@ -702,7 +702,7 @@ export function App() {
   }, [visible]);
 
   /** Cuantas claves comparten cada titulo, para el contador de la fila. */
-  const groups = useMemo(() => groupByTitle(keys), [keys]);
+  const groups = useMemo(() => resumenPorTitulo(keys), [keys]);
 
   /**
    * Las claves cuyo juego ya esta en la cuenta de Steam.

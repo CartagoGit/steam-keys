@@ -213,8 +213,18 @@ export function claveGrupo(title: string): string {
     .trim();
 }
 
-/** Cuenta las claves por titulo, sin distinguir mayusculas ni acentos. */
-export function groupByTitle(keys: readonly IGameKey[]): ReadonlyMap<string, IGroupInfo> {
+/**
+ * Cuenta las claves por **juego**, sin distinguir mayusculas, acentos ni como
+ * se escriba el «y» —«Knights of Pen and Paper» y «Pen & Paper» son el mismo.
+ *
+ * Se llamaba `groupByTitle`, y lo mismo otro que agrupa por titulo pero
+ * devuelve las claves y no el resumen. Con dos funciones del mismo nombre no
+ * se puede leer una llamada y saber que devuelve; esta se llama `resumenPorTitulo`
+ * porque es eso.
+ */
+export function resumenPorTitulo(
+  keys: readonly IGameKey[],
+): ReadonlyMap<string, IGroupInfo> {
   const mapa = new Map<string, IGroupInfo>();
 
   for (const key of keys) {
