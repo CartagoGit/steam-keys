@@ -90,6 +90,27 @@ function helpers(): string[] {
   return salida;
 }
 
+/**
+ * Servicios `.ts`, donde pasa lo mismo que en los helpers.
+ *
+ * Un servicio devuelve el texto de un error y el componente lo pinta tal cual.
+ * De ahi vinieron los ultimos castellano que se colaron: el mensaje de error
+ * de la base, que se enseñas sin traducir cuando la excepcion no es un
+ * `Error`.
+ */
+function servicios(): string[] {
+  const salida: string[] = [];
+
+  for (const nombre of readdirSync(join(RAIZ, 'services'))) {
+    const ruta = join(RAIZ, 'services', nombre);
+
+    if (statSync(ruta).isDirectory()) salida.push(...servicios());
+    else if (nombre.endsWith('.ts') && !nombre.endsWith('.spec.ts')) salida.push(ruta);
+  }
+
+  return salida;
+}
+
 /** Quita comentarios, que describen el problema pero no lo causan. */
 function sinComentariosDe(codigo: string): string {
   return codigo.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
@@ -166,12 +187,23 @@ function sospechosos(fichero: string): string[] {
 }
 
 describe('nada de castellano escrito a mano en la interfaz', () => {
-  const ficheros = componentes(join(RAIZ, 'components'));
+  /**
+   * `app.component.tsx` va aparte del recorrido por `components/`: no esta
+   * dentro de ese directorio, y es el fichero con mas JSX del proyecto. Quedarse
+   * fuera era el agujero por el que colaron cuatro textos, entre ellos
+   * «Cargando la coleccion…» y el boton «Marcar caducadas», que solo se
+   * veian en espanol.
+   */
+  const ficheros = [
+    ...componentes(join(RAIZ, 'components')),
+    join(RAIZ, 'app.component.tsx'),
+  ];
 
   test('se ha encontrado alguna componente que revisar', () => {
     // Si el recorrido fallara, el test pasaria sin comprobar nada, que es la
     // peor forma de fallar.
     expect(ficheros.length).toBeGreaterThan(10);
+    expect(ficheros).toContain(join(RAIZ, 'app.component.tsx'));
   });
 
   test('el detector ve un texto partido en varias lineas', () => {
@@ -229,6 +261,31 @@ describe('nada de castellano escrito a mano en la interfaz', () => {
         while (i !== -1) {
           // Solo dentro de una cadena: un identificador o una clave de
           // traduccion no se pintan.
+          if (enCadena(codigo, i)) {
+            fallos.push(`${f.split('/').pop()} linea ${codigo.slice(0, i).split('\n').length}: ${palabra}`);
+          }
+
+          i = codigo.indexOf(palabra, i + palabra.length);
+        }
+      }
+    }
+
+    expect(fallos).toEqual([]);
+  });
+
+  test('ningun servicio devuelve castellano al que se lo pinte', () => {
+    // El mismo criterio que los helpers: en un `.ts` no hay etiquetas, asi que
+    // lo que se busca es el castellano dentro de una cadena. Un servicio es
+    // donde vive el texto de los errores, y el componente lo enseña tal cual.
+    const fallos: string[] = [];
+
+    for (const f of servicios()) {
+      const codigo = sinComentariosDe(readFileSync(f, 'utf-8'));
+
+      for (const palabra of SOSPECHOSAS) {
+        let i = codigo.indexOf(palabra);
+
+        while (i !== -1) {
           if (enCadena(codigo, i)) {
             fallos.push(`${f.split('/').pop()} linea ${codigo.slice(0, i).split('\n').length}: ${palabra}`);
           }
