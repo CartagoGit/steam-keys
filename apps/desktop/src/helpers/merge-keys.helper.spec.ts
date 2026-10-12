@@ -14,16 +14,35 @@ class FakeDatabase implements IDatabaseClient {
   /** Sentencias ejecutadas, para inspeccionar el resultado. */
   readonly inserts: unknown[][] = [];
   readonly updates: unknown[][] = [];
+  /** Cuantas consultas se han hecho. Antes era una por fila. */
+  consultas = 0;
+  /** Transacciones abiertas y confirmadas, para ver que se respeta el Atomico. */
+  abiertas = 0;
+  confirmadas = 0;
+  deshechas = 0;
+  /** Falla en la escritura numero N, para probar que no queda nada a medias. */
+  readonly fallarEn: number | undefined;
 
   private nextId = 1;
+  private escrituras = 0;
 
-  constructor(clavesIniciales: readonly string[] = []) {
+  constructor(clavesIniciales: readonly string[] = [], fallarEn?: number) {
     for (const clave of clavesIniciales) {
       this.existentes.set(normalizar(clave), this.nextId++);
     }
+
+    this.fallarEn = fallarEn;
   }
 
   async execute(sql: string, bind: readonly unknown[] = []): Promise<number> {
+    if (/^\s*(INSERT|UPDATE)/i.test(sql)) {
+      this.escrituras += 1;
+
+      if (this.escrituras === this.fallarEn) {
+        throw new Error('disco lleno');
+      }
+    }
+
     if (/^\s*INSERT/i.test(sql)) {
       this.inserts.push([...bind]);
       this.existentes.set(normalizar(String(bind[1])), this.nextId++);
@@ -40,10 +59,21 @@ class FakeDatabase implements IDatabaseClient {
 
   async select<T>(sql: string, bind: readonly unknown[] = []): Promise<T[]> {
     if (/FROM game_keys WHERE key_value/i.test(sql)) {
+      this.consultas += 1;
       const clave = normalizar(String(bind[0]));
       const id = this.existentes.get(clave);
 
       return (id === undefined ? [] : [{ id }]) as T[];
+    }
+
+    // La lectura de una vez: todas las claves con su id.
+    if (/SELECT id, key_value FROM game_keys$/i.test(sql.replace(/\s+/g, ' '))) {
+      this.consultas += 1;
+
+      return [...this.existentes.entries()].map(([key_value, id]) => ({
+        id,
+        key_value,
+      })) as T[];
     }
 
     return [];
@@ -52,6 +82,36 @@ class FakeDatabase implements IDatabaseClient {
   async migrate(): Promise<void> {}
 
   async close(): Promise<void> {}
+
+  /**
+   * Transaccion de mentira pero con la misma forma: si algo falla dentro, se
+   * deshace y no queda ninguna escritura. Por eso guarda una foto al abrir y la
+   * restaura al cerrar sin exito.
+   */
+  async transaccion<T>(fn: () => Promise<T>): Promise<T> {
+    this.abiertas += 1;
+    const foto = new Map(this.existentes);
+    const inserts = this.inserts.length;
+
+    try {
+      const valor = await fn();
+
+      this.confirmadas += 1;
+
+      return valor;
+    } catch (error) {
+      this.deshechas += 1;
+      this.existentes.clear();
+
+      for (const [clave, id] of foto) this.existentes.set(clave, id);
+
+      this.inserts.length = inserts;
+
+      throw error;
+    } finally {
+      this.abiertas -= 1;
+    }
+  }
 }
 
 function normalizar(valor: string): string {
@@ -196,6 +256,53 @@ describe('restaurar una copia sin perder lo actual', () => {
  * funciones con tests de paridad: comparten el mismo reparto y solo se
  * separan en que la segunda escribe.
  */
+/**
+ * Una restauracion son cientos de escrituras, y SQLite confirma una a una.
+ *
+ * Sin transaccion, un fallo a mitad —un disco lleno, una copia corrupta—
+ * dejaba la coleccion con medio camino hecho y sin forma de saber hasta donde:
+ * el dialogo decia «se han anadido 200» y no habia forma de volver atras.
+ */
+describe('una restauracion es todo o nada', () => {
+  test('va dentro de una transaccion', async () => {
+    const db = new FakeDatabase();
+
+    await mergeKeysFromBackup(db, MEZCLA, RestoreMode.Fusionar);
+
+    expect(db.abiertas).toBe(0);
+    expect(db.confirmadas).toBe(1);
+    expect(db.deshechas).toBe(0);
+  });
+
+  test('si falla a mitad no queda ninguna escritura', async () => {
+    // Falla en la tercera escritura, con la primera ya dentro.
+    const db = new FakeDatabase(['MQ7RT-29XKL-ZPN84'], 3);
+
+    await expect(
+      mergeKeysFromBackup(db, MEZCLA, RestoreMode.Sobrescribir),
+    ).rejects.toThrow('disco lleno');
+
+    expect(db.deshechas).toBe(1);
+    expect(db.confirmadas).toBe(0);
+
+    // La coleccion se queda como estaba: ni las nuevas, ni el titulo cambiado
+    // de las viejas.
+    expect(db.existentes.size).toBe(1);
+    expect(db.inserts).toHaveLength(0);
+  });
+
+  test('el resumen abre ninguna transaccion: solo mira', async () => {
+    const db = new FakeDatabase(['MQ7RT-29XKL-ZPN84']);
+
+    await resumirRestauracion(db, MEZCLA, RestoreMode.Fusionar);
+
+    // Abrir una transaccion para contar es gastar un bloqueo de escritura
+    // —y en SQLite, dejar la base bloqueada si algo va mal— sin escribir nada.
+    expect(db.abiertas).toBe(0);
+    expect(db.confirmadas).toBe(0);
+  });
+});
+
 describe('el resumen cuenta exactamente lo que hace la restauracion', () => {
   for (const modo of [RestoreMode.Fusionar, RestoreMode.Sobrescribir]) {
     const nombre = modo === RestoreMode.Fusionar ? 'fusionando' : 'sobrescribiendo';
@@ -267,6 +374,25 @@ describe('el resumen cuenta exactamente lo que hace la restauracion', () => {
     // Si el resumen normalizara distinto que la fusion, el dialogo prometeria
     // «van a entrar 1» y luego la restauracion no entraria ninguna.
     expect(resumen).toEqual({ total: 1, inserted: 0, skipped: 1, updated: 0 });
+  });
+
+  test('la decision de «ya existe» se toma una sola vez, no una por fila', async () => {
+    const db = new FakeDatabase(['MQ7RT-29XKL-ZPN84', 'ZR92N-7JDMK-QPW45']);
+
+    await resumirRestauracion(db, MEZCLA, RestoreMode.Fusionar);
+
+    // Antes era una consulta por fila: con una copia de cuatrocientas claves
+    // eran cuatrocientas idas y vueltas para decidir lo mismo cuatrocientas
+    // veces. Una sola, y el resto del tiempo es trabajo de verdad.
+    expect(db.consultas).toBe(1);
+  });
+
+  test('lo mismo al escribir', async () => {
+    const db = new FakeDatabase(['MQ7RT-29XKL-ZPN84']);
+
+    await mergeKeysFromBackup(db, MEZCLA, RestoreMode.Sobrescribir);
+
+    expect(db.consultas).toBe(1);
   });
 
   test('una copia vacia da un resumen de ceros, no falla', async () => {

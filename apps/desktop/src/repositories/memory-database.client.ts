@@ -80,6 +80,19 @@ export function memoryDatabaseClient(): IDatabaseClient {
     async close() {
       persist(ajustes);
     },
+
+    /**
+     * Solo ejecuta: cada escritura se persiste en cuanto se hace.
+     *
+     * No es una transaccion real y no se disfraza de una. Es que una escritura
+     * es **una** escritura —un `localStorage.setItem` no puede quedar a medias—,
+     * asi que el contrato se cumple sin `BEGIN` ni `ROLLBACK`. Si alguna vez
+     * anaden aqui una operacion de varias sentencias, esto tiene que cambiar y
+     * el comentario con el.
+     */
+    async transaccion<T>(fn: () => Promise<T>): Promise<T> {
+      return fn();
+    },
   };
 }
 

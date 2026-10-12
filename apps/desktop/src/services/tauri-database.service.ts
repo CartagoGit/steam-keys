@@ -41,6 +41,37 @@ export const tauriDatabaseClient: IDatabaseClient = {
     }
   },
 
+  /**
+   * `BEGIN` / `COMMIT` / `ROLLBACK` de verdad, sobre la conexion cacheada.
+   *
+   * Que el `ROLLBACK` salga aunque el error no sea de SQLite importa: si el
+   * fallo es de la red o del plugin, la transaccion se queda abierta en el
+   * servidor y todas las escrituras siguientes se amontonan sin confirmar.
+   * Por eso el `finally` va por delante del `catch`.
+   */
+  async transaccion<T>(fn: () => Promise<T>): Promise<T> {
+    const db = await getConnection();
+
+    await db.execute('BEGIN');
+
+    try {
+      const valor = await fn();
+
+      await db.execute('COMMIT');
+
+      return valor;
+    } catch (error) {
+      try {
+        await db.execute('ROLLBACK');
+      } catch {
+        // Si el propio `ROLLBACK` falla, la transaccion ya no existe: el error
+        // que importa es el de dentro, no este.
+      }
+
+      throw error;
+    }
+  },
+
   async close() {
     if (!connection) return;
 

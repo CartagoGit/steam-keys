@@ -62,6 +62,31 @@ export const devBridgeDatabaseClient: IDatabaseClient = {
     }
   },
 
+  /**
+   * Las tres sentencias van por el puente, una a una.
+   *
+   * Depende de que el puente mantenga la conexion entre peticiones; si las
+   * abriera por llamada, el `ROLLBACK` se ejecutaria sobre otra base y el
+   * `BEGIN` se quedaria colgado bloqueando la escritura. Es el mismo requisito
+   * que el resto del contrato: una transaccion solo es una transaccion si las
+   * tres frases van a la misma conexion.
+   */
+  async transaccion<T>(fn: () => Promise<T>): Promise<T> {
+    await devBridgeDatabaseClient.execute('BEGIN');
+
+    try {
+      const valor = await fn();
+
+      await devBridgeDatabaseClient.execute('COMMIT');
+
+      return valor;
+    } catch (error) {
+      await devBridgeDatabaseClient.execute('ROLLBACK').catch(() => undefined);
+
+      throw error;
+    }
+  },
+
   async close() {
     // El puente no mantiene conexiones: cada peticion abre y cierra la suya.
   },

@@ -141,6 +141,9 @@ function clienteFalso(): IDatabaseClient & { backups: Map<string, string> } {
     },
     async migrate() {},
     async close() {},
+    async transaccion<T>(fn: () => Promise<T>): Promise<T> {
+      return fn();
+    },
   };
 }
 

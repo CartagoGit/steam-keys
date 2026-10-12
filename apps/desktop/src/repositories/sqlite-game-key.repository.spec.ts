@@ -44,6 +44,17 @@ function crearRepositorio(): {
     async close() {
       sqlite.close();
     },
+    async transaccion<T>(fn: () => Promise<T>): Promise<T> {
+      sqlite.run('BEGIN');
+      try {
+        const valor = await fn();
+        sqlite.run('COMMIT');
+        return valor;
+      } catch (error) {
+        sqlite.run('ROLLBACK');
+        throw error;
+      }
+    },
   };
 
   return {

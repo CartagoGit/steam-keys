@@ -84,6 +84,20 @@ function abrir(): { db: IDatabaseClient; cerrar: () => void } {
       async close() {
         sqlite.close();
       },
+      // `bun:sqlite` habla el mismo dialecto, asi que la transaccion es la de
+      // siempre. Se implementa aqui y no se importa porque este script corre
+      // fuera de Vite: no puede depender del cliente de la app.
+      async transaccion<T>(fn: () => Promise<T>): Promise<T> {
+        sqlite.run('BEGIN');
+        try {
+          const valor = await fn();
+          sqlite.run('COMMIT');
+          return valor;
+        } catch (error) {
+          sqlite.run('ROLLBACK');
+          throw error;
+        }
+      },
     },
     cerrar: () => sqlite.close(),
   };

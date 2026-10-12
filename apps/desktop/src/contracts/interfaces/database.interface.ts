@@ -20,6 +20,22 @@ export interface IDatabaseClient {
   migrate(): Promise<void>;
   /** Cierra la conexion si procede. */
   close(): Promise<void>;
+  /**
+   * Ejecuta `fn` dentro de una transaccion: se confirma si termina, se deshace
+   * si lanza.
+   *
+   * Va en el contrato y no como funcion suelta porque **cada** implementacion
+   * tiene que decidir que hace: SQLite abre `BEGIN`/`COMMIT`/`ROLLBACK` de
+   * verdad, y el puente de desarrollo tiene que tunnelar las tres sentencias a
+   * la misma conexion —que es justo lo que no puede hacer si cada peticion abre
+   * la suya—. Un cliente que no puede garantizar atomicidad lo dice, en vez de
+   * fingir que la tiene.
+   *
+   * Las transacciones **no se anidan**: abrir una dentro de otra deja la
+   * segunda sin cerrar y deja la base bloqueada. Por eso no se llama desde
+   * dentro de `fn`.
+   */
+  transaccion<T>(fn: () => Promise<T>): Promise<T>;
 }
 
 /** Contrato del repositorio de keys. Toda la UI habla con esta interfaz. */
