@@ -227,6 +227,14 @@ export function App() {
   );
 
   const [owned, setOwned] = useState<readonly ISteamOwnedGame[]>([]);
+
+  /**
+   * La ultima biblioteca se leyo a medias porque se topo con el limite de
+   * paginas. Se guarda aparte y no dentro de la lista porque no es una
+   * propiedad de los juegos: es una propiedad de **la lectura**, asi que se
+   * pierde al abrir la app en lugar de quedarse pegada al ultimo estado.
+   */
+  const [bibliotecaIncompleta, setBibliotecaIncompleta] = useState(false);
   const [cuenta, setCuenta] = useState<SteamAccountStatus>({
     conectado: false,
     steamId: '',
@@ -516,14 +524,27 @@ export function App() {
 
         if (!r.ok) return;
 
-        setOwned(r.valor);
+        const { juegos, truncada } = r.valor;
+
+        setOwned(juegos);
         setCuenta({
           conectado: true,
           steamId,
-          juegos: r.valor.length,
+          juegos: juegos.length,
           sincronizadoAt: steamSyncedAtRef.current,
           perfilPrivado: false,
         });
+
+        /**
+         * Si se topo con el limite de paginas, la biblioteca esta a medias.
+         *
+         * En el arranque no se avisa con un toast: apareceria solo, sin que
+         * nadie lo hubiera pedido, y se leeria como un fallo de algo que el
+         * usuario acaba de abrir. Lo que se hace es decirlo en la barra de
+         * estado, que es donde ya vive el numero de juegos, para que se vea
+         * al mirarla y no la pueda pasar por alto.
+         */
+        setBibliotecaIncompleta(truncada);
       } catch {
         /**
          * Un fallo al sincronizar no rompe el arranque.
@@ -536,6 +557,7 @@ export function App() {
          * pulse «Actualizar» lo reintenta.
          */
         setOwned([]);
+        setBibliotecaIncompleta(false);
         setCuenta((actual) => ({ ...actual, conectado: true, juegos: 0 }));
       }
     };
@@ -1233,13 +1255,13 @@ export function App() {
           // publico de Steam, que no necesita clave.
           const id = await resolveSteamId(steamId, senal);
 
-          const juegos = await steamService.getOwnedGames(
+          const { juegos, truncada } = await steamService.getOwnedGames(
             apiKey.trim(),
             id,
             senal,
           );
 
-          return { id, juegos };
+          return { id, juegos, truncada };
         },
         true,
       );
@@ -1247,7 +1269,7 @@ export function App() {
       // Cancelado: no se guarda una clave a medio enlazar.
       if (!r.ok) return traducir('app.linkCancelled');
 
-      const { id, juegos } = r.valor;
+      const { id, juegos, truncada } = r.valor;
       const ahora = new Date().toISOString();
 
       await settingsService.setMany({
@@ -1266,13 +1288,19 @@ export function App() {
         sincronizadoAt: ahora,
         perfilPrivado: false,
       });
+      setBibliotecaIncompleta(truncada);
 
       notify(
-        traducir(
-          pluralKey(juegos.length, 'app.libraryOne', 'app.libraryMany'),
-          [juegos.length],
-        ),
-        'success',
+        truncada
+          ? traducir('app.libraryPartial', [
+              pluralKey(juegos.length, 'app.libraryOne', 'app.libraryMany'),
+              juegos.length,
+            ])
+          : traducir(
+              pluralKey(juegos.length, 'app.libraryOne', 'app.libraryMany'),
+              [juegos.length],
+            ),
+        truncada ? 'info' : 'success',
       );
 
       return null;
@@ -1319,6 +1347,7 @@ export function App() {
       await settingsService.forgetApiKey();
       setSettings(await settingsService.load());
       setOwned([]);
+      setBibliotecaIncompleta(false);
       setCuenta({
         conectado: false,
         steamId: '',
@@ -1515,14 +1544,26 @@ export function App() {
        */
       await settingsService.set('steamSyncedAt', ahora);
 
-      setOwned(r.valor);
+      setOwned(r.valor.juegos);
       setCuenta((current) => ({
         ...current,
-        juegos: r.valor.length,
+        juegos: r.valor.juegos.length,
         sincronizadoAt: ahora,
       }));
+      setBibliotecaIncompleta(r.valor.truncada);
 
-      notify(traducir('app.synced', [r.valor.length]), 'success');
+      /**
+       * Truncada se avisa con tono neutro y encima de "sincronizado", no
+       * debajo y en verde. El numero es real —son los juegos que se han
+       * leido— pero no es el total, asi que un "sincronizado con N juegos"
+       * a secas seria mentir.
+       */
+      notify(
+        r.valor.truncada
+          ? traducir('app.syncedPartial', [r.valor.juegos.length])
+          : traducir('app.synced', [r.valor.juegos.length]),
+        r.valor.truncada ? 'info' : 'success',
+      );
     } catch (cause) {
       if (cause instanceof SteamError && cause.codigo === 'cancelado') return;
 
@@ -1576,6 +1617,7 @@ export function App() {
         {vista === AppView.Games ? (
           cuenta.conectado ? (
             <SteamGamesTable
+              incompleta={bibliotecaIncompleta}
               juegos={owned}
               cuenta={cuenta}
               conClave={appIdsConClave}

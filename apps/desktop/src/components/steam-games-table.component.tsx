@@ -20,12 +20,15 @@ export function SteamGamesTable({
   conClave,
   onRefresh,
   busy,
+  incompleta,
 }: {
   juegos: readonly ISteamOwnedGame[];
   cuenta: SteamAccountStatus;
   conClave: ReadonlySet<number>;
   onRefresh: () => void;
   busy: boolean;
+  /** `true` si la lectura se paro por el limite de paginas. */
+  incompleta: boolean;
 }) {
   const { t, locale } = useT();
 
@@ -45,10 +48,29 @@ export function SteamGamesTable({
       <div className="flex items-center gap-3 px-1">
         <div className="leading-tight">
           <h2 className="text-sm font-medium text-t1">{t('view.games')}</h2>
-          <p className="text-[11px] text-t4">
+          <p className="flex items-center gap-1.5 text-[11px] text-t4">
             {/* Cuenta de juegos de Steam: no lleva filtros, asi que aqui el
                 numero que decide la forma y el que se muestra son el mismo. */}
             {t(pluralKey(cuenta.juegos, 'footer.countOne', 'footer.countMany'), [cuenta.juegos, cuenta.juegos])}
+
+            {/*
+              El numero se queda con su color y el aviso va al lado, con su
+              icono. El total es correcto como cifra de lo que hay listado
+              —no hay mas juegos debajo— pero no es el de la cuenta, y esa
+              diferencia es justo la que hay que poder ver.
+            */}
+            {incompleta ? (
+              <>
+                <span aria-hidden>·</span>
+                <span
+                  title={t('library.partialHint')}
+                  className="inline-flex items-center gap-1 text-warn-strong"
+                >
+                  <Icon name="alert" size={11} />
+                  {t('library.partial')}
+                </span>
+              </>
+            ) : null}
           </p>
         </div>
 

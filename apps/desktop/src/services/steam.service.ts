@@ -1,5 +1,5 @@
 import { steamGet } from './steam-http.service';
-import type { ISteamOwnedGame, ISteamStoreApp } from '@/contracts';
+import type { ISteamOwnedGame, ISteamOwnedGames, ISteamStoreApp } from '@/contracts';
 
 const WEB_API = 'https://api.steampowered.com';
 const STORE_API = 'https://store.steampowered.com/api';
@@ -213,7 +213,7 @@ export const steamService = {
     apiKey: string,
     steamId: string,
     signal?: AbortSignal,
-  ): Promise<ISteamOwnedGame[]> {
+  ): Promise<ISteamOwnedGames> {
     /**
      * Lo ya recogido, por appid.
      *
@@ -254,6 +254,9 @@ export const steamService = {
      */
     let vaciasSeguidas = 0;
 
+    /** Se agoto el tope de paginas sin haber llegado al final real. */
+    let terminado = false;
+
     for (let pagina = 0; pagina < MAX_PAGINAS; pagina += 1) {
       if (pagina > 0) await esperar(PAUSA_ENTRE_PAGINAS_MS, signal);
 
@@ -264,28 +267,52 @@ export const steamService = {
         `&include_appinfo=1&include_played_free_games=1` +
         `&page=${pagina}`;
 
-      const datos = await pedirConMargen<{ response?: { games?: unknown[] } }>(
-        url,
-        signal,
-      );
+      /**
+       * `game_count` viene en la respuesta y no se usaba para nada. Es
+       * justamente lo que distingue una biblioteca vacia de un perfil
+       * privado, asi que se declara; los `games` se leen crudos y se
+       * normalizan uno a uno, que es lo que evita que un elemento raro
+       * tumbe la pagina entera.
+       */
+      const datos = await pedirConMargen<{
+        response?: { games?: unknown[]; game_count?: number };
+      }>(url, signal);
 
-      const paginaJuegos = datos.response?.games;
+      const respuesta = datos.response;
+      const paginaJuegos = respuesta?.games;
 
       if (!Array.isArray(paginaJuegos)) {
-        // Steam devuelve un objeto vacio sin error cuando la clave es valida pero
-        // el perfil es privado. Es el fallo mas desconcertante que hay, asi que
-        // se distingue del resto para poder explicarlo bien.
-        //
-        // Solo en la **primera** pagina: en las siguientes es simplemente el fin
-        // de los juegos, y ahi no hay nada que explicar.
+        /**
+         * Biblioteca vacia no es perfil privado.
+         *
+         * Steam responde `{}` a un perfil privado —la clave vale, el juego
+         * no— y `{"response":{"game_count":0}}` a una cuenta visible que no
+         * tiene ningun juego. Antes las dos caian en el mismo `if` y las dos
+         * salian como `perfilPrivado`, que es justo lo contrario de lo que
+         * hay que decir en la segunda: no hay nada que arreglar, el juego
+         * esta vacio y ya esta.
+         *
+         * El diagnostico se hace **una vez**, en la primera pagina. En las
+         * siguientes la falta de juegos es simplemente el fin, y no hay nada
+         * que explicar.
+         */
         if (pagina === 0) {
+          if (respuesta?.game_count === 0) {
+            terminado = true;
+            break;
+          }
+
           throw new SteamError('perfilPrivado');
         }
 
+        terminado = true;
         break;
       }
 
-      if (paginaJuegos.length === 0) break;
+      if (paginaJuegos.length === 0) {
+        terminado = true;
+        break;
+      }
 
       let nuevos = 0;
 
@@ -320,10 +347,27 @@ export const steamService = {
        */
       vaciasSeguidas = nuevos === 0 ? vaciasSeguidas + 1 : 0;
 
-      if (vaciasSeguidas >= 2) break;
+      if (vaciasSeguidas >= 2) {
+       terminado = true;
+        break;
+      }
     }
 
-    return [...vistos.values()];
+    /**
+     * Salir del bucle por el tope de paginas **no** es lo mismo que haber
+     * terminado: significa que habia mas juegos y se dejo de mirar. Se marca
+     * para que el aviso pueda salir, en vez de devolver una lista a medio
+     * hacer que el resto de la app da por buena —la guarda, la cuenta y la
+     * muestra como si fuera la biblioteca entera.
+     *
+     * Con la cuenta mas grande que se conoce quedan muy por debajo, asi que
+     * en la practica casi nunca se vera. "Casi nunca" no es "nunca", y un
+     * numero de juegos equivocado en pantalla es de las cosas que hacen que
+     * la app no sea de fiar.
+     */
+    const truncada = !terminado;
+
+    return { juegos: [...vistos.values()], truncada };
   },
 
   /**

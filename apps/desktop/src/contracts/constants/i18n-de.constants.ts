@@ -279,11 +279,17 @@ export const DE: TranslationTable = Object.freeze({
   'app.tagsMany': 'Schlagworte bei {0} Schluesseln aktualisiert.',
   'app.libraryOne': '{0} Spiel in deiner Bibliothek.',
   'app.libraryMany': '{0} Spiele in deiner Bibliothek.',
+  'app.libraryPartial':
+    '{0} Unter dem Gesamtwert: es wurden mehr Spiele gelesen, als angezeigt wird.',
+  'app.syncedPartial': 'Bibliothek halb synchronisiert: {0} Spiele gelesen, es kann mehr geben.',
   'app.importedOne': '{0} Key importiert',
   'app.importedMany': '{0} Schluessel importiert',
   'app.importedDupes': ' ({0} waren schon da)',
   'app.exported': '{0} Schluessel exportiert.',
   'app.synced': 'Bibliothek synchronisiert: {0} Spiele.',
+  'library.partial': 'halb gelesen',
+  'library.partialHint':
+    'Das Lesen wurde beim Seitenlimit von Steam beendet. Die Zahl sind die gelesenen Spiele, nicht die Gesamtzahl des Kontos.',
   'storage.checking': 'Wird geprueft…',
   'storage.section.storage': 'Speicher',
   'storage.section.backups': 'Sicherungen',

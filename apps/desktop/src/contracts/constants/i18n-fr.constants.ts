@@ -277,11 +277,17 @@ export const FR: TranslationTable = Object.freeze({
   'app.tagsMany': 'Etiquettes mises a jour sur {0} cles.',
   'app.libraryOne': '{0} jeu dans ta bibliotheque.',
   'app.libraryMany': '{0} jeux dans ta bibliotheque.',
+  'app.libraryPartial': '{0} En dessous du total : il y a plus de jeux que ce qui a ete lu.',
+  'app.syncedPartial':
+    'Bibliotheque synchronisee a moitie : {0} jeux lus, il peut y en avoir plus.',
   'app.importedOne': '{0} cle importee',
   'app.importedMany': '{0} cles importees',
   'app.importedDupes': ' ({0} y etaient deja)',
   'app.exported': '{0} cles exportees.',
   'app.synced': 'Bibliotheque synchronisee : {0} jeux.',
+  'library.partial': 'lecture a moitie',
+  'library.partialHint':
+    'La lecture s est arretee a la limite de pages de Steam. Le nombre est celui des jeux lus, pas le total du compte.',
   'storage.checking': 'Verification…',
   'storage.section.storage': 'Stockage',
   'storage.section.backups': 'Sauvegardes',

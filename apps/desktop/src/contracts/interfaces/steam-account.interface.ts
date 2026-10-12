@@ -21,6 +21,25 @@ export interface ISteamOwnedGame {
   iconUrl: string | null;
 }
 
+/**
+ * Lo que devuelve una lectura de la biblioteca.
+ *
+ * No es solo la lista porque **puede venir incompleta** y hay que poder
+ * decirlo. El tope de paginas existe para que un API que devuelva
+ * paginas distintas sin terminar no se lleve el proceso por delante, y
+ * cuando se topa con el la respuesta esta incompleta de verdad: hay
+ * menos juegos de los que tiene la cuenta.
+ *
+ * Devolver solo el array obligaba a mentir por omision: quien llamaba
+ * guardaba, contaba y pintaba esos numeros como si fueran la
+ * biblioteca entera. Con `truncada` a la vista, avisar es una linea.
+ */
+export interface ISteamOwnedGames {
+  juegos: readonly ISteamOwnedGame[];
+  /** `true` si se paro por el tope de paginas, no porque se acabaran. */
+  truncada: boolean;
+}
+
 /** Datos publicos de la tienda, que no necesitan clave de API. */
 export interface ISteamStoreApp {
   appId: number;

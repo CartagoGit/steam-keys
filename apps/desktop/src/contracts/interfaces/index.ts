@@ -50,6 +50,7 @@ export type {
   IAppMatch,
   IResolvedKey,
   ISteamOwnedGame,
+  ISteamOwnedGames,
   ISteamStoreApp,
   MatchConfidence,
   SteamAccountStatus,
