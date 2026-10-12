@@ -3,23 +3,47 @@
     <rect width="24" height="16" rx="1.5"/>
   </clipPath>
   <g clip-path="url(#es-clip)">
-    <!-- Bandas 1:2:1, que es la proporcion oficial. Con las cuatro mismas
-         partes la bandera se parece a Anyguy, que no es lo que queremos. -->
-    <rect width="24" height="16" fill="#aa1519"/>
+    <!--
+      Bandas 1:2:1, que es la proporcion oficial. Con cuatro partes iguales la
+      bandera se parece a Anyguy, que no es lo que se quiere.
+    -->
+    <rect width="24" height="16" fill="#aa151b"/>
     <rect y="4" width="24" height="8" fill="#f1bf00"/>
-    <!-- El escudo va desplazado hacia el astil, no centrado: centrado se ve
-         una bandera generica con un manchon rojo en medio. -->
-    <g transform="translate(9 0)">
+    <!--
+      El escudo va en el centro horizontal de la bandera, como en la oficial.
+
+      Antes estaba desplazado hacia el astil y con eso la bandera se perdia de
+      vista: lo que se veía era una mancha oscura a media banda y el ojo la
+      leia como un remiendo, no como un escudo. La de Espana lo tiene centrado
+      y quien la reconoce lo espera en ese sitio.
+    -->
+    <g transform="translate(12 0)">
       <!-- Corona: sin ella el escudo parece un rombo suelto. -->
-      <path d="M0.5 6.6h3.2v-1l-0.6-0.7 0.9-0.6 0.6 0.6 0.6-0.6 0.9 0.6-0.6 0.7v1z"
-            fill="#f1bf00"/>
-      <rect x="0.5" y="6.2" width="3.2" height="0.5" fill="#f1bf00"/>
-      <!-- Cuerpo del escudo, cuartelado como el real: solo se distinguen los
-           dos colores a este tamano, que es lo unico que lo hace espanol. -->
-      <rect x="0.4" y="6.9" width="1.6" height="1.4" fill="#aa1519"/>
-      <rect x="2" y="6.9" width="1.6" height="1.4" fill="#ad1519"/>
-      <rect x="0.4" y="8.3" width="1.6" height="1.4" fill="#ad1519"/>
-      <rect x="2" y="8.3" width="1.6" height="1.4" fill="#aa1519"/>
+      <path
+        d="M-2.1 6.1h4.2v-0.9l-0.7-0.5 0.95-1.55 0.7 0.9 0.7-0.9 0.7-1.55 0.7 1.55 0.7-0.9 0.7 0.9 0.95-1.55-0.7 0.5v0.9z"
+        fill="#ad1519"/>
+      <rect x="-2.35" y="6.1" width="4.7" height="0.7" fill="#ad1519"/>
+
+      <!--
+        Cuerpo del escudo, con su forma real: recto arriba y redondeado abajo.
+        Un rectangulo a este tamano es un parche de color, no un escudo.
+      -->
+      <path
+        d="M-1.95 6.9h3.9v2.95c0 1.35-0.82 2.4-1.95 2.9-1.13-0.5-1.95-1.55-1.95-2.9z"
+        fill="#ad1519"/>
+
+      <!--
+        Cuartelado. A 22 px solo se distinguen los dos colores, y eso es
+        justo lo que lo hace espanol: las lemas y las columnas de Aragon son
+        indistinguibles a este tamano, pero el rojo y el oro alternados en
+        cruz si se ven.
+      -->
+      <g fill="#f1bf00">
+        <rect x="-1.82" y="7.02" width="0.88" height="1.35"/>
+        <rect x="0.94" y="7.02" width="0.88" height="1.35"/>
+        <rect x="-1.82" y="8.37" width="0.88" height="1.35"/>
+        <rect x="0.94" y="8.37" width="0.88" height="1.35"/>
+      </g>
     </g>
   </g>
 </svg>

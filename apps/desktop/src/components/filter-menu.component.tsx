@@ -841,8 +841,9 @@ export function FilterMenu<T extends string>({
             no se deduce. Alguien ve siete opciones sin marcar, el boton dice
             «Todas» y no es obvio que sea «ninguna marcada = todas».
 
-            Va `sticky` abajo por lo mismo que la cabecera: si las opciones son
-            muchas, la nota no puede ser lo primero que se vaya al bajar.
+            Va `shrink-0` abajo por lo mismo que la cabecera: si las opciones son
+            muchas, la nota no puede ser lo primero que se vaya al bajar. Con
+            el scroll solo en la lista ni siquiera hace falta quedarse fija.
           */}
           <div className="shrink-0 border-t border-line bg-surface-1">
             <p
@@ -853,29 +854,26 @@ export function FilterMenu<T extends string>({
             </p>
 
           {/*
-            La exclusion, con su candado.
+            La exclusion, con su candado. **Solo en los filtros que la tienen.**
 
-            Con varias marcadas sale lo que lleva **cualquiera** de ellas, que
-            es lo que se quiere casi siempre. Pero hay un caso que con OR no se
-            puede pedir: «cumplidos **y** regalados». Es lo unico que hace este
-            boton, y sin el el filtro se queda corto sin avisar.
+            Este boton se pinto «siempre», que era el error: se veia tambien en
+            Plataforma y en Estado, donde no hay nada que excluir. La
+            exclusion vive en `filter.excluir` y solo la lee el filtro de
+            etiquetas; en los otros dos `onExcluir` no llega, de modo que el
+            boton salia, se ponia pulsable con dos marcadas y no hacia nada. Un
+            boton que no hace nada es peor que un boton que no esta: promete
+            una consulta que no se va a hacer.
 
-            Va debajo de la nota, no junto a las opciones, porque no es una mas
-            de las opciones: cambia lo que significan todas las de arriba. Y
-            lleva candado en vez de una casilla porque no es «activar algo» sino
-            «cerrar el paso a las demas»: abierto es «con una basta», cerrado
-            es «hay que tenerlas todas».
+            Por eso lo decide `onExcluir`, no un flag. Si el filtro tiene modo
+            exclusion, el boton sale —siempre, con una marcada o con cinco—. Y
+            sale apagado con menos de dos marcadas, que es cuando no cambia
+            nada: se ve que existe y que no aplica, que es mejor que no saber
+            que existe. Con dos o mas sale normal, porque ahi si decide.
 
-            El texto no dice «exclusion», que no explica nada a quien no lo
-            sabe: dice las dos lecturas, que es lo que hay que saber.
-
-            Y sale **siempre**, con una marcada o con cinco. Solo con dos o mas,
-            que fue como se hizo, es una opcion que aparece y desaparece de un
-            filtro a otro sin avisar: se marca la segunda etiqueta y aparece
-            una fila que antes no estaba, y al desmarcar se va. Con una sola
-            marcada la exclusion no cambia nada, asi que se ve **apagada** en
-            vez de escondida: se sabe que existe y se sabe que no aplica, que
-            es mejor que no saber que existe.
+            El texto nombra el operador, OR o AND, que es lo que hace la
+            consulta de verdad. Y lleva candado en vez de casilla porque no es
+            «activar algo»: abierto es «con una basta» y cerrado es «hay que
+            tenerlas todas».
 
             El tamano va en el `style` y no en la clase. `text-[10px]` no llega
             a un boton porque la regla de `font: inherit` esta **fuera** de
@@ -883,30 +881,32 @@ export function FilterMenu<T extends string>({
             pisa tambien el tamano. Se veia a 16 px, tres veces mas grande que
             la nota de al lado, y la fila parecia un titular.
           */}
-          <button
-            type="button"
-            role="checkbox"
-            aria-checked={excluir}
-            disabled={marcadas.size < 2}
-            onClick={() => onExcluir?.(!excluir)}
-            style={{
-              fontSize: TAMANO_AVISO,
-              cursor: marcadas.size < 2 ? 'not-allowed' : 'pointer',
-            }}
-            className={[
-              'flex w-full items-center gap-2 px-3 py-2',
-              'text-left leading-relaxed transition-colors',
-              excluir ? 'text-t1' : marcadas.size < 2 ? 'text-t5' : 'text-t3 hover:text-t2',
-            ].join(' ')}
-          >
-            <Icon
-              name={excluir ? 'lock' : 'lock-open'}
-              size={13}
-              className="shrink-0"
-            />
+          {onExcluir ? (
+            <button
+              type="button"
+              role="checkbox"
+              aria-checked={excluir}
+              disabled={marcadas.size < 2}
+              onClick={() => onExcluir(!excluir)}
+              style={{
+                fontSize: TAMANO_AVISO,
+                cursor: marcadas.size < 2 ? 'not-allowed' : 'pointer',
+              }}
+              className={[
+                'flex w-full items-center gap-2 px-3 py-2',
+                'text-left leading-relaxed transition-colors',
+                excluir ? 'text-t1' : marcadas.size < 2 ? 'text-t5' : 'text-t3 hover:text-t2',
+              ].join(' ')}
+            >
+              <Icon
+                name={excluir ? 'lock' : 'lock-open'}
+                size={13}
+                className="shrink-0"
+              />
 
-            <span>{t(excluir ? 'filter.menu.excluirOn' : 'filter.menu.excluirOff')}</span>
-          </button>
+              <span>{t(excluir ? 'filter.menu.excluirOn' : 'filter.menu.excluirOff')}</span>
+            </button>
+          ) : null}
           </div>
         </Popover>
       ) : null}

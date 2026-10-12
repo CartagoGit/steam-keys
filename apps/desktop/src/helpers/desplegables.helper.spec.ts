@@ -57,6 +57,7 @@ function fuente(relativa: string): string {
 const POPOVER = fuente('components/popover.component.tsx');
 const DIALOGO = fuente('components/modal.component.tsx');
 const CLAVES_AJUSTES = fuente('components/settings-keys.component.tsx');
+const I18N_ES = fuente('contracts/constants/i18n-es.constants.ts');
 const FILTRO = fuente('components/filter-menu.component.tsx');
 const SELECTOR = fuente('components/segmented.component.tsx');
 const VISTAS = fuente('components/view-switch.component.tsx');
@@ -1004,10 +1005,38 @@ describe('el filtro de etiquetas', () => {
   });
 
   /**
+   * Los dialogos cuelgan del borde de arriba, no van centrados.
+   *
+   * `items-center` hacia que cambiar de pestana moviera el dialogo entero. Al
+   * crecer el contenido el panel se centro hacia abajo y al encoger se centro
+   * hacia arriba, y las pestanas —la fila que decide el cambio— subian y
+   * bajaban con el: pulsar la pestana que ya no estaba donde se vio.
+   *
+   * Arriba, la cabecera y las pestanas no dependen del alto del contenido, solo
+   * de `MARGEN`, y no se mueven nunca. El alto se absorbe hacia abajo, que es
+   * donde esta lo que cambia.
+   *
+   * Medido en el navegador con las tres pestanas de Ajustes: `top` = 16 en las
+   * tres, con altos de 575, 488 y 483.
+   */
+  test('los dialogos cuelgan del borde de arriba, para que las pestanas no se muevan', () => {
+    expect(DIALOGO).toContain('fixed inset-0 z-50 flex items-start justify-center');
+    expect(DIALOGO).not.toContain('items-center justify-center');
+
+    // El margen es lo unico que separa el panel del borde de arriba.
+    expect(DIALOGO).toContain('const MARGEN = 16;');
+    expect(DIALOGO).toContain('style={{ padding: MARGEN }}');
+
+    // Y el alto maximo deja el mismo margen por abajo, de modo que un dialogo
+    // que crece hasta el tope no se sale por abajo.
+    expect(DIALOGO).toContain('style={{ maxHeight: `calc(100dvh - ${MARGEN * 2}px)` }}');
+  });
+
+  /**
    * Los dialogos no se pegan al borde de arriba.
    *
    * El margen y el `max-h` salen de la misma constante, en el `style`. Se
-   *Podrian escribir como clases —`p-4` y `max-h-[calc(100dvh-2rem)]`— y
+   * Podrian escribir como clases —`p-4` y `max-h-[calc(100dvh-2rem)]`— y
    * entonces el numero estaria escrito dos veces, con la mitad de las
    * posibilidades de que un dia se toque una y no la otra: el dialogo se sale
    * por abajo justo cuando se le ha anadido una fila, que es cuando mas falta
@@ -1096,6 +1125,85 @@ describe('el filtro de etiquetas', () => {
     // Y el apagado no promete nada: ni manita ni color de accion.
     expect(FILTRO).toContain("cursor: marcadas.size < 2 ? 'not-allowed' : 'pointer'");
     expect(FILTRO).toContain("marcadas.size < 2 ? 'text-t5'");
+  });
+
+  /**
+   * El candado dice OR y AND, no «sale» ni «candado abierto».
+   *
+   * El texto era de correr: «Con candado abierto: sale lo que tenga alguna de
+   * las marcadas». Tres cosas mal:
+   *
+   * - **Repetia el icono.** El candado ya esta a la izquierda; decir «con
+   *   candado abierto» es leerlo dos veces.
+   * - **«Sale»** es el verbo de la pantalla, no de la consulta. El filtro no
+   *   saca nada: acota un conjunto.
+   * - **«Lo que tenga»** esta en castelhano y suena a frase hecha.
+   *
+   * Lo que hace de verdad la consulta es un operador, asi que se dice el
+   * operador: OR con el candado abierto, AND con el cerrado. Tres palabras, el
+   * termino exacto, y quien ha usado un filtro en cualquier sitio lo reconoce.
+   */
+  test('el candado nombra el operador, en vez de repetir el icono', () => {
+    expect(I18N_ES).toContain("'filter.menu.excluirOff': 'OR: coincide con alguna de las marcadas.'");
+    expect(I18N_ES).toContain("'filter.menu.excluirOn': 'AND: coincide con todas las marcadas.'");
+
+    // Ni una palabra de las que se quitaron.
+    for (const palabra of ['candado abierto', 'candado cerrado', 'sale lo que', 'sale solo']) {
+      expect(I18N_ES).not.toContain(palabra);
+    }
+  });
+
+  /**
+   * La nota de abajo dice una sola cosa: que sin marcar no se filtra.
+   *
+   * Se le habia puesto «Varias marcadas: union» y luego «interseccion», y las
+   * dos cosas estaban mal por el mismo motivo: **jerga de conjuntos**. Nadie
+   * que este filtrando etiquetas sabe lo que es una interseccion, y lo que
+   * hace la consulta ya lo dice el candado de al lado, con OR y con AND. Dos
+   * veces lo mismo, una de las dos en un idioma que no es el de la pantalla.
+   *
+   * La nota se queda con lo unico que no se deduce mirando los botones: que no
+   * marcar nada **no** es filtrar por nada, es no filtrar.
+   */
+  test('la nota del pie solo explica el caso de no marcar nada', () => {
+    for (const clave of [
+      'filter.tags.footHint',
+      'filter.menu.footHint',
+      'filter.menu.footHintExcluir',
+    ]) {
+      expect(I18N_ES).toContain(`'${clave}': 'Sin marcar ninguna: sin filtro.'`);
+    }
+
+    // Y nada de jerga de teoria de conjuntos en ninguna de las tres.
+    for (const palabra of ['interseccion', 'union', 'uniao', 'intersecao']) {
+      expect(I18N_ES).not.toContain(palabra);
+    }
+  });
+
+  /**
+   * El candado sale **solo** en el filtro que tiene modo exclusion.
+   *
+   * Esto se rompio por hacer el boton «siempre». Se pinto en Plataforma y en
+   * Estado tambien, donde la exclusion no existe: ahi `onExcluir` no llega,
+   * el boton salia pulsable en cuanto habia dos marcadas y al pulsarlo no
+   * pasaba nada. Un boton que no hace nada es peor que uno que no esta,
+   * porque promete una consulta que no se va a hacer.
+   *
+   * Lo decide `onExcluir`, no un flag aparte: si el filtro trae el modo, el
+   * boton existe. Un flag podria quedar desincronizado de la prop que hace el
+   * trabajo, que es justo como se llego a este bug.
+   */
+  test('el candado solo sale donde hay exclusion de verdad', () => {
+    expect(FILTRO).toContain('{onExcluir ? (');
+    expect(FILTRO).toContain('onClick={() => onExcluir(!excluir)}');
+
+    // Sin la llamada opcional: con ella, el boton se puede pulsar sin efecto.
+    expect(FILTRO).not.toContain('onExcluir?.(');
+
+    // Y solo el filtro de etiquetas se lo pasa. Plataforma y Estado no.
+    const conExclusion = BARRA.match(/onExcluir=/g) ?? [];
+
+    expect(conExclusion).toHaveLength(1);
   });
 
   test('los dos modos de combinar llegan al filtro y se limpian juntos', () => {

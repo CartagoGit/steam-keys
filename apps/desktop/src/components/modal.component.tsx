@@ -43,6 +43,10 @@ const SIZES: Record<TSize, string> = {
  * comeria el espacio de abajo, que es justo el que necesita el boton de
  * guardar.
  *
+ * Y con el dialogo pegado al borde de arriba —ver el `items-start` del fondo—
+ * este margen es **la unica cosa** que separa el panel del borde. Es lo que
+ * hace que el alto del contenido no mueva la cabecera ni las pestanas.
+ *
  * Va en el `style` y no en una clase de Tailwind. Las clases se escriben
  * `p-4` y `max-h-[calc(100dvh-2rem)]`, y para que las dos dijeran lo mismo
  * habria que escribir el numero dos veces —y la vez que se tocara una, el
@@ -314,7 +318,23 @@ export function Modal({
   return (
     <div
       className={[
-        'fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm',
+        /**
+         * **`items-start`, no `items-center`.**
+         *
+         * El dialogo cuelga del borde de arriba y no esta centrado. Con el
+         * centrado, cambiar de pestana en Ajustes movia el panel entero: al
+         * crecer el contenido el dialogo se centró hacia abajo y al encoger
+         * se centro hacia arriba, y las pestanas —la fila que decide el
+         * cambio— subian y bajaban con el. Pulsar la pestana que ya no estaba
+         * donde se vio.
+         *
+         * Arriba, la cabecera y las pestanas no se mueven nunca, porque no
+         * dependen del alto del contenido: solo dependen de `MARGEN`. El alto
+         * se absorbe **hacia abajo**, que es donde esta el contenido que
+         * cambia. Es la misma solucion que lleva los titulos pegados al borde
+         * superior en vez de al centro vertical.
+         */
+        'fixed inset-0 z-50 flex items-start justify-center backdrop-blur-sm',
         saliendo ? 'animate-backdrop-out bg-black/60' : 'animate-backdrop-in bg-black/60',
       ].join(' ')}
       style={{ padding: MARGEN }}

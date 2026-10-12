@@ -203,7 +203,7 @@ TRADUCCIONES['fr'] = {
  'toolbar.data': 'Donnees', 'toolbar.settings': 'Reglages', 'toolbar.add': 'Ajouter',
  'sort.recent': 'Plus recentes', 'sort.alpha': 'A - Z', 'sort.status': 'Par etat',
  'sort.platform': 'Par plateforme',
- 'filter.menu.all': 'All', 'filter.menu.none': 'None', 'filter.menu.scope': 'How many to mark', 'filter.tags': 'Tags', 'filter.tags.footHint': 'With none marked, everything shows. Several marked: anything carrying one shows.', 'filter.menu.footHint': 'With none marked, everything shows. Mark several to see only those.', 'filter.platform': 'Plateforme', 'filter.status': 'Etat',
+ 'filter.menu.all': 'All', 'filter.menu.none': 'None', 'filter.menu.scope': 'How many to mark', 'filter.tags': 'Tags', 'filter.tags.footHint': 'Aucune cochee: aucun filtre.', 'filter.menu.footHint': 'Aucune cochee: aucun filtre.', 'filter.platform': 'Plateforme', 'filter.status': 'Etat',
  'filter.scope.label': 'Disponibilite', 'filter.scope.all': 'Toutes',
  'filter.scope.available': 'Disponibles seulement',
  'filter.kind.label': 'Type', 'filter.kind.all': 'Tous',
@@ -409,7 +409,7 @@ TRADUCCIONES['fr'] = {
  'storage.restoreCounting': 'Calcul de ce qui va changer…',
  'storage.restoreWillAdd': '{0} nouvelles cles seront ajoutees',
  'storage.restoreWillUpdate': '{0} seront mises a jour',
- 'filter.menu.footHintExcluir': 'Sans rien de coche, tout s affiche. Plusieurs cochees: seulement ce qui les porte toutes.',  'filter.menu.excluirOff': 'Cadenas ouvert: tout ce qui porte une des coches apparait.',  'filter.menu.excluirOn': 'Cadenas ferme: seulement ce qui les porte toutes apparait.',
+ 'filter.menu.footHintExcluir': 'Aucune cochee: aucun filtre.',  'filter.menu.excluirOff': 'OU : correspond a au moins une des balisees.',  'filter.menu.excluirOn': 'ET : correspond a toutes les balisees.',
  }
 TRADUCCIONES['pt'] = {
  'export.title': 'exportacao',
@@ -562,7 +562,7 @@ TRADUCCIONES['pt'] = {
  'toolbar.data': 'Dados', 'toolbar.settings': 'Ajustes', 'toolbar.add': 'Adicionar',
  'sort.recent': 'Mais recentes', 'sort.alpha': 'A - Z', 'sort.status': 'Por estado',
  'sort.platform': 'Por plataforma',
- 'filter.menu.all': 'Toutes', 'filter.menu.none': 'Aucune', 'filter.menu.scope': 'Combien en cocher', 'filter.tags': 'Etiquettes', 'filter.tags.footHint': 'Sans rien de coche, tout s affiche. Plusieurs cochees: tout ce qui en porte une.', 'filter.menu.footHint': 'Sans rien de coche, tout s affiche. Cochez-en plusieurs pour n voir que celles-la.', 'filter.platform': 'Plataforma', 'filter.status': 'Estado',
+ 'filter.menu.all': 'Todas', 'filter.menu.none': 'Nenhuma', 'filter.menu.scope': 'Quantas marcar', 'filter.tags': 'Etiquetas', 'filter.tags.footHint': 'Nenhuma marcada: sem filtro.', 'filter.menu.footHint': 'Nenhuma marcada: sem filtro.', 'filter.platform': 'Plataforma', 'filter.status': 'Estado',
  'filter.scope.label': 'Disponiveis', 'filter.scope.all': 'Todas',
  'filter.scope.available': 'So disponiveis',
  'filter.kind.label': 'Tipo', 'filter.kind.all': 'Todos',
@@ -768,7 +768,7 @@ TRADUCCIONES['pt'] = {
  'storage.restoreCounting': 'A calcular o que vai mudar…',
  'storage.restoreWillAdd': '{0} chaves novas entram',
  'storage.restoreWillUpdate': '{0} vao ser atualizadas',
- 'filter.menu.footHintExcluir': 'Sem marcar nenhuma, ve-se todas. Com varias marcadas: so as que as tenham todas.',  'filter.menu.excluirOff': 'Cadado aberto: sai o que tiver alguma das marcadas.',  'filter.menu.excluirOn': 'Cadado fechado: sai so o que as tiver todas.',
+ 'filter.menu.footHintExcluir': 'Nenhuma marcada: sem filtro.',  'filter.menu.excluirOff': 'OU: corresponde a alguma das marcadas.',  'filter.menu.excluirOn': 'E: corresponde a todas as marcadas.',
  }
 TRADUCCIONES['de'] = {
  'export.title': 'Export',
@@ -921,7 +921,7 @@ TRADUCCIONES['de'] = {
  'toolbar.data': 'Daten', 'toolbar.settings': 'Einstellungen', 'toolbar.add': 'Hinzufuegen',
  'sort.recent': 'Neueste zuerst', 'sort.alpha': 'A - Z', 'sort.status': 'Nach Status',
  'sort.platform': 'Nach Plattform',
- 'filter.menu.all': 'Alle', 'filter.menu.none': 'Keine', 'filter.menu.scope': 'Wie viele markieren', 'filter.tags': 'Schlagworte', 'filter.tags.footHint': 'Ohne Markierte zeigt alles. Mehrere markiert: alles, was eines davon traegt.', 'filter.menu.footHint': 'Ohne Markierte zeigt alles. Markiere mehrere, um nur die zu sehen.', 'filter.platform': 'Plattform', 'filter.status': 'Status',
+ 'filter.menu.all': 'Alle', 'filter.menu.none': 'Keine', 'filter.menu.scope': 'Wie viele markieren', 'filter.tags': 'Schlagworte', 'filter.tags.footHint': 'Nichts markiert: kein Filter.', 'filter.menu.footHint': 'Nichts markiert: kein Filter.', 'filter.platform': 'Plattform', 'filter.status': 'Status',
  'filter.scope.label': 'Verfuegbarkeit', 'filter.scope.all': 'Alle',
  'filter.scope.available': 'Nur verfuegbare',
  'filter.kind.label': 'Art', 'filter.kind.all': 'Alle',
@@ -1128,7 +1128,7 @@ TRADUCCIONES['de'] = {
  'storage.restoreCounting': 'Berechne, was sich andaern wird…',
  'storage.restoreWillAdd': '{0} neue Schluessel kommen hinzu',
  'storage.restoreWillUpdate': '{0} werden aktualisiert',
- 'filter.menu.footHintExcluir': 'Ohne Markierte zeigt alles. Mit mehreren Markierten: nur was alle traegt.',  'filter.menu.excluirOff': 'Offen: alles, was eines davon traegt, erscheint.',  'filter.menu.excluirOn': 'Verschlossen: nur was alle davon traegt, erscheint.',
+ 'filter.menu.footHintExcluir': 'Nichts markiert: kein Filter.',  'filter.menu.excluirOff': 'ODER: passt zu mindestens einem der markierten.',  'filter.menu.excluirOn': 'UND: passt zu allen markierten.',
  }
 def limpiar_vacios(texto: str) -> str:
     return re.sub(r'\n{3,}', '\n\n', texto)

@@ -1,11 +1,14 @@
 import { describe, expect, test } from 'bun:test';
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import {
   interpolate,
   pluralKey,
   translate,
 } from './i18n.helper';
-import { APP_LOCALE_VALUES, AppLocale, TRANSLATIONS } from '@/contracts';
+import { APP_LOCALE_VALUES, AppLocale, LOCALE_META, TRANSLATIONS } from '@/contracts';
 import { baseKeys } from './i18n.helper';
 
 /** Raiz de `src/`, para recorrer los ficheros que usan las claves. */
@@ -249,6 +252,59 @@ describe('cobertura de las traducciones', () => {
     // Es una marca. Se deja igual en todos los idiomas a proposito.
     for (const locale of APP_LOCALE_VALUES) {
       expect(TRANSLATIONS[locale]['app.title']).toBe('Steam Keys');
+    }
+  });
+
+  /**
+   * Los nombres de idioma llevan su grafia, tilde y enye.
+   *
+   * Son **nombres propios**, no mensajes: no les aplica la regla de los textos
+   * sin tildes que sigue el resto de la interfaz. Y escribirlos «Espanol»,
+   * «Francais» o «Portugues» los hace parecer los nombres de unos paises que
+   * no existen —«Portugues» sin tilde es un nombre de persona, no el idioma.
+   *
+   * El catalogo no es el sitio para comprobarlo: el guarda de castellano se
+   * aplica a `components/` y a `app.component.tsx`, no a `contracts/`, asi que
+   * aqui no miraba nadie.
+   */
+  test('los nombres de idioma van escritos como se escriben', () => {
+    expect(LOCALE_META[AppLocale.Es].label).toBe('Español');
+    expect(LOCALE_META[AppLocale.Fr].label).toBe('Français');
+    expect(LOCALE_META[AppLocale.Pt].label).toBe('Português');
+
+    // Y ninguno ha vuelto a la forma sin tilde.
+    for (const [locale, meta] of Object.entries(LOCALE_META)) {
+      expect(`${locale}:${meta.label}`).not.toMatch(/Espanol|Francais|Portugues|Ingles|Deutsch[a-z]/);
+    }
+  });
+
+  /**
+   * Cada bandera tiene su fichero, y el SVG es suyo y no de otro.
+   *
+   * La de Espana es la unica con tres bandas: rojo, amarillo y rojo. Se
+   * comprueba por el color de las bandas y no por una foto del resultado,
+   * porque lo que importa es que el fichero que se pinta sea el que dice el
+   * codigo de barras —una bandera dibujada a ojo puede parecerse a otra y
+   * seguir siendo la de otro pais—.
+   *
+   * Y el escudo va **centrado**: en la oficial esta en el centro y en el
+   * astil, que es donde antes estaba, la bandera se leia como un manchon.
+   */
+  test('la bandera de espana son tres bandas con el escudo en el centro', () => {
+    const bandera = readFileSync(join(RAIZ, '../public/flags/es.svg'), 'utf8');
+
+    // Tres bandas, en la proporcion oficial 1:2:1 sobre 16 de alto.
+    expect(bandera).toMatch(/<rect width="24" height="16" fill="#[a-f0-9]{6}"\/>/);
+    expect(bandera).toMatch(/<rect y="4" width="24" height="8"/);
+
+    // Y el escudo desplazado al centro de la bandera, no al astil.
+    expect(bandera).toContain('<g transform="translate(12 0)">');
+
+    // Las otras cuatro banderas no tienen por que parecerse a esta.
+    for (const otro of ['en', 'fr', 'pt', 'de']) {
+      const svg = readFileSync(join(RAIZ, `../public/flags/${otro}.svg`), 'utf8');
+
+      expect(`${otro}:${svg.includes('translate(12 0)')}`).toBe(`${otro}:false`);
     }
   });
 
