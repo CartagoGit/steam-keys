@@ -303,6 +303,16 @@ export function Toolbar({
             onChange={(platforms) => onFilterChange({ platforms: [...platforms] })}
             allLabel={t('filter.menu.all')}
             tone="sky"
+            /*
+             * Una clave tiene **una sola** plataforma, asi que aqui el AND no
+             * existe: «Steam y Epic» no devuelve nada ni con la coleccion
+             * entera. El candado cerrado por eso **descarta** las marcadas en
+             * vez de acarrearlas, que es la otra consulta que se puede pedir.
+             */
+            modoExclusion="acota-descarta"
+            excluir={filter.excluirPlataformas}
+            onExcluir={(excluir) => onFilterChange({ excluirPlataformas: excluir })}
+            footHint={'filter.menu.footHint'}
           />
 
           <FilterMenu
@@ -312,6 +322,11 @@ export function Toolbar({
             onChange={(statuses) => onFilterChange({ statuses: [...statuses] })}
             allLabel={t('filter.menu.all')}
             tone="rose"
+            // Por lo mismo que en plataforma: un solo estado por clave.
+            modoExclusion="acota-descarta"
+            excluir={filter.excluirEstados}
+            onExcluir={(excluir) => onFilterChange({ excluirEstados: excluir })}
+            footHint={'filter.menu.footHint'}
           />
 
           {/*
@@ -380,7 +395,11 @@ export function Toolbar({
                   tags: [],
                   // Y tampoco la exclusion, que si no el filtro sigue
                   // acotando con un «y» que ya no se ve en ninguna parte.
+                  // Las tres: con una se queda solo, que es un filtro puesto
+                  // que no se ve en ninguna parte.
                   excluir: false,
+                  excluirPlataformas: false,
+                  excluirEstados: false,
                 })
               }
               title={t('filter.reset')}

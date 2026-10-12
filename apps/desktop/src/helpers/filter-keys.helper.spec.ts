@@ -1,7 +1,15 @@
 import { describe, expect, test } from 'bun:test';
 
 import { emptyFilter, filterKeys, sortKeys } from './filter-keys.helper';
-import { KeyPlatform, KeySource, KeyStatus, KeySort, type IGameKey } from '@/contracts';
+import {
+  KeyPlatform,
+  KeyScope,
+  KeySource,
+  KeyStatus,
+  KeySort,
+  type IGameKey,
+  type IKeyFilter,
+} from '@/contracts';
 
 function clave(id: number, over: Partial<IGameKey> = {}): IGameKey {
   return {
@@ -147,3 +155,120 @@ describe('combinar varias etiquetas', () => {
 function catalogaPor(origen: readonly IGameKey[]): readonly IGameKey[] {
   return origen.map((k) => ({ ...k, tags: [...k.tags] }));
 }
+
+/**
+ * El candado de plataforma y de estado: acota o descarta.
+ *
+ * En etiquetas es OR/AND porque una clave lleva todas las etiquetas que lleva.
+ * En plataforma y estado **no puede** ser AND: una clave tiene una sola
+ * plataforma y un solo estado, de modo que «Steam **y** Epic» no devuelve nada
+ * ni con la coleccion entera. Un filtro que devuelve siempre la lista vacia
+ * esta roto, y mas si el boton dice «AND».
+ *
+ * Asi que ahi el candado cerrado **descarta** las marcadas. Es la otra
+ * consulta que si se puede pedir, y la que se quiere: «todo menos las de
+ * Steam».
+ */
+describe('el candado de plataforma y de estado', () => {
+  const catalogo = [
+    clave(1, { platform: KeyPlatform.Steam, status: KeyStatus.Available }),
+    clave(2, { platform: KeyPlatform.BattleNet, status: KeyStatus.Available, tags: ['cumplidos'] }),
+    clave(3, { platform: KeyPlatform.Steam, status: KeyStatus.Gifted }),
+    clave(4, { platform: KeyPlatform.BattleNet, status: KeyStatus.Gifted, tags: ['cumplidos'] }),
+  ];
+
+  const todo = (): IKeyFilter => ({ ...emptyFilter(), scope: KeyScope.All });
+
+  test('abierto acota a las plataformas marcadas', () => {
+    const r = filterKeys(catalogo, {
+      ...todo(),
+      platforms: [KeyPlatform.Steam],
+    });
+
+    expect(r.map((k) => k.id)).toEqual([1, 3]);
+  });
+
+  test('cerrado descarta las plataformas marcadas', () => {
+    const r = filterKeys(catalogo, {
+      ...todo(),
+      platforms: [KeyPlatform.Steam],
+      excluirPlataformas: true,
+    });
+
+    expect(r.map((k) => k.id)).toEqual([2, 4]);
+  });
+
+  test('dos plataformas marcadas: abierto trae las dos, cerrado quita las dos', () => {
+    const abierto = filterKeys(catalogo, {
+      ...todo(),
+      platforms: [KeyPlatform.Steam, KeyPlatform.BattleNet],
+    });
+
+    // Con las dos marcadas y abierto salen todas: es un «o».
+    expect(abierto).toHaveLength(4);
+
+    // Y con el candado cerrado no sale ninguna, que es lo que se pidio.
+    const cerrado = filterKeys(catalogo, {
+      ...todo(),
+      platforms: [KeyPlatform.Steam, KeyPlatform.BattleNet],
+      excluirPlataformas: true,
+    });
+
+    expect(cerrado).toHaveLength(0);
+  });
+
+  test('el estado se descarta igual que la plataforma, y son independientes', () => {
+    const soloRegaladas = filterKeys(catalogo, {
+      ...todo(),
+      statuses: [KeyStatus.Available],
+      excluirEstados: true,
+    });
+
+    expect(soloRegaladas.map((k) => k.id)).toEqual([3, 4]);
+
+    // Los dos a la vez: descarta Steam **y** descarta Available.
+    const ambos = filterKeys(catalogo, {
+      ...todo(),
+      platforms: [KeyPlatform.Steam],
+      excluirPlataformas: true,
+      statuses: [KeyStatus.Available],
+      excluirEstados: true,
+    });
+
+    // Quedan las de BattleNet, y de las de BattleNet las que no son Available: la 4.
+    expect(ambos.map((k) => k.id)).toEqual([4]);
+  });
+
+  test('con una sola plataforma marcada, cerrar el candado ya hace algo', () => {
+    // Una marcada, cerrado: sale todo lo que no sea esa.
+    const r = filterKeys(catalogo, {
+      ...todo(),
+      platforms: [KeyPlatform.BattleNet],
+      excluirPlataformas: true,
+    });
+
+    expect(r.map((k) => k.id)).toEqual([1, 3]);
+  });
+
+  test('sin nada marcado, los dos modos dan lo mismo', () => {
+    const abierto = filterKeys(catalogo, { ...todo(), excluirPlataformas: false });
+    const cerrado = filterKeys(catalogo, { ...todo(), excluirPlataformas: true });
+
+    expect(cerrado).toEqual(abierto);
+    expect(abierto).toHaveLength(4);
+  });
+
+  test('los tres candados son independientes entre si', () => {
+    const r = filterKeys(catalogo, {
+      ...todo(),
+      platforms: [KeyPlatform.Steam],
+      excluirPlataformas: true,
+      tags: ['cumplidos'],
+      excluir: true,
+    });
+
+    // Descarta las Steam —1 y 3— y de las de BattleNet se queda con las que
+    // llevan la etiqueta: la 2 y la 4. Las dos reglas a la vez.
+    expect(r.map((k) => k.id)).toEqual([2, 4]);
+  });
+});

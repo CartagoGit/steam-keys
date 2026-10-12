@@ -104,6 +104,20 @@ export interface IFilterOption<T extends string> {
   count?: number;
 }
 
+/**
+ * Que hacer con las marcadas cuando son varias.
+ *
+ * En **etiquetas** son OR y AND: una clave lleva todas las etiquetas que lleva,
+ * asi que «cumplidos **y** regalados» es una consulta posible y con OR no se
+ * puede pedir.
+ *
+ * En **plataforma** y **estado** no: una clave tiene una sola de cada, asi que
+ * «Steam **y** Epic» no devuelve nada nunca. Ahi el modo cerrado **descarta**
+ * las marcadas en vez de acarrearlas. Es la otra lectura, y la unica que se
+ * puede pedir.
+ */
+export type TModoExclusion = 'or-and' | 'acota-descarta';
+
 export interface IFilterMenuProps<T extends string> {
   label: string;
   options: readonly IFilterOption<T>[];
@@ -129,14 +143,14 @@ export interface IFilterMenuProps<T extends string> {
    *
    * `false` por defecto: sale lo que lleva cualquiera de ellas. `true`: hay que
    * llevarlas todas. Solo tiene sentido con dos o mas marcadas, y con una da
-   * lo mismo en los dos modos.
-   *
-   * El boton lleva el candado **solo cuando esta activo**: antes de decidir no
-   * hay nada que avisar, y un icono permanente seria ruido en los tres filtros
-   * que de normal no lo usan.
+   * lo mismo en los dos modos —por eso el boton **no se apaga** con una: si se
+   * apagara no se podria dejar el modo puesto antes de seguir marcando, que
+   * es justo cuando se decide.
    */
   excluir?: boolean;
   onExcluir?: (excluir: boolean) => void;
+  /** Que dice el candado de este filtro. Ver `TModoExclusion`. */
+  modoExclusion?: TModoExclusion;
   disabled?: boolean;
   disabledTitle?: string;
 }
@@ -195,6 +209,7 @@ export function FilterMenu<T extends string>({
   footHint = 'filter.menu.footHint',
   excluir = false,
   onExcluir,
+  modoExclusion = 'or-and',
   disabled = false,
   disabledTitle,
 }: IFilterMenuProps<T>) {
@@ -887,26 +902,28 @@ export function FilterMenu<T extends string>({
             </p>
 
           {/*
-            La exclusion, con su candado. **Solo en los filtros que la tienen.**
+            La exclusion, con su candado. En **los tres** filtros.
+            Sale con `onExcluir`, que es el que decide si el filtro la trae: un
+            flag aparte puede quedar desincronizado de la prop que hace el
+            trabajo, y asi fue como se llego a un boton que salia y no hacia
+            nada.
 
-            Este boton se pinto «siempre», que era el error: se veia tambien en
-            Plataforma y en Estado, donde no hay nada que excluir. La
-            exclusion vive en `filter.excluir` y solo la lee el filtro de
-            etiquetas; en los otros dos `onExcluir` no llega, de modo que el
-            boton salia, se ponia pulsable con dos marcadas y no hacia nada. Un
-            boton que no hace nada es peor que un boton que no esta: promete
-            una consulta que no se va a hacer.
+            **Nunca se apaga.** Antes se apagaba con menos de dos marcadas y se
+            ponia en `text-t5`, que sobre un pie de 10 px es casi no verse: el
+            resultado era un boton que en el filtro de un solo elemento —el caso
+            normal— no se distinguia de nada. Un control que se esconde cuando
+            todavia no toca no se puede usar antes de tiempo, que es justo
+            cuando se decide: se marca la primera, se deja el modo en AND y se
+            sigue marcando. Con una sola los dos modos dan lo mismo, y por eso
+            no hace falta apagarlo para que se entienda que no cambia nada.
 
-            Por eso lo decide `onExcluir`, no un flag. Si el filtro tiene modo
-            exclusion, el boton sale —siempre, con una marcada o con cinco—. Y
-            sale apagado con menos de dos marcadas, que es cuando no cambia
-            nada: se ve que existe y que no aplica, que es mejor que no saber
-            que existe. Con dos o mas sale normal, porque ahi si decide.
+            El texto depende del filtro: en etiquetas son OR y AND, porque una
+            clave lleva todas las etiquetas que lleva. En plataforma y estado no
+            puede ser AND —una clave tiene una sola— asi que el candado cerrado
+            **descarta** las marcadas. Ver `TModoExclusion`.
 
-            El texto nombra el operador, OR o AND, que es lo que hace la
-            consulta de verdad. Y lleva candado en vez de casilla porque no es
-            «activar algo»: abierto es «con una basta» y cerrado es «hay que
-            tenerlas todas».
+            Y lleva candado en vez de casilla porque no es «activar algo»:
+            abierto es lo normal y cerrado es la otra lectura.
 
             El tamano va en el `style` y no en la clase. `text-[10px]` no llega
             a un boton porque la regla de `font: inherit` esta **fuera** de
@@ -919,16 +936,12 @@ export function FilterMenu<T extends string>({
               type="button"
               role="checkbox"
               aria-checked={excluir}
-              disabled={marcadas.size < 2}
               onClick={() => onExcluir(!excluir)}
-              style={{
-                fontSize: TAMANO_AVISO,
-                cursor: marcadas.size < 2 ? 'not-allowed' : 'pointer',
-              }}
+              style={{ fontSize: TAMANO_AVISO }}
               className={[
                 'flex w-full items-center gap-2 px-3 py-2',
                 'text-left leading-relaxed transition-colors',
-                excluir ? 'text-t1' : marcadas.size < 2 ? 'text-t5' : 'text-t3 hover:text-t2',
+                excluir ? 'text-t1' : 'text-t3 hover:text-t2',
               ].join(' ')}
             >
               <Icon
@@ -937,7 +950,13 @@ export function FilterMenu<T extends string>({
                 className="shrink-0"
               />
 
-              <span>{t(excluir ? 'filter.menu.excluirOn' : 'filter.menu.excluirOff')}</span>
+              <span>
+                {t(
+                  `${modoExclusion === 'or-and' ? 'filter.menu.orAnd' : 'filter.menu.acota'}.${
+                    excluir ? 'on' : 'off'
+                  }`,
+                )}
+              </span>
             </button>
           ) : null}
           </div>

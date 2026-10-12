@@ -1098,13 +1098,17 @@ describe('el filtro de etiquetas', () => {
      * cuantas etiquetas hubiera.
      */
     expect(FILTRO).not.toContain('{marcadas.size > 1 ? (');
-    expect(FILTRO).toContain('disabled={marcadas.size < 2}');
 
-    // Y el icono del boton va condicionado al estado, no a que exista.
+    // Y **tampoco** se apaga con menos de dos. Ver el guard del candado de
+    // abajo, que explica por que.
+    expect(FILTRO).not.toContain('disabled={marcadas.size < 2}');
+
+    // El icono del boton va condicionado al estado, no a que exista.
     expect(FILTRO).toMatch(/\{excluir \? \(\s*<Icon\s*name="lock"/);
 
-    // El texto explica las dos lecturas, en vez de decir «exclusion».
-    expect(FILTRO).toContain("t(excluir ? 'filter.menu.excluirOn' : 'filter.menu.excluirOff')");
+    // El texto sale de `modoExclusion`, porque no es el mismo en los tres
+    // filtros: en etiquetas son OR y AND, en los otros acota y descarta.
+    expect(FILTRO).toContain("modoExclusion === 'or-and' ? 'filter.menu.orAnd' : 'filter.menu.acota'");
 
     // Y la nota de abajo cambia con el modo, que es donde se lee la regla.
     expect(FILTRO).toContain("t(excluir ? 'filter.menu.footHintExcluir' : footHint)");
@@ -1119,12 +1123,8 @@ describe('el filtro de etiquetas', () => {
      * titular en vez de de una nota al pie.
      */
     expect(FILTRO).toContain("const TAMANO_AVISO = '10px'");
-    expect(FILTRO).toMatch(/style=\{\{\s*fontSize: TAMANO_AVISO,\s*cursor:/);
+    expect(FILTRO).toMatch(/style=\{\{ fontSize: TAMANO_AVISO \}\}/);
     expect(FILTRO).toMatch(/<p[\s\S]{0,120}style=\{\{ fontSize: TAMANO_AVISO \}\}/);
-
-    // Y el apagado no promete nada: ni manita ni color de accion.
-    expect(FILTRO).toContain("cursor: marcadas.size < 2 ? 'not-allowed' : 'pointer'");
-    expect(FILTRO).toContain("marcadas.size < 2 ? 'text-t5'");
   });
 
   /**
@@ -1145,14 +1145,35 @@ describe('el filtro de etiquetas', () => {
    * lee que filtro se esta aplicando.
    */
   test('el candado nombra el operador, en vez de repetir el icono', () => {
-    // Corto, porque lo que explica esta en la nota de al lado.
-    expect(I18N_ES).toContain("'filter.menu.excluirOff': 'OR — cualquiera'");
-    expect(I18N_ES).toContain("'filter.menu.excluirOn': 'AND — todas'");
+    // Corto, porque lo que explica esta en la nota de al lado. Y son **cuatro**
+    // textos, no dos: el candado de plataforma y estado no dice OR/AND.
+    expect(I18N_ES).toContain("'filter.menu.orAnd.off': 'OR — cualquiera'");
+    expect(I18N_ES).toContain("'filter.menu.orAnd.on': 'AND — todas'");
+    expect(I18N_ES).toContain("'filter.menu.acota.off': 'Descartar no'");
+    expect(I18N_ES).toContain("'filter.menu.acota.on': 'Descartar si'");
 
-    // Ni una palabra de las que se quitaron.
-    for (const palabra of ['candado abierto', 'candado cerrado', 'sale lo que', 'sale solo']) {
-      expect(I18N_ES).not.toContain(palabra);
+    /**
+     * Ni una palabra de las que se quitaron.
+     *
+     * Solo las que estaban **en el boton**. «Candado cerrado» vuelve a salir,
+     * pero en la nota, y ahi si ayuda: es lo unico que explica que con el
+     * candado cerrado cambia la consulta. Lo que no puede es repetir el icono
+     * en la linea que lo describe.
+     */
+    // Solo en las cuatro lineas del boton. En el resto del fichero esas
+    // palabras salen en mensajes que si las necesitan, y un `not.toContain`
+    // sobre el fichero entero las prohibiria tambien ahi.
+    for (const clave of [
+      'filter.menu.orAnd.off', 'filter.menu.orAnd.on',
+      'filter.menu.acota.off', 'filter.menu.acota.on',
+    ]) {
+      const linea = I18N_ES.split('\n').find((l) => l.includes(`'${clave}'`)) ?? '';
+
+      for (const palabra of ['candado', 'sale lo que', 'sale solo', 'coincide']) {
+        expect(`${clave}:${palabra}:${linea.toLowerCase().includes(palabra)}`).toBe(`${clave}:${palabra}:false`);
+      }
     }
+
   });
 
   /**
@@ -1173,9 +1194,16 @@ describe('el filtro de etiquetas', () => {
    * esta marcando etiquetas, y lo de verdad lo dice OR y AND.
    */
   test('la nota del pie dice las tres reglas del filtro', () => {
-    expect(I18N_ES).toContain("'filter.tags.footHint': 'Ninguna marcada: sin filtro. Varias: OR o AND.'");
-    expect(I18N_ES).toContain("'filter.menu.footHint': 'Ninguna marcada: sin filtro.'");
-    expect(I18N_ES).toContain("'filter.menu.footHintExcluir': 'Ninguna marcada: sin filtro. Varias: AND.'");
+    expect(I18N_ES).toContain('Sin marcar ninguna, se ven todas. Con varias marcadas sale lo que lleva alguna, o lo que las lleva todas si cierras el candado.');
+    expect(I18N_ES).toContain('Sin marcar ninguna, se ven todas. Con varias marcadas sale lo que lleva alguna.');
+    expect(I18N_ES).toContain('Sin marcar ninguna, se ven todas. Con el candado cerrado sale solo lo que las lleva todas.');
+
+    // Y el texto entero, no un esqueleto: es lo unico que explica el filtro.
+    for (const nota of ['filter.tags.footHint', 'filter.menu.footHint', 'filter.menu.footHintExcluir']) {
+      const linea = I18N_ES.split('\n').find((l) => l.includes(`'${nota}'`)) ?? '';
+
+      expect(`${nota}:${linea.length}`).not.toBe(`${nota}:0`);
+    }
 
     // Y nada de jerga de teoria de conjuntos en ninguna de las tres.
     for (const palabra of ['interseccion', 'union', 'uniao', 'intersecao']) {
@@ -1223,17 +1251,52 @@ describe('el filtro de etiquetas', () => {
    * boton existe. Un flag podria quedar desincronizado de la prop que hace el
    * trabajo, que es justo como se llego a este bug.
    */
-  test('el candado solo sale donde hay exclusion de verdad', () => {
+  test('el candado sale en los tres filtros y nunca se apaga', () => {
+    // Sale con `onExcluir`, no con un flag: un flag se desincroniza de la prop
+    // que hace el trabajo, y asi llego el boton que salia y no hacia nada.
     expect(FILTRO).toContain('{onExcluir ? (');
     expect(FILTRO).toContain('onClick={() => onExcluir(!excluir)}');
 
-    // Sin la llamada opcional: con ella, el boton se puede pulsar sin efecto.
+    // Sin llamada opcional: con ella, se puede pulsar sin efecto.
     expect(FILTRO).not.toContain('onExcluir?.(');
 
-    // Y solo el filtro de etiquetas se lo pasa. Plataforma y Estado no.
-    const conExclusion = BARRA.match(/onExcluir=/g) ?? [];
+    /**
+     * Y los tres filtros se lo pasan.
+     *
+     * Se cuento a mano porque el numero solo no dice nada: si aparecen tres
+     * veces en el mismo filtro, o no hay candado en otro. Van uno en cada
+     * `FilterMenu`, que es como se distingue.
+     */
+    const menús = BARRA.match(/<FilterMenu[\s\S]*?\/>/g) ?? [];
 
-    expect(conExclusion).toHaveLength(1);
+    expect(menús).toHaveLength(3);
+
+    for (const menu of menús) {
+      expect(menu).toContain('onExcluir={');
+    }
+
+    // Los de plataforma y estado dicen `acota-descarta`, porque una clave
+    // tiene una sola plataforma y un solo estado: el AND no existe ahi.
+    expect(BARRA.match(/modoExclusion="acota-descarta"/g) ?? []).toHaveLength(2);
+    expect(BARRA.match(/excluirPlataformas: excluir/g) ?? []).toHaveLength(1);
+    expect(BARRA.match(/excluirEstados: excluir/g) ?? []).toHaveLength(1);
+
+    /**
+     * **Nunca se apaga.**
+     *
+     * Antes llevaba `disabled={marcadas.size < 2}` y `text-t5` con menos de
+     * dos marcadas. Sobre un pie de 10 px, `t5` es casi no verse: en el filtro
+     * de un solo elemento —el caso normal— no se distinguia de nada. Y
+     * apagado quiere decir que no se puede dejar el modo puesto antes de
+     * seguir marcando, que es justo cuando se decide.
+     *
+     * Con una sola marcada los dos modos dan lo mismo, asi que no hace falta
+     * apagarlo para que se entienda que no cambia nada.
+     */
+    expect(FILTRO).not.toContain('disabled={marcadas.size < 2}');
+    expect(FILTRO).not.toContain("cursor: marcadas.size < 2 ? 'not-allowed' : 'pointer'");
+    expect(FILTRO).not.toContain("marcadas.size < 2 ? 'text-t5'");
+    expect(FILTRO).toContain("excluir ? 'text-t1' : 'text-t3 hover:text-t2'");
   });
 
   test('los dos modos de combinar llegan al filtro y se limpian juntos', () => {

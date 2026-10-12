@@ -53,11 +53,16 @@ export const FR: TranslationTable = Object.freeze({
   'filter.menu.none': 'None',
   'filter.menu.scope': 'How many to mark',
   'filter.tags': 'Tags',
-  'filter.tags.footHint': 'Aucune cochee: aucun filtre. Plusieurs: OU ou ET.',
-  'filter.menu.footHint': 'Aucune cochee: aucun filtre.',
-  'filter.menu.footHintExcluir': 'Aucune cochee: aucun filtre. Plusieurs: ET.',
-  'filter.menu.excluirOff': 'OU — une seule suffit',
-  'filter.menu.excluirOn': 'ET — toutes',
+  'filter.tags.footHint':
+    'Sans rien de coche, tout s affiche. Avec plusieurs cochees: ce qui en porte une, ou ce qui les porte toutes si tu fermes le cadenas.',
+  'filter.menu.footHint':
+    'Sans rien de coche, tout s affiche. Avec plusieurs cochees: ce qui en porte une.',
+  'filter.menu.footHintExcluir':
+    'Sans rien de coche, tout s affiche. Cadenas ferme: seulement ce qui les porte toutes.',
+  'filter.menu.orAnd.off': 'OU — une seule',
+  'filter.menu.orAnd.on': 'ET — toutes',
+  'filter.menu.acota.off': 'Ne pas ecarter',
+  'filter.menu.acota.on': 'Ecarter',
   'filter.reset': 'Effacer la recherche et les filtres',
   'select.one': '{0} selectionnee',
   'select.many': '{0} selectionnees',

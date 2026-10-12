@@ -2,6 +2,44 @@ import { GIFTABLE_STATUSES, KeyKind, KeyPlatform, KeyScope, KeySort, KeyStatus, 
 import { keyFingerprint } from '@/helpers/normalize-text.helper';
 
 /**
+ * Plataformas y estados: acotan, o se descartan.
+ *
+ * El candado **no** es OR/AND en estos dos, como en las etiquetas, y es
+ * por una razon que no es de gusto sino de los datos: una clave tiene **una
+ * sola** plataforma y **un solo** estado. Pedir «Steam **y** Epic» no devuelve
+ * nada, ni con la coleccion entera, y un filtro que devuelve siempre la lista
+ * vacia es un filtro roto.
+ *
+ * De ahi que el candado abierto acote —«solo Steam o Epic», que es OR— y el
+ * cerrado descarte —«todo menos Steam y Epic»—, que es la otra consulta que se
+ * puede pedir de verdad y que ademas se quiere: «todo menos las de Steam».
+ *
+ * Con ninguna marcada no dice nada en ninguno de los dos modos: no hay nada
+ * que acotar ni nada que descartar, y el filtro esta apagado igual.
+ */
+const porPlataforma = (
+  key: IGameKey,
+  platforms: Set<KeyPlatform>,
+  excluir: boolean,
+): boolean =>
+  platforms.size === 0
+    ? true
+    : excluir
+      ? !platforms.has(key.platform)
+      : platforms.has(key.platform);
+
+const porEstado = (
+  key: IGameKey,
+  statuses: Set<KeyStatus>,
+  excluir: boolean,
+): boolean =>
+  statuses.size === 0
+    ? true
+    : excluir
+      ? !statuses.has(key.status)
+      : statuses.has(key.status);
+
+/**
  * Filtro por defecto: solo las claves que siguen disponibles.
  *
  * Con cuatrocientas claves de las que mas de la mitad ya se han regalado o
@@ -17,6 +55,8 @@ export function emptyFilter(): IKeyFilter {
     statuses: [],
     tags: [],
     excluir: false,
+    excluirPlataformas: false,
+    excluirEstados: false,
   };
 }
 
@@ -53,8 +93,8 @@ export function filterKeys(
     if (filter.kind === KeyKind.Games && key.parentTitle) return false;
     if (filter.kind === KeyKind.Dlc && !key.parentTitle) return false;
 
-    if (platforms.size > 0 && !platforms.has(key.platform)) return false;
-    if (statuses.size > 0 && !statuses.has(key.status)) return false;
+    if (!porPlataforma(key, platforms, filter.excluirPlataformas === true)) return false;
+    if (!porEstado(key, statuses, filter.excluirEstados === true)) return false;
 
     /**
      * Varias etiquetas a la vez son **OR** por defecto: con «canducadas» y

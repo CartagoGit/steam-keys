@@ -19,7 +19,12 @@ export interface IKeyFilter {
   /** Todos, solo juegos base, o solo DLC. */
   kind: KeyKind;
 
-  /** Si esta vacio, no se filtra por plataforma. */
+  /**
+   * Si esta vacio, no se filtra por plataforma.
+   *
+   * Con `excluirPlataformas` se invierte: se descartan las marcadas en vez de
+   * acotar a ellas.
+   */
   platforms: readonly KeyPlatform[];
 
   /**
@@ -56,11 +61,28 @@ export interface IKeyFilter {
    * `false` —lo normal— es OR. `true` es AND.
    *
    * Vive en el filtro y no dentro de las etiquetas porque es una pregunta por
-   * filtro, no una propiedad de las etiquetas: applies igual a plataformas,
-   * estados y etiquetas. Con ninguna marcada no dice nada, asi que en los dos
-   * modos el resultado es el mismo.
+   * filtro, no una propiedad de las etiquetas. Con ninguna marcada no dice
+   * nada, asi que en los dos modos el resultado es el mismo.
+   *
+   * Y con una sola marcada tampoco: una etiqueta se cumple o no se cumple. Por
+   * eso el boton **no se apaga** con una —si se apagara, no se podria dejar el
+   * modo puesto antes de seguir marcando, que es justo cuando se decide—.
    */
   excluir?: boolean;
+
+  /**
+   * Plataformas marcadas que se **descartan** en vez de acotar.
+   *
+   * Aqui el candado no es OR/AND como en las etiquetas, porque una clave tiene
+   * **una sola** plataforma: pedir «Steam **y** Epic» no devuelve nada nunca,
+   * ni con una coleccion entera. De ahi que con candado abierto acote —«solo
+   * Steam o Epic»— y con candado cerrado descarte —«todo menos Steam y Epic»—,
+   * que es la unica lectura que si se puede pedir y es la que se quiere.
+   */
+  excluirPlataformas?: boolean;
+
+  /** Estados marcados que se descartan, por el mismo motivo que las plataformas. */
+  excluirEstados?: boolean;
 }
 
 /** Resumen para la barra de estadisticas. */

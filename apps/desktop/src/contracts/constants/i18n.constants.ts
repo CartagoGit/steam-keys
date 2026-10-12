@@ -102,11 +102,16 @@ export const EN: TranslationTable = Object.freeze({
   'filter.menu.none': 'None',
   'filter.menu.scope': 'How many to mark',
   'filter.tags': 'Tags',
-  'filter.tags.footHint': 'None marked: no filter. Several: OR or AND.',
-  'filter.menu.footHint': 'None marked: no filter.',
-  'filter.menu.footHintExcluir': 'None marked: no filter. Several: AND.',
-  'filter.menu.excluirOff': 'OR — any',
-  'filter.menu.excluirOn': 'AND — all',
+  'filter.tags.footHint':
+    'With none marked, everything shows. With several marked: whatever carries one, or whatever carries all of them if you close the lock.',
+  'filter.menu.footHint':
+    'With none marked, everything shows. With several marked: whatever carries one.',
+  'filter.menu.footHintExcluir':
+    'With none marked, everything shows. With the lock closed, only what carries all of them.',
+  'filter.menu.orAnd.off': 'OR — any',
+  'filter.menu.orAnd.on': 'AND — all',
+  'filter.menu.acota.off': 'Keep',
+  'filter.menu.acota.on': 'Drop',
   'filter.reset': 'Clear search and filters',
 
   // ---------------------------------------------------------- selection ---
