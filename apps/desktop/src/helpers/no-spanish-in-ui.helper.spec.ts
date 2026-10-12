@@ -41,6 +41,17 @@ function componentes(dir: string): string[] {
  * interfaz, no prohibir el castellano en comentarios ni en identificadores.
  * Todas empiezan por mayuscula y en ningun idioma distinto del castellano
  * significan lo mismo, que es lo que las hace candidatas.
+ *
+ * **Por que hay mas ahora.** Con veinticuatro, el guard daba falsa confianza:
+ * trece textos en castellano convivian con el en tres dialogos —la
+ * previsualizacion de importacion, las etiquetas y el de regalar— y el test
+ * pasaba porque ninguna de sus frases empezaba por una de las veinticuatro.
+ * Un guard que solo ve una lista cerrada solo dice que nadie ha escrito esas
+ * veinticuatro palabras.
+ *
+ * Cada vez que aparezca un texto nuevo, la palabra se anade aqui con el
+ * comentario de **que pantalla** era. El coste de olvidarlo es que el
+ * siguiente texto en castellano pasa sin que nadie entere.
  */
 const SOSPECHOSAS = [
   'Cancelar',
@@ -71,7 +82,74 @@ const SOSPECHOSAS = [
   // palabra suelta porque el texto entero es una frase; anadido tal cual.
   'Se eliminara',
   'Se podria eliminar',
+
+  // --- previsualizacion de importacion ---
+  'Importar desde',
+  'No hay ninguna clave nueva',
+  'linea(s) sin interpretar',
+  'Son lineas que el parser',
+  'Antes de escribir se crea',
+
+  // --- dialogo de etiquetas ---
+  'Etiquetas',
+  'Anadir',
+  'Aplicar',
+  'Todavia no hay etiquetas',
+  'Las claves que no tengan la etiqueta',
+
+  // --- dialogo de regalar ---
+  'quien se lo has regalado',
+  'Se guarda con cada clave',
+
+  // --- errores de Steam, que llegan a pantalla a traves del dialogo de ajustes ---
+  'Eso no parece un ID de Steam',
+  'No se pudo consultar Steam',
+  'No se pudo contactar con Steam',
+  'No hay ningun perfil con el nombre',
+  'No se pudo leer el ID del perfil',
+  'Ese perfil ahora se llama',
+  'La biblioteca vino vacia',
+  'La clave de la API no es valida',
+  'Steam no ha contestado',
+  'Sincronizacion cancelada',
+  'Steam respondio con el estado',
 ];
+
+/**
+ * Castellano que el detector tiene que ver aunque este en un `.ts`.
+ *
+ * En un `.ts` no hay etiquetas donde mirar, asi que la heuristica de
+ * `esVisible` —que exige el texto pegado a un `>` o dentro de un atributo— no
+ * sirve. Para los servicios se busca por **palabra**, dentro de una cadena: un
+ * error de Steam se pinta tal cual llega, y todos van en castellano.
+ */
+const SOSPECHOSAS_DE_SERVICIO = SOSPECHOSAS.filter((palabra) =>
+  [
+    'No se pudo',
+    'No hay ningun perfil',
+    'No hay ninguna clave nueva',
+    'La biblioteca vino vacia',
+    'La clave de la API',
+    'Steam no ha contestado',
+    'Sincronizacion cancelada',
+    'Steam respondio con el estado',
+    'Eso no parece un ID',
+    'Ese perfil ahora se llama',
+    'Se guardara con',
+    'Se eliminara',
+    'Se podria eliminar',
+    'Anadir',
+    'Aplicar',
+    'Etiquetas',
+    'Guardar',
+    'Cancelar',
+    'Cerrar',
+    'Eliminar',
+    'Buscar',
+    'Restaurar',
+    'Cargando',
+  ].includes(palabra),
+);
 
 /** Atributos cuyo valor es codigo, no texto de pantalla. */
 const ATRIBUTOS_DE_CODIGO = new Set(['className', 'id', 'name', 'type', 'key', 'href', 'role']);
@@ -277,12 +355,16 @@ describe('nada de castellano escrito a mano en la interfaz', () => {
     // El mismo criterio que los helpers: en un `.ts` no hay etiquetas, asi que
     // lo que se busca es el castellano dentro de una cadena. Un servicio es
     // donde vive el texto de los errores, y el componente lo enseña tal cual.
+    //
+    // Se usa la lista corta y no la grande porque la grande esta llena de
+    // palabras que salen en el JSX —«Etiquetas», «Aplicar»— y en un servicio
+    // serian falsos positivos.
     const fallos: string[] = [];
 
     for (const f of servicios()) {
       const codigo = sinComentariosDe(readFileSync(f, 'utf-8'));
 
-      for (const palabra of SOSPECHOSAS) {
+      for (const palabra of SOSPECHOSAS_DE_SERVICIO) {
         let i = codigo.indexOf(palabra);
 
         while (i !== -1) {

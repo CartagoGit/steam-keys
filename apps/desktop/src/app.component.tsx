@@ -41,7 +41,7 @@ import {
 } from '@/services/legacy-backups.service';
 import { getDatabaseClient } from '@/repositories/repository.factory';
 import { FirstRun } from '@/components/first-run.component';
-import { steamService, SteamError, resolveSteamId, bestCandidate, cuentaComoPropio } from '@/services/steam.service';
+import { steamService, SteamError, textoDeSteamError, resolveSteamId, bestCandidate, cuentaComoPropio } from '@/services/steam.service';
 
 /**
  * Ciclo de estados al pulsar sobre la pastilla de una fila.
@@ -1294,7 +1294,9 @@ export function App() {
 
         setCuenta((actual) => ({ ...actual, perfilPrivado: cause.codigo === 'perfilPrivado' }));
 
-        return cause.message;
+        // El error lleva la **clave** de su traduccion, no el texto: quien lo
+        // enseña es el componente, que es lo unico que sabe el idioma.
+        return textoDeSteamError(cause, traducir);
       }
 
       return traducir('app.linkFailed');
@@ -1524,7 +1526,11 @@ export function App() {
       if (cause instanceof SteamError && cause.codigo === 'cancelado') return;
 
       notify(
-        cause instanceof Error ? cause.message : traducir('app.syncFailed'),
+        cause instanceof SteamError
+          ? textoDeSteamError(cause, traducir)
+          : cause instanceof Error
+            ? cause.message
+            : traducir('app.syncFailed'),
         'error',
       );
     }

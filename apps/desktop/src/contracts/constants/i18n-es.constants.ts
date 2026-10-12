@@ -39,6 +39,8 @@ export const ES: TranslationTable = Object.freeze({
   'firstRun.bring': 'Traer la base de datos',
   'firstRun.create': 'Empezar de cero',
   'action.edit': 'Editar',
+  'action.add': 'Anadir',
+  'action.apply': 'Aplicar',
   'action.delete': 'Eliminar',
   'action.copy': 'Copiar',
 
@@ -129,6 +131,9 @@ export const ES: TranslationTable = Object.freeze({
   'tags.title': 'Etiquetas',
   'tags.new': 'Etiqueta nueva',
   'tags.addHint': 'Anadir la etiqueta a la seleccion',
+  'tags.empty': 'Todavia no hay etiquetas en la coleccion.',
+  'tags.merging':
+    'Las claves que no tengan la etiqueta la reciben; las que ya la tienen la conservan.',
   'tags.applyHint':
     'Aplicar estas etiquetas a todas las claves seleccionadas',
 
@@ -156,6 +161,10 @@ export const ES: TranslationTable = Object.freeze({
   // --------------------------------------------------------------- gift ---
   'gift.title': 'Marcar como regaladas',
   'gift.placeholder': 'Nombre de quien lo recibe',
+  'gift.recipient': '¿A quien se lo has regalado?',
+  'gift.recipientHint': 'Se guarda con cada clave, para saber a quien se la diste.',
+  'gift.more.one': 'y {0} juego mas',
+  'gift.more.many': 'y {0} juegos mas',
 
   // ------------------------------------------------------------ import ---
   'import.title': 'A importar',
@@ -272,6 +281,14 @@ export const ES: TranslationTable = Object.freeze({
   'gift.count.one': '{0} clave seleccionada',  'gift.count.many': '{0} claves seleccionadas',
   'gift.action': 'Marcar regaladas',
   'gift.needRecipient': 'Escribe primero a quien se lo regalas',
+  'import.header': 'Importar desde TXT',
+  'import.noneNew':
+    'No hay ninguna clave nueva en este fichero. Puede que ya las tuvieras todas importadas.',
+  'import.issues': '{0} linea(s) sin interpretar',
+  'import.issuesHint':
+    'Son lineas que el parser no ha sabido convertir en una clave: duplicados, sufijos pegados o claves de plataforma desconocida. Se ignoran; no bloquean la importacion.',
+  'import.backupNotice':
+    'Antes de escribir se crea una copia de seguridad automatica de tu base de datos.',
   'import.none': 'Nada que importar',
   'import.apply': 'Importar {0} claves',
   'tags.count.one': 'Se cambiara {0} clave',  'tags.count.many': 'Se cambiaran {0} claves',
@@ -375,6 +392,28 @@ export const ES: TranslationTable = Object.freeze({
   'app.linkFailed': 'No se ha podido conectar la cuenta.',
   'app.linkCancelled': 'Conexion con Steam cancelada.',
   'gift.hint': 'Marcar las claves seleccionadas como regaladas',
+
+  /**
+   * Errores de Steam.
+   *
+   * `SteamError.message` es la propia clave —`steam.<codigo>`— y los datos
+   * variables van aparte, en `args`. Asi, si alguien lo pinta sin traducir, en
+   * pantalla sale `steam.perfilPrivado` y se nota a la primera: es un fallo
+   * ruidoso en lugar de castellano callado en cuatro de los cinco idiomas.
+   */
+  'steam.limite': 'Vas muy rapido. Espera un momento.',
+  'steam.sinClave': 'Falta la clave de la API.',
+  'steam.idInvalido': 'Eso no parece un ID de Steam ni un nombre de perfil.',
+  'steam.perfilPrivado':
+    'La biblioteca vino vacia. Comprueba que tu perfil de Steam sea publico, o que la clave sea de esa cuenta.',
+  'steam.perfilNoExiste': 'No hay ningun perfil con el nombre «{0}».',
+  'steam.perfilRenombrado': 'Ese perfil ahora se llama «{0}».',
+  'steam.perfilIdNoLeido': 'No se pudo leer el ID del perfil «{0}».',
+  'steam.perfilNoResponde': 'No se pudo consultar Steam: {0}',
+  'steam.estadoHttp': 'Steam respondio con el estado {0}.',
+  'steam.vacio': 'La biblioteca de Steam vino vacia.',
+  'steam.http': 'Steam no ha contestado.',
+  'steam.cancelado': 'Sincronizacion cancelada.',
   'select.markExpired': 'Marcar como caducadas',
   'expire.confirm': 'Marcar caducadas',
   'expire.bodyOne':

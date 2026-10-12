@@ -42,7 +42,7 @@ export function ImportPreview({
           </div>
           <div className="min-w-0">
             <h2 className="text-base font-semibold text-t1">
-              Importar desde TXT
+              {t('import.header')}
             </h2>
             <p className="truncate text-xs text-t4">{fileName}</p>
           </div>
@@ -51,8 +51,7 @@ export function ImportPreview({
         <div className="px-5 py-4">
           {vacio ? (
             <p className="rounded-lg bg-warn/10 px-3 py-2 text-xs text-warn ring-1 ring-warn/30">
-              No hay ninguna clave nueva en este fichero. Puede que ya las
-              tuvieras todas importadas.
+              {t('import.noneNew')}
             </p>
           ) : null}
 
@@ -87,20 +86,17 @@ export function ImportPreview({
             <div className="mt-3 rounded-lg bg-warn/10 px-3 py-2 ring-1 ring-warn/25">
               <p className="flex items-center gap-1.5 text-xs font-medium text-warn">
                 <Icon name="info" size={13} />
-                {preview.issues} linea(s) sin interpretar
+                {t('import.issues', [preview.issues])}
               </p>
               <p className="mt-1 text-[11px] leading-relaxed text-warn-strong/70">
-                Son lineas que el parser no ha sabido convertir en una clave:
-                duplicados, sufijos pegados o claves de plataforma
-                desconocida. Se ignoran; no bloquean la importacion.
+                {t('import.issuesHint')}
               </p>
             </div>
           ) : null}
 
           <p className="mt-3 flex items-start gap-1.5 text-[11px] leading-relaxed text-t4">
             <Icon name="shield" size={12} className="mt-0.5" />
-            Antes de escribir se crea una copia de seguridad automatica de tu
-            base de datos.
+            {t('import.backupNotice')}
           </p>
         </div>
 

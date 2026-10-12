@@ -5,32 +5,65 @@ import { normalizeForMatch } from '@/helpers/match-title.helper';
 const WEB_API = 'https://api.steampowered.com';
 const STORE_API = 'https://store.steampowered.com/api';
 
-/** Error con mensaje en castellano, para poder enseñarlo tal cual. */
+/** Por que fallo una llamada a Steam. Lo que decide como se enseña. */
+export type TSteamErrorCodigo =
+  /** El propio usuario pulso la X. */
+  | 'cancelado'
+  /**
+   * Steam ha dicho «has ido demasiado rapido». Tampoco es un fallo para el
+   * usuario: lo resuelve quien llama esperando y reintentando.
+   */
+  | 'limite'
+  | 'sinClave'
+  | 'idInvalido'
+  | 'perfilPrivado'
+  | 'vacio'
+  | 'http'
+  // Los tres del XML del perfil. Van aparte de `idInvalido` porque el mensaje
+  // es distinto: «no existe», «se renombro» y «no supe leerlo» son tres
+  // problemas distintos con tres respuestas distintas, y colapsarlos en uno
+  // mandaba al usuario a revisar como habia escrito el nombre cuando el
+  // nombre estaba bien.
+  | 'perfilNoExiste'
+  | 'perfilRenombrado'
+  | 'perfilIdNoLeido'
+  /** Falló la peticion, y `args[0]` es lo que dijo el otro lado. */
+  | 'perfilNoResponde';
+
+/**
+ * Error de Steam, **con la clave de su traduccion y no con el texto**.
+ *
+ * `message` es literalmente `steam.<codigo>`. Es a proposito, y es lo que hace
+ * que el fallo sea ruidoso: si alguien lo pinta sin pasar por el traductor, en
+ * pantalla sale `steam.perfilPrivado` en vez de una frase, y se nota a la
+ * primera. Con el castellano dentro de la clase —como estaba— el mensaje era
+ * el ultimo sitio donde se colaba texto de un solo idioma, y el que lo pintaba
+ * no tenia forma de traducirlo porque el texto ya venia hecho.
+ *
+ * Los datos variables van en `args`, no en el mensaje.
+ */
 export class SteamError extends Error {
   constructor(
-    message: string,
-    readonly codigo:
-      | 'sinClave'
-      | 'idInvalido'
-      | 'perfilPrivado'
-      | 'http'
-      | 'vacio'
-      /**
-       * El propio usuario pulso la X. No es un fallo y no se enseña como tal:
-       * avisar de un error que ha pedido el usuario es la peor forma de
-       * confirmar que se le ha parado algo.
-       */
-      | 'cancelado'
-      /**
-       * Steam ha dicho «has ido demasiado rapido» (429). Tampoco es un fallo
-       * para el usuario: lo resuelve quien llama esperando y reintentando, y no
-       * llega a verse nunca.
-       */
-      | 'limite',
+    readonly codigo: TSteamErrorCodigo,
+    readonly args: readonly (string | number)[] = [],
   ) {
-    super(message);
+    super(`steam.${codigo}`);
     this.name = 'SteamError';
   }
+}
+
+/**
+ * El texto de un error de Steam, ya traducido.
+ *
+ * Va en una funcion y no en un metodo porque traducir necesita el idioma, que
+ * es cosa del componente: el servicio no sabe en que idioma esta la app, y por
+ * eso sus errores solo llevan la clave.
+ */
+export function textoDeSteamError(
+  error: SteamError,
+  traducir: (clave: string, args?: readonly (string | number)[]) => string,
+): string {
+  return traducir(`steam.${error.codigo}`, error.args);
 }
 
 /**
@@ -79,10 +112,7 @@ export async function resolveSteamId(
   if (/^\d{32}$/.test(handle)) return handle;
 
   if (!/^[a-z0-9._-]{2,32}$/i.test(handle)) {
-    throw new SteamError(
-      'Eso no parece un ID de Steam ni un nombre de perfil.',
-      'idInvalido',
-    );
+    throw new SteamError('idInvalido');
   }
 
   let cuerpo: string;
@@ -113,12 +143,11 @@ export async function resolveSteamId(
           ? cause.message
           : '';
 
-    throw new SteamError(
-      `No se pudo consultar Steam: ${mensaje}`.trim(),
-      cause instanceof Error && cause.name === 'AbortError'
-        ? 'cancelado'
-        : 'http',
-    );
+    if (cause instanceof Error && cause.name === 'AbortError') {
+      throw new SteamError('cancelado');
+    }
+
+    throw new SteamError(mensaje === '' ? 'http' : 'perfilNoResponde', [mensaje]);
   }
 
   /**
@@ -138,10 +167,7 @@ export async function resolveSteamId(
   )?.[1]?.trim();
 
   if (error !== undefined && error !== '') {
-    throw new SteamError(
-      `No hay ningun perfil con el nombre "${handle}".`,
-      'idInvalido',
-    );
+    throw new SteamError('perfilNoExiste', [handle]);
   }
 
   /**
@@ -155,19 +181,13 @@ export async function resolveSteamId(
   )?.[1]?.trim();
 
   if (renombrado !== undefined && renombrado !== '') {
-    throw new SteamError(
-      `Ese perfil ahora se llama "${renombrado}".`,
-      'idInvalido',
-    );
+    throw new SteamError('perfilRenombrado', [renombrado]);
   }
 
   const id = /<steamID64>(\d{17})<\/steamID64>/.exec(cuerpo)?.[1];
 
   if (!id) {
-    throw new SteamError(
-      `No se pudo leer el ID del perfil "${handle}".`,
-      'idInvalido',
-    );
+    throw new SteamError('perfilIdNoLeido', [handle]);
   }
 
   return id;
@@ -260,10 +280,7 @@ export const steamService = {
         // Solo en la **primera** pagina: en las siguientes es simplemente el fin
         // de los juegos, y ahi no hay nada que explicar.
         if (pagina === 0) {
-          throw new SteamError(
-            'La biblioteca vino vacia. Comprueba que tu perfil sea publico.',
-            'perfilPrivado',
-          );
+          throw new SteamError('perfilPrivado');
         }
 
         break;
@@ -558,14 +575,14 @@ async function pedirJson<T>(url: string, signal?: AbortSignal): Promise<T> {
     if (!respuesta.ok) {
       if (REINTENTABLES.has(respuesta.status)) {
         // No lleva texto: es un estado intermedio, nunca llega a la pantalla.
-        throw new SteamError('demasiado-rapido', 'limite');
+        throw new SteamError('limite');
       }
 
       if (respuesta.status === 403 || respuesta.status === 401) {
-        throw new SteamError('La clave de la API no es valida.', 'idInvalido');
+        throw new SteamError('idInvalido');
       }
 
-      throw new SteamError('Steam no ha contestado.', 'http');
+      throw new SteamError('http');
     }
 
     return (await respuesta.json()) as T;
@@ -580,14 +597,14 @@ async function pedirJson<T>(url: string, signal?: AbortSignal): Promise<T> {
     // la vez, es una cancelacion —no se avisa de nada que el usuario acaba de
     // pedir—. Por eso se mira `signal` y no `corte`.
     if (signal?.aborted === true) {
-      throw new SteamError('Sincronizacion cancelada.', 'cancelado');
+      throw new SteamError('cancelado');
     }
 
     if (abortado) {
-      throw new SteamError('Steam no ha contestado.', 'http');
+      throw new SteamError('http');
     }
 
-    throw new SteamError('No se pudo contactar con Steam.', 'http');
+    throw new SteamError('http');
   }
 }
 
@@ -652,7 +669,7 @@ async function pedirConMargen<T>(
       // En el ultimo intento no hay mas margen: se convierte en el fallo de
       // red de siempre, que es lo que el usuario sabe entender.
       if (intento === intentos - 1) {
-        throw new SteamError('Steam no ha contestado.', 'http');
+        throw new SteamError('http');
       }
 
       /**
@@ -671,7 +688,7 @@ async function pedirConMargen<T>(
     }
   }
 
-  throw new SteamError('Steam no ha contestado.', 'http');
+  throw new SteamError('http');
 }
 
 /* -------------------------------------------------------------------------- */

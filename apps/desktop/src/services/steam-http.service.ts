@@ -83,10 +83,22 @@ export async function steamGet(
   );
 
   if (!respuesta.ok) {
-    // El estado va en el mensaje y no en una clase propia porque aqui no hay
-    // quien lo distinga: el llamador —`resolveSteamId`— solo necesita saber
-    // que fallo, y el detalle se enseña en el aviso de la app.
-    throw new Error(`Steam respondio con el estado ${respuesta.status}`);
+    /**
+     * El estado va en `args`, no en el mensaje.
+     *
+     * El mensaje es la **clave** de traduccion, y por el mismo motivo que en
+     * `SteamError`: si esto se pinta sin pasar por el traductor sale
+     * `steam.estadoHttp` en pantalla en vez de una frase, que es un fallo
+     * ruidoso en lugar de castellano silencioso en cuatro de los cinco
+     * idiomas. Los datos variables viajan aparte.
+     */
+    const error = new Error('steam.estadoHttp');
+
+    (error as Error & { args?: readonly (string | number)[] }).args = [
+      String(respuesta.status),
+    ];
+
+    throw error;
   }
 
   return respuesta.text();

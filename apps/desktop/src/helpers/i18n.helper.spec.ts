@@ -159,9 +159,37 @@ describe('cobertura de las traducciones', () => {
     // vacio es `true` y el test daria todas las claves por muertas. Se avisa.
     expect(fuentes.length).toBeGreaterThan(50);
 
-    const muertas = baseKeys().filter((clave) =>
-      codigo.every((texto) => !texto.includes(`'${clave}'`)),
-    );
+    /**
+     * Prefijos cuyas claves se arman con una plantilla.
+     *
+     * `SteamError` no lleva el texto, lleva la clave, y la clave se construye
+     * como ``steam.${error.codigo}``. Buscarla como cadena literal la hacia
+     * parecer muerta a las doce, y la unica manera de que el test pasara era
+     * declararlas excepcion — con lo que volverian a ser invisibles para
+     * siempre, que es justo lo que este test existe para evitar.
+     *
+     * Se comprueba que el **prefijo** aparezca construida en algun sitio. Es
+     * mas débil que buscar cada clave, pero es lo que se puede hacer sin
+     * inventar un analizador: si alguien construye las claves de otra forma,
+     * el prefijo desaparece del codigo y el test avisa.
+     */
+    const PREFIJOS_DINAMICOS: readonly (readonly [string, string])[] = [
+      ['steam.', 'clave de un error de Steam'],
+    ];
+
+    const textos = codigo.join('\n');
+
+    /** El prefijo solo vale si aparece construido de verdad en algun sitio. */
+    const construidoEnElCodigo = (prefijo: string) =>
+      textos.includes(`\`${prefijo}\${`);
+
+    const muertas = baseKeys().filter((clave) => {
+      const prefijo = PREFIJOS_DINAMICOS.find(([p]) => clave.startsWith(p))?.[0];
+
+      if (prefijo !== undefined) return !construidoEnElCodigo(prefijo);
+
+      return !textos.includes(`'${clave}'`);
+    });
 
     expect(muertas).toEqual([]);
   });
@@ -201,6 +229,9 @@ describe('cobertura de las traducciones', () => {
         'filter.platform', 'filter.status', 'filter.scope.label',
         'filter.kind.label', 'filter.kind.all',
         'select.tags', 'select.groupOrganize', 'tags.title',
+        // «Aplicar» es la misma palabra en los dos. Como `action.confirm` y
+        // `action.edit`, que ya estaban.
+        'action.apply',
         'editor.platform', 'editor.status', 'editor.note', 'editor.tags',
         'editor.titlePlaceholder', 'editor.keyPlaceholder',
         'editor.parentPlaceholder', 'editor.tagsPlaceholder',

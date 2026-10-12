@@ -175,6 +175,10 @@ export const EN: TranslationTable = Object.freeze({
 
   'action.edit':
     'Edit',
+  'action.add':
+    'Add',
+  'action.apply':
+    'Apply',
   'action.delete':
     'Delete',
   'action.copy':
@@ -245,6 +249,10 @@ export const EN: TranslationTable = Object.freeze({
     'Changes the language of the menus and buttons.',
   'tags.addHint':
     'Add the tag to the selection',
+  'tags.empty':
+    'There are no tags in the collection yet.',
+  'tags.merging':
+    'Keys without the tag get it; the ones that already have it keep it.',
   'tags.applyHint':
     'Apply these tags to all the selected keys',
   'editor.title':
@@ -287,6 +295,14 @@ export const EN: TranslationTable = Object.freeze({
     'humble, dlc, promo',
   'gift.title':
     'Mark as gifted',
+  'gift.recipient':
+    'Who did you give it to?',
+  'gift.recipientHint':
+    'It is stored with every key, so you know who you gave it to.',
+  'gift.more.one':
+    'and {0} more game',
+  'gift.more.many':
+    'and {0} more games',
   'gift.placeholder':
     'Name of whoever gets it',
   'import.title':
@@ -351,6 +367,16 @@ export const EN: TranslationTable = Object.freeze({
   'gift.count.one': '{0} key selected',  'gift.count.many': '{0} keys selected',
   'gift.action': 'Mark as gifted',
   'gift.needRecipient': 'Type who you are giving it to first',
+  'import.header':
+    'Import from TXT',
+  'import.noneNew':
+    'There are no new keys in this file. You may already have imported them all.',
+  'import.issues':
+    '{0} line(s) could not be read',
+  'import.issuesHint':
+    'These are lines the parser could not turn into a key: duplicates, stuck-on suffixes, or keys for an unknown platform. They are skipped; they do not block the import.',
+  'import.backupNotice':
+    'A backup of your database is made before anything is written.',
   'import.none': 'Nothing to import',
   'import.apply': 'Import {0} keys',
   'tags.count.one': 'Will change {0} key',  'tags.count.many': '{0} keys will change',
@@ -454,6 +480,27 @@ export const EN: TranslationTable = Object.freeze({
   'app.linkFailed': 'Could not link the account.',
   'app.linkCancelled': 'Linking to Steam was cancelled.',
   'gift.hint': 'Mark the selected keys as already gifted',
+
+  /**
+   * Errores de Steam. La clave va dentro del propio `SteamError`, asi que si
+   * alguno se pinta sin traducir sale `steam.perfilPrivado` en pantalla: es un
+   * fallo ruidoso en lugar de castellano callado en cuatro de los cinco
+   * idiomas. Los datos variables van aparte, en `args`.
+   */
+  'steam.limite': 'You are going too fast. Wait a moment.',
+  'steam.sinClave': 'The API key is missing.',
+  'steam.idInvalido':
+    'That does not look like a Steam ID or a profile name.',
+  'steam.perfilPrivado':
+    'The library came back empty. Check that your Steam profile is public, or that the key belongs to that account.',
+  'steam.perfilNoExiste': 'There is no profile named «{0}».',
+  'steam.perfilRenombrado': 'That profile is now called «{0}».',
+  'steam.perfilIdNoLeido': 'Could not read the ID of the profile «{0}».',
+  'steam.perfilNoResponde': 'Could not reach Steam: {0}',
+  'steam.estadoHttp': 'Steam replied with status {0}.',
+  'steam.vacio': 'The Steam library came back empty.',
+  'steam.http': 'Steam did not reply.',
+  'steam.cancelado': 'Sync cancelled.',
   'select.markExpired': 'Mark as expired',
   'expire.confirm': 'Mark as expired',
   'expire.bodyOne':

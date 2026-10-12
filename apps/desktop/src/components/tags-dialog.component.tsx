@@ -86,7 +86,7 @@ export function TagsDialog({
           <div>
             <h2 className="text-sm font-semibold text-t1 flex items-center gap-2">
               <Icon name="tag" size={15} className="text-info" />
-              Etiquetas
+              {t('tags.title')}
             </h2>
             <p className="mt-0.5 text-[11px] text-t4">
               {t(pluralKey(entries.length, 'tags.count.one', 'tags.count.many'), [
@@ -128,14 +128,14 @@ export function TagsDialog({
               disabled={cleanTag(nueva).length === 0}
               title={t('tags.addHint')}
             >
-              Anadir
+              {t('action.add')}
             </Button>
           </div>
 
           {/* ------------------------------------------------------ existentes */}
           {sugeridas.length === 0 ? (
             <p className="mt-6 text-center text-xs text-t4">
-              Todavia no hay etiquetas en la coleccion.
+              {t('tags.empty')}
             </p>
           ) : (
             <div className="mt-4 flex flex-wrap gap-2">
@@ -165,9 +165,7 @@ export function TagsDialog({
         </div>
 
         <footer className="flex items-center justify-between gap-3 border-t border-line px-5 py-3">
-          <p className="text-[11px] text-t4">
-            Las claves que no tengan la etiqueta la reciben; las que ya la tienen la conservan.
-          </p>
+          <p className="text-[11px] text-t4">{t('tags.merging')}</p>
 
           <div className="flex shrink-0 gap-2">
             <Button variant="ghost" onClick={onCancel}>
@@ -178,7 +176,7 @@ export function TagsDialog({
               onClick={() => onConfirm([...seleccionadas])}
               title={t('tags.applyHint')}
             >
-              Aplicar
+              {t('action.apply')}
             </Button>
           </div>
         </footer>

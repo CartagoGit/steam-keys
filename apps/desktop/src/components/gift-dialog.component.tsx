@@ -83,12 +83,14 @@ export function GiftDialog({
               </li>
             ))}
             {resto > 0 ? (
-              <li className="text-[11px] text-t4">y {resto} juego más</li>
+              <li className="text-[11px] text-t4">
+                {t(pluralKey(resto, 'gift.more.one', 'gift.more.many'), [resto])}
+              </li>
             ) : null}
           </ul>
 
           <label className="mb-1.5 block text-[11px] font-medium text-t3">
-            ¿A quién se lo has regalado?
+            {t('gift.recipient')}
           </label>
 
           <input
@@ -103,9 +105,7 @@ export function GiftDialog({
             className={INPUT_CLASS}
           />
 
-          <p className="mt-2 text-[11px] text-t4">
-            Se guarda con cada clave, para saber a quién se la diste.
-          </p>
+          <p className="mt-2 text-[11px] text-t4">{t('gift.recipientHint')}</p>
         </div>
 
         <footer className="flex justify-end gap-2 border-t border-line px-5 py-3">
