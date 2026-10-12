@@ -1,5 +1,5 @@
 import { fileService } from '@/services/file.service';
-import { browserLocale } from '@/helpers/i18n.helper';
+import { DEFAULT_LOCALE } from '@/contracts';
 import { getStorageMode, isTauri, StorageMode } from '@/helpers/runtime.helper';
 import type { IStartup } from '@/contracts';
 
@@ -24,8 +24,8 @@ export async function inspectStartup(): Promise<IStartup> {
     return {
       database: 'ready',
       databasePath: null,
-      locale: browserLocale(),
-      localeFromBrowser: true,
+      locale: DEFAULT_LOCALE,
+      localeFromBrowser: false,
     };
   }
 
@@ -38,15 +38,15 @@ export async function inspectStartup(): Promise<IStartup> {
     return {
       database: 'ready',
       databasePath: info?.path ?? null,
-      locale: browserLocale(),
-      localeFromBrowser: true,
+      locale: DEFAULT_LOCALE,
+      localeFromBrowser: false,
     };
   }
 
   return {
     database: 'empty',
     databasePath: info.path,
-    locale: browserLocale(),
-    localeFromBrowser: true,
+    locale: DEFAULT_LOCALE,
+    localeFromBrowser: false,
   };
 }

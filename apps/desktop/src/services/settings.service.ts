@@ -20,8 +20,21 @@ import {
 } from '@/helpers/settings.helper';
 
 /** Ajustes por defecto: los de una instalacion nueva, sin tocar nada. */
+/**
+ * El tema por defecto es Nord, y no «el del sistema».
+ *
+ * Con `System` lo que aparecia dependia de la configuracion del escritorio de
+ * cada maquina: la misma app se abria clara en una y oscura en otra, y eso
+ * hace imposible decir «la ventana esta rara» sin mirar antes cual era el
+ * tema. Nord es el que mejor aguanta las dos cosas que se hacen aqui —una
+ * lista larga de texto pequeño y un panel de color— y ademas sus variables
+ * estan todas definidas, sin aproximaciones.
+ *
+ * En cuanto se elige otro, se guarda y a partir de ahi manda lo guardado, que
+ * es justo lo que se espera: lo unico que se decide una vez es la primera.
+ */
 export const DEFAULT_SETTINGS: IAppSettings = Object.freeze({
-  theme: AppTheme.System,
+  theme: AppTheme.Nord,
   locale: DEFAULT_LOCALE,
   steamApiKey: '',
   steamId: '',

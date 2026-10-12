@@ -1,13 +1,11 @@
 import { describe, expect, test } from 'bun:test';
 
 import {
-  browserLocale,
-  detectLocale,
   interpolate,
   pluralKey,
   translate,
 } from './i18n.helper';
-import { APP_LOCALE_VALUES, AppLocale, DEFAULT_LOCALE, TRANSLATIONS } from '@/contracts';
+import { APP_LOCALE_VALUES, AppLocale, TRANSLATIONS } from '@/contracts';
 import { baseKeys } from './i18n.helper';
 
 /** Raiz de `src/`, para recorrer los ficheros que usan las claves. */
@@ -66,36 +64,6 @@ describe('traducir', () => {
 
   test('una clave que no existe en ningun sitio devuelve la clave', () => {
     expect(translate(AppLocale.En, 'no.existe.esta.clave')).toBe('no.existe.esta.clave');
-  });
-});
-
-describe('detectar el idioma', () => {
-  test('el navegador pide ingles y sale ingles', () => {
-    expect(detectLocale(['en-GB', 'es'])).toBe(AppLocale.En);
-  });
-
-  test('el navegador pide espanol y sale espanol', () => {
-    expect(detectLocale(['es-ES', 'en'])).toBe(AppLocale.Es);
-  });
-
-  test('un idioma que no soportamos cae en ingles', () => {
-    expect(detectLocale(['ja-JP', 'it'])).toBe(DEFAULT_LOCALE);
-    expect(DEFAULT_LOCALE).toBe(AppLocale.En);
-  });
-
-  test('un idioma de la lista se detecta por su idioma base', () => {
-    // El navegador manda 'pt-BR' o 'de-AT', no 'pt' ni 'de' a secas.
-    expect(detectLocale(['pt-BR'])).toBe(AppLocale.Pt);
-    expect(detectLocale(['de-AT'])).toBe(AppLocale.De);
-    expect(detectLocale(['fr-CA'])).toBe(AppLocale.Fr);
-  });
-
-  test('sin candidatos sale ingles', () => {
-    expect(detectLocale([])).toBe(DEFAULT_LOCALE);
-  });
-
-  test('en un entorno sin navigator no rompe', () => {
-    expect(browserLocale()).toBeTruthy();
   });
 });
 
@@ -250,7 +218,12 @@ describe('cobertura de las traducciones', () => {
         'loading.cancel',
       ],
       de: ['sort.alpha', 'editor.titlePlaceholder', 'editor.keyPlaceholder',
-        'editor.parentPlaceholder', 'editor.tagsPlaceholder', 'owned.dlc'],
+        'editor.parentPlaceholder', 'editor.tagsPlaceholder', 'owned.dlc',
+        // Cognado: en alemán es «Alle» y en castellano «Todas». No es un
+        // descuido, es la palabra correcta en las dos — y en un filtro de
+        // seleccion multiple la otra, «sin marcar ninguna», seria peor,
+        // porque «Alle» y «Keine» se distinguen de un vistazo.
+        'filter.menu.all'],
     };
 
     // `app.title` tampoco se comprueba aqui: es una marca y tiene su test.

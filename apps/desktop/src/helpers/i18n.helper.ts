@@ -86,28 +86,6 @@ export function t(clave: TranslationKey, args?: TranslationArgs): string {
   return translate(idiomaActual, clave, args);
 }
 
-/** Idioma que el navegador pide, si esta entre los que soportamos. */
-export function detectLocale(candidatos: readonly string[]): AppLocale {
-  for (const candidato of candidatos) {
-    const limpio = candidato.trim().toLowerCase().split('-')[0];
-
-    if (limpio !== undefined && limpio in TRANSLATIONS) {
-      return limpio as AppLocale;
-    }
-  }
-
-  return DEFAULT_LOCALE;
-}
-
-/** Idioma del navegador, para cuando aun no hay nada guardado. */
-export function browserLocale(): AppLocale {
-  if (typeof navigator === 'undefined') return DEFAULT_LOCALE;
-
-  const crudo: string[] = [...(navigator.languages ?? []), navigator.language ?? ''];
-
-  return detectLocale(crudo);
-}
-
 /** Todas las claves que existen en español. Sirve para los tests de cobertura. */
 export function baseKeys(): readonly string[] {
   return Object.keys(TRANSLATIONS[DEFAULT_LOCALE]);
