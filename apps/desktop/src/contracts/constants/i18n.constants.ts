@@ -501,7 +501,7 @@ export const EN: TranslationTable = Object.freeze({
   'steam.perfilNoExiste': 'There is no profile named «{0}».',
   'steam.perfilRenombrado': 'That profile is now called «{0}».',
   'steam.perfilIdNoLeido': 'Could not read the ID of the profile «{0}».',
-  'steam.perfilNoResponde': 'Could not reach Steam: {0}',
+  'steam.perfilNoResponde': 'Could not reach Steam.',
   'steam.estadoHttp': 'Steam replied with status {0}.',
   'steam.vacio': 'The Steam library came back empty.',
   'steam.http': 'Steam did not reply.',

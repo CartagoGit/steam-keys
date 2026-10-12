@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Icon } from './icon.component';
 import { Modal } from './modal.component';
 import { Button, INPUT_CLASS } from './ui.component';
@@ -30,6 +30,21 @@ export function GiftDialog({
 }: IGiftDialogProps) {
   const { t } = useT();
   const [destino, setDestinatario] = useState('');
+
+  /**
+   * El destinatario se vacia al abrir.
+   *
+   * El dialogo sigue montado entre aperturas, asi que sin esto el nombre
+   * de la vez anterior salia ya escrito. Es el destino de una persona de
+   * verdad —regalar algo a la persona equivocada no tiene vuelta atras— y
+   * ademas el boton nace encendido, que hace que enviar sin querer sea
+   * solo cuestión de pulsar dos veces.
+   */
+  useEffect(() => {
+    if (!open) return;
+
+    setDestinatario('');
+  }, [open]);
 
   const habilitado = destino.trim().length > 0;
 

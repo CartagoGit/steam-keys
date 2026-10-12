@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { KeyPlatform, cleanTag, normalizeTag, suggestionsFor, type IGameKey } from '@/contracts';
 import { Icon } from './icon.component';
 import { Modal } from './modal.component';
@@ -44,6 +44,34 @@ export function TagsDialog({
   );
 
   const [nueva, setNueva] = useState('');
+
+  /**
+   * Las etiquetas se reponen **al abrir**, no al montar.
+   *
+   * El dialogo no se desmonta al cerrarse —queda vivo para que la salida
+   * se vea— asi que sin esto `seleccionadas` se traspasa de una
+   * seleccion a la siguiente: se abre para un grupo de claves, se cierra
+   * y se abre para otro, y aparecen marcadas las del primero. Pulsar
+   * «Aplicar» las escribia encima de las nuevas, que es justo el fallo
+   * que hace destructivo al dialogo.
+   *
+   * La transicion se mira en `open` y no en la identidad de `iniciales` a
+   * proposito: `iniciales` es `etiquetasComunes(selectedKeys)`, un array
+   * nuevo en cada repintado, asi que un efecto que dependiera de el
+   * repondria las etiquetas con cada cambio de idioma y se comeria lo que
+   * el usuario hubiera marcado. Mientras el dialogo esta abierto la
+   * seleccion no cambia, asi que no hay caso que se pierda.
+   *
+   * El montaje tambien esta cubierto: `tagsVivo` monta el dialogo ya
+   * abierto, y ese primer `open === true` dispara el efecto igual que
+   * cualquier otra apertura.
+   */
+  useEffect(() => {
+    if (!open) return;
+
+    setSeleccionadas(new Set(iniciales.map(normalizeTag)));
+    setNueva('');
+  }, [open]);
 
   /** Etiquetas que ya hay en la coleccion, mas las sugerencias. */
   const sugeridas = useMemo(() => {

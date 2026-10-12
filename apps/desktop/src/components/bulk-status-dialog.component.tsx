@@ -1,5 +1,5 @@
 import { pluralKey } from '@/helpers/i18n.helper';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { KEY_STATUS_VALUES, KeyStatus, TRANSLATIONS, statusMeta, type IGameKey, type Translator } from '@/contracts';
 import { Icon } from './icon.component';
 import { Modal } from './modal.component';
@@ -133,6 +133,25 @@ export function BulkStatusDialog({
   const [ocupado, setOcupado] = useState(false);
   /** Cuantas cambiaron de verdad, o `null` si todavia no se ha aplicado. */
   const [aplicadas, setAplicadas] = useState<number | null>(null);
+
+  /**
+   * El resultado de la vez anterior no sobrevive a la apertura siguiente.
+   *
+   * El dialogo queda montado entre aperturas, asi que sin esto «se han
+   * cambiado 12 claves» se quedaba puesto en una sesion nueva, con claves
+   * distintas y sin haber pulsado nada. Es peor que no mostrarlo: el
+   * usuario creeria que ya se habia hecho.
+   *
+   * `estado` **si** se recuerda: un destino por defecto sensato es una
+   * comodidad, y como no lleva datos de la sesion anterior no puede
+   * mentir sobre lo que se ha escrito.
+   */
+  useEffect(() => {
+    if (!open) return;
+
+    setAplicadas(null);
+    setOcupado(false);
+  }, [open]);
 
   // `locale` va en las dependencias porque `t` cambia de identidad al cambiar el
   // idioma: sin el, cambiar de idioma no recalcularia el reparto y los motivos

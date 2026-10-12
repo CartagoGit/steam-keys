@@ -146,7 +146,25 @@ export async function resolveSteamId(
       throw new SteamError('cancelado');
     }
 
-    throw new SteamError(mensaje === '' ? 'http' : 'perfilNoResponde', [mensaje]);
+    /**
+     * El detalle va a la consola, no a la pantalla.
+     *
+     * Lo que llega aqui es el `String` del `Err` de Rust, en castellano
+     * —«Steam no ha contestado: ...»— o el mensaje del navegador, en
+     * ingles. Metido en la clave traducida salia una frase en el idioma de
+     * la interfaz con un trozo en otro por el medio, que es peor que no
+     * decir nada: parece un error de traduccion de la app.
+     *
+     * Se imprime entero y con el motivo, porque para averiguar por que
+     * fallo esto hay que mirarlo. En la consola, donde el que investigates
+     * ya sabe que esta leyendo codigo; no en un aviso que leen cinco de
+     * cada cinco personas.
+     */
+    if (mensaje !== '') {
+      console.warn('[steam] no se pudo consultar el perfil:', mensaje);
+    }
+
+    throw new SteamError(mensaje === '' ? 'http' : 'perfilNoResponde');
   }
 
   /**
