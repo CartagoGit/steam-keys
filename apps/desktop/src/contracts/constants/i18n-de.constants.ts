@@ -77,6 +77,9 @@ export const DE: TranslationTable = Object.freeze({
   'bulk.subtitle': 'Wird auf {0} ausgewaehlte Schluessel angewendet',
   'bulk.hint':
     'Geaendert wird nur, was diesen Status zulaesst. Der Rest bleibt unberuehrt.',
+  'bulk.becomes': '{0} wechseln zu {1}',
+  'bulk.alreadyThere': '{0} waren bereits in {1}',
+  'bulk.cannotBecome': '{0} koennen nicht zu {1} wechseln',
   'bulk.apply': 'Status aendern',
   'bulk.pending': '{0} Schluessel werden zu {1}',
   'bulk.doneOne': 'Status bei {0} Key geandert.',
@@ -230,6 +233,9 @@ export const DE: TranslationTable = Object.freeze({
   'editor.add': 'Schluessel hinzufuegen',
   'storage.error.read': 'Der Zustand liess sich nicht lesen.',
   'storage.error.backup': 'Die Kopie liess sich nicht anlegen.',
+  'storage.deleteBackup': 'Diese Sicherung loeschen',
+  'storage.deleteBackup.body':
+    'Die Sicherung «{0}» wird endgueltig geloescht. Es gibt keine Moeglichkeit, sie wiederherzustellen.',
   'storage.deleted': 'Kopie geloescht.',
   'storage.error.delete': 'Konnte nicht geloescht werden.',
   'storage.error.restore': 'Konnte nicht wiederhergestellt werden.',
@@ -287,6 +293,7 @@ export const DE: TranslationTable = Object.freeze({
   'app.importedDupes': ' ({0} waren schon da)',
   'app.exported': '{0} Schluessel exportiert.',
   'app.synced': 'Bibliothek synchronisiert: {0} Spiele.',
+  'library.refresh': 'Bibliothek aktualisieren',
   'library.partial': 'halb gelesen',
   'library.partialHint':
     'Das Lesen wurde beim Seitenlimit von Steam beendet. Die Zahl sind die gelesenen Spiele, nicht die Gesamtzahl des Kontos.',

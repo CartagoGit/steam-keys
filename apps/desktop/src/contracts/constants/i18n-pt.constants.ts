@@ -75,6 +75,9 @@ export const PT: TranslationTable = Object.freeze({
   'bulk.title': 'Mudar o estado',
   'bulk.subtitle': 'Vai ser aplicado a {0} chaves selecionadas',
   'bulk.hint': 'So as chaves que permitem esse estado mudam. As outras ficam como estao.',
+  'bulk.becomes': '{0} passam para {1}',
+  'bulk.alreadyThere': '{0} ja estavam em {1}',
+  'bulk.cannotBecome': '{0} nao podem passar para {1}',
   'bulk.apply': 'Mudar o estado',
   'bulk.pending': '{0} chaves passam a {1}',
   'bulk.doneOne': 'Estado alterado em {0} chave.',
@@ -222,6 +225,9 @@ export const PT: TranslationTable = Object.freeze({
   'editor.add': 'Adicionar chave',
   'storage.error.read': 'Nao foi possivel ler o estado.',
   'storage.error.backup': 'Nao foi possivel criar a copia.',
+  'storage.deleteBackup': 'Excluir esta copia',
+  'storage.deleteBackup.body':
+    'A copia «{0}» sera eliminada para sempre. Nao havera forma de a recuperar.',
   'storage.deleted': 'Copia apagada.',
   'storage.error.delete': 'Nao foi possivel apagar.',
   'storage.error.restore': 'Nao foi possivel restaurar.',
@@ -278,6 +284,7 @@ export const PT: TranslationTable = Object.freeze({
   'app.importedDupes': ' ({0} ja estavam la)',
   'app.exported': '{0} chaves exportadas.',
   'app.synced': 'Biblioteca sincronizada: {0} jogos.',
+  'library.refresh': 'Atualizar a biblioteca',
   'library.partial': 'leitura a meio',
   'library.partialHint':
     'A leitura parou no limite de paginas da Steam. O numero e o dos jogos lidos, nao o total da conta.',

@@ -217,6 +217,9 @@ export const EN: TranslationTable = Object.freeze({
     'It will be applied to {0} selected keys',
   'bulk.hint':
     'Only the keys that allow that status will change. The rest stay as they are.',
+  'bulk.becomes': '{0} move to {1}',
+  'bulk.alreadyThere': '{0} are already {1}',
+  'bulk.cannotBecome': '{0} cannot move to {1}',
   'bulk.apply':
     'Change status',
   'bulk.pending':
@@ -390,6 +393,9 @@ export const EN: TranslationTable = Object.freeze({
   'editor.add': 'Add key',
   'storage.error.read': 'Could not read the state.',
   'storage.error.backup': 'Could not create the copy.',
+  'storage.deleteBackup': 'Delete this backup',
+  'storage.deleteBackup.body':
+    'Backup «{0}» will be deleted for good. There will be no way to get it back.',
   'storage.deleted': 'Copy deleted.',
   'storage.error.delete': 'Could not delete it.',
   'storage.error.restore': 'Could not restore it.',
@@ -440,6 +446,7 @@ export const EN: TranslationTable = Object.freeze({
   'app.importedDupes': ' ({0} already there)',
   'app.exported': '{0} keys exported.',
   'app.synced': 'Library synced: {0} games.',
+  'library.refresh': 'Refresh library',
   'library.partial': 'half read',
   'library.partialHint':
     "The read stopped at Steam's page limit. The number is the games that were read, not the total on the account.",

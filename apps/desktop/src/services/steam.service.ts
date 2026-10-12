@@ -322,7 +322,18 @@ export const steamService = {
           throw new SteamError('perfilPrivado');
         }
 
-        terminado = true;
+        /**
+         * A partir de la segunda pagina, que no venga `games` **no** quiere
+         * decir que se hayan acabado: quiere decir que Steam ha contestado
+         * algo que no es una pagina de juegos. No hay forma de saber si
+         * faltaba algo, asi que no se marca como terminado y `truncada`
+         * sale a `true`.
+         *
+         * Marcarlo aqui era el unico camino por el que la bandera se
+         * quedaba en `false` sin motivo, que es justo lo que la bandera
+         * existe para que no pase: el final real lo dice una pagina **vacia**
+         * —unas lineas mas abajo— o el tope de paginas.
+         */
         break;
       }
 
@@ -509,7 +520,19 @@ async function pedirJson<T>(url: string, signal?: AbortSignal): Promise<T> {
       }
 
       if (respuesta.status === 403 || respuesta.status === 401) {
-        throw new SteamError('idInvalido');
+        /**
+         * Una clave caducada, no un ID mal escrito.
+         *
+         * Lo mas comun tras un 401/403 aqui es una clave de API revocada o
+         * con un fallo de tecleo, y se estaba diciendo `idInvalido` —que es
+         * un codigo de `resolveSteamId`, y esta funcion ni se llama: su
+         * trabajo es pedir la biblioteca. El resultado era mandarle a
+         * revisar un SteamID que estaba bien.
+         *
+         * `sinClave` estaba declarado en el tipo y traducido en los cinco
+         * idiomas desde hacia tiempo, sin que lo lanzara nadie.
+         */
+        throw new SteamError('sinClave');
       }
 
       throw new SteamError('http');
@@ -521,17 +544,20 @@ async function pedirJson<T>(url: string, signal?: AbortSignal): Promise<T> {
     // propaga tal cual en vez de reinterpretarse como fallo de red.
     if (cause instanceof SteamError) throw cause;
 
-    const abortado = corte.aborted || (cause as Error)?.name === 'AbortError';
-
-    // El orden importa: si el usuario pulso la X **y** el reloj habia saltado a
-    // la vez, es una cancelacion —no se avisa de nada que el usuario acaba de
-    // pedir—. Por eso se mira `signal` y no `corte`.
+    /**
+     * El orden importa: si el usuario pulso la X **y** el reloj habia saltado a
+     * la vez, es una cancelacion —no se avisa de nada que el usuario acaba de
+     * pedir—. Por eso se mira `signal` y no `corte`.
+     *
+     * Y lo que queda debajo es un solo `http` a proposito. Que se haya
+     * abortado por el reloj o que haya petado la red se translates igual,
+     * porque al usuario le dice lo mismo: no se pudo leer. Distinguirlo
+     * obligaria a inventar un texto —«ha tardado demasiado», «sin
+     * conexion»— que se distinguiria por pruebas, no por lo que el
+     * usuario ha hecho. El 429 de verdad ya sale antes, como `limite`.
+     */
     if (signal?.aborted === true) {
       throw new SteamError('cancelado');
-    }
-
-    if (abortado) {
-      throw new SteamError('http');
     }
 
     throw new SteamError('http');

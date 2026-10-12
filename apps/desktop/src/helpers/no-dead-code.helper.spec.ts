@@ -90,7 +90,13 @@ const DECLARA = /^\s*export\s+(?:async\s+)?(function|const|class)\s+([A-Za-z_$][
 const METODO = /^\s{2}(?:async\s+)?([A-Za-z_$][\w$]*)\s*[(<]/gm;
 
 /** El nombre del objeto exportado al que pertenece el metodo, si lo hay. */
-const EXPORTADO = /^\s*export\s+const\s+([A-Za-z_$][\w$]*)\s*=\s*\{/gm;
+/**
+ * Con anotacion de tipo opcional: `export const cliente: IDatabaseClient = {`
+ * es tan normal como `export const cliente = {`, y sin el los tres
+ * archivos que lo llevan quedaban fuera de la comprobacion entera.
+ */
+const EXPORTADO =
+  /^\s*export\s+const\s+([A-Za-z_$][\w$]*)\s*(?::[^=\n]+)?=\s*\{/gm;
 
 /**
  * Cuantas veces sale el nombre en el codigo, **sin contar su declaracion ni el
@@ -108,9 +114,17 @@ function usosFueraDeLaDeclaracion(nombre: string, en: readonly IFuente[]): numbe
 
     const apariciones = (fuente.limpio.match(patron) ?? []).length;
 
-    // Una aparicion es la propia declaracion.
+    /**
+     * Una aparicion es la propia declaracion.
+     *
+     * El `async` va aqui por una razcon concreta: sin el, el patron pedia
+     * `export function X` donde el fuente pone `export async function X`,
+     * no casaba, la declaracion se contaba como un uso y **todo** export
+     * asincrono pasaba el guard sin comprobar. Once en el proyecto, entre
+     * ellos `steamGet` y `resolveSteamId`.
+     */
     const esSuPropiaDeclaracion = new RegExp(
-      `export (?:const|function|class) ${nombre}\\b`,
+      `export (?:async )?(?:const|function|class) ${nombre}\\b`,
     ).test(fuente.limpio)
       ? 1
       : 0;
@@ -173,63 +187,79 @@ describe('codigo muerto', () => {
 
       EXPORTADO.lastIndex = 0;
 
-      const primerExportado = EXPORTADO.exec(fuente.limpio);
-
-      // Sin ningun objeto exportado no hay metodos que mirar.
-      if (!primerExportado) continue;
-
-      const objeto = primerExportado[1];
-      const desde = primerExportado.index + primerExportado[0].length;
-
       /**
-       * El objeto se cierra con su llave al principio de linea, y en estos
-       * archivos los metodos van indentados con dos espacios. Cortar en el
-       * cierre evita que `METODO` se lleve por delante una funcion suelta de
-       * mas abajo.
+       * **Todos** los objetos exportados del archivo, no solo el primero.
+       *
+       * Con un `exec` y ya, un archivo con dos objetos exportados solo
+       * comprobaba el primero y los metodos del segundo pasaban sin mirar.
+       * No lo hace hoy ninguno, pero nada lo impide y es justo el tipo de
+       * agujero por el que este guard deja de servir sin que se note.
        */
-      const hasta = fuente.limpio.indexOf('\n};', desde);
-      const cuerpo = fuente.limpio.slice(
-        desde,
-        hasta < 0 ? undefined : hasta,
-      );
+      let objeto: RegExpExecArray | null;
 
-      METODO.lastIndex = 0;
+      while ((objeto = EXPORTADO.exec(fuente.limpio)) !== null) {
+        const nombre = objeto[1];
 
-      let encontrado: RegExpExecArray | null;
+        if (!nombre) continue;
 
-      while ((encontrado = METODO.exec(cuerpo)) !== null) {
-        const metodo = encontrado[1];
-
-        if (!metodo) continue;
-
-        if (metodo.length <= 3) continue;
-
-        // `constructor`, `get x` y demas palabras reservadas no son la API
-        // del objeto.
-        if (metodo === 'constructor' || metodo === 'if' || metodo === 'for')
-          continue;
+        const desde = objeto.index + objeto[0].length;
 
         /**
-         * Cuenta **cualquier** acceso por punto, no solo la llamada.
+         * El objeto se cierra con su llave al principio de linea; los
+         * metodos van indentados con dos espacios. Cortar en el cierre evita
+         * que `METODO` se lleve por delante una funcion suelta de mas abajo.
          *
-         * Un metodo se puede usar como valor —`gameKeyService.repository` que
-         * se pasa a otro sitio— y exigirle unos parentesis lo daria por
-         * muerto. Aqui el error posible va en un sentido: que otro objeto con
-         * un metodo del mismo nombre lo llame y este parezca vivo. Eso solo
-         * puede hacer que el guard **no** vea codigo muerto, nunca que se
-         * queje de algo que si se usa, que es la direccion en la que conviene
-         * equivocarse.
+         * Si el cierre no aparece —llave indentada, o el objeto es lo
+         * ultimo del archivo— el recorte llega al final. Se acepta: en ese
+         * caso lo que se revisa de mas son metodos de otros objetos, que
+         * tambien viven en objetos exportados y tambien harian falta
+         * revisar. El error va en un sentido: codigo muerto que no se ve.
          */
-        const acceso = new RegExp(`\\.${metodo}\\b`);
-
-        const usos = todos.reduce(
-          (total, f) =>
-            total + (f.esBarril ? 0 : (f.limpio.match(acceso) ?? []).length),
-          0,
+        const hasta = fuente.limpio.indexOf('\n};', desde);
+        const cuerpo = fuente.limpio.slice(
+          desde,
+          hasta < 0 ? undefined : hasta,
         );
 
-        if (usos === 0) {
-          muertos.push(`${fuente.ruta}: ${objeto}.${metodo}`);
+        METODO.lastIndex = 0;
+
+        let encontrado: RegExpExecArray | null;
+
+        while ((encontrado = METODO.exec(cuerpo)) !== null) {
+          const metodo = encontrado[1];
+
+          if (!metodo) continue;
+
+          if (metodo.length <= 3) continue;
+
+          // `constructor`, `get x` y demas palabras reservadas no son la API
+          // del objeto.
+          if (metodo === 'constructor' || metodo === 'if' || metodo === 'for')
+            continue;
+
+          /**
+           * Cuenta **cualquier** acceso por punto, no solo la llamada.
+           *
+           * Un metodo se puede usar como valor —`gameKeyService.repository`
+           * que se pasa a otro sitio— y exigirle unos parentesis lo daria
+           * por muerto. Aqui el error posible va en un sentido: que otro
+           * objeto con un metodo del mismo nombre lo llame y este parezca
+           * vivo. Eso solo puede hacer que el guard **no** vea codigo
+           * muerto, nunca que se queje de algo que si se usa, que es la
+           * direccion en la que conviene equivocarse.
+           */
+          const acceso = new RegExp(`\\.${metodo}\\b`);
+
+          const usos = todos.reduce(
+            (total, f) =>
+              total +
+              (f.esBarril ? 0 : (f.limpio.match(acceso) ?? []).length),
+            0,
+          );
+
+          if (usos === 0) {
+            muertos.push(`${fuente.ruta}: ${nombre}.${metodo}`);
+          }
         }
       }
     }

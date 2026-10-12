@@ -12,6 +12,7 @@ import { storageService } from '@/services/storage.service';
 import { formatBytes } from '@/helpers/format-bytes.helper';
 import { formatDateTime, formatRelativeDate } from '@/helpers/format-date.helper';
 import { Button } from './ui.component';
+import { ConfirmDialog } from './feedback.component';
 import { Icon } from './icon.component';
 import { useT } from '@/context/locale.context';
 
@@ -35,6 +36,8 @@ export function StoragePanel({ onClose, onChanged, notify }: IStoragePanelProps)
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
   const [pendingRestore, setPendingRestore] = useState<IBackup | null>(null);
+  /** Copia que se va a borrar, a la espera de que se confirme. */
+  const [pendingDelete, setPendingDelete] = useState<IBackup | null>(null);
 
   /**
    * Lee el estado del almacenamiento.
@@ -81,16 +84,40 @@ export function StoragePanel({ onClose, onChanged, notify }: IStoragePanelProps)
     }
   };
 
+  /**
+   * El papelera **pregunta** antes de borrar.
+   *
+   * Una copia de seguridad es lo unico que hay cuando la base va mal, y una
+   * sola pulsacion la destruia. El resto de acciones destructivas de la app
+   * —borrar una clave, marcar como caducada— ya pasaban por `ConfirmDialog` y
+   * esta era la unica que no.
+   *
+   * El borrado en si no lleva `working` propio —el del panel sirve— pero si
+   * levanta `working`: mientras corre, el boton de restaurar de cada fila
+   * seguia pulsable y el panel se podia cerrar debajo, y `cerrar` solo mira
+   * `working`. Con `working` en `false` las dos cosas pasaba.
+   */
   const handleDelete = async (backup: IBackup): Promise<void> => {
+    setPendingDelete(backup);
+  };
+
+  const confirmarBorrado = async (): Promise<void> => {
+    if (!pendingDelete) return;
+
+    setWorking(true);
+
     try {
-      await storageService.deleteBackup(backup.name);
+      await storageService.deleteBackup(pendingDelete.name);
       notify(t('storage.deleted'), 'success');
+      setPendingDelete(null);
       await refresh();
     } catch (cause) {
       notify(
         cause instanceof Error ? cause.message : t('storage.error.delete'),
         'error',
       );
+    } finally {
+      setWorking(false);
     }
   };
 
@@ -149,6 +176,7 @@ export function StoragePanel({ onClose, onChanged, notify }: IStoragePanelProps)
     if (working) return;
 
     setPendingRestore(null);
+    setPendingDelete(null);
     onClose();
   }, [onClose, working]);
 
@@ -166,13 +194,21 @@ export function StoragePanel({ onClose, onChanged, notify }: IStoragePanelProps)
       // `Modal` ya escucha la misma tecla y esta habria cerrando los dos.
       if (pendingRestore !== null) return;
 
+      // Una confirmacion de borrado tambien sale por su cuenta. Lo que no
+      // cabe es que Escape quite el dialogo pequeno y deje el panel
+      // abierto, que es lo que hacia `cerrar` sin esta linea.
+      if (pendingDelete !== null) {
+        setPendingDelete(null);
+        return;
+      }
+
       cerrar();
     };
 
     window.addEventListener('keydown', onKeyDown);
 
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [cerrar, pendingRestore]);
+  }, [cerrar, pendingDelete, pendingRestore]);
 
   return (
     <div
@@ -193,7 +229,7 @@ export function StoragePanel({ onClose, onChanged, notify }: IStoragePanelProps)
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={cerrar}
             className="rounded-lg p-2 text-t4 transition hover:bg-hover hover:text-t1"
             title={t('data.close')}
           >
@@ -383,6 +419,16 @@ export function StoragePanel({ onClose, onChanged, notify }: IStoragePanelProps)
           working={working}
           onCancel={() => setPendingRestore(null)}
           onConfirm={handleRestore}
+        />
+      ) : null}
+
+      {pendingDelete ? (
+        <ConfirmDialog
+          title={t('storage.deleteBackup')}
+          message={t('storage.deleteBackup.body', [pendingDelete.name])}
+          confirmLabel={t('action.delete')}
+          onConfirm={confirmarBorrado}
+          onCancel={() => setPendingDelete(null)}
         />
       ) : null}
     </div>

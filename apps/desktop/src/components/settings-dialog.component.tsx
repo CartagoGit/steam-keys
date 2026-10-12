@@ -91,6 +91,25 @@ export function SettingsDialog({
   const [apiKey, setApiKey] = useState(settings.steamApiKey);
   const [steamId, setSteamId] = useState(settings.steamId);
 
+  /**
+   * Clave e ID se reponen **al abrir**, igual que la pestana.
+   *
+   * El dialogo no se desmonta al cerrarse, asi que sin esto el campo
+   * seguia enseñando lo que se hubiera escrito a medias la vez anterior: se
+   * teclea un SteamID, se cierra sin conectar, y al volver a abrir el
+   * campo lo tiene puesto mientras `settings.steamId` en la base es otra
+   * cosa. Dos verdades dando una sola.
+   *
+   * Y el boton de conectar nace habilitado con un ID que no es el guardado.
+   */
+  useEffect(() => {
+    if (!open) return;
+
+    setApiKey(settings.steamApiKey);
+    setSteamId(settings.steamId);
+    setError(null);
+  }, [open]);
+
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

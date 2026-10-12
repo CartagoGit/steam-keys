@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from './icon.component';
 import { Modal } from './modal.component';
 import { Button, INPUT_CLASS } from './ui.component';
@@ -47,6 +47,29 @@ export function GiftDialog({
   }, [open]);
 
   const habilitado = destino.trim().length > 0;
+
+  /**
+   * El regalar solo corre una vez.
+   *
+   * `onConfirm` acaba escribiendo en la base, asi que llamarlo dos veces
+   * hace dos veces el trabajo y mete **dos** entradas en la pila de deshacer
+   * con la misma accion. `useUndo` solo saca la de arriba: la primera se
+   * queda ahi para siempre y el usuario ve un «Deshacer» que no deshace lo
+   * que el creia.
+   *
+   * El bloqueo es un `ref` y no solo estado por lo mismo que en
+   * `ConfirmDialog`: dos Enter seguidas dentro del mismo turno llegan las
+   * dos con `ocupado === false`, porque React aun no ha repintado. Con
+   * estado, la segunda se colaba.
+   */
+  const enCurso = useRef(false);
+
+  const confirmar = (): void => {
+    if (!habilitado || enCurso.current) return;
+
+    enCurso.current = true;
+    onConfirm(destino);
+  };
 
   const titulos = useMemo(
     () => [...new Set(entries.map((entry) => entry.title))],
@@ -114,7 +137,9 @@ export function GiftDialog({
             value={destino}
             onChange={(event) => setDestinatario(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key === 'Enter' && habilitado) onConfirm(destino);
+              if (event.key !== 'Enter' || !habilitado) return;
+
+              confirmar();
             }}
             placeholder={t('gift.placeholder')}
             className={INPUT_CLASS}
@@ -130,7 +155,7 @@ export function GiftDialog({
           <Button
             variant="primary"
             icon="hand"
-            onClick={() => onConfirm(destino)}
+            onClick={confirmar}
             disabled={!habilitado}
             title={
               habilitado

@@ -87,10 +87,10 @@ export function SteamGamesTable({
           onClick={onRefresh}
           disabled={busy}
           className="ml-auto inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-t3 transition hover:bg-hover hover:text-t1 disabled:opacity-40"
-          title={t('settings.steam.link')}
+          title={t('library.refresh')}
         >
           <Icon name="refresh" size={12} />
-          {t('settings.steam.link')}
+          {t('library.refresh')}
         </button>
       </div>
 

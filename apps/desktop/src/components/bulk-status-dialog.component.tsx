@@ -1,5 +1,5 @@
 import { pluralKey } from '@/helpers/i18n.helper';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { KEY_STATUS_VALUES, KeyStatus, TRANSLATIONS, statusMeta, type IGameKey, type Translator } from '@/contracts';
 import { Icon } from './icon.component';
 import { Modal } from './modal.component';
@@ -131,6 +131,8 @@ export function BulkStatusDialog({
 
   const [estado, setEstado] = useState<KeyStatus>(KeyStatus.Available);
   const [ocupado, setOcupado] = useState(false);
+  /** Bloqueo sincronico de `aplicar`; el estado solo pinta el boton. */
+  const enCurso = useRef(false);
   /** Cuantas cambiaron de verdad, o `null` si todavia no se ha aplicado. */
   const [aplicadas, setAplicadas] = useState<number | null>(null);
 
@@ -151,6 +153,7 @@ export function BulkStatusDialog({
 
     setAplicadas(null);
     setOcupado(false);
+    enCurso.current = false;
   }, [open]);
 
   // `locale` va en las dependencias porque `t` cambia de identidad al cambiar el
@@ -163,12 +166,24 @@ export function BulkStatusDialog({
   const meta = statusMeta(estado, TRANSLATIONS[locale]);
 
   const aplicar = async (): Promise<void> => {
+    /**
+     * El bloqueo es un `ref` y no solo estado, por lo mismo que en
+     * `ConfirmDialog`: dos clics dentro del mismo turno llegan los dos con
+     * `ocupado === false`, porque React aun no ha repintado. Con estado, la
+     * segunda pulsacion se colaba y `onApply` corria dos veces —dos
+     * escrituras, y **dos** entradas en la pila de deshacer con la misma
+     * accion, de las que `useUndo` solo saca la de arriba.
+     */
+    if (enCurso.current) return;
+
+    enCurso.current = true;
     setOcupado(true);
     setAplicadas(null);
 
     try {
       setAplicadas(await onApply(preview.cambian.map((entry) => entry.id), estado));
     } finally {
+      enCurso.current = false;
       setOcupado(false);
     }
   };
@@ -251,13 +266,13 @@ export function BulkStatusDialog({
           <ul className="mt-2 flex flex-col gap-1 text-[11px]">
             <li className="flex items-center gap-2 text-ok">
               <Icon name="check" size={11} />
-              {preview.cambian.length} → {meta.label}
+              {t('bulk.becomes', [preview.cambian.length, meta.label])}
             </li>
 
             {preview.iguales.length > 0 ? (
               <li className="flex items-center gap-2 text-t4">
                 <Icon name="minus" size={11} />
-                {preview.iguales.length} ya estaban en {meta.label}
+                {t('bulk.alreadyThere', [preview.iguales.length, meta.label])}
               </li>
             ) : null}
 
@@ -265,7 +280,7 @@ export function BulkStatusDialog({
               <li className="flex items-start gap-2 text-warn">
                 <Icon name="alert" size={11} />
                 <span>
-                  {preview.bloqueadas.length} no pueden pasar a {meta.label}
+                  {t('bulk.cannotBecome', [preview.bloqueadas.length, meta.label])}
                   <span className="mt-0.5 block text-t4">
                     {preview.bloqueadas[0]?.key.title}: {preview.bloqueadas[0]?.motivo}
                   </span>

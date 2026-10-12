@@ -210,13 +210,23 @@ export function KeyEditor({ entry, onSave, onClose }: IKeyEditorProps) {
             </select>
           </Field>
 
+          {/*
+            Sin `trim` en el `onChange`, y a proposito.
+            `event.target.value.trim()` en cada pulsacion hacia imposible
+            escribir un espacio: se teclea «Ana», se pulsa espacio, el DOM
+            tiene «Ana » y el valor vuelve a ser «Ana», asi que React
+            repinta sin el espacio y «Ana Maria» se guarda «AnaMaria».
+
+            Aqui es donde mas duele, porque es el nombre de una persona de
+            verdad. Limpiar al guardar —que ya se hace— es lo unico que
+            hace falta, y mientras se escribe lo que se quiere es el texto
+            tal cual se teclea.
+          */}
           <Field label={t('editor.recipient')} hint={t('editor.recipientHint')}>
             <input
               className={INPUT_CLASS}
               value={draft.giftedTo ?? ''}
-              onChange={(event) =>
-                patch({ giftedTo: event.target.value.trim() || null })
-              }
+              onChange={(event) => patch({ giftedTo: event.target.value || null })}
               placeholder={t('editor.recipientPlaceholder')}
             />
           </Field>
@@ -226,7 +236,7 @@ export function KeyEditor({ entry, onSave, onClose }: IKeyEditorProps) {
               className={INPUT_CLASS}
               value={draft.parentTitle ?? ''}
               onChange={(event) =>
-                patch({ parentTitle: event.target.value.trim() || null })
+                patch({ parentTitle: event.target.value || null })
               }
               placeholder={t('editor.parentPlaceholder')}
             />
@@ -237,7 +247,7 @@ export function KeyEditor({ entry, onSave, onClose }: IKeyEditorProps) {
               <input
                 className={INPUT_CLASS}
                 value={draft.note ?? ''}
-                onChange={(event) => patch({ note: event.target.value.trim() || null })}
+                onChange={(event) => patch({ note: event.target.value || null })}
                 placeholder={t('editor.notePlaceholder')}
               />
             </Field>
