@@ -21,18 +21,22 @@ import { inspectStartup, type IStartup } from '@/services/startup.service';
  *    hay ajustes que leer: estan dentro de la base de datos que estamos
  *    comprobando. `settingsService.load()` abriria la base, y con eso ya no se
  *    podria saber si estaba antes.
- * 3. **Migrar las copias antiguas.** Solo si la base existe, y despues de (2),
- *    porque es quien marca «ya no hace falta hacerlo»: si corriera antes y
- *    fallara al guardar los ajustes, la migracion se repetiria en cada
- *    arranque.
+ * 3. **Migrar las copias antiguas**, solo si la base existe.
  *
- * Aqui el orden es el **orden del codigo**, no una lista de dependencias que
- * alguien tiene que mantener al dia. Los dos efectos siguientes del componente
- * —cargar claves y cargar ajustes— esperan a que `arranque` valga
- * `database === 'ready'`, que es la senal de que la base se puede tocar.
+ * Las dos ultimas van en **efectos separados** y no encadenadas con un `await`
+ * dentro del primero, porque dependen de cosas distintas y tienen que despertar
+ * de distinta manera.
  *
- * Ninguno de los tres necesita estado de render salvo el resultado del
- * primero, y por eso viven aqui: son entrada/salida, no interfaz.
+ * Encadenarlas fue justo el error de la primera version: la migracion colgaba
+ * del efecto de inspeccion, cuyas dependencias no cambian cuando el usuario
+ * crea la base a mano desde el primer arranque. Ese `setArranque` no dispara
+ * nada, y la migracion se quedaba sin ejecutar en ese camino. Colgada de
+ * `arranque?.database` salta las dos veces: cuando llega el resultado y cuando
+ * la base pasa a existir.
+ *
+ * Los dos efectos siguientes del componente —cargar claves y cargar ajustes—
+ * esperan tambien a `database === 'ready'`, que es la senal de que la base se
+ * puede tocar.
  */
 export function useArranque(fijarIdioma: (locale: AppLocale) => void): {
   arranque: IStartup | null;
@@ -41,21 +45,21 @@ export function useArranque(fijarIdioma: (locale: AppLocale) => void): {
 } {
   const [arranque, setArranque] = useState<IStartup | null>(null);
 
-  /**
-   * La migracion se dispara desde aqui y no desde el componente.
-   *
-   * Antes era un `useEffect` mas con `[arranque]` en la lista, lo que hacia que
-   * dependiera de que alguien se acordara de mantenerlo en el sitio correcto.
-   */
   useEffect(() => {
     const mirar = async (): Promise<void> => {
       const estado = await inspectStartup();
 
       fijarIdioma(estado.locale);
       setArranque(estado);
+    };
 
-      if (estado.database !== 'ready') return;
+    void mirar();
+  }, [fijarIdioma]);
 
+  useEffect(() => {
+    if (arranque?.database !== 'ready') return;
+
+    const migrar = async (): Promise<void> => {
       try {
         const db = await getDatabaseClient();
 
@@ -70,8 +74,8 @@ export function useArranque(fijarIdioma: (locale: AppLocale) => void): {
       }
     };
 
-    void mirar();
-  }, [fijarIdioma]);
+    void migrar();
+  }, [arranque?.database]);
 
   /**
    * `setArranque` con la forma de un dispatch, envuelto para no salir del hook.
