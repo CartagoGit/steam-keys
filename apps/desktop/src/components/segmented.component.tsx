@@ -28,48 +28,46 @@ export interface ISegmentedProps<T extends string> {
 }
 
 /**
- * Colores de cada filtro.
+ * Los tres colores de un filtro, y porque son tres.
  *
- * Los cuatro filtros de la barra son cuatro preguntas distintas —cuales de
- * estas claves veo, de que tipo, de que plataforma, en que estado— y con el
- * mismo color todos seemed lo mismo: cuatro hileras de pastillas más o menos
- * parecidas. Cada uno con el suyo se distinguen de reojo y no hace falta leer
- * el título para saber cuál es cuál.
+ * `pompa` es el relleno solido de la opcion elegida; `sobrePompa` es el
+ * texto que va **encima** de ese relleno, y `titulo` el del nombre del
+ * filtro. Los tres hacen falta y no se pueden reducir a dos.
  *
- * Los tonos son **semánticos**, no nombres de color: se escriben como clases
- * completas porque el componente no puede saber si el tema de fondo es claro o
- * oscuro, y `text-sky-400` se lee en un tema claro y desaparece en el oscuro.
- * Lo que hace el tema es cambiar `--info`, `--ok`, `--warn` y `--danger`.
+ * El texto de la pompa no es «un color mas claro»: es `--on-accent`, que cada
+ * tema define para que se lea sobre su propio acento. Aplicado aqui suena
+ * aproximado —el relleno es `--ok`, no `--accent`— pero funciona porque en
+ * todos los temas el acento y los colores con significado tienen la misma
+ * luminosidad: en los oscuros son claros y el texto encima es casi negro; en
+ * los claros son oscuros y el texto encima es blanco. Con un color fijo
+ * («negro» o «blanco») el selector se apagaba entero al cambiar de tema, que
+ * es justo el fallo que las variables semanticas existen para evitar.
  */
 const TONOS = {
-  emerald: {
-    fondo: 'bg-ok',
-    texto: 'text-ok-strong',
-    sombra: 'shadow-[0_1px_6px_var(--ok)]',
-  },
-  amber: {
-    fondo: 'bg-warn',
-    texto: 'text-warn-strong',
-    sombra: 'shadow-[0_1px_6px_var(--warn)]',
-  },
-  sky: {
-    fondo: 'bg-info',
-    texto: 'text-info-strong',
-    sombra: 'shadow-[0_1px_6px_var(--info)]',
-  },
-  rose: {
-    fondo: 'bg-danger',
-    texto: 'text-danger-strong',
-    sombra: 'shadow-[0_1px_6px_var(--danger)]',
-  },
+  emerald: { pompa: 'bg-ok', sobrePompa: 'text-on-accent', titulo: 'text-ok-strong' },
+  amber: { pompa: 'bg-warn', sobrePompa: 'text-on-accent', titulo: 'text-warn-strong' },
+  sky: { pompa: 'bg-info', sobrePompa: 'text-on-accent', titulo: 'text-info-strong' },
+  rose: { pompa: 'bg-danger', sobrePompa: 'text-on-accent', titulo: 'text-danger-strong' },
 } as const;
 
-/** Como se mueve la pompa de un boton a otro. */
-const TRANSICION = 'transform 220ms cubic-bezier(0.34, 1.3, 0.64, 1), width 220ms cubic-bezier(0.34, 1.3, 0.64, 1)';
+/**
+ * Como se mueve la pompa.
+ *
+ * La curva se pasa del 1: sale disparada, se pasa y aterriza. Sin ese exceso
+ * de 0.3 el desplazamiento es un deslizamiento correcto y a la vez plano, que
+ * es exactamente lo que parece un fallo de rendimiento.
+ *
+ * Se declara **`transform` y `width`, nunca `left`**: `left` no esta en la
+ * lista y por eso el cambio de posicion se teletransportaba. Con la posicion
+ * en `left` y la transicion en `transform` —que es como se escribio la
+ * primera vez— la pompa saltaba de un boton a otro sin moverse, y lo unico
+ * que animaba era un `transform: none` que no cambia nunca.
+ */
+const TRANSICION = 'transform 260ms cubic-bezier(0.34, 1.3, 0.64, 1), width 260ms cubic-bezier(0.34, 1.3, 0.64, 1)';
 
 /** Donde esta la pompa, en pixeles dentro del grupo. */
 interface IPosicion {
-  izquierda: number;
+  desplazamiento: number;
   ancho: number;
 }
 
@@ -77,22 +75,26 @@ interface IPosicion {
  * Grupo de opciones excluyentes con una pompa que se desliza de una a otra.
  *
  * Que la pompa se mueva no es adorno: el desplazamiento dice **cual de las
- * dos cosas se ha cambiado y hacia donde**, y eso un simple cambio de color
- * no lo cuenta. Sin el, pasar de «Todos» a «Solo disponibles» parece un
- * parpadeo sin causa, y en un filtro eso es justo la duda que hace falta
- * para no fiarse de lo que se ve.
+ * dos cosas se ha cambiado y hacia donde**, y eso un cambio de color no lo
+ * cuenta. Sin el, pasar de «Todos» a «Solo disponibles» parece un parpadeo
+ * sin causa, y en un filtro eso es justo la duda que hace falta para no
+ * fiarse de lo que se ve.
  *
  * **Sin bordes, ni dentro ni fuera.** Antes cada boton llevaba su anillo y el
  * grupo otro, y con cinco anillos en pantalla el filtro que deberia estar en
  * segundo plano competia por la atencion con el que se ha pulsado. Ahora solo
- * hay una superficie —la pompa— y el texto encima: lo demas se apaga, y lo
- * que se ve es la pompa.
+ * hay una superficie —la pompa— y el texto encima: lo demas se apaga.
  *
  * La pompa se mide con `getBoundingClientRect` en vez de calcular la posicion
  * con los anchos del texto, porque las etiquetas estan traducidas y «Solo
  * juegos» mide otra cosa que «Solo DLC». Medir es lo unico que funciona con
  * los cinco idiomas sin mantener una tabla de anchos que se queda vieja en
  * cuanto se toca una frase.
+ *
+ * El titulo va **encima** y no al lado. Al lado, cuatro titulos y cuatro
+ * controles en una fila se leen como una frase larga de la que hay que
+ *parsingar donde acaba cada filtro; encima, cada filtro es un bloque
+ * con su nombre, y se lee sin esfuerzo.
  */
 export function Segmented<T extends string>({
   options,
@@ -119,7 +121,7 @@ export function Segmented<T extends string>({
     const cajaActivo = activo.getBoundingClientRect();
 
     setPompa({
-      izquierda: cajaActivo.left - cajaPista.left,
+      desplazamiento: cajaActivo.left - cajaPista.left,
       ancho: cajaActivo.width,
     });
   }, [value]);
@@ -160,9 +162,14 @@ export function Segmented<T extends string>({
       role="radiogroup"
       aria-label={label}
       title={disabled ? disabledTitle : undefined}
-      className="flex shrink-0 items-center gap-2"
+      className="flex shrink-0 flex-col gap-1.5"
     >
-      <span className="text-[10px] font-medium tracking-wide text-t4 uppercase">
+      <span
+        className={[
+          'text-[10px] font-medium tracking-wide uppercase',
+          disabled ? 'text-t5' : colores.titulo,
+        ].join(' ')}
+      >
         {label}
       </span>
 
@@ -182,12 +189,13 @@ export function Segmented<T extends string>({
           <span
             aria-hidden="true"
             className={[
-              'pointer-events-none absolute top-1 bottom-1 rounded-full',
-              colores.fondo,
-              colores.sombra,
+              'pointer-events-none absolute top-1 bottom-1 left-0 rounded-full',
+              colores.pompa,
             ].join(' ')}
             style={{
-              left: pompa.izquierda,
+              // La posicion va en `transform` porque es lo unico que
+              // transiciona; si fuera `left` saltaria de golpe.
+              transform: `translateX(${pompa.desplazamiento}px)`,
               width: pompa.ancho,
               transition: TRANSICION,
             }}
@@ -214,7 +222,9 @@ export function Segmented<T extends string>({
                 'relative z-1 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-xs font-medium whitespace-nowrap transition-colors',
                 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
                 'disabled:cursor-not-allowed',
-                activo ? colores.texto : 'text-t3 hover:text-t1',
+                // Sin pompa: gris apagado. Con pompa: el color del filtro, y
+                // el texto encima es el que el tema marca para leerse sobre el.
+                activo ? colores.sobrePompa : 'text-t4 hover:text-t2',
               ].join(' ')}
             >
               {option.icon ? <IconGlyph name={option.icon} /> : null}

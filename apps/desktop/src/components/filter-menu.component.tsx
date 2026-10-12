@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { Icon, type IconName } from './icon.component';
 import { Popover, PopoverOption } from './popover.component';
@@ -30,17 +30,23 @@ export interface IFilterMenuProps<T extends string> {
   disabledTitle?: string;
 }
 
-/** Los colores, igual que en `Segmented`: semanticos, no nombres de color. */
+/**
+ * Los mismos tres colores que en `Segmented`, y por el mismo motivo.
+ *
+ * El boton lleva el relleno solido del color del filtro y el texto encima en
+ * `--on-accent`, que es lo que cada tema marca para leerse sobre su propio
+ * acento. Con un color fijo el boton se apagaba entero al cambiar de tema.
+ */
 const TONOS = {
   sky: {
-    punto: 'bg-info',
-    texto: 'text-info',
-    aro: 'bg-info/15',
+    relleno: 'bg-info',
+    sobreRelleno: 'text-on-accent',
+    titulo: 'text-info-strong',
   },
   rose: {
-    punto: 'bg-danger',
-    texto: 'text-danger',
-    aro: 'bg-danger/15',
+    relleno: 'bg-danger',
+    sobreRelleno: 'text-on-accent',
+    titulo: 'text-danger-strong',
   },
 } as const;
 
@@ -128,13 +134,20 @@ export function FilterMenu<T extends string>({
    * tiene un solo dueño, y no se abra otro camino por el que se pueda cerrar
    * la lista y el filtro a la vez.
    */
-  useEffect(() => {
-    if (!abierto) return;
-  }, [abierto]);
-
   return (
-    <div className="flex shrink-0 items-center gap-2">
-      <span className="text-[10px] font-medium tracking-wide text-t4 uppercase">
+    /*
+     * Titulo encima y boton debajo, como en `Segmented`. Al lado, cuatro
+     * titulos y cuatro controles en una fila hay que parsearlos para saber
+     * donde acaba cada filtro; encima, cada filtro es un bloque con su
+     * nombre y se lee de un vistazo.
+     */
+    <div className="flex shrink-0 flex-col gap-1.5">
+      <span
+        className={[
+          'text-[10px] font-medium tracking-wide uppercase',
+          disabled ? 'text-t5' : colores.titulo,
+        ].join(' ')}
+      >
         {label}
       </span>
 
@@ -147,26 +160,40 @@ export function FilterMenu<T extends string>({
         aria-haspopup="listbox"
         title={disabled ? disabledTitle : label}
         className={[
-          'inline-flex items-center gap-2 rounded-full py-1 pr-2 pl-2.5 text-xs font-medium transition',
+          'inline-flex items-center justify-between gap-2 rounded-full px-3 py-1 text-xs font-medium transition-colors',
           'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
           'disabled:cursor-not-allowed',
-          abierto ? [colores.aro, colores.texto].join(' ') : 'text-t3 hover:text-t1',
+          // Relleno solido con el color del filtro, como la pompa del
+          // interruptor. Sin nada marcado esta apagado —no se esta filtrando—
+          // y en cuanto se marca algo se enciende entero. El menu abierto no
+          // lo enciende: abrirlo no es filtrar.
+          todas ? 'bg-hover text-t4' : [colores.relleno, colores.sobreRelleno].join(' '),
           disabled ? 'opacity-40' : '',
         ].join(' ')}
       >
-        {/*
-          El punto lleva el color del filtro. Es lo que dice «este filtro es el
-          de plataformas» o «el de estados» con solo mirarlo, y no hace falta
-          leer el titulo de al lado.
-        */}
-        <span className={['h-2 w-2 shrink-0 rounded-full', colores.punto].join(' ')} />
+        {todas ? <span>{allLabel}</span> : <span className="tabular-nums">{marcadas.size}</span>}
 
-        {todas ? (
-          <span>{allLabel}</span>
-        ) : (
-          <span className="tabular-nums">{marcadas.size}</span>
-        )}
-
+        {/* La flecha va en la tinta del propio boton, no en un color fijo. */}
+        <svg
+          viewBox="0 0 12 12"
+          width="10"
+          height="10"
+          aria-hidden="true"
+          className={[
+            'shrink-0 transition-transform',
+            abierto ? 'rotate-180' : '',
+            todas ? 'text-t5' : 'opacity-70',
+          ].join(' ')}
+        >
+          <path
+            d="M2.5 4.5 6 8l3.5-3.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
       </button>
 
       {abierto ? (
