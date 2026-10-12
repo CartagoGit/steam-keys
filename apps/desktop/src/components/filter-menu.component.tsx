@@ -8,6 +8,9 @@ import { useT } from '@/context/locale.context';
 /** Que boton del par de arriba esta encendido. */
 type TAlcance = 'ninguna' | 'todas' | 'parcial';
 
+/** Cuantos chips caben en el boton antes de que salga un «+N». */
+const TOPE_CHIPS = 3;
+
 /** Una opcion del desplegable. */
 export interface IFilterOption<T extends string> {
   value: T;
@@ -135,6 +138,31 @@ export function FilterMenu<T extends string>({
    * y no se saber cual de las dos acciones se ha pulsado.
    */
   const alcance: TAlcance = todas ? 'ninguna' : todasTodas ? 'todas' : 'parcial';
+
+  /**
+   * Los marcados, en el orden en que salen en la lista y con un tope.
+   *
+   * El tope es a proposito: sin el, marcar las siete plataformas ocupa el ancho
+   * de media barra y empuja al resto de filtros fuera de la vista, que es justo
+   * lo que vino a resolver este desplegable. Con tres mas el «+N», se ve
+   * cuales son sin poder estar mirando como crece la fila.
+   */
+  const opcionesVisibles = options.filter((option) => marcadas.has(option.value)).slice(0, TOPE_CHIPS);
+
+  const sobran = Math.max(0, marcadas.size - opcionesVisibles.length);
+
+  /**
+   * El `title` del boton dice cuales son, todos.
+   *
+   * Los chips solo enseñan los primeros, y el resto son un «+3» que no dice
+   * cuales. Al pasar por encima se ve la lista entera, que es el sitio donde
+   * uno se para un momento y lee.
+   */
+  const resumen = marcadas.size === 0
+    ? allLabel
+    : sobran === 0
+      ? opcionesVisibles.map((option) => t(option.label)).join(', ')
+      : `${opcionesVisibles.map((option) => t(option.label)).join(', ')} +${sobran}`;
 
   const alternar = (valor: T): void => {
     const siguiente = marcadas.has(valor)
@@ -270,9 +298,9 @@ export function FilterMenu<T extends string>({
         disabled={disabled}
         aria-expanded={abierto}
         aria-haspopup="listbox"
-        title={disabled ? disabledTitle : label}
+        title={disabled ? disabledTitle : `${label}: ${resumen}`}
         className={[
-          'inline-flex items-center justify-between gap-2 rounded-full px-3 py-1 text-xs font-medium transition-colors',
+          'inline-flex max-w-[22rem] items-center justify-between gap-2 rounded-full px-3 py-1 text-xs font-medium transition-colors',
           'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
           'disabled:cursor-not-allowed',
           // Relleno solido con el color del filtro, como la pompa del
@@ -283,7 +311,59 @@ export function FilterMenu<T extends string>({
           disabled ? 'opacity-40' : '',
         ].join(' ')}
       >
-        {todas ? <span>{allLabel}</span> : <span className="tabular-nums">{marcadas.size}</span>}
+        {/*
+          Los marcados se ven **en el boton**, como chips.
+
+          Antes solo ponia un numero, y un numero no dice *cuales*: con tres de
+          siete plataformas marcadas, el boton decia «3» y no habia forma de
+          saber quais eran sin abrir el menu. Eso convierte el boton en una
+          cuenta atras sin contexto, y obliga a abrirlo para recordar lo que
+          uno mismo acaba de marcar.
+
+          Cada chip lleva su icono o su punto de color —los mismos metadatos que
+          la fila de la tabla— y el nombre corto. Con icono y color, el chip se
+          reconoce sin leerlo, que es lo que hace falta de un vistazo.
+
+          Se corta a tres con «+N» detras. Sin tope, marcar las siete plataformas
+          ocuparia el ancho de media barra y empujaria a los otros filtros fuera
+          de la vista, que es exactamente el problema que vino a resolver este
+          desplegable. Tres mas el resto ya dice que hay mas, y se ven al abrir.
+        */}
+        {todas ? (
+          <span>{allLabel}</span>
+        ) : (
+          <>
+            <span className="flex min-w-0 shrink items-center gap-1">
+              {opcionesVisibles.map((option) => (
+                <span
+                  key={option.value}
+                  className="flex min-w-0 items-center gap-1 rounded-full bg-black/15 px-1.5 py-0.5"
+                >
+                  {option.dot ? (
+                    <span
+                      aria-hidden="true"
+                      className={['h-1.5 w-1.5 shrink-0 rounded-full', option.dot].join(' ')}
+                    />
+                  ) : option.icon ? (
+                    <Icon name={option.icon} size={10} className="shrink-0 opacity-90" />
+                  ) : null}
+
+                  <span className="max-w-[6.5rem] truncate">{t(option.label)}</span>
+                </span>
+              ))}
+
+              {sobran > 0 ? (
+                <span className="shrink-0 tabular-nums opacity-80">+{sobran}</span>
+              ) : null}
+            </span>
+
+            {/*
+              El numero va aparte, y en tenue: la cuenta ya la dan los chips y
+              el «+N». Ponerla encima era repetirla.
+            */}
+            <span className="shrink-0 tabular-nums opacity-70">{marcadas.size}</span>
+          </>
+        )}
 
         {/* La flecha va en la tinta del propio boton, no en un color fijo. */}
         <svg
@@ -435,6 +515,31 @@ export function FilterMenu<T extends string>({
                       {option.count}
                     </span>
                   )}
+
+                  {/*
+                    El check va antes del numero, y solo en las marcadas.
+
+                    Es lo que hace el desplegable de una sola opcion —el del
+                    editor—, y aqui faltaba. Con el fondo de la fila mas el
+                    check, marcar y desmarcar se ven de las dos maneras: sin
+                    marca de color y con ella, para quien tenga buen ojo y para
+                    quien no.
+
+                    Con `opacity` y no con color: el boton va sobre el relleno
+                    solido del filtro, y un check del color del filtro —el
+                    natural— se perderia justo en las marcadas, que es donde
+                    mas importa verlo.
+                  */}
+                  {marcada ? (
+                    <Icon
+                      name="check"
+                      size={14}
+                      className={[
+                        'shrink-0',
+                        todas ? 'text-accent' : 'opacity-90',
+                      ].join(' ')}
+                    />
+                  ) : null}
                 </PopoverOption>
               );
             })}

@@ -363,6 +363,66 @@ describe('teclado de los desplegables', () => {
  * hasta que no se lean los ajustes, el idioma, el tema y el filtro son los de
  * fabrica.
  */
+/**
+ * Lo marcado se ve, o no esta marcado.
+ *
+ * Una opcion marcada solo con `aria-selected` es invisible: en un filtro de
+ * seleccion multiple eso deja a quien lo usa sin forma de saber que ha marcado
+ * ya, y obliga a abrir el menu para recordarlo. Y en el boton, un numero suelto
+ * («3») dice cuantos hay marcados pero no cuales, que es una cuenta atras sin
+ * contexto.
+ */
+describe('lo marcado se ve', () => {
+  /**
+   * El check de la marcada, y un fondo distinto del de las demas.
+   *
+   * Tres fondos y no dos porque son tres estados —marcada, resaltada por el
+   * teclado, y las dos— y colapsarlos hacia dos era justo lo que hacia que
+   * marcar no dejara rastro.
+   */
+  test('la opcion marcada tiene check y fondo propio', () => {
+    expect(FILTRO).toContain('name="check"');
+
+    // El check solo cuando esta marcada.
+    expect(FILTRO).toMatch(/\{marcada \? \(/);
+
+    // Y el fondo: tres ramas, no dos.
+    expect(POPOVER).toMatch(/resaltada\s*\?\s*'bg-surface-3 text-t1'\s*:\s*activa\s*\?\s*'bg-surface-2/);
+  });
+
+  /**
+   * El boton dice cuales son, no cuantos.
+   *
+   * Con un tope, porque sin el marcar las siete plataformas ocupa el ancho de
+   * media barra y empuja a los demas filtros fuera de la vista: el problema que
+   * vino a resolver este desplegable en el primer sitio.
+   */
+  test('el boton enseña los marcados como chips, con tope', () => {
+    expect(FILTRO).toContain('TOPE_CHIPS');
+    expect(FILTRO).toContain('slice(0, TOPE_CHIPS)');
+    expect(FILTRO).toContain('sobran');
+
+    // El chip lleva icono o punto de color, para reconocerlo sin leerlo.
+    expect(FILTRO).toContain('option.dot');
+    expect(FILTRO).toContain('option.icon');
+
+    // Y el boton tiene un ancho maximo, para que el tope sea el que manda y no
+    // el ancho disponible.
+    expect(FILTRO).toMatch(/max-w-\[22rem\]/);
+  });
+
+  /**
+   * Lo que no cabe en los chips se ve en el tooltip.
+   *
+   * El «+3» no dice cuales son. El `title` del boton es donde uno se para un
+   * momento a leer, asi que tiene que llevar la lista entera.
+   */
+  test('el tooltip lleva la lista entera, no solo lo que cabe', () => {
+    expect(FILTRO).toContain('resumen');
+    expect(FILTRO).toMatch(/title=\{disabled \? disabledTitle : `\$\{label\}: \$\{resumen\}`\}/);
+  });
+});
+
 describe('arranque sin salto de estilos', () => {
   const APP = fuente('app.component.tsx');
 

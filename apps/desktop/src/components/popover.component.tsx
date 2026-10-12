@@ -374,7 +374,26 @@ export function PopoverOption({
       onMouseEnter={alEntrar}
       className={[
         'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition',
-        resaltada ? 'bg-surface-3 text-t1' : 'text-t2',
+        /**
+         * Tres fondos distintos, no dos.
+         *
+         * Antes la marcada y la normal se pintaban igual: `aria-selected` no se
+         * ve, y en un filtro de seleccion multiple eso deja a quien lo usa sin
+         * forma de saber que ha marcado ya. Es el fallo clasico de estos menus,
+         * y la razon de que la seleccion multiple con lista abierta sea mas
+         * incomoda de usar de lo que parece.
+         *
+         * Tres estados porque son tres cosas:
+         * - marcada: fondo medio. Es lo que se ha elegido.
+         * - resaltada: fondo claro. Es por donde va el teclado, y no tiene por
+         *   que estar marcada.
+         * - las dos: el claro, que manda.
+         */
+        resaltada
+          ? 'bg-surface-3 text-t1'
+          : activa
+            ? 'bg-surface-2 text-t1'
+            : 'text-t2',
       ].join(' ')}
     >
       {children}
