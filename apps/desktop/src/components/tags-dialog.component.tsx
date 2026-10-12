@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { cleanTag, normalizeTag, platformTags, type IGameKey, type ITag, type KeyPlatform } from '@/contracts';
 import { Icon } from './icon.component';
-import { Modal } from './modal.component';
+import { Modal, ModalHeader } from './modal.component';
 import { Button, INPUT_CLASS } from './ui.component';
 import { ConfirmDialog } from './feedback.component';
 import { useT } from '@/context/locale.context';
@@ -229,28 +229,21 @@ export function TagsDialog({
 
   return (
     <Modal open={open} onClose={onCancel} size="lg" label={t('tags.title')}>
-      <header className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
-          <div>
-            <h2 className="text-sm font-semibold text-t1 flex items-center gap-2">
-              <Icon name="tag" size={15} className="text-info" />
-              {t('tags.title')}
-            </h2>
-            <p className="mt-0.5 text-[11px] text-t4">
-              {t(pluralKey(entries.length, 'tags.count.one', 'tags.count.many'), [
-                entries.length,
-              ])}
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={onCancel}
-            title={t('action.close')}
-            className="rounded-lg p-1.5 text-t4 transition hover:bg-hover hover:text-t1"
-          >
-            <Icon name="x" size={16} />
-          </button>
-        </header>
+      {/*
+        El icono va a 16 px como los demas y no a 15. Con los cinco titulos a la
+        misma medida el de este dialogo se leia un poco mas pequeno, y no
+        porque quisiera: porque se escribio antes de que hubiera una cabecera
+        comun y cada uno cogio su medida.
+      */}
+      <ModalHeader
+        title={t('tags.title')}
+        subtitle={t(pluralKey(entries.length, 'tags.count.one', 'tags.count.many'), [
+          entries.length,
+        ])}
+        icon="tag"
+        tone="text-info"
+        cerrar={{ alPulsar: onCancel, texto: t('action.close') }}
+      />
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
           {/* ------------------------------------------------- nueva etiqueta */}

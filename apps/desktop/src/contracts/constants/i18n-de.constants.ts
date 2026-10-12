@@ -205,7 +205,6 @@ export const DE: TranslationTable = Object.freeze({
   'owned.owned': 'Im Besitz',
   'owned.dlc': 'DLC',
   'owned.unverified': 'Nicht zugeordnet',
-  'data.close': 'Daten schliessen',
   'data.title': 'Daten und Sicherungen',
   'data.subtitle':
     'Wo deine Sammlung liegt und wie du sie zuruckholst, wenn etwas schiefgeht.',

@@ -68,6 +68,8 @@ const UI = fuente('components/ui.component.tsx');
 const FILTRO_CLAVE = fuente('contracts/interfaces/key-filter.interface.ts');
 const FILTRAR = fuente('helpers/filter-keys.helper.ts');
 const UNICO = fuente('components/single-select.component.tsx');
+const ATASJOS = fuente('helpers/use-shortcuts.helper.ts');
+const PILA = fuente('helpers/dialogos.helper.ts');
 const IDIOMA = fuente('components/locale-select.component.tsx');
 const META = fuente('components/meta-select.component.tsx');
 const APP = fuente('app.component.tsx');
@@ -1557,5 +1559,127 @@ describe('un solo selector de una eleccion', () => {
     // sin medida fija. Lo que pone el boton es el de la elegida.
     expect(UNICO).toContain('{elegida?.icono}');
     expect(UNICO).toContain('{option.icono}');
+  });
+});
+
+/**
+ * Un solo dialogo, con una sola cabecera y un solo pie.
+ *
+ * Los dialogos eran nueve ficheros y **casi ninguno** usaba el `Modal` comun:
+ * cada uno escribia su fondo, su cabecera y su pie. No parecian nueve copias
+ * sino nueve versiones distintas: el titulo a `text-sm` en unos y a `text-base`
+ * en otros, el icono a 15 y a 16 px, el boton de cerrar con `p-1.5` y con `p-2`,
+ * la cruz en unos con nombre y en otros sin el.
+ *
+ * Con nueve versiones, «un dialogo» no es una forma de dibujar nada: es una
+ * forma de tener nueve. Y lo que se sale de las demas es lo que se nota.
+ *
+ * Los dos que escribian su fondo —el panel de datos y la previsualizacion de
+ * la importacion— ademas se quedaban sin `aria-modal`, sin trampa de foco y
+ * **sin cerrar con Escape**. El segundo no tenia ni boton de cerrar: se salia
+ * pulsando fuera, que no es donde se busca cuando algo va mal.
+ */
+describe('un solo dialogo', () => {
+  /** Los ficheros que dibujan un dialogo. */
+  const DIALOGOS = [
+    'bulk-status-dialog',
+    'feedback',
+    'gift-dialog',
+    'import-preview',
+    'key-editor',
+    'settings-dialog',
+    'shortcuts-dialog',
+    'storage-panel',
+    'tag-manager',
+    'tags-dialog',
+  ].map((nombre) => `components/${nombre}.component.tsx`);
+
+  test('el fondo se escribe una sola vez, en el `Modal`', () => {
+    // `fixed inset-0` con `z-50` es la firma de un dialogo dibujado a mano.
+    expect(DIALOGO).toContain('fixed inset-0 z-50');
+
+    for (const nombre of DIALOGOS) {
+      expect(`${nombre}:${fuente(nombre).includes('fixed inset-0')}`).toBe(`${nombre}:false`);
+    }
+  });
+
+  test('la cabecera se escribe una sola vez, en `ModalHeader`', () => {
+    // Un `<header>` con una `<h2>` y un boton de cerrar es la cabecera de todos
+    // los dialogos. Si aparece escrito en un fichero, ese dialogo tiene la
+    // suya.
+    expect(DIALOGO).toContain('export function ModalHeader');
+    expect(DIALOGO).toContain('export function ModalFooter');
+
+    for (const nombre of DIALOGOS) {
+      expect(`${nombre}:${fuente(nombre).includes('<header')}`).toBe(`${nombre}:false`);
+    }
+  });
+
+  test('el pie se escribe una sola vez, en `ModalFooter`', () => {
+    // `border-t border-line px-5 py-3` estaba escrito caracter a caracter en
+    // cinco ficheros: sin un sitio comun no hay manera de saber si los cinco
+    // dias siguientes siguen iguales.
+    for (const nombre of DIALOGOS) {
+      expect(`${nombre}:${fuente(nombre).includes('justify-end gap-2 border-t')}`).toBe(`${nombre}:false`);
+    }
+  });
+
+  test('la cruz de cerrar sale una sola vez en toda la app', () => {
+    // El boton de cerrar vive en `ModalHeader`. Anywhere else esta dibujado a
+    // mano y se le puede olvidar el nombre.
+    const conCruz = DIALOGOS.filter((nombre) => fuente(nombre).includes('name="x"'));
+
+    expect(conCruz).toEqual([]);
+  });
+});
+
+/**
+ * Escape cierra el dialogo de encima, y lo sabe sin lista de dialogos.
+ *
+ * Antes lo decidia una lista escrita a mano con los diez dialogos de la app,
+ * en `use-shortcuts.helper`, mas diez banderas y diez funciones de cierre en
+ * `app.component`. Tres sitios que habia que mantener de acuerdo para que una
+ * tecla cerrara lo que toca, y ninguno lo comprobaba: un dialogo nuevo que se
+ * olvidara en la lista se quedaba sin cerrar con la tecla, sin avisar.
+ *
+ * Y la lista estaba ademas **mal**. Decia que Ajustes queda encima del panel de
+ * datos, y se llega al panel de datos **desde** Ajustes. Con los dos abiertos,
+ * un Escape cerraba Ajustes y dejaba el panel de datos solo en pantalla, con el
+ * fondo oscurecido y sin forma de salir con la tecla que se acababa de usar.
+ *
+ * Ahora cada `Modal` se apila al montarse, en el orden en que React lo monta,
+ * que es el orden real en el que se abren.
+ */
+describe('que cierra escape', () => {
+  test('la pila es un helper, no una lista dentro del hook', () => {
+    expect(PILA).toContain('export function apilarDialogo');
+    expect(PILA).toContain('export function dialogoSuperior');
+
+    // El hook ya no lleva ninguna lista de dialogos: solo pregunta.
+    expect(ATASJOS).toContain("import { dialogoSuperior } from './dialogos.helper'");
+    expect(ATASJOS).not.toContain('IDialogosAbiertos');
+    expect(ATASJOS).not.toContain('TDialogoId');
+    expect(ATASJOS).not.toContain('CASCADA');
+  });
+
+  test('`app.component` no lleva la cuenta de que dialogos hay abiertos', () => {
+    // Diez banderas y diez funciones de cierre que cada dialogo ya repite en su
+    // `onClose`. Las dos listas pueden mirar para lados distintos y solo se ve
+    // cuando algo va mal.
+    expect(APP).not.toContain('dialogs: {');
+    expect(APP).not.toContain('onClose: {');
+  });
+
+  test('cada `Modal` se apila y no escucha la tecla por su cuenta', () => {
+    expect(DIALOGO).toContain("import { apilarDialogo } from '@/helpers/dialogos.helper'");
+    expect(DIALOGO).toContain('apilarDialogo(onClose)');
+
+    /*
+     * Y no escucha `Escape` por su cuenta: si lo hiciera, con dos dialogos
+     * abiertos la pulsacion llegaria a los dos —los dos estan en `window`— y
+     * cerrarian los dos de una vez.
+     */
+    expect(DIALOGO).not.toContain("event.key !== 'Escape'");
+    expect(DIALOGO).not.toContain("window.addEventListener('keydown'");
   });
 });

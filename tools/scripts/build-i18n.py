@@ -189,8 +189,6 @@ TRADUCCIONES['fr'] = {
  'storage.notice.memory': 'Apercu dans le navigateur : les donnees vivent dans localStorage et disparaissent si tu nettoies les donnees du navigateur.',
  'settings.apiKey.show': 'Voir la cle',
  'settings.apiKey.hide': 'Masquer la cle',
- 'data.close': 'Fermer les donnees',
- 
  'tags.addHint': 'Ajouter le mot-cle a la selection',
  'tags.applyHint': 'Appliquer ces mots-cles a toutes les cles selectionnees',
  'action.save': 'Enregistrer', 'action.cancel': 'Annuler', 'action.close': 'Fermer',
@@ -547,8 +545,6 @@ TRADUCCIONES['pt'] = {
  'storage.notice.memory': 'Previa no navegador: os dados ficam no localStorage e perdem-se se limpares os dados do navegador.',
  'settings.apiKey.show': 'Mostrar a chave',
  'settings.apiKey.hide': 'Esconder a chave',
- 'data.close': 'Fechar os dados',
- 
  'tags.addHint': 'Adicionar a etiqueta a selecao',
  'tags.applyHint': 'Aplicar estas etiquetas a todas as chaves selecionadas',
  'action.save': 'Guardar', 'action.cancel': 'Cancelar', 'action.close': 'Fechar',
@@ -906,8 +902,6 @@ TRADUCCIONES['de'] = {
  'storage.notice.memory': 'Vorschau im Browser: die Daten liegen im localStorage und gehen verloren, wenn du die Browserdaten loeschst.',
  'settings.apiKey.show': 'Schluessel anzeigen',
  'settings.apiKey.hide': 'Schluessel verbergen',
- 'data.close': 'Daten schliessen',
- 
  'tags.addHint': 'Schlagwort zur Auswahl hinzufuegen',
  'tags.applyHint': 'Diese Schlagworte auf alle ausgewaehlten Schluessel anwenden',
  'action.save': 'Speichern', 'action.cancel': 'Abbrechen', 'action.close': 'Schliessen',

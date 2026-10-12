@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 import { KeyPlatform, KeyStatus, TRANSLATIONS, platformOptions, statusOptions, type IGameKey, type IGameKeyDraft, type ITag } from '@/contracts';
 import { Button, Field, INPUT_CLASS } from './ui.component';
 import { MetaSelect } from './meta-select.component';
-import { Icon } from './icon.component';
-import { Modal } from './modal.component';
+import { Modal, ModalFooter, ModalHeader } from './modal.component';
 import { TagField } from './tag-field.component';
 import { useT } from '@/context/locale.context';
 import { conTiempoLimite } from '@/helpers/use-loading.helper';
@@ -151,26 +150,16 @@ export function KeyEditor({
       size="lg"
       label={entry ? t('editor.editTitle') : t('editor.newTitle')}
     >
-        <header className="flex items-center justify-between border-b border-line px-5 py-4">
-          <div>
-            <h2 className="text-base font-semibold text-t1">
-              {entry ? t('editor.editTitle') : t('editor.newTitle')}
-            </h2>
-            <p className="text-xs text-t4">
-              {entry
-                ? t('editor.editHint')
-                : t('editor.newHint')}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-2 text-t4 transition hover:bg-hover hover:text-t1"
-            title={t('action.close')}
-          >
-            <Icon name="x" size={16} />
-          </button>
-        </header>
+        {/*
+          Sin icono y a `text-sm`, como las demas cabeceras. Era el unico con
+          el titulo a `text-base` y el boton con `p-2`, y no porque quisiera:
+          por estar escrito antes de que hubiera una cabecera comun.
+        */}
+        <ModalHeader
+          title={entry ? t('editor.editTitle') : t('editor.newTitle')}
+          subtitle={entry ? t('editor.editHint') : t('editor.newHint')}
+          cerrar={{ alPulsar: onClose, texto: t('action.close') }}
+        />
 
         <div className="grid gap-4 overflow-y-auto px-5 py-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
@@ -276,14 +265,14 @@ export function KeyEditor({
           ) : null}
         </div>
 
-        <footer className="flex justify-end gap-2 border-t border-line px-5 py-3">
+        <ModalFooter>
           <Button variant="ghost" onClick={onClose}>
             {t('action.cancel')}
           </Button>
           <Button type="submit" variant="primary" disabled={saving} icon="check">
             {entry ? t('editor.save') : t('editor.add')}
           </Button>
-        </footer>
+        </ModalFooter>
     </Modal>
   );
 }

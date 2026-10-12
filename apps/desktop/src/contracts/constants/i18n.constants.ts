@@ -361,8 +361,6 @@ export const EN: TranslationTable = Object.freeze({
     'to {0}',
   'row.select': 'Select {0}',
   'row.onSteam': 'On Steam',
-  'data.close':
-    'Close data',
   'data.title': 'Data and backups',
   'data.subtitle':
     'Where your collection lives and how to get it back if something goes wrong.',

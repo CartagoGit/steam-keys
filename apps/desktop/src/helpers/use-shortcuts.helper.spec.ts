@@ -1,95 +1,98 @@
 import { describe, expect, test } from 'bun:test';
 
-import { dialogoSuperior, type IDialogosAbiertos, type TDialogoId } from './use-shortcuts.helper';
 
-/** Los diez dialogos, todos cerrados. */
-function dialogos(abiertos: readonly string[] = []): IDialogosAbiertos {
-  return {
-    giftDialog: abiertos.includes('gift'),
-    bulkStatusDialog: abiertos.includes('bulk'),
-    expireDialog: abiertos.includes('expire'),
-    tagsDialog: abiertos.includes('tags'),
-    shortcutsDialog: abiertos.includes('shortcuts'),
-    settingsDialog: abiertos.includes('settings'),
-    storageDialog: abiertos.includes('storage'),
-    editorDialog: abiertos.includes('editor'),
-    deleteDialog: abiertos.includes('deleting'),
-    importDialog: abiertos.includes('import'),
-  };
-}
+import { apilarDialogo, cuantosDialogos, dialogoSuperior } from './dialogos.helper';
 
 /**
- * Que `escape` cierra cuando hay varios dialogos abiertos.
+ * Que `Escape` cierra cuando hay varios dialogos abiertos.
  *
- * Todos comparten `z-50`, asi que el de encima es el **ultimo** del arbol. El
- * caso que dolia: con los ajustes abiertos, `n` ponia el editor encima y Escape
- * cerraba los ajustes —dejando el editor solo en pantalla, con el fondo
- * oscurecido y sin forma de salir con la tecla que se acababa de usar— porque
- * la cascada estaba en orden de lectura de los props y no de apilado.
+ * Todos comparten `z-50`, asi que el de encima es el **ultimo que se abrio**,
+ * que es justo el orden en que se apilan. Antes esto lo decidia una lista
+ * escrita a mano con los diez dialogos de la app, y por eso hacia dos cosas
+ * mal:
+ *
+ * - Un dialogo nuevo que se olvidara en la lista se quedaba **sin cerrar con
+ *   Escape**, sin avisar: el boton de cerrar estaba, pero la tecla no hacia
+ *   nada y no habia forma de saber que faltaba algo.
+ * - La lista decia que Ajustes queda encima del panel de datos, y es al
+ *   reves —al panel de datos se llega **desde** Ajustes—. Con los dos
+ *   abiertos, Escape cerraba Ajustes y dejaba el panel de datos solo en
+ *   pantalla, con el fondo oscurecido y sin forma de salir con la tecla.
+ *
+ * Aqui no hay lista: cada `Modal` se apila al montarse.
  */
 describe('que cierra escape', () => {
   test('sin nada abierto no hay nada que cerrar', () => {
-    expect(dialogoSuperior(dialogos())).toBeUndefined();
+    expect(dialogoSuperior()).toBeUndefined();
+    expect(cuantosDialogos()).toBe(0);
   });
 
   test('con uno abierto cierra ese', () => {
-    const casos: readonly (readonly [string, TDialogoId])[] = [
-      ['gift', 'gift'],
-      ['bulk', 'bulkStatus'],
-      ['expire', 'expire'],
-      ['tags', 'tags'],
-      ['shortcuts', 'shortcuts'],
-      ['settings', 'settings'],
-      ['storage', 'storage'],
-      ['editor', 'editor'],
-      ['deleting', 'deleteDialog'],
-      ['import', 'importDialog'],
-    ];
+    let cerrados = 0;
+    const quitar = apilarDialogo(() => { cerrados += 1; });
 
-    for (const [abierto, esperado] of casos) {
-      expect(dialogoSuperior(dialogos([abierto]))).toBe(esperado);
-    }
+    dialogoSuperior()?.();
+
+    expect(cerrados).toBe(1);
+
+    quitar();
   });
 
-  test('cierra el de encima, no el de mayor indice', () => {
-    // El editor se monta **despues** que los ajustes y el almacenamiento, asi
-    // que si estan los dos abiertos gana el editor: es el ultimo que salio.
-    expect(dialogoSuperior(dialogos(['settings', 'editor']))).toBe('editor');
-    expect(dialogoSuperior(dialogos(['storage', 'editor']))).toBe('editor');
+  test('cierra el ultimo que se abrio, no el de mayor indice', () => {
+    const orden: string[] = [];
+    const quitarPrimero = apilarDialogo(() => orden.push('ajustes'));
+    const quitarSegundo = apilarDialogo(() => orden.push('datos'));
 
-    // Y entre los dos que quedan, los ajustes van por delante en el arbol: el
-    // panel de almacenamiento se pinta antes que el dialogo de ajustes.
-    expect(dialogoSuperior(dialogos(['settings', 'storage']))).toBe('settings');
+    // El panel de datos se abre **desde** Ajustes, asi que encima esta el.
+    dialogoSuperior()?.();
+    quitarSegundo();
+
+    dialogoSuperior()?.();
+    quitarPrimero();
+
+    expect(orden).toEqual(['datos', 'ajustes']);
   });
 
-  test('cerrar uno y seguir con el que habia debajo', () => {
-    // El recorrido completo: se abre una capa encima de otra y Escape las va
-    // quitando por orden, sin dejar ninguna huérfana detrás.
-    const capas = ['settings', 'editor', 'gift'] as const;
+  test('cerrar uno deja al que habia debajo, y ninguno huerfano', () => {
+    const orden: string[] = [];
+    const quitar = ['ajustes', 'datos', 'editor'].map((capa) =>
+      apilarDialogo(() => orden.push(capa)),
+    );
 
-    // De mas reciente a mas antiguo segun como se han montado.
-    const porApilado = ['gift', 'editor', 'settings'];
-    const cerradas: TDialogoId[] = [];
-
-    for (const abierto of porApilado) {
-      const restantes = dialogos(
-        porApilado.filter((nombre) => nombre === abierto),
-      );
-
-      const cerrado = dialogoSuperior(restantes);
-
-      if (cerrado !== undefined) cerradas.push(cerrado);
+    // Se van cerrando de uno en uno, como haria Escape.
+    while (cuantosDialogos() > 0) {
+      dialogoSuperior()?.();
+      quitar.pop()?.();
     }
 
-    expect(cerradas).toHaveLength(capas.length);
-    expect(new Set(cerradas).size).toBe(capas.length);
+    expect(orden).toEqual(['editor', 'datos', 'ajustes']);
+    expect(cuantosDialogos()).toBe(0);
   });
 
-  test('la previsualizacion de importacion y la confirmacion de borrado tambien', () => {
-    // No son `Modal`, pero ocupan la misma capa: si se quedaran fuera de la
-    // cascada, Escape cerraria otra cosa y dejaria estas sin salida.
-    expect(dialogoSuperior(dialogos(['settings', 'import']))).toBe('importDialog');
-    expect(dialogoSuperior(dialogos(['settings', 'deleting']))).toBe('deleteDialog');
-    expect(dialogoSuperior(dialogos(['import', 'deleting']))).toBe('importDialog');
+  test('cada uno sale por su ficha, no por su posicion', () => {
+    // Dos dialogos que se abren y se cierran a la vez —el editor abriendo otro
+    // desde dentro— no pueden quitar «el ultimo» ni «el primero» por posicion:
+    // el que se cierra es el que entro con su propia ficha.
+    const fechas: string[] = [];
+    const quitarA = apilarDialogo(() => fechas.push('A'));
+    const quitarB = apilarDialogo(() => fechas.push('B'));
+
+    quitarA();
+    dialogoSuperior()?.();
+    quitarB();
+
+    expect(fechas).toEqual(['B']);
+    expect(cuantosDialogos()).toBe(0);
+  });
+
+  test('quitar dos veces el mismo no lo descuadra', () => {
+    const quitar = apilarDialogo(() => undefined);
+
+    quitar();
+    quitar();
+
+    apilarDialogo(() => undefined);
+
+    expect(cuantosDialogos()).toBe(1);
   });
 });

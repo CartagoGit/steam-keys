@@ -257,3 +257,56 @@ export function PasswordInput({
     </div>
   );
 }
+export interface IIconButtonProps {
+  icon: IconName;
+  /** Texto del tooltip y, a la vez, el nombre accesible del boton. */
+  title: string;
+  onClick?: () => void;
+  /**
+   * Colores, como clases completas.
+   *
+   * Van completas y no como un nombre de color porque los tonos son semanticos
+   * y cada tema declara los suyos en `styles/index.css`. Si aqui se tradujera
+   * un `'danger'`, este boton tendria su propia tabla, distinta de la del
+   * texto y la de la pastilla, y volveria a haber tres fuentes de verdad.
+   */
+  tone?: string;
+  size?: 'sm' | 'md';
+}
+
+/**
+ * Boton de **solo icono**: la cruz de cerrar, la lupa, el cubo de papelera.
+ *
+ * Estaba escrito a mano en catorce sitios de ocho ficheros, y con la mitad del
+ * relleno en `p-1.5` y la otra en `p-2` para lo que es el mismo boton. En
+ * `key-row` conviven los dos: dos botones de icono en la misma fila con dos
+ * medidas distintas, que se nota como que uno esta desligado.
+ *
+ * El `title` es tambien el `aria-label`: un boton que solo tiene icono no tiene
+ * nombre, y el de cerrar de uno de los dialogos se quedaba sin el —solo con
+ * el tooltip, que el lector de pantalla no lee—.
+ */
+export function IconButton({
+  icon,
+  title,
+  onClick,
+  tone = 'text-t4 hover:text-t1',
+  size = 'md',
+}: IIconButtonProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      aria-label={title}
+      className={[
+        'rounded-lg transition hover:bg-hover',
+        size === 'sm' ? 'p-1' : 'p-1.5',
+        'shrink-0',
+        tone,
+      ].join(' ')}
+    >
+      <Icon name={icon} size={size === 'sm' ? 14 : 16} />
+    </button>
+  );
+}

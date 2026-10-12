@@ -853,37 +853,20 @@ export function App() {
    * de `useEffect` en medio del arranque y las acciones, y lo unico que había
    * que mantener al día era una lista de dependencias que se lenia sola.
    */
+  /*
+   * Sin la lista de dialogos abiertos.
+   *
+   * Aqui iban veinte lineas —diez banderas y diez funciones de cierre— y las
+   * dos cosas las repetia cada dialogo, que ya recibe su `onClose` con lo que
+   * tiene que hacer al cerrarse. Era la lista de «que dialogo hay abierto» por
+   * un camino y por otro, y no podian mirar para el mismo sitio sin que se
+   * notasen: una de las dos se queda desfasada y la tecla cierra lo que no
+   * toca.
+   *
+   * Ahora cada `Modal` se apila solo al montarse, en el orden real, y Escape
+   * cierra el de encima. Un dialogo nuevo no tiene que acordarse de nada.
+   */
   useShortcuts({
-    dialogs: {
-      giftDialog: giftDialogOpen,
-      bulkStatusDialog: bulkStatusOpen,
-      expireDialog: expireDialogOpen,
-      tagsDialog: tagsOpen,
-      settingsDialog: settingsOpen,
-      storageDialog: storageOpen,
-      editorDialog: editorOpen,
-      shortcutsDialog: shortcutsOpen,
-      deleteDialog: deleting !== null,
-      importDialog: stagedImport !== null,
-    },
-    onClose: {
-      gift: () => setGiftDialogOpen(false),
-      bulkStatus: () => setBulkStatusOpen(false),
-      expire: () => setExpireDialogOpen(false),
-      tags: () => setTagsOpen(false),
-      settings: () => setSettingsOpen(false),
-      storage: () => setStorageOpen(false),
-      // Cerrar el editor suelta tambien la clave que se estaba editando: si no,
-      // al reabrirlo con «n» se volveria a editar la anterior en vez de crear
-      // una nueva.
-      editor: () => {
-        setEditorOpen(false);
-        setEditing(null);
-      },
-      shortcuts: () => setShortcutsOpen(false),
-      deleteDialog: () => setDeleting(null),
-      importDialog: () => setStagedImport(null),
-    },
     haySeleccion: selection.size > 0,
     onClearSelection: clearSelection,
     onSelectAll: selectAll,

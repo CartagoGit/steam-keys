@@ -265,7 +265,6 @@ export const ES: TranslationTable = Object.freeze({
   // ------------------------------------------------------- review score ---
 
   // -------------------------------------------------------------- datos ---
-  'data.close': 'Cerrar datos',
   'data.title': 'Datos y copias de seguridad',
   'data.subtitle':
     'Onde vive tu coleccion y como recuperarla si algo sale mal.',

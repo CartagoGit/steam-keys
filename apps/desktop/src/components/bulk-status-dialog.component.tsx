@@ -2,7 +2,7 @@ import { pluralKey } from '@/helpers/i18n.helper';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { KEY_STATUS_VALUES, KeyStatus, TRANSLATIONS, statusMeta, type IGameKey, type Translator } from '@/contracts';
 import { Icon } from './icon.component';
-import { Modal } from './modal.component';
+import { Modal, ModalHeader } from './modal.component';
 import { Button } from './ui.component';
 import { useT } from '@/context/locale.context';
 
@@ -190,25 +190,12 @@ export function BulkStatusDialog({
 
   return (
     <Modal open={open} onClose={onClose} size="md" label={t('bulk.title')}>
-      <header className="flex items-center justify-between border-b border-line px-5 py-4">
-        <div className="leading-tight">
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-t1">
-            <Icon name="layers" size={16} className="text-t3" />
-            {t('bulk.title')}
-          </h2>
-          <p className="text-[11px] text-t4">{t('bulk.subtitle', [entries.length])}</p>
-        </div>
-
-        <button
-          type="button"
-          onClick={onClose}
-          title={t('action.close')}
-          aria-label={t('action.close')}
-          className="rounded-lg p-1.5 text-t4 transition hover:bg-hover hover:text-t1"
-        >
-          <Icon name="x" size={16} />
-        </button>
-      </header>
+      <ModalHeader
+        title={t('bulk.title')}
+        subtitle={t('bulk.subtitle', [entries.length])}
+        icon="layers"
+        cerrar={{ alPulsar: onClose, texto: t('action.close') }}
+      />
 
       <div className="flex flex-col gap-4 px-5 py-5">
         {/*

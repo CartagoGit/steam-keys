@@ -5,8 +5,7 @@ import { useT } from '@/context/locale.context';
 import { pluralKey } from '@/helpers/i18n.helper';
 
 import { ConfirmDialog } from './feedback.component';
-import { Icon } from './icon.component';
-import { Modal } from './modal.component';
+import { Modal, ModalHeader } from './modal.component';
 import { Button, INPUT_CLASS } from './ui.component';
 
 export interface ITagManagerProps {
@@ -155,22 +154,11 @@ export function TagManager({
   return (
     <>
       <Modal open={open} onClose={onClose} size="md" label={t('tags.manage.title')}>
-        <header className="flex shrink-0 items-center justify-between border-b border-line px-5 py-4">
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-t1">
-            <Icon name="tag" size={16} className="text-t3" />
-            {t('tags.manage.title')}
-          </h2>
-
-          <button
-            type="button"
-            onClick={onClose}
-            title={t('action.close')}
-            aria-label={t('action.close')}
-            className="rounded-lg p-1.5 text-t4 transition hover:bg-hover hover:text-t1"
-          >
-            <Icon name="x" size={16} />
-          </button>
-        </header>
+        <ModalHeader
+          title={t('tags.manage.title')}
+          icon="tag"
+          cerrar={{ alPulsar: onClose, texto: t('action.close') }}
+        />
 
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 py-5">
           <p className="text-xs leading-relaxed text-t3">{t('tags.manage.hint')}</p>

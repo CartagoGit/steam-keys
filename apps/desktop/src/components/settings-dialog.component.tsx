@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { APP_THEME_SWATCHES, APP_THEME_VALUES, AppLocale, AppTheme, STEAM_API_KEY_URL, THEME_LABELS, type IAppSettings, type ITag, type SteamAccountStatus } from '@/contracts';
 import { Icon } from './icon.component';
 import { LocaleSelect } from './locale-select.component';
-import { Modal } from './modal.component';
+import { Modal, ModalHeader } from './modal.component';
 import { Segmented } from './segmented.component';
 import { KeysSettings } from './settings-keys.component';
 import {
@@ -204,22 +204,11 @@ export function SettingsDialog({
 
   return (
     <Modal open={open} onClose={onClose} size="lg" label={t('settings.title')}>
-      <header className="flex shrink-0 items-center justify-between border-b border-line px-5 py-4">
-        <h2 className="flex items-center gap-2 text-sm font-semibold text-t1">
-          <Icon name="settings" size={16} className="text-t3" />
-          {t('settings.title')}
-        </h2>
-
-        <button
-          type="button"
-          onClick={onClose}
-          title={t('action.close')}
-          aria-label={t('action.close')}
-          className="rounded-lg p-1.5 text-t4 transition hover:bg-hover hover:text-t1"
-        >
-          <Icon name="x" size={16} />
-        </button>
-      </header>
+      <ModalHeader
+        title={t('settings.title')}
+        icon="settings"
+        cerrar={{ alPulsar: onClose, texto: t('action.close') }}
+      />
 
       {/* ------------------------------------------------------------- pestanas */}
       {/*

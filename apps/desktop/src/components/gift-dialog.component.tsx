@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from './icon.component';
-import { Modal } from './modal.component';
+import { Modal, ModalHeader, ModalFooter } from './modal.component';
 import { Button, INPUT_CLASS } from './ui.component';
 import { useT } from '@/context/locale.context';
 import { pluralKey } from '@/helpers/i18n.helper';
@@ -86,28 +86,15 @@ export function GiftDialog({
       size="md"
       label={t('gift.title')}
     >
-      <header className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
-          <div>
-            <h2 className="flex items-center gap-2 text-sm font-semibold text-t1">
-              <Icon name="hand" size={16} className="text-ok" />
-              {t('gift.title')}
-            </h2>
-            <p className="mt-0.5 text-[11px] text-t4">
-              {t(pluralKey(entries.length, 'gift.count.one', 'gift.count.many'), [
-                entries.length,
-              ])}
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={onCancel}
-            title={t('action.close')}
-            className="rounded-lg p-1.5 text-t4 transition hover:bg-hover hover:text-t1"
-          >
-            <Icon name="x" size={16} />
-          </button>
-        </header>
+      <ModalHeader
+        title={t('gift.title')}
+        subtitle={t(pluralKey(entries.length, 'gift.count.one', 'gift.count.many'), [
+          entries.length,
+        ])}
+        icon="hand"
+        tone="text-ok"
+        cerrar={{ alPulsar: onCancel, texto: t('action.close') }}
+      />
 
         <div className="max-h-[50vh] overflow-y-auto px-5 py-4">
           <ul className="mb-4 flex flex-col gap-1">
@@ -148,7 +135,7 @@ export function GiftDialog({
           <p className="mt-2 text-[11px] text-t4">{t('gift.recipientHint')}</p>
         </div>
 
-        <footer className="flex justify-end gap-2 border-t border-line px-5 py-3">
+        <ModalFooter>
           <Button variant="ghost" onClick={onCancel}>
             {t('action.cancel')}
           </Button>
@@ -165,7 +152,7 @@ export function GiftDialog({
           >
             {t('gift.action')}
           </Button>
-        </footer>
+        </ModalFooter>
     </Modal>
   );
 }

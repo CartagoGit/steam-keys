@@ -11,6 +11,7 @@ import {
 import { storageService } from '@/services/storage.service';
 import { formatBytes } from '@/helpers/format-bytes.helper';
 import { formatDateTime, formatRelativeDate } from '@/helpers/format-date.helper';
+import { Modal, ModalFooter, ModalHeader } from './modal.component';
 import { Button } from './ui.component';
 import { ConfirmDialog } from './feedback.component';
 import { Icon } from './icon.component';
@@ -183,59 +184,62 @@ export function StoragePanel({ onClose, onChanged, notify }: IStoragePanelProps)
   /**
    * Escape cierra, como en cualquier otro dialogo.
    *
-   * El panel va escrito a mano —no usa `Modal`— y se le habia olvidado el
-   * teclado: tocaba acertar con el raton en «Cerrar» o fuera del panel.
+   * No se escucha la tecla aqui: la escucha `Modal`, que ya la escucha para
+   * todos los demas dialogos, y por eso esta funcion se le pasa como
+   * `onClose` en vez de registrarse aparte. Registrarla ademas era un
+   * `addEventListener` mas que mantener y que podia quedar apuntando a un
+   * cierre viejo si cambiaba la dependencia.
    */
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key !== 'Escape') return;
+  const alPulsarEscape = useCallback((): void => {
+    /*
+     * Si hay un dialogo encima es el suyo, no el del panel: su propio `Modal`
+     * ya escucha la misma tecla y esta habria cerrando los dos.
+     */
+    if (pendingRestore !== null) return;
 
-      // Si hay un dialogo encima es el suyo, no el del panel: su propio
-      // `Modal` ya escucha la misma tecla y esta habria cerrando los dos.
-      if (pendingRestore !== null) return;
+    /*
+     * Una confirmacion de borrado tambien sale por su cuenta. Lo que no cabe es
+     * que Escape quite el dialogo pequeno y deje el panel abierto, que es lo que
+     * hacia `cerrar` sin esto.
+     */
+    if (pendingDelete !== null) {
+      setPendingDelete(null);
+      return;
+    }
 
-      // Una confirmacion de borrado tambien sale por su cuenta. Lo que no
-      // cabe es que Escape quite el dialogo pequeno y deje el panel
-      // abierto, que es lo que hacia `cerrar` sin esta linea.
-      if (pendingDelete !== null) {
-        setPendingDelete(null);
-        return;
-      }
-
-      cerrar();
-    };
-
-    window.addEventListener('keydown', onKeyDown);
-
-    return () => window.removeEventListener('keydown', onKeyDown);
+    cerrar();
   }, [cerrar, pendingDelete, pendingRestore]);
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6 backdrop-blur-sm"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) cerrar();
-      }}
-    >
-      <div className="animate-scale-in flex max-h-full w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-surface-1 shadow-2xl ring-1 ring-line">
-        <header className="flex items-center justify-between border-b border-line px-5 py-4">
-          <div>
-            <h2 className="text-base font-semibold text-t1">
-              {t('data.title')}
-            </h2>
-            <p className="text-xs text-t4">
-              {t('data.subtitle')}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={cerrar}
-            className="rounded-lg p-2 text-t4 transition hover:bg-hover hover:text-t1"
-            title={t('data.close')}
-          >
-            <Icon name="x" size={16} />
-          </button>
-        </header>
+    <>
+      {/*
+        `Modal` y no un fondo escrito a mano.
+
+        Estaba igual que el de todos los demas —mismo fondo, mismo desenfoque,
+        mismo clic fuera— y le faltaba lo que `Modal` si tiene: `aria-modal`, la
+        trampa de foco, el boton de cerrar con nombre y el alto maximo atado al
+        alto de la ventana. Ese ultimo es el que hacia falta de verdad: sin
+        `max-h`, el panel crecia hasta lo que ocupaba el contenido y el
+        `overflow-hidden` lo recortaba sin dejar desplazarse, asi que la fila
+        de abajo —«Borrar», el boton de la accion que da miedo— se quedaba sin
+        poder pulsarse en una ventana baja.
+
+        El `onClose` es el mismo manejador de Escape de antes, que primero
+        aparta el dialogo de confirmacion si hay alguno. `Modal` lo llama al
+        pulsar fuera y al pulsar la tecla, que es lo que hacia falta.
+      */}
+      <Modal
+        open
+        onClose={alPulsarEscape}
+        size="xl"
+        label={t('data.title')}
+        closeOnBackdrop
+      >
+        <ModalHeader
+          title={t('data.title')}
+          subtitle={t('data.subtitle')}
+          cerrar={{ alPulsar: cerrar, texto: t('action.close') }}
+        />
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
           {loading ? (
@@ -398,7 +402,7 @@ export function StoragePanel({ onClose, onChanged, notify }: IStoragePanelProps)
           )}
         </div>
 
-        <footer className="flex justify-end gap-2 border-t border-line px-5 py-3">
+        <ModalFooter>
           <Button variant="ghost" onClick={cerrar}>
             {t('action.close')}
           </Button>
@@ -410,9 +414,16 @@ export function StoragePanel({ onClose, onChanged, notify }: IStoragePanelProps)
           >
             {t('storage.refresh')}
           </Button>
-        </footer>
-      </div>
+        </ModalFooter>
+      </Modal>
 
+      {/*
+        Los dos dialogos de encima, **fuera** del panel de datos.
+
+        Antes vivian dentro de su fondo, como hermanos del panel. Ahora que el
+        fondo es `Modal`, si se quedaran dentro se dibujarian dentro del panel
+        y quedarian recortados por su `overflow-hidden`.
+      */}
       {pendingRestore ? (
         <RestoreDialog
           backup={pendingRestore}
@@ -431,7 +442,7 @@ export function StoragePanel({ onClose, onChanged, notify }: IStoragePanelProps)
           onCancel={() => setPendingDelete(null)}
         />
       ) : null}
-    </div>
+    </>
   );
 }
 
@@ -518,8 +529,16 @@ function RestoreDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-6 backdrop-blur-sm">
-      <div className="animate-scale-in w-full max-w-md rounded-2xl bg-surface-1 p-5 shadow-2xl ring-1 ring-line">
+    /*
+     * `Modal` como el resto, con su fondo, su trampa de foco y su Escape.
+     *
+     * Antes tenia `z-[60]` y un `animate-scale-in` propios, porque se escribio
+     * como dialogo propio y no como un `Modal`. Va **despues** del panel de
+     * datos en el arbol, asi que con los dos en `z-50` se dibuja encima sin
+     * necesitar un `z` aparte: en el mismo `z`, gana el ultimo.
+     */
+    <Modal open onClose={onCancel} size="md" label={t('storage.restoreTitle', [describeBackup(backup, locale, t)])}>
+      <div className="px-5 py-5">
         <h3 className="text-sm font-semibold text-t1">
           {t('storage.restoreTitle', [describeBackup(backup, locale, t)])}
         </h3>
@@ -568,7 +587,7 @@ function RestoreDialog({
           </Button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 

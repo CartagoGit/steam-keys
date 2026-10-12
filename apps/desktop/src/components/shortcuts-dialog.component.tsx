@@ -1,4 +1,4 @@
-import { Modal } from './modal.component';
+import { Modal, ModalHeader } from './modal.component';
 import { useT } from '@/context/locale.context';
 import { Icon, type IconName } from './icon.component';
 
@@ -78,19 +78,20 @@ export function ShortcutsDialog({ open, onClose }: IShortcutsDialogProps) {
       label={t('shortcuts.title')}
       closeOnBackdrop
     >
-      <header className="flex items-center justify-between border-b border-line px-5 py-4">
-        <h2 className="text-base font-semibold text-t1">
-          {t('shortcuts.title')}
-        </h2>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-lg p-2 text-t4 transition hover:bg-hover hover:text-t1"
-          title={t('action.close')}
-        >
-          <Icon name="x" size={16} />
-        </button>
-      </header>
+      {/*
+        Sin icono, y a `text-sm` como los demas.
+
+        Era el unico con el titulo a `text-base` y el boton con `p-2` en vez de
+        `p-1.5`, y no por decision sino por estar escrito antes de que hubiera
+        una cabecera comun. Con seis cabeceras y ninguna compartida, cada uno
+        cogia lo que queria y «un dialogo» no era una forma de dibujar nada.
+        Tambien era el unico con `title` y sin `aria-label`: el boton de cerrar
+        no tenia nombre.
+      */}
+      <ModalHeader
+        title={t('shortcuts.title')}
+        cerrar={{ alPulsar: onClose, texto: t('action.close') }}
+      />
 
       <div className="flex flex-col gap-5 overflow-y-auto px-5 py-4">
         {grupos.map((grupo) => (

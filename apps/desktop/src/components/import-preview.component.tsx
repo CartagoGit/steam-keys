@@ -1,3 +1,4 @@
+import { Modal, ModalFooter, ModalHeader } from './modal.component';
 import { Button } from './ui.component';
 import { Icon } from './icon.component';
 import { useT } from '@/context/locale.context';
@@ -29,24 +30,32 @@ export function ImportPreview({
   const vacio = preview.skipped === 0 && preview.duplicates === 0;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6 backdrop-blur-sm"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onCancel();
-      }}
+    /*
+     * `Modal` y no un fondo escrito a mano, como el resto.
+     *
+     * Este era el peor de los que lo tenian: ademas de_background_ propio, no
+     * tenia `aria-modal`, ni trampa de foco, ni alto maximo atado a la ventana
+     * —con una lista larga de duplicados el panel crecia y el borde lo
+     * recortaba sin dejar desplazarse— y **no se cerraba con Escape**.
+     *
+     * Tampoco tenia boton de cerrar. Se salia pulsando fuera, que es un sitio
+     * que no se busca cuando algo va mal y quieres deshacerlo. Con `Modal` y
+     * una `ModalHeader` con cierre sale el boton, con su nombre.
+     */
+    <Modal
+      open
+      onClose={onCancel}
+      size="lg"
+      label={t('import.header')}
+      closeOnBackdrop
     >
-      <div className="animate-scale-in w-full max-w-lg overflow-hidden rounded-2xl bg-surface-1 shadow-2xl ring-1 ring-line">
-        <header className="flex items-start gap-3 border-b border-line px-5 py-4">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-info/15 text-info ring-1 ring-info/25">
-            <Icon name="upload" size={17} />
-          </div>
-          <div className="min-w-0">
-            <h2 className="text-base font-semibold text-t1">
-              {t('import.header')}
-            </h2>
-            <p className="truncate text-xs text-t4">{fileName}</p>
-          </div>
-        </header>
+      <ModalHeader
+        title={t('import.header')}
+        subtitle={fileName}
+        icon="upload"
+        tone="text-info"
+        cerrar={{ alPulsar: onCancel, texto: t('action.cancel') }}
+      />
 
         <div className="px-5 py-4">
           {vacio ? (
@@ -100,7 +109,7 @@ export function ImportPreview({
           </p>
         </div>
 
-        <footer className="flex justify-end gap-2 border-t border-line px-5 py-3">
+        <ModalFooter>
           <Button variant="ghost" onClick={onCancel}>
             {t('action.cancel')}
           </Button>
@@ -114,9 +123,8 @@ export function ImportPreview({
               ? t('import.none')
               : t('import.apply', [preview.skipped])}
           </Button>
-        </footer>
-      </div>
-    </div>
+        </ModalFooter>
+    </Modal>
   );
 }
 

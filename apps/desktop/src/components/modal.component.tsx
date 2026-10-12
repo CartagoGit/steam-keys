@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 
+import { IconButton } from './ui.component';
+import { apilarDialogo } from '@/helpers/dialogos.helper';
+import { Icon, type IconName } from './icon.component';
+
 export interface IModalProps {
   /** `false` empieza a cerrar: reproduce la salida y luego se desmonta. */
   open: boolean;
@@ -17,7 +21,7 @@ export interface IModalProps {
   /** `onSubmit` del `<form>`, cuando `as="form"`. */
   onSubmit?: (event: React.FormEvent<HTMLFormElement>) => void;
   /** Ancho maximo del panel. */
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
   /** Al pulsar fuera, se cierra. Los dialogos de confirmacion, si. */
   closeOnBackdrop?: boolean;
   /** Al pulsar Escape, se cierra. */
@@ -33,6 +37,13 @@ const SIZES: Record<TSize, string> = {
   sm: 'max-w-sm',
   md: 'max-w-md',
   lg: 'max-w-lg',
+  /*
+   * `xl` esta desde que el panel de datos dejo de escribir su fondo a mano.
+   * Es `max-w-2xl`, que es lo que necesitaba: el ancho estaba puesto en el
+   * componente y no en la tabla de tamaños, asi que cambiar el ancho de un
+   * dialogo obligaba a acordarse de que ese no la usaba.
+   */
+  xl: 'max-w-2xl',
 };
 
 /**
@@ -188,18 +199,20 @@ export function Modal({
     if (visible) setSaliendo(true);
   }, [open, visible]);
 
+  /**
+   * Escape lo cierra el hook de atajos, no este componente.
+   *
+   * Este solo se apila. Quien **pide** el cierre es
+   * `useShortcuts`, que es el unico que escucha la tecla: si cada `Modal` se
+   * escuchara a si mismo, con dos dialogos abiertos la pulsacion llegaria a
+   * los dos —los dos estan en `window`— y cerrarian los dos a la vez.
+   *
+   * Con la pila commun, quien cierra es el de encima y solo ese.
+   */
   useEffect(() => {
-    if (!closeOnEscape) return;
+    if (!open || !closeOnEscape) return;
 
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key !== 'Escape' || !open) return;
-
-      event.stopPropagation();
-      onClose();
-    };
-
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    return apilarDialogo(onClose);
   }, [open, onClose, closeOnEscape]);
 
   // Al abrir, el foco entra en el dialogo y no sale hasta que se cierra.
@@ -360,5 +373,98 @@ export function Modal({
         {children}
       </PanelInterno>
     </div>
+  );
+}
+export interface IModalHeaderProps {
+  /** Nombre del dialogo. Es el `<h2>` y lo que se ve arriba. */
+  title: string;
+  /** Una linea debajo del nombre, con el detalle de lo que se va a hacer. */
+  subtitle?: string;
+  /** Icono delante del nombre. */
+  icon?: IconName;
+  /**
+   * Colores del icono, como clases completas.
+   *
+   * Van completas y no como un nombre de color, por lo mismo que los tonos de
+   * la pastilla: cada tema declara los suyos y este sitio no tiene por que
+   * saber como se llaman.
+   */
+  tone?: string;
+  /**
+   * El boton de cerrar, o nada.
+   *
+   * Van **las dos cosas juntas** en una sola prop y no sueltas: un boton que
+   * cierra y no tiene nombre es un boton que el lector de pantalla anuncia
+   * como «boton», y eso ya paso —el dialogo de atajos lo tenia con `title` y
+   * sin `aria-label`—. Con dos props opcionales, la combinacion de tener una
+   * y no la otra compila sin decir nada.
+   */
+  cerrar?: { alPulsar: () => void; texto: string };
+}
+
+/**
+ * La cabecera de un dialogo.
+ *
+ * Estaba escrita entera en **seis** ficheros, y no parecian seis copias sino
+ * seis versiones distintas de la misma: el titulo era `text-sm` en cinco y
+ * `text-base` en uno, el icono de 16 px en unos y de 15 en otro, el boton de
+ * cerrar con `p-1.5` en unos y con `p-2` en otros, y uno —el de atajos— sin
+ * `aria-label`, que hacia que el boton de cerrar no tuviera nombre.
+ *
+ * Con seis versiones, «un dialogo» no es una forma de dibujar nada: es una
+ * forma de tener seis. Y el que se sale de las demas es el que se nota, que
+ * es donde se acaba el trabajo de hacer que todo lo demas se pareciese a la
+ * excepcion en vez de al revés.
+ *
+ * Va aqui y no en `ui` porque solo tiene sentido **dentro** de un `Modal`: es
+ * la cabecera de su panel, con su mismo borde y su mismo relleno.
+ */
+export function ModalHeader({
+  title,
+  subtitle,
+  icon,
+  tone = 'text-t3',
+  cerrar,
+}: IModalHeaderProps) {
+  return (
+    <header className="flex shrink-0 items-center justify-between border-b border-line px-5 py-4">
+      <div className="leading-tight">
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-t1">
+          {icon ? <Icon name={icon} size={16} className={tone} /> : null}
+          {title}
+        </h2>
+
+        {/*
+          El respiro va en el subtitulo y no en el bloque entero. El titulo
+          lleva `leading-tight`, que es lo que hace que dos dialogos seguidos
+          no dejen una linea en blanco entre la cabecera y el nombre; si el
+          margen viviera en el `<div>` de los dos, el titulo se separaria de su
+          propio texto.
+        */}
+        {subtitle ? <p className="mt-1 text-[11px] text-t4">{subtitle}</p> : null}
+      </div>
+
+      {cerrar ? (
+        <IconButton icon="x" title={cerrar.texto} onClick={cerrar.alPulsar} />
+      ) : null}
+    </header>
+  );
+}
+
+/**
+ * El pie de un dialogo: los botones de la derecha.
+ *
+ * La cadena `flex justify-end gap-2 border-t border-line px-5 py-3` estaba
+ * escrita igual, caracter a caracter, en cinco ficheros. Sin un sitio comun no
+ * hay manera de saber si los cinco dias siguientes siguen iguales.
+ *
+ * Los botones van dentro. Se podria dejar el hueco al llamante, pero entonces
+ * cada uno escribiria `gap-2` otra vez y volveriamos a lo mismo.
+ */
+export function ModalFooter({ children }: { children: React.ReactNode }) {
+  return (
+    <footer className="flex shrink-0 items-center justify-end gap-2 border-t border-line px-5 py-3">
+      {children}
+    </footer>
   );
 }
