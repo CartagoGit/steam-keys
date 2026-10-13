@@ -368,7 +368,6 @@ export const ES: TranslationTable = Object.freeze({
   'app.needRecipient': 'Hay que decir a quien se lo has regalado.',
   'app.exportOne': '{0} clave guardada en {1}',  'app.exportMany': '{0} claves guardadas en {1}',
   'app.giftedOne': '{0} clave regalada a {1}.',  'app.giftedMany': '{0} claves regaladas a {1}.',
-  'app.expiredOne': '{0} clave caducada.',  'app.expiredMany': '{0} claves caducadas.',
   'app.tagsOne': 'Etiqueta actualizada en {0} clave.',  'app.tagsMany': 'Etiquetas actualizadas en {0} claves.',
   'app.libraryOne': '{0} juego en tu biblioteca.',  'app.libraryMany': '{0} juegos en tu biblioteca.',
   'app.libraryPartial': '{0} Lejos del total: hay mas juegos de los que se han leido.',
@@ -445,12 +444,6 @@ export const ES: TranslationTable = Object.freeze({
   'steam.vacio': 'La biblioteca de Steam vino vacia.',
   'steam.http': 'Steam no ha contestado.',
   'steam.cancelado': 'Sincronizacion cancelada.',
-  'select.markExpired': 'Marcar como caducadas',
-  'expire.confirm': 'Marcar caducadas',
-  'expire.bodyOne':
-    '«{0}» quedara como caducada y saldra de la lista de disponibles. Puedes cambiarlo luego con el toggle de estado.',
-  'expire.bodyMany':
-    'Las {0} claves seleccionadas quedaran como caducadas y saldran de la lista de disponibles. Puedes cambiarlas luego con el toggle de estado.',
   'footer.code': 'Codigo en GitHub',
   'footer.author': 'Perfil de quien la hace',
   'footer.available': '{0} disponibles',
@@ -489,7 +482,6 @@ export const ES: TranslationTable = Object.freeze({
   'loading.syncing': 'Sincronizando con Steam',
 
   'loading.gifting': 'Marcando como regaladas',
-  'loading.expiring': 'Marcando como caducadas',
   'loading.status': 'Cambiando el estado',
   'loading.tags': 'Guardando las etiquetas',
   'shortcuts.title': 'Atajos de teclado',

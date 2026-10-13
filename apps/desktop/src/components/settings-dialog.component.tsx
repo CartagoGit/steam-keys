@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { APP_THEME_SWATCHES, APP_THEME_VALUES, AppLocale, AppTheme, STEAM_API_KEY_URL, THEME_LABELS, type IAppSettings, type ITag, type SteamAccountStatus } from '@/contracts';
+import { APP_THEME_SWATCHES, APP_THEME_VALUES, AppLocale, AppTheme, STEAM_API_KEY_URL, THEME_LABELS, type IAppSettings, type ITag, type SettingsTab, type SteamAccountStatus } from '@/contracts';
 import { Icon } from './icon.component';
 import { LocaleSelect } from './locale-select.component';
 import { Modal, ModalHeader } from './modal.component';
@@ -55,9 +55,8 @@ export interface ISettingsDialogProps {
   onClose: () => void;
 }
 
-export type SettingsTab = 'appearance' | 'keys' | 'account';
-
 /**
+ * Las pestanas y como se elige una.
  * Dialogo de ajustes.
  *
  * Tres pestañas y solo tres: **apariencia**, **claves** y **cuenta de Steam**.

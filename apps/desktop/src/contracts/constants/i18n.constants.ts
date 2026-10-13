@@ -461,7 +461,6 @@ export const EN: TranslationTable = Object.freeze({
   'app.needRecipient': 'You have to say who you gave it to.',
   'app.exportOne': '{0} key saved to {1}',  'app.exportMany': '{0} keys saved in {1}',
   'app.giftedOne': '{0} key gifted to {1}.',  'app.giftedMany': '{0} keys gifted to {1}.',
-  'app.expiredOne': '{0} key expired.',  'app.expiredMany': '{0} keys marked as expired.',
   'app.tagsOne': 'Tag updated on {0} key.',  'app.tagsMany': 'Tags updated on {0} keys.',
   'app.libraryOne': '{0} game in your library.',  'app.libraryMany': '{0} games in your library.',
   'app.libraryPartial': '{0} Short of the total: there are more games than were read.',
@@ -537,12 +536,6 @@ export const EN: TranslationTable = Object.freeze({
   'steam.vacio': 'The Steam library came back empty.',
   'steam.http': 'Steam did not reply.',
   'steam.cancelado': 'Sync cancelled.',
-  'select.markExpired': 'Mark as expired',
-  'expire.confirm': 'Mark as expired',
-  'expire.bodyOne':
-    '«{0}» will be marked as expired and will leave the available list. You can change it later with the status toggle.',
-  'expire.bodyMany':
-    'The {0} selected keys will be marked as expired and will leave the available list. You can change them later with the status toggle.',
   'footer.code': 'Code on GitHub',
   'footer.author': 'Profile of the author',
   'footer.available': '{0} available',
@@ -568,7 +561,6 @@ export const EN: TranslationTable = Object.freeze({
   'loading.syncing': 'Syncing with Steam',
 
   'loading.gifting': 'Marking as gifted',
-  'loading.expiring': 'Marking as expired',
   'loading.status': 'Changing the status',
   'loading.tags': 'Saving the tags',
   'shortcuts.title': 'Keyboard shortcuts',

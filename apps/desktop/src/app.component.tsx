@@ -15,7 +15,7 @@ import { KeyEditor } from './components/key-editor.component';
 import { KeyRow } from './components/key-row.component';
 import { LoadingIndicator } from './components/loading-indicator.component';
 import { SelectionBar } from './components/selection-bar.component';
-import { SettingsDialog, type SettingsTab } from './components/settings-dialog.component';
+import { SettingsDialog } from './components/settings-dialog.component';
 import { ShortcutsDialog } from './components/shortcuts-dialog.component';
 import { StoragePanel } from './components/storage-panel.component';
 import { SteamGamesTable } from './components/steam-games-table.component';
@@ -24,12 +24,12 @@ import { TagManager } from './components/tag-manager.component';
 import { TagsDialog } from './components/tags-dialog.component';
 import { Toolbar } from './components/toolbar.component';
 
-import { AppView, DEFAULT_VIEW, KEY_STATUS_VALUES, KeyPlatform, KeySort, KeyStatus, PAGE_SIZE, mergeTags, type AppLocale, type IAppSettings, type IGameKey, type IGameKeyDraft, type IImportSummary, type IKeyFilter, type ISteamOwnedGame, type SteamAccountStatus, type TranslationArgs, type Translator } from '@/contracts';
+import { AppView, DEFAULT_VIEW, KEY_STATUS_VALUES, KeyPlatform, KeySort, KeyStatus, PAGE_SIZE, mergeTags, type AppLocale, type IAppSettings, type IGameKey, type IGameKeyDraft, type IKeyFilter, type ISteamOwnedGame, type SteamAccountStatus, type TranslationArgs, type Translator } from '@/contracts';
 import { computeStats,
   emptyFilter, filterKeys, sortKeys } from '@/helpers/filter-keys.helper';
 import { summarizeKeys } from '@/helpers/keys-summary.helper';
 import { claveGrupo, resumenPorTitulo } from '@/helpers/selection.helper';
-import { useKeepMounted } from '@/helpers/use-exit-animation.helper';
+import { useModals } from '@/helpers/use-modals.helper';
 import { useShortcuts } from '@/helpers/use-shortcuts.helper';
 import { useLoading, type TConTiempo } from '@/helpers/use-loading.helper';
 import { useArranque } from '@/helpers/use-arranque.helper';
@@ -148,9 +148,6 @@ export function App() {
    * lo dejo la ultima vez hace tres meses.
    */
   const [ordenInverso, setOrdenInverso] = useState(false);
-  const [editing, setEditing] = useState<IGameKey | null>(null);
-  const [editorOpen, setEditorOpen] = useState(false);
-  const [deleting, setDeleting] = useState<IGameKey | null>(null);
   /**
    * `true` hasta que se ha leido **todo** lo que la pantalla usa.
    *
@@ -169,19 +166,50 @@ export function App() {
    */
   const [listoParaPintar, setListoParaPintar] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [storageOpen, setStorageOpen] = useState(false);
 
-  // ------------------------------------------------------- seleccion ---
-  const [giftDialogOpen, setGiftDialogOpen] = useState(false);
-  const [expireDialogOpen, setExpireDialogOpen] = useState(false);
-  /** Dialogo para cambiar el estado de toda la seleccion a la vez. */
-  const [bulkStatusOpen, setBulkStatusOpen] = useState(false);
-  const [tagsOpen, setTagsOpen] = useState(false);
+  // ---------------------------------------------------------- dialogos ---
+  const {
+    editing,
+    editorAbierto,
+    openEditor,
+    closeEditor,
+    deleting,
+    openDelete,
+    closeDelete,
+    giftAbierto,
+    openGift,
+    closeGift,
+    bulkStatusAbierto,
+    openBulkStatus,
+    closeBulkStatus,
+    tagsAbierto,
+    openTags,
+    closeTags,
+    settingsAbierto,
+    settingsTab,
+    openSettings,
+    closeSettings,
+    gestorAbierto,
+    openGestor,
+    closeGestor,
+    openStorage,
+    closeStorage,
+    shortcutsAbierto,
+    openShortcuts,
+    closeShortcuts,
+    stagedImport,
+    stageImport,
+    closeImport,
+    editorVivo,
+    storageVivo,
+    settingsVivo,
+    giftVivo,
+    bulkStatusVivo,
+    tagsVivo,
+    shortcutsVivo,
+  } = useModals();
 
   // ---------------------------------------------------------- ajustes ---
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  /** Con que pestana se abren los ajustes. Cambia al pedirlo desde fuera. */
-  const [settingsTab, setSettingsTab] = useState<SettingsTab>('appearance');
   const [settings, setSettings] = useState<IAppSettings>(DEFAULT_SETTINGS);
 
   /**
@@ -321,24 +349,6 @@ export function App() {
     perfilPrivado: false,
   });
 
-  const [stagedImport, setStagedImport] = useState<{
-    fileName: string;
-    contents: string;
-    preview: IImportSummary;
-  } | null>(null);
-
-  /**
-   * El gestor de etiquetas se abre **encima** de Ajustes.
-   *
-   * Vive dentro de los ajustes y no al lado porque edita el vocabulario de
-   * toda la coleccion, no una fila. Montarlo aqui encima del dialogo hace que
-   * al cerrar se vuelva a Ajustes en lugar de a la lista, que es donde se
-   * ha elegido ir.
-   */
-  const [gestorOpen, setGestorOpen] = useState(false);
-
-  const [shortcutsOpen, setShortcutsOpen] = useState(false);
-
   const searchRef = useRef<HTMLInputElement>(null);
 
   // ---------------------------------------------------------- carga en curso ---
@@ -433,14 +443,7 @@ export function App() {
   // Los dialogos se desmontan en cuanto su condicion pasa a `false`, y ahi no
   // hay ni un fotograma en el que se vea la animacion de salida. Estos hooks
   // los mantienen montados el tiempo justo para que se vea desaparecer.
-  const editorVivo = useKeepMounted(editorOpen);
-  const storageVivo = useKeepMounted(storageOpen);
-  const settingsVivo = useKeepMounted(settingsOpen);
-  const giftVivo = useKeepMounted(giftDialogOpen);
-  const expireVivo = useKeepMounted(expireDialogOpen);
-  const bulkVivo = useKeepMounted(bulkStatusOpen);
-  const tagsVivo = useKeepMounted(tagsOpen);
-  const shortcutsVivo = useKeepMounted(shortcutsOpen);
+  
 
   // ------------------------------------------------------------- avisos ---
 
@@ -933,25 +936,16 @@ export function App() {
     haySeleccion,
     onClearSelection: clearSelection,
     onSelectAll: selectAll,
-    onOpenShortcuts: () => setShortcutsOpen(true),
-    onOpenNewKey: () => {
-      setEditing(null);
-      setEditorOpen(true);
-    },
+    onOpenShortcuts: openShortcuts,
+    onOpenNewKey: () => openEditor(),
     onUndo: () => void deshacerUltima(),
     searchRef,
   });
 
   // ------------------------------------------------------------ acciones ---
-  const handleCreate = (): void => {
-    setEditing(null);
-    setEditorOpen(true);
-  };
+  const handleCreate = (): void => openEditor();
 
-  const handleEdit = (entry: IGameKey): void => {
-    setEditing(entry);
-    setEditorOpen(true);
-  };
+  const handleEdit = (entry: IGameKey): void => openEditor(entry);
 
   const handleSave = async (draft: IGameKeyDraft): Promise<void> => {
     // Una clave repetida salta aqui, no en la base. El editor la enseña como
@@ -1021,7 +1015,7 @@ export function App() {
        * la animacion, con lo que la lista de debajo se quedaba con la clave
        * `editing` todavia puesta.
        */
-      setEditorOpen(false);
+      closeEditor();
 
       /*
        * Se parchea la fila que el servicio acaba de devolver, y no se relee.
@@ -1063,7 +1057,7 @@ export function App() {
 
       deshacer.registrar(deleting.title, [deleting], true);
 
-      setDeleting(null);
+      closeDelete();
       notify(traducir('app.deleted') + ' ' + traducir('app.undoHint'), 'success');
 
       // Un borrado no deja fila que sustituir: se quita el `id` de la lista y ya.
@@ -1288,7 +1282,7 @@ export function App() {
       );
 
       clearSelection();
-      setGiftDialogOpen(false);
+      closeGift();
 
       notify(
         traducir(pluralKey(total, 'app.giftedOne', 'app.giftedMany'), [total, limpio]),
@@ -1308,55 +1302,6 @@ export function App() {
           status: KeyStatus.Gifted,
           giftedTo: limpio,
         });
-      }
-    } catch (cause) {
-      notify(
-        cause instanceof Error ? cause.message : traducir('app.markFailed'),
-        'error',
-      );
-    }
-  };
-
-  const handleConfirmExpire = async (): Promise<void> => {
-    if (!facts.canExpire) return;
-
-    const affected = selectedKeys.filter((key) => key.status !== KeyStatus.Expired);
-
-    if (affected.length === 0) return;
-
-    const total = affected.length;
-
-    try {
-      const r = await conCarga('loading.expiring', async () => {
-        await gameKeyService.setStatusMany(
-          affected.map((key) => key.id),
-          KeyStatus.Expired,
-        );
-      });
-
-      if (!r.ok) return;
-
-      // `affected` es una foto de la lista en memoria, de antes de escribir, asi
-      // que se puede apuntar el deshacer sin releer la base — y solo cuando la
-      // escritura ha funcionado.
-      deshacer.registrar(
-        traducir(pluralKey(total, 'app.expiredOne', 'app.expiredMany'), [total]),
-        affected,
-      );
-
-      clearSelection();
-      setExpireDialogOpen(false);
-
-      notify(
-        traducir(pluralKey(total, 'app.expiredOne', 'app.expiredMany'), [total]),
-        'success',
-      );
-
-      // Mismo criterio que al regalar: el estado que se acaba de escribir se
-      // pone en la copia de memoria, sin releer la tabla. `affected` es una foto
-      // de antes, asi que el estado hay que ponerlo aparte.
-      for (const clave of affected) {
-        patchKey({ ...clave, status: KeyStatus.Expired });
       }
     } catch (cause) {
       notify(
@@ -1433,7 +1378,7 @@ export function App() {
       );
 
       clearSelection();
-      setTagsOpen(false);
+      closeTags();
 
       notify(
         traducir(pluralKey(total, 'app.tagsOne', 'app.tagsMany'), [total]),
@@ -1649,7 +1594,7 @@ export function App() {
 
       if (!r.ok || r.valor === null) return;
 
-      setStagedImport({ fileName: IMPORT_FILE_NAME, ...r.valor });
+      stageImport({ fileName: IMPORT_FILE_NAME, ...r.valor });
     } catch (cause) {
       notify(
         cause instanceof Error ? cause.message : traducir('app.readFileFailed'),
@@ -1677,7 +1622,7 @@ export function App() {
           'success',
         );
 
-        setStagedImport(null);
+        closeImport();
 
         return guardado;
       });
@@ -1742,12 +1687,6 @@ export function App() {
   };
 
   // ---------------------------------------------------------------- vista ---
-  /** Abrir ajustes en una pestana concreta, sin tener que buscarla a mano. */
-  const openSettingsAt = useCallback((tab: SettingsTab): void => {
-    setSettingsTab(tab);
-    setSettingsOpen(true);
-  }, []);
-
   const handleRefreshSteam = useCallback(async (): Promise<void> => {
     try {
       /**
@@ -1872,9 +1811,9 @@ export function App() {
         onSortInversoChange={setOrdenInverso}
         onSortChange={setSort}
         onViewChange={setVista}
-        onOpenSteamSettings={() => openSettingsAt('account')}
+        onOpenSteamSettings={() => openSettings('account')}
         onCreate={handleCreate}
-        onOpenSettings={() => openSettingsAt('appearance')}
+        onOpenSettings={() => openSettings('appearance')}
       />
 
       <main className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
@@ -1889,7 +1828,7 @@ export function App() {
               busy={busy}
             />
           ) : (
-            <SteamNotConnected onOpen={() => openSettingsAt('account')} />
+            <SteamNotConnected onOpen={() => openSettings('account')} />
           )
         ) : visible.length === 0 ? (
           <EmptyState
@@ -1906,7 +1845,7 @@ export function App() {
                   key={entry.id}
                   entry={entry}
                   onEdit={handleEdit}
-                  onDelete={setDeleting}
+                  onDelete={openDelete}
                   onCycleStatus={handleCycleStatus}
                   selected={selection.has(entry.id)}
                   onToggleSelect={toggleSelect}
@@ -1937,7 +1876,7 @@ export function App() {
         filter={filter}
         onFilter={patchFilter}
         onUndo={() => void deshacerUltima()}
-        onOpenShortcuts={() => setShortcutsOpen(true)}
+        onOpenShortcuts={openShortcuts}
       />
 
       {stagedImport ? (
@@ -1945,13 +1884,13 @@ export function App() {
           fileName={stagedImport.fileName}
           preview={stagedImport.preview}
           onConfirm={handleConfirmImport}
-          onCancel={() => setStagedImport(null)}
+          onCancel={closeImport}
         />
       ) : null}
 
       {storageVivo ? (
         <StoragePanel
-          onClose={() => setStorageOpen(false)}
+          onClose={closeStorage}
           onChanged={reload}
           notify={notify}
         />
@@ -1959,30 +1898,30 @@ export function App() {
 
       {settingsVivo ? (
         <SettingsDialog
-          open={settingsOpen}
+          open={settingsAbierto}
           initialTab={settingsTab}
           settings={settings}
           cuenta={cuenta}
           catalogo={tags}
-          onManageTags={() => setGestorOpen(true)}
+          onManageTags={openGestor}
           onExport={handleExport}
           onImport={handleImport}
-          onOpenStorage={() => setStorageOpen(true)}
+          onOpenStorage={openStorage}
           busy={busy}
           onSave={handleSaveSettings}
           onLinkSteam={handleLinkSteam}
           onForgetApiKey={handleForgetApiKey}
-          onClose={() => setSettingsOpen(false)}
+          onClose={closeSettings}
         />
       ) : null}
 
       {editorVivo ? (
         <KeyEditor
-          open={editorOpen}
+          open={editorAbierto}
           entry={editing}
           catalogo={tags}
           onCreateTag={createTag}
-          onManageTags={() => setGestorOpen(true)}
+          onManageTags={openGestor}
           onSave={handleSave}
           /*
            * Al cerrar **no** se suelta la clave.
@@ -1994,10 +1933,10 @@ export function App() {
            * luego se borraba. Se veia como un fallo de guardado.
            *
            * La clave se suelta al **abrir**, que es donde importa: al abrir en
-           * blanco se pone a `null` antes de `setEditorOpen(true)`, y al abrir
-           * para editar se pone la nueva. Cerrar no necesita soltar nada.
+           * blanco se pone a `null` antes de `setEditorAbierto(true)`, y al
+           * abrir para editar se pone la nueva. Cerrar no necesita soltar nada.
            */
-          onClose={() => setEditorOpen(false)}
+          onClose={closeEditor}
         />
       ) : null}
 
@@ -2007,7 +1946,7 @@ export function App() {
           message={traducir('row.delete.body', [deleting.title])}
           confirmLabel={traducir('action.delete')}
           onConfirm={handleDelete}
-          onCancel={() => setDeleting(null)}
+          onCancel={closeDelete}
         />
       ) : null}
 
@@ -2022,52 +1961,34 @@ export function App() {
           onSelectAll={selectAll}
           onClear={clearSelection}
           onExport={handleExportGift}
-          onMarkGifted={() => setGiftDialogOpen(true)}
-          onBulkStatus={() => setBulkStatusOpen(true)}
-          onTags={() => setTagsOpen(true)}
+          onMarkGifted={openGift}
+          onBulkStatus={openBulkStatus}
+          onTags={openTags}
           motivo={motivo}
         />
       ) : null}
 
-      {bulkVivo ? (
+      {bulkStatusVivo ? (
         <BulkStatusDialog
-          open={bulkStatusOpen}
+          open={bulkStatusAbierto}
           entries={selectedKeys}
           onApply={handleApplyBulkStatus}
-          onClose={() => setBulkStatusOpen(false)}
+          onClose={closeBulkStatus}
         />
       ) : null}
 
       {giftVivo ? (
         <GiftDialog
-          open={giftDialogOpen}
+          open={giftAbierto}
           entries={actionableKeys}
           onConfirm={handleConfirmGift}
-          onCancel={() => setGiftDialogOpen(false)}
-        />
-      ) : null}
-
-      {expireVivo ? (
-        <ConfirmDialog
-          title={traducir('select.markExpired')}
-          message={traducir(
-            facts.expirable === 1 ? 'expire.bodyOne' : 'expire.bodyMany',
-            [
-              facts.expirable === 1
-                ? (selectedKeys.find((key) => key.status !== KeyStatus.Expired)
-                    ?.title ?? '')
-                : facts.expirable,
-            ],
-          )}
-          confirmLabel={traducir('expire.confirm')}
-          onConfirm={handleConfirmExpire}
-          onCancel={() => setExpireDialogOpen(false)}
+          onCancel={closeGift}
         />
       ) : null}
 
       {tagsVivo ? (
         <TagsDialog
-          open={tagsOpen}
+          open={tagsAbierto}
           entries={selectedKeys}
           iniciales={commonTags(selectedKeys)}
           plataformas={[...new Set(selectedKeys.map((key) => key.platform))]}
@@ -2075,7 +1996,7 @@ export function App() {
           onCreate={createTag}
           onRemove={removeTag}
           onConfirm={handleApplyTags}
-          onCancel={() => setTagsOpen(false)}
+          onCancel={closeTags}
         />
       ) : null}
 
@@ -2086,7 +2007,7 @@ export function App() {
         muerto detras. Montandolo aqui se ve el gestor encima y, al cerrar,
         se vuelve a los ajustes en la pestana en la que se estaban viendo.
       */}
-      {gestorOpen ? (
+      {gestorAbierto ? (
         <TagManager
           catalogo={tags}
           onCreate={createTag}
@@ -2094,14 +2015,14 @@ export function App() {
           onRemove={removeTag}
           onColor={colorTag}
           onExists={tagExists}
-          onClose={() => setGestorOpen(false)}
+          onClose={closeGestor}
         />
       ) : null}
 
       {shortcutsVivo ? (
         <ShortcutsDialog
-          open={shortcutsOpen}
-          onClose={() => setShortcutsOpen(false)}
+          open={shortcutsAbierto}
+          onClose={closeShortcuts}
         />
       ) : null}
 

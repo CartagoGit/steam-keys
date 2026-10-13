@@ -26,6 +26,9 @@ export type {
   IGameKeyInput,
 } from './game-key.interface';
 
+/** Que se puede abrir encima de la lista. */
+export type { SettingsTab } from './dialog.interface';
+
 export type { IconName } from './icon-name.interface';
 export type { IMetaOption } from './meta-option.interface';
 export type { ITag, ITagRow } from './tag.interface';

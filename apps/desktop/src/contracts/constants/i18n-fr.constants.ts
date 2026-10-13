@@ -296,8 +296,6 @@ export const FR: TranslationTable = Object.freeze({
   'app.exportMany': '{0} cles enregistrees dans {1}',
   'app.giftedOne': '{0} cle offerte a {1}.',
   'app.giftedMany': '{0} cles offertes a {1}.',
-  'app.expiredOne': '{0} cle marquee comme expiree.',
-  'app.expiredMany': '{0} cles marquees comme expirees.',
   'app.tagsOne': 'Etiquette mise a jour sur {0} cle.',
   'app.tagsMany': 'Etiquettes mises a jour sur {0} cles.',
   'app.libraryOne': '{0} jeu dans ta bibliotheque.',
@@ -367,12 +365,7 @@ export const FR: TranslationTable = Object.freeze({
   'steam.vacio': 'La bibliotheque Steam est videe.',
   'steam.http': 'Steam n a pas repondu.',
   'steam.cancelado': 'Synchronisation annulee.',
-  'select.markExpired': 'Marquer comme expirees',
-  'expire.confirm': 'Marquer comme expirees',
-  'expire.bodyOne':
-    '« {0} » sera marquee comme expiree et quittera la liste des disponibles. Vous pourrez la changer plus tard avec le bouton de statut.',
-  'expire.bodyMany':
-    'Les {0} cles selectionnees seront marquees comme expirees et quitteront la liste des disponibles. Vous pourrez les changer plus tard avec le bouton de statut.',
+
   'footer.code': 'Code sur GitHub',
   'footer.author': 'Profil de celle qui la fait',
   'footer.available': ' · {0} disponibles',
@@ -409,7 +402,6 @@ export const FR: TranslationTable = Object.freeze({
   'loading.exporting': 'Exportation',
   'loading.syncing': 'Synchronisation avec Steam',
   'loading.gifting': 'Marquage comme offerts',
-  'loading.expiring': 'Marquage comme expires',
   'loading.status': 'Changement du statut',
   'loading.tags': 'Enregistrement des etiquettes',
   'shortcuts.title': 'Raccourcis clavier',

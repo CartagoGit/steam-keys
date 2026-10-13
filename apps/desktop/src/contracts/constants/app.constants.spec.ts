@@ -108,6 +108,18 @@ describe('la pantalla vacia', () => {
   );
 
   /**
+   * Abrir el editor son ahora dos lineas dentro de `useModals`, no en el
+   * componente: quien decide que clave se edita y si se abre es el hook, para
+   * que el par no se pueda dejar a medias. El guard mira los dos ficheros
+   * porque lo que vigila es que el boton llegue a la accion de verdad, no que
+   * este en un sitio concreto.
+   */
+  const MODALS = readFileSync(
+    join(RAIZ, 'apps/desktop/src/helpers/use-modals.helper.ts'),
+    'utf8',
+  );
+
+  /**
    * Los dos botones de la pantalla vacia abren algo.
    *
    * Es la primera pantalla que ve quien instala la app y la unica con dos
@@ -125,7 +137,11 @@ describe('la pantalla vacia', () => {
     expect(APP).toMatch(/<EmptyState[\s\S]{0,300}?onImport=\{handleImport\}/);
 
     // Y las dos acciones hacen algo de verdad, no solo existen.
-    expect(APP).toMatch(/const handleCreate = \(\): void => \{[\s\S]{0,160}?setEditorOpen\(true\)/);
+    expect(APP).toMatch(/const handleCreate = \(\): void => openEditor\(\)/);
+
+    expect(MODALS).toMatch(
+      /const openEditor = useCallback\(\(entrada\?: IGameKey \| null\): void => \{[\s\S]{0,160}?setEditorAbierto\(true\)/,
+    );
 
     /**
      * La ventana es de 1000 y no de 600 a proposito.
@@ -137,6 +153,6 @@ describe('la pantalla vacia', () => {
      * cuanto se anadiera un comentario, que es justo cuando no esta mirando
      * nadie: un guard que se rompe solo es peor que no tener guard.
      */
-    expect(APP).toMatch(/const handleImport = async \(\): Promise<void> => \{[\s\S]{0,1000}?setStagedImport\(/);
+    expect(APP).toMatch(/const handleImport = async \(\): Promise<void> => \{[\s\S]{0,1000}?stageImport\(/);
   });
 });

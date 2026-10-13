@@ -1842,6 +1842,13 @@ describe('la pompa se mide cuando el dialogo ya esta quieto', () => {
  *   como un guardado que se iba al traste.
  */
 describe('el editor se cierra mirandose', () => {
+  /**
+   * Que clave se edita y si el editor esta abierto son el mismo par, asi que
+   * viven en `useModals` y no se pueden separar. El guard mira los dos
+   * ficheros porque lo que vigila es el par, no donde este escrito.
+   */
+  const MODALS = fuente('helpers/use-modals.helper.ts');
+
   test('recibe `open` y lo pasa al `Modal`', () => {
     expect(EDITOR).toContain('open = true');
     expect(EDITOR).toContain('<Modal\n      open={open}');
@@ -1851,18 +1858,23 @@ describe('el editor se cierra mirandose', () => {
   });
 
   test('cerrar no suelta la clave que se esta editando', () => {
-    expect(APP).toContain('onClose={() => setEditorOpen(false)}');
+    expect(APP).toContain('onClose={closeEditor}');
 
-    // Y guardar tampoco: `editing` se suelta al abrir, que es donde importa.
-    expect(APP).not.toMatch(/setEditorOpen\(false\);\s*\n\s*setEditing\(null\)/);
+    // Cerrar solo apaga. `editing` se suelta al abrir, que es donde importa:
+    // si se soltara aqui, el formulario perderia los datos que esta enseñando
+    // durante los 140 ms de la salida.
+    expect(MODALS).toMatch(
+      /const closeEditor = useCallback\(\(\): void => setEditorAbierto\(false\), \[\]\);/,
+    );
+    expect(MODALS).not.toMatch(/closeEditor[\s\S]{0,120}?setEditing\(null\)/);
   });
 
-  test('la clave se suelta al abrir, en los tres caminos', () => {
-    // Nueva en blanco: se suelta antes de abrir.
-    expect(APP).toMatch(/setEditing\(null\);\s*\n\s*setEditorOpen\(true\)/);
-
-    // Editar: se pone la nueva antes de abrir.
-    expect(APP).toMatch(/setEditing\(entry\);\s*\n\s*setEditorOpen\(true\)/);
+  test('la clave se suelta al abrir, y en los dos caminos', () => {
+    // Editar: se pone la nueva antes de abrir. Crear: al omitir el argumento
+    // queda a `null`, tambien antes de abrir.
+    expect(MODALS).toMatch(
+      /const openEditor = useCallback\(\(entrada\?: IGameKey \| null\): void => \{[\s\S]{0,120}?setEditing\(entrada \?\? null\);\s*\n\s*setEditorAbierto\(true\)/,
+    );
   });
 });
 
