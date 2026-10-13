@@ -64,9 +64,9 @@ export interface IUseSelection {
 /**
  * Lo que esta marcado, y todo lo que se deduce de ello.
  *
- * Antes eran un `useState` y siete `useMemo`/`useCallback` sueltos en el
- * componente, repartidos entre la seccion de estado y la de seleccion, con la
- * poda en un `useEffect` al otro lado del archivo. Ocho piezas que solo tienen
+ * Antes eran un `useState`, cuatro `useMemo` y cuatro `useCallback` sueltos en
+ * el componente, repartidos entre la seccion de estado y la de seleccion, con la
+ * poda en un `useEffect` al otro lado del archivo. Diez piezas que solo tienen
  * sentido juntas: la seleccion no es un conjunto de ids, es **la seleccion** mas
  * lo que se puede hacer con ella.
  *

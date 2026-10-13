@@ -58,7 +58,7 @@ export interface IUseTags {
 }
 
 /**
- * El catalogo de etiquetas, y las cinco acciones que lo cambian.
+ * El catalogo de etiquetas, y las acciones que lo cambian.
  *
  * Antes eran un `useState` y seis `useCallback` en el componente, y tenian un
  * detalle importante repartido por dos sitios: **cual de ellas recarga la lista
@@ -69,7 +69,7 @@ export interface IUseTags {
  * Esa distincion estaba en un comentario al lado de `reload()` y en otro al
  * lado de `colorTag`, y no en el codigo. Aqui las dos acciones que recargan
  * llevan el `reload()` **dentro**, asi que no se puede llamar a una y olvidar
- * la otra: era el fallo mas facil de cometer al añadir una accion nueva.
+ * la otra: era el fallo mas facil de cometer al anadir una accion nueva.
  *
  * El catalogo se carga **con** la lista de claves, no aparte: leerlo al abrir
  * el dialogo de etiquetas daria un parpadeo de «cargando» cada vez que se
