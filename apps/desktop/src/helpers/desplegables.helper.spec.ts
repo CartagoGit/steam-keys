@@ -1417,7 +1417,7 @@ describe('arranque sin salto de estilos', () => {
    * ficheros porque lo que vigila es que la marca se ponga **siempre**, no que
    * este en un sitio concreto.
    */
-  const KEYS = fuente('use-keys.helper.ts');
+  const KEYS = fuente('helpers/use-keys.helper.ts');
 
   test('el cartel espera a los ajustes y a las claves', () => {
     expect(APP).toContain('todoListo');

@@ -24,11 +24,11 @@ import { TagManager } from './components/tag-manager.component';
 import { TagsDialog } from './components/tags-dialog.component';
 import { Toolbar } from './components/toolbar.component';
 
-import { AppView, DEFAULT_VIEW, KEY_STATUS_VALUES, KeyPlatform, KeyScope, KeySort, KeyStatus, PAGE_SIZE, mergeTags, type AppLocale, type IAppSettings, type IGameKey, type IGameKeyDraft, type IImportSummary, type IKeyFilter, type ISteamOwnedGame, type ITag, type SteamAccountStatus, type TranslationArgs, type Translator } from '@/contracts';
+import { AppView, DEFAULT_VIEW, KEY_STATUS_VALUES, KeyPlatform, KeySort, KeyStatus, PAGE_SIZE, mergeTags, type AppLocale, type IAppSettings, type IGameKey, type IGameKeyDraft, type IImportSummary, type IKeyFilter, type ISteamOwnedGame, type SteamAccountStatus, type TranslationArgs, type Translator } from '@/contracts';
 import { computeStats,
   emptyFilter, filterKeys, sortKeys } from '@/helpers/filter-keys.helper';
 import { summarizeKeys } from '@/helpers/keys-summary.helper';
-import { analyzeSelection, claveGrupo, isGiftable, podarSeleccion, resumenPorTitulo, type SelectAction } from '@/helpers/selection.helper';
+import { claveGrupo, resumenPorTitulo } from '@/helpers/selection.helper';
 import { useKeepMounted } from '@/helpers/use-exit-animation.helper';
 import { useShortcuts } from '@/helpers/use-shortcuts.helper';
 import { useLoading, type TConTiempo } from '@/helpers/use-loading.helper';
@@ -37,6 +37,8 @@ import { applyTheme } from '@/helpers/runtime.helper';
 import { commonTags } from '@/helpers/tags.helper';
 import { useToasts } from '@/helpers/use-toasts.helper';
 import { useKeys } from '@/helpers/use-keys.helper';
+import { useSelection } from '@/helpers/use-selection.helper';
+import { useTags } from '@/helpers/use-tags.helper';
 import { borradorDe, useUndo, type IUndoEntry } from '@/helpers/undo.helper';
 import { gameKeyService, DuplicateKeyError } from '@/services/game-key.service';
 import { settingsService, DEFAULT_SETTINGS } from '@/services/settings.service';
@@ -170,12 +172,6 @@ export function App() {
   const [storageOpen, setStorageOpen] = useState(false);
 
   // ------------------------------------------------------- seleccion ---
-  /**
-   * Ids de las claves seleccionadas. Un `Set` porque la lista va camino de los
-   * quinientas y recorrerlo entero en cada pulsacion se nota.
-   */
-  const [selection, setSelection] = useState<ReadonlySet<number>>(new Set());
-
   const [giftDialogOpen, setGiftDialogOpen] = useState(false);
   const [expireDialogOpen, setExpireDialogOpen] = useState(false);
   /** Dialogo para cambiar el estado de toda la seleccion a la vez. */
@@ -332,16 +328,6 @@ export function App() {
   } | null>(null);
 
   /**
-   * El catalogo de etiquetas, con su recuento de usos.
-   *
-   * Vive en el componente porque lo pinta el dialogo de etiquetas, que se
-   * monta y se desmonta: leerlo de la base de datos en cada apertura daria un
-   * parpadeo de «cargando» cada vez que se quisiera etiquetar algo. Se carga
-   * con la lista de claves y se vuelve a pedir cuando se crea o se quita una.
-   */
-  const [tags, setTags] = useState<readonly ITag[]>([]);
-
-  /**
    * El gestor de etiquetas se abre **encima** de Ajustes.
    *
    * Vive dentro de los ajustes y no al lado porque edita el vocabulario de
@@ -411,6 +397,37 @@ export function App() {
     },
     [empezar, setBusy, traducir],
   );
+
+  /*
+   * El catalogo de etiquetas y las acciones que lo cambian.
+   *
+   * Lo que mas se gana no es de sitio sino de seguridad: **cual de las acciones
+   * recarga la lista de claves** esta ahora dentro de la accion. Quitar y
+   * renombrar la recarga porque tocan claves de toda la coleccion; colorear no,
+   * porque el color vive en el catalogo. Antes eso estaba en un comentario al
+   * lado de cada `reload()`, y era el fallo mas facil de cometer al anadir una
+   * accion nueva.
+   */
+  const {
+    tags,
+    createTag,
+    removeTag,
+    renameTag,
+    tagExists,
+    colorTag,
+    setTags,
+  } = useTags({
+    create: (nombre) => tagService.create(nombre),
+    remove: (nombre) => tagService.remove(nombre),
+    rename: (actual, nuevo) => tagService.rename(actual, nuevo),
+    existe: (nombre) => tagService.existe(nombre),
+    setColor: (clave, color) => tagService.setColor(clave, color),
+    list: () => tagService.list(),
+    conCarga,
+    reload,
+    notify,
+    traducir,
+  });
 
   // ------------------------------------------------------ cierre animado ---
   // Los dialogos se desmontan en cuanto su condicion pasa a `false`, y ahi no
@@ -810,10 +827,6 @@ export function App() {
    * no cuando se reordena la lista. Es lo que se quiere: cambiar el orden no
    * invalida nada, cambiar el filtro si.
    */
-  useEffect(() => {
-    setSelection((actual) => podarSeleccion(actual, visible));
-  }, [visible]);
-
   /** Cuantas claves comparten cada titulo, para el contador de la fila. */
   const groups = useMemo(() => resumenPorTitulo(keys), [keys]);
 
@@ -889,98 +902,35 @@ export function App() {
   );
 
   // ----------------------------------------------------------- seleccion ---
-  const selectedKeys = useMemo(
-    () => keys.filter((key) => selection.has(key.id)),
-    [keys, selection],
-  );
-
-  /**
-   * Las seleccionadas que se pueden regalar.
-   *
-   * Se calculan solas, sin interruptor: si la vista esta en «Solo
-   * disponibles» (que es lo unico que hay que decidir, y se decide en la barra
-   * de filtros) lo que se ve ya son todas regalables, y la seleccion de esa
-   * lista no puede contener ninguna que no lo sea. Con el filtro en «Todos» la
-   * seleccion si puede mezclar estados, y entonces se descartan las que no.
-   */
-  const actionableKeys = useMemo(
-    () => (filter.scope === KeyScope.Available ? selectedKeys : selectedKeys.filter(isAvailable)),
-    [selectedKeys, filter.scope],
-  );
-
-  const facts = useMemo(
-    () => analyzeSelection(selectedKeys, filter.scope === KeyScope.All),
-    [selectedKeys, filter.scope],
-  );
-
-  const selectionIds = useMemo(
-    () => selectedKeys.map((key) => key.id),
-    [selectedKeys],
-  );
-
-  const toggleSelect = useCallback((entry: IGameKey): void => {
-    setSelection((anterior) => {
-      const siguiente = new Set(anterior);
-
-      if (siguiente.has(entry.id)) siguiente.delete(entry.id);
-      else siguiente.add(entry.id);
-
-      return siguiente;
-    });
-  }, []);
-
-  const clearSelection = useCallback((): void => {
-    setSelection(new Set());
-  }, []);
-
-  const selectAll = useCallback((): void => {
-    setSelection(new Set(visible.map((key) => key.id)));
-  }, [visible]);
-
-  /**
- * El texto que explica por que un boton esta apagado.
- *
- * El helper devuelve la **clave** del diccionario y sus argumentos, no el
- * texto: es una funcion pura y no sabe en que idioma esta la app. Aqui se
- * traduce.
- */
-  const motivo = useCallback(
-    (action: SelectAction): string | undefined => {
-      if (selectedKeys.length === 0) return traducir('app.nothingSelected');
-
-      const bloqueo = facts.blocked.find((item) => item.action === action);
-
-      return bloqueo === undefined
-        ? undefined
-        : traducir(bloqueo.messageKey, bloqueo.messageArgs);
-    },
-    [facts.blocked, selectedKeys.length, traducir],
-  );
+  const {
+    selection,
+    selectedKeys,
+    actionableKeys,
+    facts,
+    selectionIds,
+    haySeleccion,
+    toggleSelect,
+    clearSelection,
+    selectAll,
+    motivo,
+  } = useSelection({ keys, visible, filter, traducir });
 
   // ------------------------------------------------------------- atajos ---
-  /**
+  /*
    * Atajos de teclado.
    *
-   * Se van al hook porque no dependen de nada del componente: miran que
-   * dialogos hay abiertos y llaman a lo que se les pasa. Aqui eran cien lineas
-   * de `useEffect` en medio del arranque y las acciones, y lo unico que había
-   * que mantener al día era una lista de dependencias que se lenia sola.
-   */
-  /*
-   * Sin la lista de dialogos abiertos.
-   *
-   * Aqui iban veinte lineas —diez banderas y diez funciones de cierre— y las
-   * dos cosas las repetia cada dialogo, que ya recibe su `onClose` con lo que
-   * tiene que hacer al cerrarse. Era la lista de «que dialogo hay abierto» por
-   * un camino y por otro, y no podian mirar para el mismo sitio sin que se
-   * notasen: una de las dos se queda desfasada y la tecla cierra lo que no
-   * toca.
+   * Sin la lista de dialogos abiertos. Aqui iban veinte lineas —diez banderas
+   * y diez funciones de cierre— y las dos cosas las repetia cada dialogo, que
+   * ya recibe su `onClose` con lo que tiene que hacer al cerrarse. Era la
+   * lista de «que dialogo hay abierto» por un camino y por otro, y no podian
+   * mirar para el mismo sitio sin que se notase: una de las dos se queda
+   * desfasada y la tecla cierra lo que no toca.
    *
    * Ahora cada `Modal` se apila solo al montarse, en el orden real, y Escape
    * cierra el de encima. Un dialogo nuevo no tiene que acordarse de nada.
    */
   useShortcuts({
-    haySeleccion: selection.size > 0,
+    haySeleccion,
     onClearSelection: clearSelection,
     onSelectAll: selectAll,
     onOpenShortcuts: () => setShortcutsOpen(true),
@@ -1337,7 +1287,7 @@ export function App() {
         actionableKeys,
       );
 
-      setSelection(new Set());
+      clearSelection();
       setGiftDialogOpen(false);
 
       notify(
@@ -1394,7 +1344,7 @@ export function App() {
         affected,
       );
 
-      setSelection(new Set());
+      clearSelection();
       setExpireDialogOpen(false);
 
       notify(
@@ -1482,7 +1432,7 @@ export function App() {
         selectedKeys,
       );
 
-      setSelection(new Set());
+      clearSelection();
       setTagsOpen(false);
 
       notify(
@@ -1510,146 +1460,6 @@ export function App() {
       );
     }
   };
-
-  /**
-   * Crea una etiqueta en el catalogo y recarga la lista.
-   *
-   * El dialogo pinta lo que hay en este estado, asi que despues de crear o de
-   * quitar hay que volver a pedirlo: si no, la etiqueta nueva se veria
-   * marcada pero no saldria en la lista, y la quitada seguiria apareciendo
-   * hasta que se cerrara y se abriera el dialogo otra vez.
-   */
-  const recargarTags = useCallback(async (): Promise<void> => {
-    try {
-      setTags(await tagService.list());
-    } catch (cause) {
-      notify(
-        cause instanceof Error ? cause.message : traducir('app.loadFailed'),
-        'error',
-      );
-    }
-  }, [notify, traducir]);
-
-  const crearEtiqueta = useCallback(
-    async (nombre: string): Promise<string | null> => {
-      try {
-        const r = await conCarga('loading.saving', async () =>
-          tagService.create(nombre),
-        );
-
-        if (!r.ok) return null;
-
-        await recargarTags();
-
-        return r.valor;
-      } catch (cause) {
-        notify(
-          cause instanceof Error ? cause.message : traducir('app.saveFailed'),
-          'error',
-        );
-
-        return null;
-      }
-    },
-    [conCarga, notify, recargarTags, traducir],
-  );
-
-  const quitarEtiqueta = useCallback(
-    async (nombre: string): Promise<number> => {
-      try {
-        const r = await conCarga('loading.tags', async () =>
-          tagService.remove(nombre),
-        );
-
-        if (!r.ok) return 0;
-
-        const afectadas = r.valor;
-
-        // Quitar una etiqueta toca claves de toda la coleccion, no solo las
-        // seleccionadas, asi que la lista entera se queda obsoleta. Sin
-        // recargar, las filas seguirian mostrando una etiqueta que ya no
-        // tienen.
-        await Promise.all([recargarTags(), reload()]);
-
-        notify(
-          traducir(
-            pluralKey(afectadas, 'tags.removedOne', 'tags.removedMany'),
-            [afectadas],
-          ),
-          'success',
-        );
-
-        return afectadas;
-      } catch (cause) {
-        notify(
-          cause instanceof Error ? cause.message : traducir('app.tagsFailed'),
-          'error',
-        );
-
-        return 0;
-      }
-    },
-    [conCarga, notify, recargarTags, reload, traducir],
-  );
-
-  const renombrarEtiqueta = useCallback(
-    async (actual: string, nuevo: string): Promise<number | null> => {
-      try {
-        const r = await conCarga('loading.tags', async () =>
-          tagService.rename(actual, nuevo),
-        );
-
-        if (!r.ok) return null;
-
-        // Igual que al borrar: el renombrado toca claves de toda la
-        // coleccion, asi que la lista entera se queda obsoleta.
-        await Promise.all([recargarTags(), reload()]);
-
-        if (r.valor !== null) {
-          notify(
-            traducir(
-              pluralKey(r.valor, 'tags.renamedOne', 'tags.renamedMany'),
-              [nuevo, r.valor],
-            ),
-            'success',
-          );
-        }
-
-        return r.valor;
-      } catch (cause) {
-        notify(
-          cause instanceof Error ? cause.message : traducir('app.tagsFailed'),
-          'error',
-        );
-
-        return null;
-      }
-    },
-    [conCarga, notify, recargarTags, reload, traducir],
-  );
-
-  const existeEtiqueta = useCallback(
-    (nombre: string): Promise<boolean> => tagService.existe(nombre),
-    [],
-  );
-
-  /**
-   * Cambia el tono de una etiqueta.
-   *
-   * Solo recarga el catalogo y **no** la lista de claves, y la diferencia no es
-   * una mania: el color no esta en la columna `tags` de las claves —que solo
-   * guarda el nombre— sino en el catalogo. Las claves no han cambiado de nada,
-   * asi que volver a pedir cuatrocientas filas para que lo unico que se vea
-   * distinto sea el color de una pastilla seria gasto sin motivo.
-   */
-  const colorearEtiqueta = useCallback(
-    async (clave: string, color: string): Promise<void> => {
-      await tagService.setColor(clave, color);
-
-      await recargarTags();
-    },
-    [recargarTags],
-  );
 
   // ----------------------------------------------------------- ajustes ---
   const handleSaveSettings = async (
@@ -2171,7 +1981,7 @@ export function App() {
           open={editorOpen}
           entry={editing}
           catalogo={tags}
-          onCreateTag={crearEtiqueta}
+          onCreateTag={createTag}
           onManageTags={() => setGestorOpen(true)}
           onSave={handleSave}
           /*
@@ -2262,8 +2072,8 @@ export function App() {
           iniciales={commonTags(selectedKeys)}
           plataformas={[...new Set(selectedKeys.map((key) => key.platform))]}
           catalogo={tags}
-          onCreate={crearEtiqueta}
-          onRemove={quitarEtiqueta}
+          onCreate={createTag}
+          onRemove={removeTag}
           onConfirm={handleApplyTags}
           onCancel={() => setTagsOpen(false)}
         />
@@ -2279,11 +2089,11 @@ export function App() {
       {gestorOpen ? (
         <TagManager
           catalogo={tags}
-          onCreate={crearEtiqueta}
-          onRename={renombrarEtiqueta}
-          onRemove={quitarEtiqueta}
-          onColor={colorearEtiqueta}
-          onExists={existeEtiqueta}
+          onCreate={createTag}
+          onRename={renameTag}
+          onRemove={removeTag}
+          onColor={colorTag}
+          onExists={tagExists}
           onClose={() => setGestorOpen(false)}
         />
       ) : null}
@@ -2310,7 +2120,4 @@ export function App() {
   );
 }
 
-/** `true` si la clave se puede regalar todavia. */
-function isAvailable(entry: IGameKey): boolean {
-  return isGiftable(entry);
-}
+
