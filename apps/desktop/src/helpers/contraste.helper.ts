@@ -37,7 +37,7 @@ const PESOS = { rojo: 0.2126, verde: 0.7152, azul: 0.0722 } as const;
  * menos de 0.03928 es casi lineal —el negro no se ve alisar por debajo de
  * ahi— y por encima se aplica `(c + 0.055) / 1.055` elevado a 2.4.
  */
-export function luminancia(hex: string): number {
+function luminancia(hex: string): number {
   const canales = [1, 3, 5].map((cual) => {
     const valor = Number.parseInt(hex.slice(cual, cual + 2), 16) / LADO;
 
@@ -58,7 +58,7 @@ export function luminancia(hex: string): number {
  * que rodea una pastilla necesita tambien saber si tiene que ser claro u oscuro,
  * y dependria de la misma cuenta.
  */
-export function contraste(uno: string, otro: string): number {
+function contraste(uno: string, otro: string): number {
   const a = luminancia(uno);
   const b = luminancia(otro);
 

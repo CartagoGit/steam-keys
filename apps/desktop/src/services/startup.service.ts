@@ -3,9 +3,19 @@ import { DEFAULT_LOCALE } from '@/contracts';
 import { getStorageMode, isTauri, StorageMode } from '@/helpers/runtime.helper';
 import type { IStartup } from '@/contracts';
 
-// Los dos tipos viven en `contracts/` —los consume el hook del arranque— y se
-// reexportan aqui para que quien ya importaba de este servicio no cambie.
-export type { DatabaseState, IStartup } from '@/contracts';
+/*
+ * Los dos tipos NO se reexportan.
+ *
+ * Antes si, para no romper a quien importaba de aqui, y al moverlos a
+ * `contracts/` —donde los consume el hook del arranque, que es un `helper/` y
+ * no deberia mirar hacia `services/`— se dejo el alias por compatibilidade. Eso
+ * devuelve exactamente el camino que el movimiento pretendia cerrar: el unico
+ * import forbidden por capa vuelve a estar disponible, y la proxima que se
+ * añada lo usara.
+ *
+ * Los que ya los importaban de `@/contracts` siguen haciendolo. Los tipos son
+ * el mismo objeto; lo unico que cambia es de donde se nombran.
+ */
 
 /**
  * Averigua el estado de arranque sin tocar nada.

@@ -1,4 +1,10 @@
-import { KeyStatus, normalizeTag, type IGameKey, type TranslationKey } from '@/contracts';
+import {
+  GIFTABLE_STATUSES,
+  KeyStatus,
+  normalizeTag,
+  type IGameKey,
+  type TranslationKey,
+} from '@/contracts';
 
 /**
  * Como de utilizable es una clave para la accion que se le pide.
@@ -84,9 +90,14 @@ export function podarSeleccion(
  *
  * Una clave ya regalada o canjeada no se puede "volver a disponible": la
  * verdad es que ya no la tienes, y marcarla como disponible seria mentira.
+ *
+ * La lista sale de `GIFTABLE_STATUSES`, que es la misma que usa el filtro. Con
+ * dos listas, anadir un estado a una dejaba el filtro mostrando algo que la
+ * barra de seleccion no dejaba hacer, y el boton de regalar aparecia para
+ * claves que ya no se podian regalar.
  */
 export function isGiftable(entry: IGameKey): boolean {
-  return entry.status === KeyStatus.Available;
+  return GIFTABLE_STATUSES.includes(entry.status);
 }
 
 /**

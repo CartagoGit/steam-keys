@@ -26,6 +26,18 @@ import { join } from 'node:path';
 
 const RAIZ = join(new URL('.', import.meta.url).pathname, '..');
 
+/**
+ * Los scripts de `tools/`, que son codigo de la app y no una carpeta aparte.
+ *
+ * `extractKeyToken` se exportaba desde `helpers/` y lo consumia
+ * `tools/scripts/verify-parser.script.ts`. Con el guard mirando solo
+ * `src/`, ese script no contaba como consumidor y el export salia como
+ * muerto: la cuenta de un consumidor que esta en otra carpeta no es la misma
+ * que la de uno que no existe, y confundirlas hace que el guard senale
+ * codigo vivo.
+ */
+const RAIZ_SCRIPTS = join(RAIZ, '..', '..', '..', 'tools', 'scripts');
+
 interface IFuente {
   ruta: string;
   /** Sin comentarios: un nombre que solo aparece en uno no es un uso. */
@@ -57,6 +69,7 @@ function fuentes(): IFuente[] {
   };
 
   visitar(RAIZ);
+  visitar(RAIZ_SCRIPTS);
 
   return salida;
 }
@@ -148,11 +161,53 @@ function usosFueraDeLaDeclaracion(nombre: string, en: readonly IFuente[]): numbe
   }, 0);
 }
 
+/**
+ * Un `export { X }` de un barril no cuenta como uso.
+ *
+ * Reexportar es mover el nombre de sitio. Lo que decide si un simbolo esta
+ * vivo es que **otro fichero lo importe**, y no que su nombre aparezca en una
+ * lista: `export { serializeTags }` al final de un repositorio daba por vivo
+ * un `serializeTags` que no importaba nadie de ahi —los que lo necesitan lo
+ * cogian de `normalize-text.helper`—, y el unico sitio que de verdad lo
+ * consumia era la frase del comentario de al lado.
+ *
+ * Esta funcion cuenta los ficheros que importan el nombre, no las
+ * apariciones. Es mas estricta a proposito: un export que solo se usa dentro
+ * del propio fichero no esta muerto —puede ser la mitad de una API privada—,
+ * asi que se cuentan tambien las apariciones internas y se separa el caso.
+ */
+function importacionesDe(nombre: string, en: readonly IFuente[]): number {
+  /*
+   * Cuenta las tres formas de traer un nombre de otro fichero:
+   *
+   * 1. `import { X } from '...'`, la normal.
+   * 2. `const { X } = await import('...')`, que es como se cargan los tres
+   *    clientes de base de datos: se importan en dinamico para que el plugin de
+   *    Tauri no acabe en el bundle del navegador. Sin esta forma, los tres
+   *    salen como exporting sin usar y habria que desmarcarlos a mano.
+   * 3. `export { X }`, que es un reexport desde el barrel: mueve el nombre, no
+   *    lo usa, asi que **no** cuenta. Va en el patron para poder distinguirlo
+   *    de una importacion al leer el fallo, pero el resultado no lo cuenta.
+   */
+  const patron = new RegExp(
+    `import\\s+(?:type\\s+)?\\{[^}]*\\b${nombre}\\b` +
+      `|\\{[^}]*\\b${nombre}\\b[^}]*\\}\\s*=\\s*await\\s+import\\(`,
+    'g',
+  );
+
+  return en.reduce((total, fuente) => {
+    if (fuente.esBarril) return total;
+
+    return total + (fuente.limpio.match(patron) ?? []).length;
+  }, 0);
+}
+
 describe('codigo muerto', () => {
   const todos = fuentes();
 
   test('no hay constantes ni funciones exportadas sin usar', () => {
     const muertas: string[] = [];
+    const exportadasSinImportar: string[] = [];
 
     for (const fuente of todos) {
       if (fuente.esBarril) continue;
@@ -179,11 +234,28 @@ describe('codigo muerto', () => {
 
         if (usosFueraDeLaDeclaracion(nombre, todos) === 0) {
           muertas.push(`${fuente.ruta}: ${nombre} (${tipo})`);
+          continue;
+        }
+
+        /**
+         * Queda el caso que el recuento de apariciones no puede ver: el
+         * simbolo aparece dentro de su propio fichero —una llamada interna—,
+         * pero **ningun otro lo importa**.
+         *
+         * Exportarlo en ese estado es una promesa que nadie escucha: lo
+         * unico que se consigue es que el nombre se pueda importar desde
+         * cualquier parte sin que nada lo diga. Con un recuento de
+         * apariciones, `esHex` —que solo se usaba a si mismo— pasaba el
+         * guard como vivo.
+         */
+        if (importacionesDe(nombre, todos) === 0) {
+          exportadasSinImportar.push(`${fuente.ruta}: ${nombre} (${tipo})`);
         }
       }
     }
 
     expect(muertas).toEqual([]);
+    expect(exportadasSinImportar).toEqual([]);
   });
 
   /**

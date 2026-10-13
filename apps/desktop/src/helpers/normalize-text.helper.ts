@@ -14,7 +14,7 @@ const LEADING_STATUS_MARKER = new RegExp(
 );
 
 /** Colapsa espacios, tabs y saltos de linea a un unico espacio. */
-export function collapseWhitespace(value: string): string {
+function collapseWhitespace(value: string): string {
   return value.replace(/\s+/g, ' ').trim();
 }
 

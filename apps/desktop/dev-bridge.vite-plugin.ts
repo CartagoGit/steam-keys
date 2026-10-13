@@ -14,10 +14,16 @@ import {
 } from './dev-bridge.contract';
 import type { BridgeOperation, IBridgeResponse } from './dev-bridge.contract';
 
-// El contrato se reexporta para que los tests y cualquier consumidor sigan
-// importandolo de aqui, sin obligarles a conocer el fichero nuevo.
-export { DEV_BRIDGE_PATH, DEV_BRIDGE_TOKEN_HEADER, DEV_TOKEN_GLOBAL, operationFrom };
-export type { BridgeOperation, IBridgeResponse };
+/*
+ * El contrato **no** se reexporta.
+ *
+ * Se hacia al sacarlo a su propio fichero, para que el cliente del navegador
+ * importara las constantes de ahi sin arrastrar `node:child_process` al bundle.
+ * El reexport se quedo porque en aquel momento no habia consumidor todavia, y
+ * no lo hubo nunca: el cliente y los tests lo importan de `dev-bridge.contract`
+ * directamente. Un barril que nadie usa es una segunda puerta al mismo sitio,
+ * y la que se acabaria usando mal.
+ */
 
 /**
  * Puente de desarrollo: da al navegador acceso a la base de datos real.

@@ -64,7 +64,7 @@ export function readBool(value: string | undefined): boolean {
  * tema elegido se perdia al reiniciar. Anadir un valor nuevo al enum no puede
  * volver a romperlo.
  */
-export function readEnum<T extends string>(
+function readEnum<T extends string>(
   value: string | undefined | null,
   valores: readonly T[],
   porDefecto: T,

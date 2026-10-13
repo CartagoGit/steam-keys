@@ -239,7 +239,7 @@ export function bestCandidate(
  * Sin la conversion de romanos el primer caso se queda en 0.84, a una centesima
  * del umbral. Por eso la conversion esta en `normalizeForMatch` y no aqui.
  */
-export const PROPIO_MINIMO: MatchConfidence[] = ['exact', 'likely'];
+const PROPIO_MINIMO: MatchConfidence[] = ['exact', 'likely'];
 
 /** `true` si esta confianza alcanza para marcar el juego como propio. */
 export function cuentaComoPropio(confianza: MatchConfidence): boolean {

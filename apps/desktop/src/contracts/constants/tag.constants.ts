@@ -15,7 +15,7 @@ import { KeyPlatform } from '../enums/key-platform.enum';
  * para poder filtrar despues ("las de Battle.net", "las de GW2"). No se
  * imponen: se ofrecen, y quien no las quiera simplemente no las marca.
  */
-export const PLATFORM_TAGS: Readonly<Record<KeyPlatform, readonly string[]>> =
+const PLATFORM_TAGS: Readonly<Record<KeyPlatform, readonly string[]>> =
   Object.freeze({
     [KeyPlatform.Steam]: Object.freeze(['steam']),
     [KeyPlatform.BattleNet]: Object.freeze(['battlenet', 'blizzard']),
@@ -32,7 +32,7 @@ export const PLATFORM_TAGS: Readonly<Record<KeyPlatform, readonly string[]>> =
  * Son las que el importador crea a partir del formato del TXT, mas unas pocas
  * que se ofrecen para clasificar a mano.
  */
-export const ORIGIN_TAGS: readonly string[] = Object.freeze([
+const ORIGIN_TAGS: readonly string[] = Object.freeze([
   'dlc',
   'humble',
   'promo',
@@ -179,15 +179,21 @@ export const TEXTO_OSCURO = '#10151f';
 export function parseTagColor(valor: string): string {
   const limpio = valor.trim().toLowerCase();
 
-  return /^#[0-9a-f]{6}$/.test(limpio) ? limpio : '';
+  return esHex(limpio) ? limpio : '';
 }
 
 /**
- * Si un color es el que hay en la paleta.
+ * Si un color es un hexadecimal de seis digitos.
  *
- * Distinto de `parseTagColor`: aqui se admite cualquier hexadecimal, porque el
- * panel podria crecer y una base con un color de una version anterior tiene que
- * seguir pintandose. Lo que se rechaza es lo que no es un color.
+ * Vive aqui, y no en `parseTagColor`, porque las dos cosas que la necesitan la
+ * consultan distinto: una devuelve el color y la otra un si o un no. Tenian el
+ * mismo patron copiado, asi que cambiar uno no cambiaba el otro —que es justo
+ * el fallo que ba��a: un color que se rechazaba al leer pero se aceptaba al
+ * pintar—.
+ *
+ * Se admite cualquier hexadecimal, no solo los de la paleta: el panel podria
+ * crecer y una base con un color de una version anterior tiene que seguir
+ * pintandose. Lo que se rechaza es lo que no es un color.
  */
 export function esHex(limpio: string): boolean {
   return /^#[0-9a-f]{6}$/.test(limpio);

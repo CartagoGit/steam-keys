@@ -1,6 +1,5 @@
 import { KeyPlatform, KeySource, KeyStatus, type IGameKey, type IGameKeyRow } from '@/contracts';
 import { parseTags } from '@/helpers/normalize-text.helper';
-import { nowSqliteTimestamp } from '@/helpers/format-date.helper';
 
 /** Convierte una fila cruda de SQLite en la entidad de dominio. */
 export function mapRowToGameKey(row: IGameKeyRow): IGameKey {
@@ -20,11 +19,6 @@ export function mapRowToGameKey(row: IGameKeyRow): IGameKey {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
-}
-
-/** Marca de tiempo para la columna `updated_at`. */
-export function touchTimestamp(): string {
-  return nowSqliteTimestamp();
 }
 
 // Las columnas de `game_keys` viven en `contracts/constants/db-schema.constants`,

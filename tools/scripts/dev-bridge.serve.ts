@@ -43,7 +43,7 @@
  */
 import { Database, type SQLQueryBindings } from 'bun:sqlite';
 import { existsSync, mkdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname } from 'node:path';
 
 import { devDatabasePath } from './support/db-path.helper';
 import { SCHEMA_STATEMENTS } from '@/contracts/constants/db-schema.constants';
@@ -239,7 +239,7 @@ async function modoServidor(): Promise<void> {
   let resto = '';
 
   try {
-    for await (const trozo of Bun.stdin.stream() as AsyncIterable<Uint8Array>) {
+    for await (const trozo of Bun.stdin.stream() as unknown as AsyncIterable<Uint8Array>) {
       resto += decodificador.decode(trozo, { stream: true });
 
       let corte = resto.indexOf('\n');
@@ -301,9 +301,3 @@ await principal();
 
 /** Reexportado para que el script se pueda importar en tests. */
 export { abrirLectura, abrirEscritura, atenderLinea, ejecutarPeticion, parsearPeticion };
-
-/** Ruta esperada de la base de datos, util para diagnostico. */
-export const RUTA_BD = devDatabasePath;
-
-/** Directorio de este script, para localizar el repositorio. */
-export const DIR_SCRIPT = dirname(join(import.meta.path));

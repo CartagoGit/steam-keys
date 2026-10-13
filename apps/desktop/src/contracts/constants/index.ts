@@ -26,7 +26,7 @@ export {
 export { KEY_PLATFORM_META, platformLabel, platformOptions } from './key-platform.constants';
 export type { IPlatformMeta } from './key-platform.constants';
 
-export { KEY_STATUS_META, statusMeta, statusOptions } from './key-status.constants';
+export { statusMeta, statusOptions } from './key-status.constants';
 export type { IStatusMeta, IStatusMetaResuelta } from './key-status.constants';
 export type { ITagTono, TagFamilia } from './tag.constants';
 
@@ -60,8 +60,6 @@ export {
 } from './locale.constants';
 
 export {
-  ORIGIN_TAGS,
-  PLATFORM_TAGS,
   TAG_FAMILIAS,
   TAG_PASOS,
   TAG_TONOS,

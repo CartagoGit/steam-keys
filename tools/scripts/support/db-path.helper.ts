@@ -15,7 +15,7 @@
  * donde lived la base antes del modo portable y donde se queda si el
  * ejecutable se instala en un sitio sin permisos de escritura.
  */
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { homedir, platform } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -107,10 +107,4 @@ export function devDatabasePath(): string {
   if (forzado !== undefined && forzado !== '') return resolve(forzado);
 
   return join(DEV_DIR, DEV_DB_FILE_NAME);
-}
-
-/** Crea la carpeta de la base de datos de descarte si no existe. */
-export function ensureDevDir(): string {
-  mkdirSync(DEV_DIR, { recursive: true });
-  return DEV_DIR;
 }

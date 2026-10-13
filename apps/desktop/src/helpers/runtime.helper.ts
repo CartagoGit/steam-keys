@@ -49,7 +49,7 @@ export function isTauri(): boolean {
 }
 
 /** `true` si hay un motor real sobre el que trabajar (no `localStorage`). */
-export function isDevBridge(): boolean {
+function isDevBridge(): boolean {
   if (typeof window === 'undefined') return false;
   if (!import.meta.env.DEV) return false;
 

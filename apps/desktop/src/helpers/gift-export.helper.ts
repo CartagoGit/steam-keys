@@ -26,7 +26,7 @@ import type { IGameKey } from '@/contracts';
  */
 
 /** Nombre del fichero que se genera, sin extension. */
-export const GIFT_FILE_STEM = 'claves-para-regalar';
+const GIFT_FILE_STEM = 'claves-para-regalar';
 
 /** Una clave selectada, en el formato que va al TXT. */
 export interface IGiftEntry {

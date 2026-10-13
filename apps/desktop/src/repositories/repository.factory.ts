@@ -1,6 +1,5 @@
 import { MemoryGameKeyRepository } from '@/repositories/memory-game-key.repository';
 import { SqliteGameKeyRepository } from '@/repositories/sqlite-game-key.repository';
-import { tauriDatabaseClient } from '@/services/tauri-database.service';
 import { getStorageMode, StorageMode } from '@/helpers/runtime.helper';
 import type { IDatabaseClient, IGameKeyRepository } from '@/contracts';
 
@@ -89,6 +88,19 @@ async function crearCliente(modo: StorageMode): Promise<IDatabaseClient> {
 
   switch (modo) {
     case StorageMode.Tauri: {
+      /*
+       * Import dinamico, como los otros dos modos, y no importacion fija.
+       *
+       * El cliente de Tauri arrastra `@tauri-apps/plugin-sql`, que solo
+       * existe dentro de la ventana nativa. Con el import estatico, abrir la
+       * interfaz en el navegador cargaba tambien el plugin de Tauri —para no
+       * usar nunca— y `repositories/`, que solo puede mirar hacia abajo, tenia
+       * una arista hacia `services/`. Ahora los tres modos se resuelven igual.
+       */
+      const { tauriDatabaseClient } = await import(
+        '@/services/tauri-database.service'
+      );
+
       cliente = tauriDatabaseClient;
       break;
     }

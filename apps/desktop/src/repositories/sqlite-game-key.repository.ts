@@ -1,8 +1,11 @@
-import { mapRowToGameKey, touchTimestamp } from '@/helpers/map-row.helper';
+import { mapRowToGameKey } from '@/helpers/map-row.helper';
+import { resumenDeImportacion } from '@/helpers/resumen-importacion.helper';
+import { nowSqliteTimestamp } from '@/helpers/format-date.helper';
 import { gameKeyInsertStatement, sqlPlaceholders } from '@/helpers/sql.helper';
 import {
   keyFingerprint,
   normalizeKey,
+  parseTags,
   serializeTags,
 } from '@/helpers/normalize-text.helper';
 import { GAME_KEY_COLUMNS, KeyPlatform, KeySource, KeyStatus, TABLE_GAME_KEYS, TABLE_TAGS, cleanTag, type IDatabaseClient, type IGameKey, type IGameKeyDraft, type IGameKeyInput, type IGameKeyRepository, type IGameKeyRow, type IImportRow, type IImportSummary, type ITagRow } from '@/contracts';
@@ -42,7 +45,7 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
 
   async insert(input: IGameKeyInput): Promise<IGameKey> {
     const keyValue = normalizeKey(input.keyValue);
-    const ahora = touchTimestamp();
+    const ahora = nowSqliteTimestamp();
 
     // `created_at` y `updated_at` se numeran por separado aunque valgan lo
     // mismo. Antes compartian marcador (`$11, $11`), que es el truco que hizo
@@ -93,7 +96,7 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
         draft.note,
         serializeTags(draft.tags),
         draft.addedOn,
-        touchTimestamp(),
+        nowSqliteTimestamp(),
         id,
       ],
     );
@@ -118,7 +121,7 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
   async setStatus(id: number, status: KeyStatus): Promise<void> {
     await this.db.execute(
       `UPDATE ${TABLE_GAME_KEYS} SET status = $1, updated_at = $2 WHERE id = $3`,
-      [status, touchTimestamp(), id],
+      [status, nowSqliteTimestamp(), id],
     );
   }
 
@@ -138,7 +141,7 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
 
     await this.db.execute(
       `UPDATE ${TABLE_GAME_KEYS} SET status = $1, updated_at = $2 WHERE id IN (${placeholders})`,
-      [status, touchTimestamp(), ...ids],
+      [status, nowSqliteTimestamp(), ...ids],
     );
   }
 
@@ -174,7 +177,7 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
         WHERE id IN (${idPlaceholders})`,
       [
         KeyStatus.Gifted,
-        touchTimestamp(),
+        nowSqliteTimestamp(),
         ...ids,
         ...entries.map((entry) => entry.giftedTo),
       ],
@@ -184,7 +187,7 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
   async markUsed(id: number, usedAt?: string): Promise<void> {
     await this.db.execute(
       `UPDATE ${TABLE_GAME_KEYS} SET last_used_at = $1, updated_at = $2 WHERE id = $3`,
-      [usedAt ?? touchTimestamp(), touchTimestamp(), id],
+      [usedAt ?? nowSqliteTimestamp(), nowSqliteTimestamp(), id],
     );
   }
 
@@ -209,7 +212,7 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
 
     await this.db.execute(
       `UPDATE ${TABLE_GAME_KEYS} SET tags = $1, updated_at = $2 WHERE id IN (${placeholders})`,
-      [serializeTags(tags), touchTimestamp(), ...ids],
+      [serializeTags(tags), nowSqliteTimestamp(), ...ids],
     );
   }
 
@@ -218,7 +221,7 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
   ): Promise<void> {
     if (asignaciones.length === 0) return;
 
-    const ahora = touchTimestamp();
+    const ahora = nowSqliteTimestamp();
 
     /**
      * En transaccion, no en un bucle suelto.
@@ -314,13 +317,12 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
         [nombre],
       );
 
-      const ahora = touchTimestamp();
+      const ahora = nowSqliteTimestamp();
 
       for (const fila of marcadas) {
-        const quedan = (fila.tags ?? '')
-          .split(',')
-          .map((tag) => tag.trim())
-          .filter((tag) => tag.length > 0 && tag !== nombre);
+        // `parseTags` es el que deserializa, no una copia suya: el filtro de
+        // lo que se va lo pone este metodo, no el lector.
+        const quedan = parseTags(fila.tags).filter((tag) => tag !== nombre);
 
         await this.db.execute(
           `UPDATE ${TABLE_GAME_KEYS} SET tags = $1, updated_at = $2 WHERE id = $3`,
@@ -375,13 +377,12 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
         [actual, nuevo],
       );
 
-      const ahora = touchTimestamp();
+      const ahora = nowSqliteTimestamp();
 
       for (const fila of afectadas) {
-        const quedan = (fila.tags ?? '')
-          .split(',')
-          .map((tag) => tag.trim())
-          .filter((tag) => tag.length > 0 && tag !== actual && tag !== nuevo);
+        const quedan = parseTags(fila.tags).filter(
+          (tag) => tag !== actual && tag !== nuevo,
+        );
 
         await this.db.execute(
           `UPDATE ${TABLE_GAME_KEYS} SET tags = $1, updated_at = $2 WHERE id = $3`,
@@ -567,7 +568,7 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
       }
       existing.add(fingerprint);
 
-      const ahora = touchTimestamp();
+      const ahora = nowSqliteTimestamp();
       const affected = await this.db.execute(gameKeyInsertStatement(true), [
         row.title,
         normalizeKey(row.keyValue),
@@ -587,14 +588,6 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
       inserted += affected;
     }
 
-    return {
-      inserted,
-      skipped: rows.length - inserted,
-      duplicates: alreadyInDb,
-      gifted: rows.filter((row) => row.status === KeyStatus.Gifted).length,
-      available: rows.filter((row) => row.status === KeyStatus.Available).length,
-      issues: 0,
-      alreadyInDb,
-    };
+    return resumenDeImportacion(rows, inserted, alreadyInDb);
   }
 }

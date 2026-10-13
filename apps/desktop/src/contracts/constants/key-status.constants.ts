@@ -40,7 +40,7 @@ export interface IStatusMetaResuelta {
  * Cada tema declara sus propios tonos de estado en `styles/index.css`, asi que
  * aqui solo se dice que papel juega cada estado y el color lo pone el tema.
  */
-export const KEY_STATUS_META: Readonly<Record<KeyStatus, IStatusMeta>> = Object.freeze({
+const KEY_STATUS_META: Readonly<Record<KeyStatus, IStatusMeta>> = Object.freeze({
   [KeyStatus.Available]: {
     labelKey: 'status.available',
     hintKey: 'status.hint.available',

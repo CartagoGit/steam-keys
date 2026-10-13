@@ -1,5 +1,6 @@
-import { KeyPlatform, KeySource, KeyStatus, STORAGE_KEY_PREFIX, type IGameKey, type IGameKeyDraft, type IGameKeyInput, type IGameKeyRepository, type IImportRow, type IImportSummary, type ITagRow } from '@/contracts';
-import { keyFingerprint, normalizeKey, parseTags, serializeTags } from '@/helpers/normalize-text.helper';
+import { KeyPlatform, KeySource, KeyStatus, STORAGE_KEY_PREFIX, cleanTag, type IGameKey, type IGameKeyDraft, type IGameKeyInput, type IGameKeyRepository, type IImportRow, type IImportSummary, type ITagRow } from '@/contracts';
+import { resumenDeImportacion } from '@/helpers/resumen-importacion.helper';
+import { keyFingerprint, normalizeKey, parseTags } from '@/helpers/normalize-text.helper';
 import { nowSqliteTimestamp } from '@/helpers/format-date.helper';
 
 /**
@@ -31,8 +32,28 @@ export class MemoryGameKeyRepository implements IGameKeyRepository {
     this.syncCatalogo();
   }
 
+  /**
+   * Las claves, en el mismo orden que devuelve SQLite.
+   *
+   * El de SQLite es `COALESCE(added_on, created_at) DESC, title ASC`: primero
+   * lo mas reciente, y dentro de lo mas reciente el titulo. Aqui solo se
+   * ordenaba por titulo, asi que las dos implementaciones del mismo contrato
+   * devolvian la lista en orden distinto, y `bun run dev` no se parecia a la
+   * app de escritorio en la unica consulta de la que depende toda la vista.
+   *
+   * El desempate por `id` no es un adorno: dos claves del mismo juego tienen
+   * el mismo titulo y la misma fecha, y sin el su orden cambia entre
+   * ejecuciones. Un orden que no se puede repetir deja de ser un orden.
+   */
   async listAll(): Promise<readonly IGameKey[]> {
-    return [...this.keys].sort((a, b) => a.title.localeCompare(b.title, 'es'));
+    const fecha = (clave: IGameKey): string => clave.addedOn ?? clave.createdAt;
+
+    return [...this.keys].sort(
+      (a, b) =>
+        fecha(b).localeCompare(fecha(a)) ||
+        a.title.localeCompare(b.title, 'es') ||
+        a.id - b.id,
+    );
   }
 
   async getById(id: number): Promise<IGameKey | null> {
@@ -196,13 +217,23 @@ export class MemoryGameKeyRepository implements IGameKeyRepository {
    * tenga, y sin esta vuelta serian inelegibles. En SQLite lo hace
    * `syncTagsFromKeys()` —que ademas ya recibe las claves, porque aqui estan
    * en memoria—; se hace de golpe porque no hay nada mas que sincronizar.
+   *
+   * Normaliza con `cleanTag`, **igual que SQLite**, y no con un `trim` suelto.
+   * La diferencia no es academica: sin normalizar, «Cumplidos» y «cumplidos»
+   * son dos entradas distintas del catalogo, y entonces la etiqueta que
+   * alguien escribio con mayuscula no se encuentra ni al borrarla ni al
+   * renombrarla ni al cambiarle el color. Son dos etiquetas que significa lo
+   * mismo, y el filtro se queda sin encontrar ninguna. Es el mismo fallo que
+   * Ese fallo se arreglo en SQLite y se seguia haciendo en el navegador: lo
+   * que se remataba en una base de datos, aqui no, y lo unico que se notaba
+   * era que en el navegador unos botones no hacian nada.
    */
   private syncCatalogo(): void {
     const vistas = new Set<string>();
 
     for (const clave of this.keys) {
       for (const tag of clave.tags) {
-        const limpia = tag.trim();
+        const limpia = cleanTag(tag);
 
         if (limpia.length > 0) vistas.add(limpia);
       }
@@ -379,15 +410,7 @@ export class MemoryGameKeyRepository implements IGameKeyRepository {
 
     persist(this.keys);
 
-    return {
-      inserted,
-      skipped: rows.length - inserted,
-      duplicates: alreadyInDb,
-      gifted: rows.filter((row) => row.status === KeyStatus.Gifted).length,
-      available: rows.filter((row) => row.status === KeyStatus.Available).length,
-      issues: 0,
-      alreadyInDb,
-    };
+    return resumenDeImportacion(rows, inserted, alreadyInDb);
   }
 }
 
@@ -490,5 +513,3 @@ function nextId(): number {
   return Date.now() + Math.floor(Math.random() * 1000);
 }
 
-/** Tags en texto plano, reutilizado por el exportador. */
-export { serializeTags };
