@@ -27,14 +27,14 @@ import { Toolbar } from './components/toolbar.component';
 import { AppView, DEFAULT_VIEW, KEY_STATUS_VALUES, KeyPlatform, KeyScope, KeySort, KeyStatus, PAGE_SIZE, mergeTags, type AppLocale, type IAppSettings, type IGameKey, type IGameKeyDraft, type IImportSummary, type IKeyFilter, type ISteamOwnedGame, type ITag, type SteamAccountStatus, type TranslationArgs, type Translator } from '@/contracts';
 import { computeStats,
   emptyFilter, filterKeys, sortKeys } from '@/helpers/filter-keys.helper';
-import { resumenPie } from '@/helpers/resumen-pie.helper';
+import { summarizeKeys } from '@/helpers/keys-summary.helper';
 import { analyzeSelection, claveGrupo, isGiftable, podarSeleccion, resumenPorTitulo, type SelectAction } from '@/helpers/selection.helper';
 import { useKeepMounted } from '@/helpers/use-exit-animation.helper';
 import { useShortcuts } from '@/helpers/use-shortcuts.helper';
 import { useLoading, type TConTiempo } from '@/helpers/use-loading.helper';
 import { useArranque } from '@/helpers/use-arranque.helper';
 import { applyTheme } from '@/helpers/runtime.helper';
-import { etiquetasComunes } from '@/helpers/tags.helper';
+import { commonTags } from '@/helpers/tags.helper';
 import { useToasts } from '@/helpers/use-toasts.helper';
 import { borradorDe, useUndo, type IUndoEntry } from '@/helpers/undo.helper';
 import { gameKeyService, DuplicateKeyError } from '@/services/game-key.service';
@@ -883,7 +883,7 @@ export function App() {
    * que veo, cuantas hay de cada cosa?»— y con el recuento de arriba diria lo
    * mismo siempre: el numero entero, sin relacion con lo que se esta mirando.
    */
-  const resumen = useMemo(() => resumenPie(visible), [visible]);
+  const summary = useMemo(() => summarizeKeys(visible), [visible]);
   const page = useMemo(() => visible.slice(0, PAGE_SIZE), [visible]);
 
   /**
@@ -2208,7 +2208,7 @@ export function App() {
         vista={vista}
         visibleCount={visible.length}
         totalCount={keys.length}
-        resumen={resumen}
+        summary={summary}
         cuenta={cuenta}
         undo={deshacer.entrada}
         filter={filter}
@@ -2346,7 +2346,7 @@ export function App() {
         <TagsDialog
           open={tagsOpen}
           entries={selectedKeys}
-          iniciales={etiquetasComunes(selectedKeys)}
+          iniciales={commonTags(selectedKeys)}
           plataformas={[...new Set(selectedKeys.map((key) => key.platform))]}
           catalogo={tags}
           onCreate={crearEtiqueta}

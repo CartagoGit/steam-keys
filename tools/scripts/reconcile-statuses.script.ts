@@ -26,11 +26,11 @@ import { maskKey } from '@/helpers/mask-key.helper';
 import { parseTags } from '@/helpers/normalize-text.helper';
 import { TABLE_GAME_KEYS } from '@/contracts/constants/db-schema.constants';
 import {
-  juntarEtiquetas,
-  reconciliar,
-  resumenDeCambios,
-} from '@/helpers/reconciliar.helper';
-import type { IChange, IFilaReconciliable } from '@/helpers/reconciliar.helper';
+  mergeTagsInto,
+  reconcileRows,
+  summarizeChanges,
+} from '@/helpers/reconcile.helper';
+import type { IChange, IReconcilableRow } from '@/helpers/reconcile.helper';
 import { databasePath } from './support/db-path.helper';
 
 const args = process.argv.slice(2);
@@ -63,14 +63,14 @@ const db = new Database(DB_PATH);
 const parsed = parseLegacyTxt(raw);
 
 const rows = db
-  .query<IFilaReconciliable, []>(
+  .query<IReconcilableRow, []>(
     `SELECT id, title, key_value, status, tags FROM ${TABLE_GAME_KEYS}`,
   )
   .all();
 
 // Toda la decision —que cambia, cuales no, y como se cuenta— esta en el
 // helper, que esta probado. Aqui solo se ejecuta.
-const { cambios, sinPareja } = reconciliar(rows, parsed.entries);
+const { cambios, sinPareja } = reconcileRows(rows, parsed.entries);
 
 console.log('=====================================================');
 console.log(' Reconciliacion de estados con el TXT original');
@@ -86,7 +86,7 @@ console.log('');
 
 if (cambios.length > 0) {
   console.log('Cambios por tipo:');
-  console.log(resumenDeCambios(cambios));
+  console.log(summarizeChanges(cambios));
   console.log('');
 
   if (args.includes('--verbose') || args.includes('-v')) {
@@ -137,7 +137,7 @@ const aplicar = db.transaction((lista: readonly IChange[]) => {
 
     // Se anaden a las que ya habia, nunca se reemplazan: las que se hayan
     // puesto a mano se quedan.
-    cambiar.run(cambio.after, juntarEtiquetas(actuales, cambio.tags).join(','), cambio.id);
+    cambiar.run(cambio.after, mergeTagsInto(actuales, cambio.tags).join(','), cambio.id);
   }
 });
 

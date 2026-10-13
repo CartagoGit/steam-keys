@@ -21,7 +21,7 @@ import { keyFingerprint, parseTags } from './normalize-text.helper';
 type IParseada = Pick<IParsedEntry, 'status' | 'tags'>;
 
 /** Una fila de la base de datos con lo justo para saber que cambiar. */
-export interface IFilaReconciliable {
+export interface IReconcilableRow {
   id: number;
   title: string;
   key_value: string;
@@ -40,10 +40,10 @@ export interface IChange {
 }
 
 /** Lo que hay que hacer, y lo que se deja como esta. */
-export interface IReconciliacion {
+export interface IReconciliation {
   cambios: readonly IChange[];
   /** Claves de la base que no estan en el TXT: se dejan como estan. */
-  sinPareja: readonly IFilaReconciliable[];
+  sinPareja: readonly IReconcilableRow[];
 }
 
 /**
@@ -58,10 +58,10 @@ export interface IReconciliacion {
  * alrededor, y comparar literales daria cero parejas en cuanto variase el
  * formato.
  */
-export function reconciliar(
-  filas: readonly IFilaReconciliable[],
+export function reconcileRows(
+  filas: readonly IReconcilableRow[],
   entradas: readonly IParsedEntry[],
-): IReconciliacion {
+): IReconciliation {
   const porClave = new Map<string, IParseada>();
 
   for (const entrada of entradas) {
@@ -72,7 +72,7 @@ export function reconciliar(
   }
 
   const cambios: IChange[] = [];
-  const sinPareja: IFilaReconciliable[] = [];
+  const sinPareja: IReconcilableRow[] = [];
 
   for (const fila of filas) {
     const delTxt = porClave.get(keyFingerprint(fila.key_value));
@@ -125,13 +125,13 @@ export function reconciliar(
  * Junta las etiquetas que ya tiene la clave con las nuevas.
  *
  * Las nuevas se **anaden**, nunca se reemplazan: las que se hayan puesto a
- * mano se quedan. Por eso esto vive fuera de `reconciliar` — que calcula los
+ * mano se quedan. Por eso esto vive fuera de `reconcileRows` — que calcula los
  * cambios sin tocar nada— y lo llama el script justo antes de escribir, donde
  * vuelve a leer las etiquetas del propio momento: entre el calculo y la
  * escritura la clave puede haber cambiado, y usar las de entonces escribiria
  * encima de algo que ya no era lo que se leyo.
  */
-export function juntarEtiquetas(
+export function mergeTagsInto(
   actuales: readonly string[],
   nuevas: readonly string[],
 ): string[] {
@@ -153,7 +153,7 @@ export function juntarEtiquetas(
  * problemas: primero el patron que mas veces pasa, que es el que mas probable
  * sea un fallo del parser y no de los datos.
  */
-export function resumenDeCambios(
+export function summarizeChanges(
   cambios: readonly Pick<IChange, 'before' | 'after'>[],
 ): string {
   const cuenta = new Map<string, number>();

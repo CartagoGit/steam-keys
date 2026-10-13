@@ -201,7 +201,7 @@ export function sortKeys(
  * contarlos sobre lo ya filtrado haria que elegir «Gifted» dejara solo las
  * regaladas y las demas opciones aparecieran a cero.
  *
- * Para lo que se ve **con los filtros puestos** esta `resumenPie`, en
+ * Para lo que se ve **con los filtros puestos** esta `summarizeKeys`, en
  * `resumen-pie.helper.ts`.
  */
 export function computeStats(

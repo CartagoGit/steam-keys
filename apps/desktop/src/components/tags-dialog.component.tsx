@@ -94,7 +94,7 @@ export function TagsDialog({
    * que hace destructivo al dialogo.
    *
    * La transicion se mira en `open` y no en la identidad de `iniciales` a
-   * proposito: `iniciales` es `etiquetasComunes(selectedKeys)`, un array
+   * proposito: `iniciales` es `commonTags(selectedKeys)`, un array
    * nuevo en cada repintado, asi que un efecto que dependiera de el
    * repondria las etiquetas con cada cambio de idioma y se comeria lo que
    * el usuario hubiera marcado. Mientras el dialogo esta abierto la

@@ -3,7 +3,7 @@ import { useCallback, useRef, useState } from 'react';
 import type { IToast, ToastTone } from '@/contracts';
 
 /** Cuanto dura un aviso antes de quitarse solo. */
-const DURACION_AVISO = 4200;
+const TOAST_DURATION = 4200;
 
 export interface IUseToasts {
   /** Los avisos que hay en pantalla, para el `ToastStack`. */
@@ -53,7 +53,7 @@ export function useToasts(): IUseToasts {
 
     setTimeout(() => {
       setToasts((current) => current.filter((toast) => toast.id !== id));
-    }, DURACION_AVISO);
+    }, TOAST_DURATION);
   }, []);
 
   return { toasts, notify, dismiss };

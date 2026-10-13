@@ -29,7 +29,7 @@ import {
   type TranslationKey,
 } from '@/contracts';
 import type { IUndoEntry } from '@/helpers/undo.helper';
-import { apagarFiltro, coincide, type IResumenPie, type ITrozoPie } from '@/helpers/resumen-pie.helper';
+import { clearFilter, matchesFilter, type IKeysSummary, type IFooterSegment } from '@/helpers/keys-summary.helper';
 
 export interface IAppFooterProps {
   vista: AppView;
@@ -45,11 +45,11 @@ export interface IAppFooterProps {
    * de cada tipo» y, mas alla de los estados, cuantas son de juegos repetidos,
    * de que plataformas y para cuanta gente.
    */
-  resumen: IResumenPie;
+  summary: IKeysSummary;
   cuenta: SteamAccountStatus;
   /** Ultima accion que se puede deshacer, o `null`. */
   undo: IUndoEntry | null;
-  /** El filtro de ahora, para marcar que tramos estan ya puestos. */
+  /** El filtro de ahora, para marcar que segments estan ya puestos. */
   filter: IKeyFilter;
   /** Cambia el filtro. Los tramos del pie la usan como botones. */
   onFilter: (changes: Partial<IKeyFilter>) => void;
@@ -58,14 +58,14 @@ export interface IAppFooterProps {
 }
 
 /**
- * Los contadores de `IResumenPie` que son un estado de la clave.
+ * Los contadores de `IKeysSummary` que son un estado de la clave.
  *
- * Es un tipo y no un `keyof IResumenPie` entero porque `IResumenPie` tambien
+ * Es un tipo y no un `keyof IKeysSummary` entero porque `IKeysSummary` tambien
  * tiene `total`, `titulos` o `destinatarios`, que **no** son estados: dejar
- * que `keyof` entrara cualquiera haria que un `resumen[campo]` mal escrito
+ * que `keyof` entrara cualquiera haria que un `summary[campo]` mal escrito
  * compilase y saliese con la cuenta equivocada.
  */
-type TCampoEstado = 'available' | 'gifted' | 'redeemed' | 'expired';
+type TStatusField = 'available' | 'gifted' | 'redeemed' | 'expired';
 
 /**
  * Los estados que salen en el pie, y de donde sale cada numero y cada texto.
@@ -80,14 +80,14 @@ type TCampoEstado = 'available' | 'gifted' | 'redeemed' | 'expired';
  * El orden es el de `KEY_STATUS_VALUES` menos `Unknown`, y el texto de cada uno
  * sale de `footer.<campo>`, que ya existe para el recuento con numero.
  */
-const TRAMOS_DE_ESTADO = [
+const STATUS_SEGMENTS = [
   { estado: KeyStatus.Available, campo: 'available', clave: 'footer.available' },
   { estado: KeyStatus.Gifted, campo: 'gifted', clave: 'footer.gifted' },
   { estado: KeyStatus.Redeemed, campo: 'redeemed', clave: 'footer.redeemed' },
   { estado: KeyStatus.Expired, campo: 'expired', clave: 'footer.expired' },
 ] as const satisfies readonly {
   estado: KeyStatus;
-  campo: TCampoEstado;
+  campo: TStatusField;
   clave: TranslationKey;
 }[];
 
@@ -103,7 +103,7 @@ export function AppFooter({
   vista,
   visibleCount,
   totalCount,
-  resumen,
+  summary,
   cuenta,
   undo,
   filter,
@@ -119,24 +119,24 @@ export function AppFooter({
    * Los tramos del pie, en el orden en que se leen de izquierda a derecha.
    *
    * Es una lista y no JSX suelto porque tienen que ser **comparables**: el
-   * boton se enciende con `coincide(filter, tramo.filtro)`, y para eso el
+   * boton se enciende con `matchesFilter(filter, segment.filtro)`, y para eso el
    * filtro tiene que ser un dato al que se pueda mirar, no algo que se
    * escriba de nuevo dentro del onclick. Con JSX suelto cada boton
    * compararia el filtro con una condicion distinta escrita a mano y
-   * bastaria con que una se equivocara para que un tramo quedara
+   * bastaria con que una se equivocara para que un segment quedara
    * encendido sin estar puesto.
    *
    * Y van sin los que valen cero. «0 repetidas», «0 para 0 personas» y «otras
    * plataformas: 0» ocupan sitio para decir que no hay ninguna, y lo que se
    * pierde de vista es justamente el dato raro: las 47 claves repetidas.
    */
-  const tramos = useMemo<ITrozoPie[]>(() => {
+  const segments = useMemo<IFooterSegment[]>(() => {
     if (vista === AppView.Games) return [];
 
-    const trozos: ITrozoPie[] = [];
+    const collected: IFooterSegment[] = [];
 
     /*
-     * Enciende un tramo y resuelve lo que hay que mandarle a `patchFilter`.
+     * Enciende un segment y resuelve lo que hay que mandarle a `patchFilter`.
      *
      * Lo del return es lo que hace que el boton sea de poner y quitar: si ya
      * esta puesto, devuelve el filtro **vaciado** —`{ statuses: [] }` en vez de
@@ -146,15 +146,15 @@ export function AppFooter({
      * valor no cambia el filtro: el boton quedaria encendido y sin manera de
      * apagarlo, que es la peor forma de boton.
      */
-    const anade = (texto: string, filtro: Partial<IKeyFilter> | null): void => {
-      const activo = filtro !== null && coincide(filter, filtro);
+    const addSegment = (texto: string, filtro: Partial<IKeyFilter> | null): void => {
+      const activo = filtro !== null && matchesFilter(filter, filtro);
 
-      // Un tramo sin filtro es solo informacion: no hay nada que poner ni que
+      // Un segment sin filtro es solo informacion: no hay nada que poner ni que
       // quitar, y `{}` es lo que hace que al pulsarlo no se mande nada en vez
       // de reponer un filtro que no existe.
-      const cambios = filtro === null ? {} : (activo ? apagarFiltro(filtro) : filtro);
+      const cambios = filtro === null ? {} : (activo ? clearFilter(filtro) : filtro);
 
-      trozos.push({ texto, activo, pulsable: filtro !== null, cambios });
+      collected.push({ texto, activo, pulsable: filtro !== null, cambios });
     };
 
     /*
@@ -162,7 +162,7 @@ export function AppFooter({
      *
      * Con el ambito en «solo disponibles», que es el de por defecto, `filterKeys`
      * **ignora** `statuses` y ademas todas las claves que se ven ya estan
-     * disponibles: el unico tramo que sale es «3 disponibles» y no puede hacer
+     * disponibles: el unico segment que sale es «3 disponibles» y no puede hacer
      * nada. Antes se les mandaba el ambito a «todos» al pulsarlos para que
      * signieran algo, pero al apagarlos el ambito se quedaba en «todos» y la
      * lista se quedaba mostrando mas claves de las que habia: pulsar el boton
@@ -174,14 +174,14 @@ export function AppFooter({
      * «Todos»— que es donde vive esa decision.
      */
     if (filter.scope === KeyScope.All) {
-      for (const { estado, campo, clave } of TRAMOS_DE_ESTADO) {
-        const cuenta = resumen[campo];
+      for (const { estado, campo, clave } of STATUS_SEGMENTS) {
+        const cuenta = summary[campo];
 
-        if (cuenta > 0) anade(t(clave, [cuenta]), { statuses: [estado] });
+        if (cuenta > 0) addSegment(t(clave, [cuenta]), { statuses: [estado] });
       }
     }
 
-    if (resumen.addOns > 0) anade(t('footer.addOns', [resumen.addOns]), { kind: KeyKind.Dlc });
+    if (summary.addOns > 0) addSegment(t('footer.addOns', [summary.addOns]), { kind: KeyKind.Dlc });
 
     /*
      * Los juegos, y las claves repetidas.
@@ -196,10 +196,10 @@ export function AppFooter({
      * ademas invites a creerse que ya se esta mirando una lista sin
      * duplicados cuando lo que pasa es que no hay.
      */
-    if (resumen.titulos > 0) {
-      anade(
-        t(pluralKey(resumen.titulos, 'footer.tituloOne', 'footer.tituloMany'), [
-          resumen.titulos,
+    if (summary.titulos > 0) {
+      addSegment(
+        t(pluralKey(summary.titulos, 'footer.tituloOne', 'footer.tituloMany'), [
+          summary.titulos,
         ]),
         { kind: KeyKind.Games },
       );
@@ -219,19 +219,19 @@ export function AppFooter({
      * Se enseñan igual porque el dato es bueno: que haya 47 claves repetidas
      * o 3 personas es justo lo que no se ve en ninguna parte de la pantalla.
      */
-    if (resumen.duplicadas > 0) {
-      anade(
-        t(pluralKey(resumen.duplicadas, 'footer.repetidaOne', 'footer.repetidaMany'), [
-          resumen.duplicadas,
+    if (summary.duplicadas > 0) {
+      addSegment(
+        t(pluralKey(summary.duplicadas, 'footer.repetidaOne', 'footer.repetidaMany'), [
+          summary.duplicadas,
         ]),
         null,
       );
     }
 
-    if (resumen.destinatarios > 0) {
-      anade(
-        t(pluralKey(resumen.destinatarios, 'footer.paraUna', 'footer.paraVarias'), [
-          resumen.destinatarios,
+    if (summary.destinatarios > 0) {
+      addSegment(
+        t(pluralKey(summary.destinatarios, 'footer.paraUna', 'footer.paraVarias'), [
+          summary.destinatarios,
         ]),
         null,
       );
@@ -247,17 +247,17 @@ export function AppFooter({
      * de saber que estan.
      */
     for (const plataforma of KEY_PLATFORM_VALUES) {
-      const cuantas = resumen.porPlataforma[plataforma] ?? 0;
+      const cuantas = summary.porPlataforma[plataforma] ?? 0;
 
       if (cuantas === 0 || plataforma === KeyPlatform.Steam) continue;
 
-      anade(`${cuantas} ${platformLabel(plataforma, TRANSLATIONS[locale])}`, {
+      addSegment(`${cuantas} ${platformLabel(plataforma, TRANSLATIONS[locale])}`, {
         platforms: [plataforma],
       });
     }
 
-    return trozos;
-  }, [vista, resumen, filter, t, locale]);
+    return collected;
+  }, [vista, summary, filter, t, locale]);
 
   return (
     /*
@@ -302,20 +302,20 @@ export function AppFooter({
 
               Cada uno lleva su punto delante porque son trozos sueltos de una
               linea mas larga y sin el separador se leerian como una cifra mal
-              puesta. Y van construidos en `tramos`, que ya ha dejado fuera lo
-              que vale cero: «· 0 regaladas» ocupa sitio para decir que no hay
+              puesta. Y van construidos en `segments`, que ya ha dejado fuera lo
+              que vale cero: «0 regaladas» ocupa sitio para decir que no hay
               ninguna, y con cuatro estados mas los DLC y las repetidas son
               justo el dato que se pierde de vista.
             */}
-            {tramos.map((tramo, indice) => (
-              <Fragment key={`${tramo.texto}-${indice}`}>
+            {segments.map((segment, indice) => (
+              <Fragment key={`${segment.texto}-${indice}`}>
                 {indice > 0 ? (
                   <span className="shrink-0 text-t5" aria-hidden="true">
                     ·
                   </span>
                 ) : null}
 
-                {tramo.pulsable ? (
+                {segment.pulsable ? (
                   /*
                     El tramo con filtro es un boton.
                     *
@@ -325,25 +325,25 @@ export function AppFooter({
                     * dos operaciones distintas y si se mandara siempre el
                     * filtro crudo el boton encendido no se podria apagar.
                     *
-                    * El estado lo decide `coincide` y no una comparacion escrita
+                    * El estado lo decide `matchesFilter` y no una comparacion escrita
                     * aqui, para que el boton no pueda decir «estoy encendido»
                     * cuando el filtro que hay puesto es otro.
                     */
                   <button
                     type="button"
-                    onClick={() => onFilter(tramo.cambios)}
+                    onClick={() => onFilter(segment.cambios)}
                     title={t('footer.verTodo')}
-                    aria-pressed={tramo.activo}
+                    aria-pressed={segment.activo}
                     className={[
                       'shrink-0 rounded px-0.5 transition hover:bg-hover hover:text-t2',
-                      tramo.activo ? 'font-semibold text-t2 underline decoration-dotted underline-offset-2' : '',
+                      segment.activo ? 'font-semibold text-t2 underline decoration-dotted underline-offset-2' : '',
                     ].join(' ')}
                   >
-                    {tramo.texto}
+                    {segment.texto}
                   </button>
                 ) : (
                   // Sin filtro no hay nada que pulsar: solo es informacion.
-                  <span className="shrink-0">{tramo.texto}</span>
+                  <span className="shrink-0">{segment.texto}</span>
                 )}
               </Fragment>
             ))}

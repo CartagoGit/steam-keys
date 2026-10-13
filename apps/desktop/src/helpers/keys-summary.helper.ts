@@ -23,7 +23,7 @@ import { KeyKind, KeyPlatform, KeyStatus, type IGameKey, type IKeyFilter } from 
  * - **duplicadas**: las claves cuyo titulo aparece mas de una vez. Es el
  *   complemento de `titulos` y se enseña solo si hay alguna.
  */
-export interface IResumenPie {
+export interface IKeysSummary {
   /** Cuantas claves se ven. */
   total: number;
   available: number;
@@ -47,12 +47,12 @@ export interface IResumenPie {
 /**
  * Un recuento con todo a cero, de donde sale el de verdad.
  *
- * No se exporta: solo `resumenPie` lo necesita, para tener donde ir summing
+ * No se exporta: solo `summarizeKeys` lo necesita, para tener donde ir summing
  * sin tener que mirar si el campo ya existe antes de sumarlo. Exportarlo
  * ademas invites a que otro sitio se inventase el suyo, que es como acaba
  * un recuento con dos fuentes de verdad.
  */
-function resumenVacio(): IResumenPie {
+function emptySummary(): IKeysSummary {
   return {
     total: 0,
     available: 0,
@@ -84,8 +84,8 @@ function resumenVacio(): IResumenPie {
  * «  ana  » son la misma persona a efectos de decir para cuanta gente se
  * colecciono. Separarlas daria numeros que no cuadran con lo que se ve.
  */
-export function resumenPie(visibles: readonly IGameKey[]): IResumenPie {
-  const resumen = resumenVacio();
+export function summarizeKeys(visibles: readonly IGameKey[]): IKeysSummary {
+  const resumen = emptySummary();
 
   const titulos = new Map<string, number>();
   const personas = new Set<string>();
@@ -147,7 +147,7 @@ export function resumenPie(visibles: readonly IGameKey[]): IResumenPie {
  * es un dato y el mismo numero con filtro es una forma de mirar la
  * coleccion: «28 Guild Wars 2» no dice nada hasta que se pincha y salen las 28.
  */
-export interface ITrozoPie {
+export interface IFooterSegment {
   /** Texto ya traducido con el numero dentro. */
   texto: string;
   /** `true` si el filtro de este tramo **ya** esta puesto. */
@@ -200,7 +200,7 @@ export interface ITrozoPie {
  * el boton del pie no tiene por que deshacerlo. Lo mismo con `search` y
  * `excluir`, que ningun tramo pone.
  */
-export function apagarFiltro(filtro: Partial<IKeyFilter>): Partial<IKeyFilter> {
+export function clearFilter(filtro: Partial<IKeyFilter>): Partial<IKeyFilter> {
   const apagado: Record<string, unknown> = { ...filtro };
 
   for (const [clave, valor] of Object.entries(apagado)) {
@@ -214,11 +214,14 @@ export function apagarFiltro(filtro: Partial<IKeyFilter>): Partial<IKeyFilter> {
 /**
  * Que clave de filtro pone para el `IKeyFilter` que se le pasa.
  *
- * Vive aqui y no en el componente para que el mismo `IResumenPie` sirva tanto
+ * Vive aqui y no en el componente para que el mismo `IKeysSummary` sirva tanto
  * para pintar como para saber si un boton esta encendido, y no haya dos
  * lugares donde comprobar si algo coincide.
  */
-function coincide(actual: IKeyFilter, filtro: Partial<IKeyFilter>): boolean {
+export function matchesFilter(
+  actual: IKeyFilter,
+  filtro: Partial<IKeyFilter>,
+): boolean {
   return Object.entries(filtro).every(([clave, valor]) => {
     const suyo = (actual as unknown as Record<string, unknown>)[clave];
 
@@ -231,5 +234,3 @@ function coincide(actual: IKeyFilter, filtro: Partial<IKeyFilter>): boolean {
     return suyo === valor;
   });
 }
-
-export { coincide };

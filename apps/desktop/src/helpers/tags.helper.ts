@@ -131,7 +131,7 @@ export function nombresDe(etiquetasDe: readonly (readonly string[])[]): Map<stri
  * guardan normalizadas —ver `normalizeTag`— y por tanto dos etiquetas iguales
  * son la misma cadena.
  */
-export function etiquetasComunes(entries: readonly IGameKey[]): readonly string[] {
+export function commonTags(entries: readonly IGameKey[]): readonly string[] {
   if (entries.length === 0) return [];
 
   const [primera, ...resto] = entries;

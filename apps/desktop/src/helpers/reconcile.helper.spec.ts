@@ -7,17 +7,17 @@ import {
 } from '@/contracts';
 
 import {
-  juntarEtiquetas,
-  reconciliar,
-  resumenDeCambios,
+  mergeTagsInto,
+  reconcileRows,
+  summarizeChanges,
   type IChange,
-  type IFilaReconciliable,
-} from './reconciliar.helper';
+  type IReconcilableRow,
+} from './reconcile.helper';
 
 /**
  * Clave de mentira con la forma de las de verdad.
  *
- * El formato importa: `reconciliar` empareja por `keyFingerprint`, no por el
+ * El formato importa: `reconcileRows` empareja por `keyFingerprint`, no por el
  * texto, y un test con «A» y «B» pasaria aunque el emparejamiento estubiera
  * mal porque no habria forma de que las dos escrituras distintas dieran el
  * mismo nombre. Con claves con guiones, compararlas de otra manera —
@@ -47,7 +47,7 @@ function entrada(cambios: Partial<IParsedEntry> = {}): IParsedEntry {
 }
 
 /** Fila de la base de datos de mentira. */
-function fila(cambios: Partial<IFilaReconciliable> = {}): IFilaReconciliable {
+function fila(cambios: Partial<IReconcilableRow> = {}): IReconcilableRow {
   return {
     id: 1,
     title: 'Juego',
@@ -60,13 +60,13 @@ function fila(cambios: Partial<IFilaReconciliable> = {}): IFilaReconciliable {
 
 describe('reconciliar la base con el TXT', () => {
   test('una clave que ya coincide no genera cambio', () => {
-    const { cambios } = reconciliar([fila()], [entrada()]);
+    const { cambios } = reconcileRows([fila()], [entrada()]);
 
     expect(cambios).toEqual([]);
   });
 
   test('un estado distinto genera un cambio con el antes y el despues', () => {
-    const { cambios } = reconciliar(
+    const { cambios } = reconcileRows(
       [fila({ status: KeyStatus.Available })],
       [entrada({ status: KeyStatus.Gifted })],
     );
@@ -86,7 +86,7 @@ describe('reconciliar la base con el TXT', () => {
      * comparar estados: el parser se corrige, la clave ya estaba importada con
      * el criterio viejo, y el unico rastro del cambio son las etiquetas.
      */
-    const { cambios } = reconciliar(
+    const { cambios } = reconcileRows(
       [fila({ tags: 'regalo' })],
       [entrada({ tags: ['regalo', 'navidad'] })],
     );
@@ -102,7 +102,7 @@ describe('reconciliar la base con el TXT', () => {
   });
 
   test('una etiqueta que ya esta puesta con otra caja no se vuelve a anadir', () => {
-    const { cambios } = reconciliar(
+    const { cambios } = reconcileRows(
       [fila({ tags: 'Navidad' })],
       [entrada({ tags: ['navidad'] })],
     );
@@ -111,7 +111,7 @@ describe('reconciliar la base con el TXT', () => {
   });
 
   test('una clave que no esta en el TXT no se toca y se cuenta aparte', () => {
-    const { cambios, sinPareja } = reconciliar(
+    const { cambios, sinPareja } = reconcileRows(
       [fila({ id: 7, key_value: 'T7XbN2pLqW9mK4cR' })],
       [entrada()],
     );
@@ -126,10 +126,10 @@ describe('reconciliar la base con el TXT', () => {
      * El TXT es de 2015 y esta escrito a mano; el formato de la clave no tiene
      * por que coincidir con el que genera la app. Si el emparejamiento fuera
      * literal, cambiar el parser para entender mejor el TXT haria que
-     * `reconciliar` dejara de encontrar **todas** las claves y no tocara
+     * `reconcileRows` dejara de encontrar **todas** las claves y no tocara
      * ninguna — que es justo lo contrario de lo que se le pide.
      */
-    const { cambios, sinPareja } = reconciliar(
+    const { cambios, sinPareja } = reconcileRows(
       [fila({ status: KeyStatus.Available })],
       [entrada({ keyValue: 'mq7rt29xklzpn84', status: KeyStatus.Gifted })],
     );
@@ -139,7 +139,7 @@ describe('reconciliar la base con el TXT', () => {
   });
 
   test('las claves se emparejan una a una, no se pisan entre si', () => {
-    const { cambios, sinPareja } = reconciliar(
+    const { cambios, sinPareja } = reconcileRows(
       [
         fila({ id: 1, key_value: CLAVE_A, status: KeyStatus.Available }),
         fila({ id: 2, key_value: CLAVE_B, status: KeyStatus.Available }),
@@ -159,11 +159,11 @@ describe('reconciliar la base con el TXT', () => {
 
   test('no toca la nota ni el destinatario ni el titulo', () => {
     /*
-     * `IFilaReconciliable` ni siquiera los trae. No es que se decida no
+     * `IReconcilableRow` ni siquiera los trae. No es que se decida no
      * tocarlos: es que no hay por donde tocarlos. El TXT de 2015 no es la
      * fuente de verdad de una nota escrita hoy, y si lo fuera se perderia.
      */
-    const { cambios } = reconciliar(
+    const { cambios } = reconcileRows(
       [fila({ title: 'Lo que escribi yo' })],
       [entrada({ title: 'Como lo llama el TXT', status: KeyStatus.Gifted })],
     );
@@ -172,35 +172,35 @@ describe('reconciliar la base con el TXT', () => {
   });
 
   test('con la base y el TXT vacios no hay nada que hacer', () => {
-    expect(reconciliar([], [])).toEqual({ cambios: [], sinPareja: [] });
+    expect(reconcileRows([], [])).toEqual({ cambios: [], sinPareja: [] });
   });
 });
 
 describe('juntar etiquetas sin tirar las que ya havia', () => {
   test('las nuevas se anaden a las que ya habia', () => {
-    expect(juntarEtiquetas(['regalo'], ['navidad'])).toEqual(['regalo', 'navidad']);
+    expect(mergeTagsInto(['regalo'], ['navidad'])).toEqual(['regalo', 'navidad']);
   });
 
   test('una que ya estaba no se repite aunque venga distinta', () => {
-    expect(juntarEtiquetas(['Navidad'], ['navidad'])).toEqual(['Navidad']);
+    expect(mergeTagsInto(['Navidad'], ['navidad'])).toEqual(['Navidad']);
   });
 
   test('sin actuales sale solo las nuevas, en su orden', () => {
-    expect(juntarEtiquetas([], ['a', 'b'])).toEqual(['a', 'b']);
+    expect(mergeTagsInto([], ['a', 'b'])).toEqual(['a', 'b']);
   });
 
   test('sin nuevas se devuelve las actuales sin tocarlas', () => {
-    expect(juntarEtiquetas(['a', 'b'], [])).toEqual(['a', 'b']);
+    expect(mergeTagsInto(['a', 'b'], [])).toEqual(['a', 'b']);
   });
 
   test('las de dentro tampoco se repiten entre si', () => {
-    expect(juntarEtiquetas(['Navidad'], ['navidad', 'NAVIDAD'])).toEqual(['Navidad']);
+    expect(mergeTagsInto(['Navidad'], ['navidad', 'NAVIDAD'])).toEqual(['Navidad']);
   });
 });
 
 describe('el resumen que imprime el script', () => {
   test('agrupa por el par de estados y cuenta', () => {
-    const texto = resumenDeCambios([
+    const texto = summarizeChanges([
       { before: KeyStatus.Available, after: KeyStatus.Gifted },
       { before: KeyStatus.Available, after: KeyStatus.Gifted },
       { before: KeyStatus.Available, after: KeyStatus.Redeemed },
@@ -217,7 +217,7 @@ describe('el resumen que imprime el script', () => {
      * que mas probable sea un fallo del parser y no de los datos. Poner el
      * patron grande al final obligaria a leerlo entero para verlo.
      */
-    const texto = resumenDeCambios([
+    const texto = summarizeChanges([
       { before: KeyStatus.Available, after: KeyStatus.Redeemed },
       { before: KeyStatus.Available, after: KeyStatus.Gifted },
       { before: KeyStatus.Available, after: KeyStatus.Gifted },
@@ -228,6 +228,6 @@ describe('el resumen que imprime el script', () => {
   });
 
   test('sin cambios no imprime nada', () => {
-    expect(resumenDeCambios([])).toBe('');
+    expect(summarizeChanges([])).toBe('');
   });
 });

@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { KeyKind, KeyPlatform, KeyScope, KeySource, KeyStatus, type IGameKey, type IKeyFilter } from '@/contracts';
 
 import { emptyFilter } from './filter-keys.helper';
-import { apagarFiltro, coincide, resumenPie } from './resumen-pie.helper';
+import { clearFilter, matchesFilter, summarizeKeys } from './keys-summary.helper';
 
 /** Clave de mentira con lo que se le pase, y el resto como la app los deja. */
 function clave(id: number, cambios: Partial<IGameKey> = {}): IGameKey {
@@ -27,7 +27,7 @@ function clave(id: number, cambios: Partial<IGameKey> = {}): IGameKey {
 
 describe('lo que dice la lista que se esta mirando', () => {
   test('sin claves todos los numeros son cero', () => {
-    const resumen = resumenPie([]);
+    const resumen = summarizeKeys([]);
 
     expect(resumen.total).toBe(0);
     expect(resumen.titulos).toBe(0);
@@ -39,7 +39,7 @@ describe('lo que dice la lista que se esta mirando', () => {
   });
 
   test('cuenta cada estado por separado', () => {
-    const resumen = resumenPie([
+    const resumen = summarizeKeys([
       clave(1),
       clave(2),
       clave(3, { status: KeyStatus.Gifted, giftedTo: 'Ana' }),
@@ -62,7 +62,7 @@ describe('lo que dice la lista que se esta mirando', () => {
      * cuadrar con la suma de las partes: o cuenta como desconocido, o las
      * cuentas de abajo no suman lo mismo que el total de arriba.
      */
-    const resumen = resumenPie([clave(1, { status: 'inventado' as KeyStatus })]);
+    const resumen = summarizeKeys([clave(1, { status: 'inventado' as KeyStatus })]);
 
     expect(resumen.unknown).toBe(1);
     expect(
@@ -75,7 +75,7 @@ describe('lo que dice la lista que se esta mirando', () => {
   });
 
   test('el total siempre es la suma de los estados y de los tipos', () => {
-    const resumen = resumenPie([
+    const resumen = summarizeKeys([
       clave(1),
       clave(2, { parentTitle: 'Juego 1' }),
       clave(3, { status: KeyStatus.Gifted, giftedTo: 'Ana', parentTitle: 'Juego 1' }),
@@ -92,7 +92,7 @@ describe('lo que dice la lista que se esta mirando', () => {
   });
 
   test('los titulos se cuentan por juego, no por clave', () => {
-    const resumen = resumenPie([
+    const resumen = summarizeKeys([
       clave(1, { title: 'Portal 2' }),
       clave(2, { title: 'Portal 2', parentTitle: null }),
       clave(3, { title: 'Half-Life' }),
@@ -109,7 +109,7 @@ describe('lo que dice la lista que se esta mirando', () => {
      * normalizados —`normalize`, en `filter-keys.helper.ts`—, asi que hacer
      * aqui lo mismo es lo que evita que el pie diga una cosa y la lista otra.
      */
-    const resumen = resumenPie([
+    const resumen = summarizeKeys([
       clave(1, { title: 'Portal 2' }),
       clave(2, { title: '  portal 2  ' }),
     ]);
@@ -125,7 +125,7 @@ describe('lo que dice la lista que se esta mirando', () => {
      * arreglar. Si dijera «1 titulo repetido» habria que multiplicar para saber
      * cuantas sobran.
      */
-    const resumen = resumenPie([
+    const resumen = summarizeKeys([
       clave(1, { title: 'Portal 2' }),
       clave(2, { title: 'Portal 2' }),
       clave(3, { title: 'Portal 2' }),
@@ -137,7 +137,7 @@ describe('lo que dice la lista que se esta mirando', () => {
   });
 
   test('un titulo que sale una vez no cuenta como repetido', () => {
-    const resumen = resumenPie([
+    const resumen = summarizeKeys([
       clave(1, { title: 'A' }),
       clave(2, { title: 'B' }),
       clave(3, { title: 'C' }),
@@ -147,7 +147,7 @@ describe('lo que dice la lista que se esta mirando', () => {
   });
 
   test('los destinatarios son personas, no veces que se regaló', () => {
-    const resumen = resumenPie([
+    const resumen = summarizeKeys([
       clave(1, { status: KeyStatus.Gifted, giftedTo: 'Ana' }),
       clave(2, { status: KeyStatus.Gifted, giftedTo: 'Ana' }),
       clave(3, { status: KeyStatus.Gifted, giftedTo: 'Luis' }),
@@ -158,7 +158,7 @@ describe('lo que dice la lista que se esta mirando', () => {
   });
 
   test('la misma persona escrita distinto sigue siendo la misma', () => {
-    const resumen = resumenPie([
+    const resumen = summarizeKeys([
       clave(1, { status: KeyStatus.Gifted, giftedTo: 'Ana' }),
       clave(2, { status: KeyStatus.Gifted, giftedTo: '  ana  ' }),
     ]);
@@ -167,7 +167,7 @@ describe('lo que dice la lista que se esta mirando', () => {
   });
 
   test('una clave regalada sin destinatario no cuenta como persona', () => {
-    const resumen = resumenPie([
+    const resumen = summarizeKeys([
       clave(1, { status: KeyStatus.Gifted, giftedTo: null }),
       clave(2, { status: KeyStatus.Gifted, giftedTo: '' }),
       clave(3, { status: KeyStatus.Gifted, giftedTo: '   ' }),
@@ -178,7 +178,7 @@ describe('lo que dice la lista que se esta mirando', () => {
   });
 
   test('Steam y las demas plataformas van por separado y no se pierden', () => {
-    const resumen = resumenPie([
+    const resumen = summarizeKeys([
       clave(1),
       clave(2),
       clave(3, { platform: KeyPlatform.GuildWars2 }),
@@ -199,7 +199,7 @@ describe('lo que dice la lista que se esta mirando', () => {
     ];
     const copia = structuredClone(lista);
 
-    resumenPie(lista);
+    summarizeKeys(lista);
 
     expect(lista).toEqual(copia);
   });
@@ -207,14 +207,14 @@ describe('lo que dice la lista que se esta mirando', () => {
 
 describe('saber si un tramo del pie ya esta puesto', () => {
   test('un filtro vacio coincide con el filtro vacio', () => {
-    expect(coincide(emptyFilter(), {})).toBe(true);
+    expect(matchesFilter(emptyFilter(), {})).toBe(true);
   });
 
   test('un estado puesto coincide solo consigo mismo', () => {
     const filtro: IKeyFilter = { ...emptyFilter(), statuses: [KeyStatus.Gifted] };
 
-    expect(coincide(filtro, { statuses: [KeyStatus.Gifted] })).toBe(true);
-    expect(coincide(filtro, { statuses: [KeyStatus.Available] })).toBe(false);
+    expect(matchesFilter(filtro, { statuses: [KeyStatus.Gifted] })).toBe(true);
+    expect(matchesFilter(filtro, { statuses: [KeyStatus.Available] })).toBe(false);
   });
 
   test('comparar listas cuenta tambien el orden y la longitud', () => {
@@ -223,18 +223,18 @@ describe('saber si un tramo del pie ya esta puesto', () => {
       statuses: [KeyStatus.Gifted, KeyStatus.Redeemed],
     };
 
-    expect(coincide(filtro, { statuses: [KeyStatus.Gifted, KeyStatus.Redeemed] })).toBe(true);
+    expect(matchesFilter(filtro, { statuses: [KeyStatus.Gifted, KeyStatus.Redeemed] })).toBe(true);
     // El mismo par en el otro orden **si** coincide, y tiene que ser asi: el
     // filtro es un conjunto y `filterKeys` no mira el orden, asi que las dos
     // listas filtran exactamente lo mismo. Si aqui no coincidieran, el boton
     // se apagaria solo por el orden en que llegaron los estados, sin que
     // hubiera cambiado nada de lo que se ve.
-    expect(coincide(filtro, { statuses: [KeyStatus.Redeemed, KeyStatus.Gifted] })).toBe(true);
+    expect(matchesFilter(filtro, { statuses: [KeyStatus.Redeemed, KeyStatus.Gifted] })).toBe(true);
     // Un prefijo, en cambio, no vale: `[gifted]` es un filtro distinto de
     // `[gifted, redeemed]`, no uno mas corto. Por eso se compara la longitud
     // ademas de los elementos: sin ella, un filtro de dos estados daria por
     // puesta una lista de uno solo.
-    expect(coincide(filtro, { statuses: [KeyStatus.Gifted] })).toBe(false);
+    expect(matchesFilter(filtro, { statuses: [KeyStatus.Gifted] })).toBe(false);
   });
 
   test('varias claves a la vez tienen que estar todas', () => {
@@ -244,28 +244,28 @@ describe('saber si un tramo del pie ya esta puesto', () => {
       kind: KeyKind.Dlc,
     };
 
-    expect(coincide(filtro, { statuses: [KeyStatus.Gifted], kind: KeyKind.Dlc })).toBe(true);
-    expect(coincide(filtro, { statuses: [KeyStatus.Gifted], kind: KeyKind.Games })).toBe(false);
+    expect(matchesFilter(filtro, { statuses: [KeyStatus.Gifted], kind: KeyKind.Dlc })).toBe(true);
+    expect(matchesFilter(filtro, { statuses: [KeyStatus.Gifted], kind: KeyKind.Games })).toBe(false);
   });
 
   test('un filtro con una lista vacia no se considera puesto', () => {
     /*
      * `patchFilter` va por encima de lo que le pasa encima, asi que
-     * `statuses: []` quita el filtro en lugar de ponerlo. Si `coincide` lo
+     * `statuses: []` quita el filtro en lugar de ponerlo. Si `matchesFilter` lo
      * diera por puesto, el boton de ese estado se quedaria encendido con la
      * lista sin filtrar, que es el caso en el que mas confunde.
      */
     const filtro: IKeyFilter = { ...emptyFilter(), statuses: [] };
 
-    expect(coincide(filtro, { statuses: [] })).toBe(true);
-    expect(coincide(emptyFilter(), { statuses: [KeyStatus.Gifted] })).toBe(false);
+    expect(matchesFilter(filtro, { statuses: [] })).toBe(true);
+    expect(matchesFilter(emptyFilter(), { statuses: [KeyStatus.Gifted] })).toBe(false);
   });
 });
 
 describe('quitar un filtro que ya esta puesto', () => {
   test('una lista se quita dejandola vacia', () => {
-    expect(apagarFiltro({ statuses: [KeyStatus.Gifted] })).toEqual({ statuses: [] });
-    expect(apagarFiltro({ platforms: [KeyPlatform.GuildWars2] })).toEqual({
+    expect(clearFilter({ statuses: [KeyStatus.Gifted] })).toEqual({ statuses: [] });
+    expect(clearFilter({ platforms: [KeyPlatform.GuildWars2] })).toEqual({
       platforms: [],
     });
   });
@@ -277,7 +277,7 @@ describe('quitar un filtro que ya esta puesto', () => {
      * sobre `{ kind: 'dlc' }` deja el filtro igual. El boton se quedaba
      * encendido y pulsarlo otra vez no hacia nada.
      */
-    expect(apagarFiltro({ kind: KeyKind.Dlc })).toEqual({ kind: KeyKind.All });
+    expect(clearFilter({ kind: KeyKind.Dlc })).toEqual({ kind: KeyKind.All });
   });
 
   test('el ambito no se toca al apagar', () => {
@@ -289,7 +289,7 @@ describe('quitar un filtro que ya esta puesto', () => {
      * partida haria que la lista se moviera sola justo cuando alguien cree que
      * la esta volviendo a donde estaba.
      */
-    const apagado = apagarFiltro({
+    const apagado = clearFilter({
       statuses: [KeyStatus.Gifted],
       scope: KeyScope.All,
     });
@@ -301,10 +301,10 @@ describe('quitar un filtro que ya esta puesto', () => {
   test('la busqueda y el modo and de etiquetas tampoco se tocan', () => {
     /*
      * Los tres campos que el pie nunca manda. Se comprueban igual porque
-     * `apagarFiltro` es generica y el dia que un tramo los use, tiene que
+     * `clearFilter` es generica y el dia que un tramo los use, tiene que
      * saber que dejarlos como estan es lo que se quiere —o lo que no—.
      */
-    expect(apagarFiltro({ search: 'portal', tags: ['navidad'], excluir: true })).toEqual({
+    expect(clearFilter({ search: 'portal', tags: ['navidad'], excluir: true })).toEqual({
       search: 'portal',
       tags: [],
       excluir: true,
@@ -312,12 +312,12 @@ describe('quitar un filtro que ya esta puesto', () => {
   });
 
   test('un filtro vacio se apaga a un filtro vacio', () => {
-    expect(apagarFiltro({})).toEqual({});
+    expect(clearFilter({})).toEqual({});
   });
 
   test('apagar dos veces da lo mismo que apagar una', () => {
-    const una = apagarFiltro({ statuses: [KeyStatus.Gifted], kind: KeyKind.Dlc });
+    const una = clearFilter({ statuses: [KeyStatus.Gifted], kind: KeyKind.Dlc });
 
-    expect(apagarFiltro(una)).toEqual(una);
+    expect(clearFilter(una)).toEqual(una);
   });
 });
