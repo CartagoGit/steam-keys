@@ -41,7 +41,8 @@ import { useSelection } from '@/helpers/use-selection.helper';
 import { useTags } from '@/helpers/use-tags.helper';
 import { borradorDe, useUndo, type IUndoEntry } from '@/helpers/undo.helper';
 import { gameKeyService, DuplicateKeyError } from '@/services/game-key.service';
-import { settingsService, DEFAULT_SETTINGS } from '@/services/settings.service';
+import { DEFAULT_SETTINGS } from '@/contracts';
+import { settingsService } from '@/services/settings.service';
 import { storageService } from '@/services/storage.service';
 import { inspectStartup } from '@/services/startup.service';
 import {

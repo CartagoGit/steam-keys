@@ -1,12 +1,11 @@
 import { BackupReason, KeyPlatform, RestoreMode, StorageHealth, type IBackup, type IRestoreSummary, type IStorageInfo } from '@/contracts';
-import { backupService } from '@/services/backup.service';
 import { fileService } from '@/services/file.service';
 import { gameKeyService } from '@/services/game-key.service';
 import {
   isPersistent,
   supportsBackups,
 } from '@/helpers/runtime.helper';
-import { getDatabaseClient, getRepository } from '@/repositories/repository.factory';
+import { getBackupRepository, getRepository } from '@/repositories/repository.factory';
 
 /**
  * Fachada de almacenamiento: donde viven los datos, si estan sanos y como
@@ -32,7 +31,6 @@ export const storageService = {
   async info(): Promise<IStorageInfo> {
     const repository = await getRepository();
     const keys = await repository.listAll();
-    const cliente = await getDatabaseClient();
 
     const info = await fileService.databaseInfo();
     const persistente = isPersistent();
@@ -57,10 +55,12 @@ export const storageService = {
       };
     }
 
+    const respaldos = await getBackupRepository();
+
     const [salud, unknownPlatform, backups] = await Promise.all([
-      backupService.checkHealth(cliente),
-      backupService.countUnknownPlatform(cliente),
-      backupService.list(cliente).catch(() => [] as readonly IBackup[]),
+      respaldos.checkHealth(),
+      respaldos.countUnknownPlatform(),
+      respaldos.list().catch(() => [] as readonly IBackup[]),
     ]);
 
     return {
@@ -78,12 +78,12 @@ export const storageService = {
 
   /** Crea una copia de seguridad a peticion del usuario. */
   async backupNow(reason: BackupReason = BackupReason.Manual): Promise<IBackup> {
-    return backupService.create(await getDatabaseClient(), reason);
+    return (await getBackupRepository()).create(reason);
   },
 
   /** Elimina una copia concreta. */
   async deleteBackup(name: string): Promise<void> {
-    await backupService.remove(await getDatabaseClient(), name);
+    await (await getBackupRepository()).remove(name);
   },
 
   /**
@@ -100,11 +100,11 @@ export const storageService = {
       );
     }
 
-    const cliente = await getDatabaseClient();
+    const respaldos = await getBackupRepository();
 
-    await backupService.create(cliente, BackupReason.AntesDeRestaurar);
+    await respaldos.create(BackupReason.AntesDeRestaurar);
 
-    return backupService.restore(cliente, name, mode);
+    return respaldos.restore(name, mode);
   },
 
   /**
@@ -118,7 +118,7 @@ export const storageService = {
   async previewRestore(name: string, mode: RestoreMode): Promise<IRestoreSummary> {
     if (!supportsBackups()) return { total: 0, inserted: 0, skipped: 0, updated: 0 };
 
-    return backupService.previewRestore(await getDatabaseClient(), name, mode);
+    return (await getBackupRepository()).previewRestore(name, mode);
   },
 
   /**
@@ -140,7 +140,7 @@ export const storageService = {
   /** Importa de verdad el TXT ya leido. */
   async commitImport(contents: string) {
     if (supportsBackups()) {
-      await backupService.create(await getDatabaseClient(), BackupReason.AntesDeImportar);
+      await (await getBackupRepository()).create(BackupReason.AntesDeImportar);
     }
 
     return gameKeyService.importTxt(contents, false);

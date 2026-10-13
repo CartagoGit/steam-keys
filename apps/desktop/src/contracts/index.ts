@@ -9,6 +9,7 @@
  * estrecho (`@/contracts/enums`, `@/contracts/interfaces`, `@/contracts/constants`).
  */
 
+export * from './bridge/index';
 export * from './constants/index';
 export * from './enums/index';
 export * from './interfaces/index';

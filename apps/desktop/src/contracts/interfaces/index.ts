@@ -51,6 +51,10 @@ export type {
   IParsedKeyToken,
 } from './parsed-entry.interface';
 
+export type { ISettingsRepository } from './settings-repository.interface';
+
+export type { IBackupRepository } from './backup-repository.interface';
+
 export type {
   DatabaseState,
   IStartup,

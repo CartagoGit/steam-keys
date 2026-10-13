@@ -9,7 +9,8 @@ import {
 } from '@/contracts';
 import { memoryDatabaseClient } from '@/repositories/memory-database.client';
 import { resetRepository } from '@/repositories/repository.factory';
-import { setManyStatement, settingsService } from '@/services/settings.service';
+import { setManyStatement } from '@/repositories/sqlite-settings.repository';
+import { settingsService } from '@/services/settings.service';
 
 /**
  * Guardar varios ajustes: una sentencia, y todos los valores dentro.

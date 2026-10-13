@@ -9,8 +9,8 @@
  * lados sin arrastrar nada.
  */
 
-/** Ruta del endpoint. */
-export const DEV_BRIDGE_PATH = '/__dev-bridge__/sql';
+/** Raiz del puente. La operacion va a continuacion: `/__dev-bridge__/keys/list`. */
+export const DEV_BRIDGE_PATH = '/__dev-bridge__';
 
 /** Header con el token que debe enviar el navegador. */
 export const DEV_BRIDGE_TOKEN_HEADER = 'x-steam-keys-dev-token';
@@ -28,28 +28,37 @@ export const DEV_BRIDGE_TOKEN_HEADER = 'x-steam-keys-dev-token';
  */
 export const DEV_TOKEN_GLOBAL = '__STEAM_KEYS_DEV_TOKEN__';
 
-/** Operaciones que entiende el puente. */
-export type BridgeOperation = 'exec' | 'select';
-
-/** Respuesta del script del puente. */
-export interface IBridgeResponse {
+/**
+ * Respuesta del puente.
+ *
+ * `result` lleva lo que devuelve la operacion, con la forma que declara en
+ * `contracts/bridge/bridge-operations.ts`. Va en una caja y no suelto porque el
+ * error tiene que poder viajar **con** codigo de exito: una operacion puede
+ * devolver `null`, `0` o una lista vacia, y con eso no hay forma de distinguirlas
+ * de «no ha contestado».
+ */
+export interface IBridgeResponse<T = unknown> {
   ok: boolean;
-  rows?: unknown[];
-  rowsAffected?: number;
+  result?: T;
   error?: string;
 }
-
 /**
- * Traduce la URL de la peticion en una operacion del puente.
+ * Saca el nombre de la operacion de la URL.
  *
- * Una operacion que no sea `exec` o `select` devuelve `null` en lugar de
- * degradar a otra cosa: un `?op=` manipulado tiene que fallar de forma
- * visible, no ejecutarse como si fuera una operacion distinta.
+ * La operacion va **en el path**, no en un parametro:
+ * `/__dev-bridge__/keys/set-status` se lee de un vistazo, y `?op=exec` con un
+ * `UPDATE` concatenado dentro no decia nada. Es justo lo que se queria: un
+ * endpoint del que se sepa lo que hace sin abrir nada mas.
+ *
+ * Una ruta que no este bajo el prefijo devuelve `null` —no es nuestra— y una que
+ * este pero sin nombre detras tambien, porque `/__dev-bridge__` a secas no es una
+ * operacion. Fallar visiblemente es lo que hace que un nombre mal escrito se vea
+ * en vez de ejecutarse como si fuera otro.
  */
-export function operationFrom(url: string): BridgeOperation | null {
-  const parametro = new URL(url, 'http://localhost').searchParams.get('op');
+export function operacionDe(url: string): string | null {
+  if (!url.startsWith(`${DEV_BRIDGE_PATH}/`)) return null;
 
-  if (parametro === 'exec' || parametro === 'select') return parametro;
+  const nombre = url.slice(DEV_BRIDGE_PATH.length + 1).split('?')[0] ?? '';
 
-  return null;
+  return nombre.length > 0 ? nombre : null;
 }

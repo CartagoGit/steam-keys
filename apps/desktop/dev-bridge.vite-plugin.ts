@@ -10,9 +10,9 @@ import {
   DEV_BRIDGE_PATH,
   DEV_BRIDGE_TOKEN_HEADER,
   DEV_TOKEN_GLOBAL,
-  operationFrom,
+  operacionDe,
 } from './dev-bridge.contract';
-import type { BridgeOperation, IBridgeResponse } from './dev-bridge.contract';
+import type { IBridgeResponse } from './dev-bridge.contract';
 
 /*
  * El contrato **no** se reexporta.
@@ -60,7 +60,7 @@ const TIMEOUT_MS = 15_000;
 const MAX_BODY_BYTES = 1024 * 1024;
 
 /** Final del path del cliente del puente, que no debe llegar a produccion. */
-const CLIENTE_BRIDGE = 'services/dev-bridge-database.service.ts';
+const CLIENTE_BRIDGE = 'repositories/http-bridge.client.ts';
 
 /**
  * El identificador del token, **solo cuando se usa como identificador**.
@@ -129,12 +129,9 @@ export function devBridgeStubPlugin(): Plugin {
     load(id) {
       if (id !== '\0steam-keys:dev-bridge-off') return null;
 
-      return `export const devBridgeDatabaseClient = {
-  execute() { throw new Error('El puente de desarrollo no existe en produccion.'); },
-  select() { throw new Error('El puente de desarrollo no existe en produccion.'); },
-  migrate() { throw new Error('El puente de desarrollo no existe en produccion.'); },
-  close() {},
-};`;
+      return `export function pedir() {
+  throw new Error('El puente de desarrollo no existe en produccion.');
+}`;
     },
   };
 }
@@ -239,12 +236,14 @@ async function handle(
     return;
   }
 
-  const operacion = operationFrom(url);
+  const operacion = operacionDe(url);
 
   if (operacion === null) {
     send(res, 400, {
       ok: false,
-      error: 'Operacion desconocida: solo se admiten "exec" y "select".',
+      error:
+        `Peticion sin operacion. Las operaciones van en la ruta: ` +
+        `${DEV_BRIDGE_PATH}/<grupo>/<accion>.`,
     });
     return;
   }
@@ -412,7 +411,7 @@ function cerrarPuente(): void {
  * SQLite porque otra escritura tiene el fichero abierto— dejaria el proceso del
  * puente esperando para siempre y con el toda la cola detras.
  */
-function ejecutarEnPuente(operacion: BridgeOperation, cuerpo: string): Promise<string> {
+function ejecutarEnPuente(operacion: string, cuerpo: string): Promise<string> {
   const siguiente = cola.then(() => escribirAlPuente(operacion, cuerpo));
 
   // La cola no debe romperse porque una peticion falle: lo que va a fallar es
@@ -423,7 +422,7 @@ function ejecutarEnPuente(operacion: BridgeOperation, cuerpo: string): Promise<s
 }
 
 /** Escribe una peticion en el proceso vivo y espera a su linea de respuesta. */
-function escribirAlPuente(operacion: BridgeOperation, cuerpo: string): Promise<string> {
+function escribirAlPuente(operacion: string, cuerpo: string): Promise<string> {
   return new Promise<string>((cumplir, fallar) => {
     const vivo = arrancarPuente();
 
@@ -437,14 +436,20 @@ function escribirAlPuente(operacion: BridgeOperation, cuerpo: string): Promise<s
     });
 
     /*
-     * El enunciado va dentro del objeto, no como cuerpo suelto.
+     * Operacion y argumentos van **en el mismo objeto**, serializado entero.
      *
-     * El protocolo es **una linea por peticion**, y el enunciado lleva saltos de
-     * linea dentro: mandarlo suelto partiria la linea en varios pedazos y cada
-     * uno se leeria como una peticion distinta. Al serializarlo entero, los
-     * saltos quedan dentro de las comillas del JSON.
+     * El protocolo es **una linea por peticion**, y los argumentos pueden traer
+     * saltos de linea dentro —una etiqueta con un salto, el texto de una nota—.
+     * Al meterlos en el objeto y serializarlo todo, los saltos quedan dentro de
+     * las comillas del JSON y la linea no se parte en varias peticiones.
+     *
+     * El cuerpo llega como texto y se vuelve a parsear aqui para poder meterlo
+     * en el objeto. Una operacion que no acepta nada llega vacio, y entonces se
+     * manda `args` a `null` en vez de fallar al parsear.
      */
-    vivo.proceso.stdin.write(`${JSON.stringify({ op: operacion, cuerpo })}\n`);
+    vivo.proceso.stdin.write(
+      `${JSON.stringify({ operacion, args: cuerpo.length > 0 ? JSON.parse(cuerpo) : null })}\n`,
+    );
   });
 }
 

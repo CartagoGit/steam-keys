@@ -1,10 +1,23 @@
 import { MemoryGameKeyRepository } from '@/repositories/memory-game-key.repository';
+import { SqliteBackupRepository } from '@/repositories/sqlite-backup.repository';
 import { SqliteGameKeyRepository } from '@/repositories/sqlite-game-key.repository';
+import { SqliteSettingsRepository } from '@/repositories/sqlite-settings.repository';
 import { getStorageMode, StorageMode } from '@/helpers/runtime.helper';
-import type { IDatabaseClient, IGameKeyRepository } from '@/contracts';
+import type {
+  IBackupRepository,
+  IDatabaseClient,
+  IGameKeyRepository,
+  ISettingsRepository,
+} from '@/contracts';
 
 let instancia: IGameKeyRepository | null = null;
 let modoRepositorio: StorageMode | null = null;
+
+let ajustesInstancia: ISettingsRepository | null = null;
+let modoAjustes: StorageMode | null = null;
+
+let respaldosInstancia: IBackupRepository | null = null;
+let modoRespaldos: StorageMode | null = null;
 
 /**
  * El cliente, guardando la **promesa** y no el cliente ya resuelto.
@@ -46,9 +59,26 @@ let modoCliente: StorageMode | null = null;
  * cada cache responde a lo suyo. Antes de tenerlos separados,
  * `getDatabaseClient()` arrancaba con su variable a `null` porque solo
  * `getRepository()` la escribia, asi que no reutilizaba nunca su cliente.
+ *
+ * ## En modo puente ya no hay cliente, y es lo que se buscaba
+ *
+ * El puente dejo de ser un tunnel de SQL: el navegador pide operaciones con
+ * nombre y el servidor las ejecuta contra su propia conexion. Aqui ya no hay
+ * sentencia que mandar, asi que este metodo **lanza**. Que lance y no devuelva
+ * `null` en silencio es a proposito: cualquier codigo que llegue aqui estaba
+ * escribiendo SQL a mano, que es justo lo que se elimino, y que se entere al
+ * arrancar y no tres segundos despues en produccion.
  */
 export async function getDatabaseClient(): Promise<IDatabaseClient> {
   const modo = getStorageMode();
+
+  if (modo === StorageMode.DevBridge) {
+    throw new Error(
+      'En el puente de desarrollo no hay cliente de base de datos: se habla con ' +
+        'el servidor por operaciones con nombre. Si algo llega aqui, esta ' +
+        'escribiendo SQL a mano en vez de usar un repositorio.',
+    );
+  }
 
   /*
    * En modo memoria no se cachea nada.
@@ -105,16 +135,6 @@ async function crearCliente(modo: StorageMode): Promise<IDatabaseClient> {
       break;
     }
 
-    case StorageMode.DevBridge: {
-      // Import dinamico: el puente no existe en el build de produccion.
-      const { devBridgeDatabaseClient } = await import(
-        '@/services/dev-bridge-database.service'
-      );
-
-      cliente = devBridgeDatabaseClient;
-      break;
-    }
-
     case StorageMode.Memory:
     default: {
       const { memoryDatabaseClient } = await import(
@@ -134,15 +154,22 @@ async function crearCliente(modo: StorageMode): Promise<IDatabaseClient> {
 }
 
 /**
- * Devuelve el repositorio adecuado al entorno.
+ * Devuelve el repositorio de claves adecuado al entorno.
  *
  * - **Tauri**: SQLite nativo, en disco.
- * - **Desarrollo** (`bun run dev`): SQLite real a traves del puente, para ver
- *   las mismas claves que la app de escritorio.
+ * - **Desarrollo** (`bun run dev`): el mismo SQLite, a traves del puente, para
+ *   ver las mismas claves que la app de escritorio.
  * - **Build estatico**: repositorio en memoria sobre `localStorage`.
  *
- * En los dos primeros casos se reutiliza `SqliteGameKeyRepository`: el unico
- * codigo que escribe en la base de datos es el mismo en todos los entornos.
+ * Los tres cumplen `IGameKeyRepository` y la app no sabe cual tiene.
+ *
+ * ## Por que el puente ya no usa `SqliteGameKeyRepository`
+ *
+ * Ese repositorio compone el SQL y se lo pasa a un `IDatabaseClient`. Por el
+ * puente ya no hay cliente al que pasarselo —no queda un solo `execute` en las
+ * peticiones—, asi que el navegador usa su propio hermano, que solo nombra
+ * operaciones. El SQL no se ha duplicado: el servidor del puente ejecuta
+ * *este mismo* repositorio con `bun:sqlite`.
  */
 export async function getRepository(): Promise<IGameKeyRepository> {
   const modo = getStorageMode();
@@ -152,16 +179,69 @@ export async function getRepository(): Promise<IGameKeyRepository> {
 
   modoRepositorio = modo;
 
-  // Tauri y puente de desarrollo usan el mismo repositorio sobre SQLite; lo
-  // unico que cambia es de donde sale el cliente, y eso lo decide
-  // `getDatabaseClient()`. Resolverlo aqui otra vez —como hacia este codigo
-  // con `tauriDatabaseClient` fijo— abria dos caminos paralelos: los ajustes
-  // iban por `getDatabaseClient()` y las claves por aqui, y en el navegador de
-  // desarrollo acababan en bases distintas al recargar la pagina.
-  instancia =
-    modo === StorageMode.Memory
-      ? new MemoryGameKeyRepository()
-      : new SqliteGameKeyRepository(await getDatabaseClient());
+  if (modo === StorageMode.DevBridge) {
+    // Import dinamico: el puente no existe en el build de produccion, y su
+    // modulo lo sustituye uno que lanza al usarlo.
+    const { HttpGameKeyRepository } = await import(
+      '@/repositories/http-game-key.repository'
+    );
+
+    instancia = new HttpGameKeyRepository();
+  } else if (modo === StorageMode.Memory) {
+    instancia = new MemoryGameKeyRepository();
+  } else {
+    instancia = new SqliteGameKeyRepository(await getDatabaseClient());
+  }
+
+  return instancia;
+}
+
+/**
+ * Los ajustes del entorno actual.
+ *
+ * Mismo criterio que `getRepository()`, y por el mismo motivo: cada modo necesita
+ * su motor, y el del puente habla por operaciones. Cacheados aparte porque el
+ * modo puede cambiar en caliente igual que el otro.
+ */
+export async function getSettingsRepository(): Promise<ISettingsRepository> {
+  const modo = getStorageMode();
+
+  if (ajustesInstancia && modoAjustes === modo) return ajustesInstancia;
+
+  modoAjustes = modo;
+
+  if (modo === StorageMode.DevBridge) {
+    const { HttpSettingsRepository } = await import(
+      '@/repositories/http-settings.repository'
+    );
+
+    ajustesInstancia = new HttpSettingsRepository();
+  } else {
+    ajustesInstancia = new SqliteSettingsRepository(await getDatabaseClient());
+  }
+
+  return ajustesInstancia;
+}
+
+/** Las copias de seguridad del entorno actual. */
+export async function getBackupRepository(): Promise<IBackupRepository> {
+  const modo = getStorageMode();
+
+  if (respaldosInstancia && modoRespaldos === modo) return respaldosInstancia;
+
+  modoRespaldos = modo;
+
+  if (modo === StorageMode.DevBridge) {
+    const { HttpBackupRepository } = await import(
+      '@/repositories/http-backup.repository'
+    );
+
+    respaldosInstancia = new HttpBackupRepository();
+  } else {
+    respaldosInstancia = new SqliteBackupRepository(await getDatabaseClient());
+  }
+
+  const instancia: IBackupRepository = respaldosInstancia;
 
   return instancia;
 }
@@ -174,14 +254,18 @@ export function isPersistent(): boolean {
 /**
  * Descarta las instancias cacheadas.
  *
- * Ttiene que limpiar el cliente **y** el repositorio: con dos caches
- * separadas, deixar solo el repositorio hacia que el test siguiente cogiera un
- * cliente de una ejecucion anterior y escribiera en una base de datos que ya
- * no era la suya.
+ * Ttiene que limpiar **las cuatro**: el cliente, el repositorio de claves, los
+ * ajustes y los respaldos. Con caches separadas, dejar solo una hacia que el
+ * test siguiente cogiera una instancia de una ejecucion anterior y escribiera
+ * en una base de datos que ya no era la suya.
  */
 export function resetRepository(): void {
   instancia = null;
   modoRepositorio = null;
+  ajustesInstancia = null;
+  modoAjustes = null;
+  respaldosInstancia = null;
+  modoRespaldos = null;
   clientePromesa = null;
   modoCliente = null;
 }

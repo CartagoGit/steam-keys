@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import { DEFAULT_SETTINGS } from '@/services/settings.service';
+import { DEFAULT_SETTINGS } from '@/contracts';
 import type { IKeyFilter } from '@/contracts';
 import { AppTheme, AppLocale, DEFAULT_LOCALE, KeyPlatform, KeyScope, KeyStatus } from '@/contracts';
 import { emptyFilter, filterKeys } from './filter-keys.helper';

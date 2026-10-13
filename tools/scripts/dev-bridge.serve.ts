@@ -1,78 +1,91 @@
+#!/usr/bin/env bun
 /**
  * Puente entre el servidor de desarrollo de Vite y la base de datos real.
  *
  * El problema que resuelve: dentro de Tauri la app abre SQLite con el plugin
  * nativo, pero cuando trabajas la interfaz en el navegador (`bun run dev`) no
  * hay plugin, asi que la app caia en un repositorio en memoria y se veia una
- * coleccion vacia en lugar de tus 403 claves reales.
+ * coleccion vacia en lugar de tus claves reales.
  *
- * En vez de reimplementar el repositorio, este script **ejecuta SQL de verdad**
- * contra el mismo fichero SQLite que usa la app, y el cliente de HTTP se
- * limita a enviarle sentencias. Asi el unico codigo que escribe en la base de
- * datos sigue siendo `SqliteGameKeyRepository`.
+ * ## Que NO es
  *
- * Uso interno, invocado por el middleware de Vite:
+ * No es un tunnel de SQL. Antes lo era: el navegador mandaba la sentencia
+ * entera y este servidor la ejecutaba tal cual —
+ *
+ *   POST /__dev-bridge__/sql?op=exec
+ *   { "sql": "UPDATE game_keys SET status = ? WHERE id = ?", "binds": [3, 1] }
+ *
+ * Eso no decia nada. Al abrir las DevTools no habia forma de saber que habia
+ * hecho la peticion sin leer el SQL concatenado, y el SQL lo componia el
+ * cliente, no el servidor: cuando algo fallaba, el error salia en el sitio
+ * equivocado y el que habia que arreglar no era el que habia saltado.
+ *
+ * Ahora el navegador pide **operaciones con nombre** —
+ *
+ *   POST /__dev-bridge__/keys/set-status
+ *   { "id": 1, "status": "Available" }
+ *
+ * — y este servidor las resuelve contra la base de datos real. El mapa esta en
+ * `support/bridge-handlers.ts`, y es una linea por operacion.
+ *
+ * ## Lo que se gana de verdad
+ *
+ * 1. **Cero SQL duplicado.** Este servidor monta `SqliteGameKeyRepository` con
+ *    `bun:sqlite`: es el mismo repositorio que ejecuta la app de escritorio,
+ *    no una copia. Una consulta se cambia en un sitio y vale para los dos.
+ * 2. **Transacciones de verdad.** `setTagsForKeys` e `importRows` escriben
+ *    cientos de filas. Por el tunel eran tres peticiones —`BEGIN`, el trabajo,
+ *    `COMMIT`— y dependian de que este proceso aguantara la conexion abierta
+ *    entre ellas para que el `ROLLBACK` cayera en la misma. Ahora son una
+ *    peticion, y la transaccion ocurre entera aqui.
+ * 3. **El navegador no puede ejecutar SQL.** Antes cualquier pestaña abierta
+ *    podia mandar la sentencia que quisiera. Ahora no existe esa operacion.
+ *
+ * ## Modos
  *
  *   bun dev-bridge.serve.ts --server      -> proceso persistente (lo normal)
- *   bun dev-bridge.serve.ts exec <json>   -> una sentencia y salir
- *   bun dev-bridge.serve.ts select <json> -> una consulta y salir
+ *   bun dev-bridge.serve.ts <operacion>   -> una llamada y salir
  *
- * El modo normal es `--server`: se abre **una** conexion y se queda con ella,
- * hablando por entrada y salida con una peticion JSON por linea. Antes cada
- * sentencia era un proceso Bun nuevo, y eso rompia dos cosas:
+ * El modo `--server` es el que usa el middleware de Vite: se abre **una**
+ * conexion y se queda con ella, hablando por entrada y salida con una linea
+ * JSON por peticion. Antes cada sentencia era un proceso Bun nuevo, y eso rompia
+ * dos cosas: las transacciones no existian —`BEGIN` abria una conexion y la
+ * cerraba al terminar el proceso, el `INSERT` siguiente iba sobre otra y el
+ * `COMMIT` sobre una tercera, sin confirmar nada entre ellas— y cada frase
+ * costaba unos 21ms de arranque frente a los 0,2ms que tarda en SQLite.
  *
- * 1. **Las transacciones no existian.** `BEGIN` abria una conexion y la
- *    cerraba al terminar el proceso; el `INSERT` siguiente iba sobre otra, y el
- *    `COMMIT` sobre una tercera. Cada frase por su cuenta y sin confirmar nada
- *    entre ellas: un `import` que fallara a mitad dejaba las anteriores
- *    escritas. Con una sola conexion, el `BEGIN` sigue abierto de verdad.
- * 2. **Coste por frase.** Levantar el runtime cuesta unos 21ms frente a las
- *    0,2ms que tarda la sentencia en SQLite. El arranque hacia cuarenta y
- *    pico viajes solo para desplegar el esquema.
+ * Los modos de una sola vez se conservan porque son los que usan los tests y lo
+ * que se puede teclear a mano para echar una operacion suelta.
  *
- * Los modos de una sola vez se conservan porque son lo que usan los tests y lo
- * que se puede teclear a mano paraechar una sentencia.
+ * ## Solo hay las operaciones de la tabla
  *
- * Solo hay dos operaciones a proposito. Una tercera, de volcado masivo, se
- * descarto porque devolvia la tabla entera con las claves en claro: aqui no
- * existe ninguna forma de pedir "dame todo" sin pasar por una consulta, y las
- * consultas son las que escribe `SqliteGameKeyRepository`.
+ * No existe ninguna forma de pedir «dame la tabla entera» con las claves en
+ * claro, ni de ejecutar una sentencia arbitraria por HTTP. Lo que mas se
+ * acerca es `backups/list`, que devuelve el contenido de una copia —y es lo que
+ * necesita la pantalla de datos— pero no la coleccion.
  *
- * Nunca se invoca desde la aplicacion: solo desde el servidor de desarrollo,
- * y solo en `bun run dev`. En el build de produccion no existe.
+ * Nunca se invoca desde la aplicacion en produccion: solo desde el servidor de
+ * desarrollo, y solo en `bun run dev`. En el build no existe.
  */
-import { Database, type SQLQueryBindings } from 'bun:sqlite';
-import { existsSync, mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
-
+import { BunSqliteClient } from './support/bun-sqlite.client';
 import { devDatabasePath } from './support/db-path.helper';
-import { SCHEMA_STATEMENTS } from '@/contracts/constants/db-schema.constants';
+import { MANEJADORES, manejadorDe } from './support/bridge-handlers';
+import { SqliteBackupRepository } from '@/repositories/sqlite-backup.repository';
+import { SqliteGameKeyRepository } from '@/repositories/sqlite-game-key.repository';
+import { SqliteSettingsRepository } from '@/repositories/sqlite-settings.repository';
+import type { IBridgeContext, BridgeOperationName } from '@/contracts';
 
-/** Una sentencia que hay que ejecutar contra la base de datos. */
+/** Una peticion que llega por la entrada estandar. */
 interface IPeticion {
-  sql: string;
-  binds?: unknown[];
+  operacion: BridgeOperationName;
+  args?: unknown;
 }
 
 /** Respuesta unificada, para que el middleware pueda reenviarla tal cual. */
 interface IRespuesta {
   ok: boolean;
-  rows?: unknown[];
-  rowsAffected?: number;
+  result?: unknown;
   error?: string;
-}
-
-/** Lee el cuerpo de una peticion desde la entrada estandar. */
-async function leerEntrada(): Promise<string> {
-  if (process.stdin.isTTY) return '';
-
-  const trozos: Buffer[] = [];
-
-  for await (const trozo of Bun.stdin.stream() as unknown as AsyncIterable<Uint8Array>) {
-    trozos.push(Buffer.from(trozo));
-  }
-
-  return Buffer.concat(trozos).toString('utf8');
 }
 
 /**
@@ -92,44 +105,22 @@ function rutaBaseDeDatos(): string {
   return devDatabasePath();
 }
 
-/** Abre la base de datos en solo lectura. */
-function abrirLectura(): Database {
-  const ruta = rutaBaseDeDatos();
+/**
+ * Monta los repositorios sobre una conexion real.
+ *
+ * Todo lo que este servidor sabe hacer sale de aqui. Es lo que hace que no haya
+ * una segunda implementacion: lo que hay montado es `SqliteGameKeyRepository`,
+ * el mismo que corre la app de escritorio, y lo unico que cambia es de donde
+ * sale el cliente.
+ */
+function montarContexto(): IBridgeContext {
+  const db = new BunSqliteClient(rutaBaseDeDatos());
 
-  if (!existsSync(ruta)) {
-    throw new Error(
-      `No existe la base de datos de desarrollo: ${ruta}. ` +
-        'Se crea sola en cuanto se escribe algo; si quieres verla con tus ' +
-        'claves, arranca con STEAM_KEYS_DB_PATH=dist/steam-keys.db.',
-    );
-  }
-
-  return new Database(ruta, { readonly: true });
-}
-
-/** Abre la base de datos en escritura, creando el esquema si hace falta. */
-function abrirEscritura(): Database {
-  const ruta = rutaBaseDeDatos();
-  mkdirSync(dirname(ruta), { recursive: true });
-
-  const db = new Database(ruta, { create: true });
-
-  for (const sentencia of SCHEMA_STATEMENTS) db.run(sentencia);
-
-  return db;
-}
-
-/** Parsea la peticion JSON que llega por la entrada estandar. */
-function parsearPeticion(cuerpo: string): IPeticion {
-  if (cuerpo.trim().length === 0) return { sql: '' };
-
-  const datos = JSON.parse(cuerpo) as IPeticion;
-
-  if (typeof datos.sql !== 'string' || datos.sql.length === 0) {
-    throw new Error('La peticion debe incluir una sentencia SQL.');
-  }
-
-  return { sql: datos.sql, binds: datos.binds ?? [] };
+  return {
+    claves: new SqliteGameKeyRepository(db),
+    ajustes: new SqliteSettingsRepository(db),
+    respaldos: new SqliteBackupRepository(db),
+  };
 }
 
 function responder(respuesta: IRespuesta): void {
@@ -139,165 +130,156 @@ function responder(respuesta: IRespuesta): void {
 /**
  * Escribe la respuesta en modo servidor, **con salto de linea**.
  *
- * El protocolo es de una linea por peticion, y el salto es lo unico que le dice
- * al padre donde acaba una respuesta y empieza la siguiente. Sin el, quien lee
- * con `readline` no ve nunca una linea entera —`readline` solo emite al llegar
- * el `\n`— y se queda esperando en silencio mientras el padre espera una
- * respuesta que ya ha salido. En el modo de una vez el salto no hace falta: se
- * lee la salida entera y se parsea.
+ * Sin el salto, `readline` del padre no emite nunca una linea y se queda
+ * esperando hasta su timeout sin decir nada.
  */
 function responderLinea(respuesta: IRespuesta): void {
   process.stdout.write(`${JSON.stringify(respuesta)}\n`);
 }
 
 /**
- * Ejecuta una peticion contra la conexion que se le pase.
+ * Ejecuta una operacion y la serializa.
  *
- * Es el nucleo, y lo comparten los dos modos: el worker le pasa **su**
- * conexion —la unica que hay— y el modo de una vez, una recien abierta. La
- * diferencia entre que una transaccion funcione y no la marca exactamente esta
- * funcion: recibe el mango en vez de abrirlo por dentro.
+ * Una operacion que no exista devuelve la lista de las que si, en vez de un
+ * error generico: si el navegador pide algo que el servidor no tiene, lo que
+ * hace falta es ver la lista, no un «error desconocido».
  */
-function ejecutarPeticion(
-  operacion: string,
-  cuerpo: string,
-  db: Database,
-): IRespuesta {
-  switch (operacion) {
-    case 'exec': {
-      const peticion = parsearPeticion(cuerpo);
-      const resultado = db.run(peticion.sql, (peticion.binds ?? []) as never[]);
+async function ejecutar(
+  contexto: IBridgeContext,
+  peticion: IPeticion,
+): Promise<IRespuesta> {
+  const manejador = manejadorDe(peticion.operacion);
 
-      return { ok: true, rowsAffected: Number(resultado.changes) };
-    }
-
-    case 'select': {
-      const peticion = parsearPeticion(cuerpo);
-
-      /*
-       * El puente acepta lo que mande el navegador y solo reenvia el `bind` a
-       * SQLite. `SQLQueryBindings` es la union de lo que Bun acepta de verdad;
-       * el enunciado llega como `unknown[]` porque viene por JSON, y el motor
-       * es quien avisa si se le pasa algo que no sea un valor.
-       */
-      const binds = (peticion.binds ?? []) as SQLQueryBindings[];
-      const filas = db.query(peticion.sql).all(...binds) as unknown[];
-
-      return { ok: true, rows: filas };
-    }
-
-    default:
-      return { ok: false, error: `Operacion desconocida: ${operacion}` };
-  }
-}
-
-/**
- * Atiende una linea del protocolo y devuelve lo que hay que responder.
- *
- * El enunciado va **dentro** de la linea, como texto, y no suelto. Es lo que
- * permite el protocolo de una linea por peticion: el SQL lleva saltos de linea
- * propios, asi que suelto partiria la linea en varios pedazos y cada uno se
- * leeria como una peticion distinta. Al serializarlo entero, los saltos van
- * dentro de las comillas del JSON.
- */
-function atenderLinea(linea: string, db: Database): IRespuesta {
-  if (linea.trim().length === 0) return { ok: true };
-
-  try {
-    const peticion = JSON.parse(linea) as { op?: string; cuerpo?: string };
-
-    return ejecutarPeticion(peticion.op ?? '', peticion.cuerpo ?? '', db);
-  } catch (error) {
+  if (manejador === null) {
     return {
       ok: false,
-      error: error instanceof Error ? error.message : String(error),
+      error:
+        `Operacion desconocida: "${peticion.operacion}". ` +
+        'Las que hay son: ' +
+        Object.keys(MANEJADORES)
+          .sort()
+          .join(', '),
+    };
+  }
+
+  try {
+    const resultado = await manejador(contexto, (peticion.args ?? null) as never);
+
+    // `undefined` no sobrevive a `JSON.stringify`: se perderia la clave y el
+    // cliente leeria `undefined` en vez de un `null` explicito.
+    return { ok: true, result: resultado === undefined ? null : resultado };
+  } catch (cause) {
+    return {
+      ok: false,
+      error: cause instanceof Error ? cause.message : String(cause),
     };
   }
 }
 
+/** Lee el cuerpo de una peticion desde la entrada estandar. */
+async function leerEntrada(): Promise<string> {
+  if (process.stdin.isTTY) return '';
+
+  const trozos: Buffer[] = [];
+
+  for await (const trozo of Bun.stdin.stream() as unknown as AsyncIterable<Uint8Array>) {
+    trozos.push(Buffer.from(trozo));
+  }
+
+  return Buffer.concat(trozos).toString('utf8');
+}
+
 /**
- * Modo `--server`: una conexion para toda la vida del proceso.
+ * Atiende peticiones de una en una mientras el proceso este vivo.
  *
- * Lee **una peticion por linea** de la entrada estandar y escribe **una
- * respuesta por linea**, en el mismo orden. Todo lo que hay dentro del bucle
- * es sincrono —decodificar, partir, ejecutar y responder—, asi que las
- * peticiones salen estrictamente en serie: si dos transacciones se solaparan,
- * sus `BEGIN` y `COMMIT` se entremezarian en la conexion y la segunda cerraria
- * lo que hubiera abierto la primera. En serie no puede pasar.
+ * **La entrada son trozos, no lineas.** `Bun.stdin.stream()` entrega lo que
+ * llega por la tuberia, y una peticion puede entrar partida en varios trozos o
+ * compartir uno con la siguiente. Leer cada trozo como si fuera una peticion
+ * entera hacia que el puente se quedara colgado sin decir nada: las peticiones
+ * siguientes serespondian a un trozo anterior, o a ninguno.
  *
- * La entrada se lee a mano y **no** con `node:readline`. Sobre `process.stdin`
- * de Bun, `readline` se queda esperando eternamente cuando el padre escribe por
- * una tuberia —que es justo como le habla el plugin de Vite—: el proceso
- * arranca, no dice nada y se come la primera peticion sin contestarla. Con
- * `Bun.stdin.stream()` llega a la primera.
+ * Por eso se acumula y se parte por saltos de linea, que es justo lo que define
+ * el protocolo. Un peticion que llega entera en un trozo —el caso normal, con
+ * el middleware escribiendo de una en una— sale igual.
  */
 async function modoServidor(): Promise<void> {
-  const db = abrirEscritura();
+  const contexto = montarContexto();
   const decodificador = new TextDecoder();
 
-  /** Lo que ha llegado del ultimo trozo y todavia no forma una linea entera. */
-  let resto = '';
+  let acumulado = '';
 
-  try {
-    for await (const trozo of Bun.stdin.stream() as unknown as AsyncIterable<Uint8Array>) {
-      resto += decodificador.decode(trozo, { stream: true });
+  for await (const trozo of Bun.stdin.stream() as unknown as AsyncIterable<Uint8Array>) {
+    acumulado += decodificador.decode(trozo as Uint8Array, { stream: true });
 
-      let corte = resto.indexOf('\n');
+    let corte = acumulado.indexOf('\n');
 
-      while (corte !== -1) {
-        responderLinea(atenderLinea(resto.slice(0, corte), db));
+    while (corte !== -1) {
+      const linea = acumulado.slice(0, corte).trim();
 
-        resto = resto.slice(corte + 1);
-        corte = resto.indexOf('\n');
-      }
+      acumulado = acumulado.slice(corte + 1);
+
+      if (linea.length > 0) responderLinea(await atender(contexto, linea));
+
+      corte = acumulado.indexOf('\n');
     }
-
-    // Lo que llegue sin salto de linea final se responde igualmente: si no,
-    // esa peticion se pierde en silencio y el padre espera hasta su tiempo
-    // limite sin entender por que.
-    if (resto.trim().length > 0) responderLinea(atenderLinea(resto, db));
-  } finally {
-    db.close();
   }
 }
 
-async function principal(): Promise<void> {
-  const operacion = process.argv[2] ?? '';
-
-  if (operacion === '--server') {
-    await modoServidor();
-    return;
-  }
+/** Parsea una linea del protocolo, la ejecuta y devuelve la respuesta. */
+async function atender(
+  contexto: IBridgeContext,
+  linea: string,
+): Promise<IRespuesta> {
+  let peticion: IPeticion;
 
   try {
-    const cuerpo = await leerEntrada();
+    peticion = JSON.parse(linea) as IPeticion;
+  } catch {
+    return { ok: false, error: 'La peticion no es JSON valido.' };
+  }
 
-    if (operacion !== 'exec' && operacion !== 'select') {
-      responder({ ok: false, error: `Operacion desconocida: ${operacion}` });
-      process.exitCode = 1;
+  return ejecutar(contexto, peticion);
+}
+
+/** Una llamada y salir: lo que usan los tests y lo que se teclea a mano. */
+async function modoUnaVez(operacion: string): Promise<void> {
+  const cuerpo = await leerEntrada();
+
+  let args: unknown;
+
+  if (cuerpo.trim().length > 0) {
+    try {
+      args = JSON.parse(cuerpo);
+    } catch {
+      responder({ ok: false, error: 'Los argumentos no son JSON valido.' });
       return;
     }
-
-    // Una consulta de solo lectura falla si el fichero no existe, y el aviso
-    // lo trae `abrirLectura()`: es mucho mas util que el error generico de
-    // SQLite. Para escribir, en cambio, la base se crea sola.
-    const db = operacion === 'exec' ? abrirEscritura() : abrirLectura();
-
-    try {
-      responder(ejecutarPeticion(operacion, cuerpo, db));
-    } finally {
-      db.close();
-    }
-  } catch (error) {
-    responder({
-      ok: false,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    process.exitCode = 1;
   }
+
+  const contexto = montarContexto();
+
+  responder(
+    await ejecutar(contexto, {
+      operacion: operacion as BridgeOperationName,
+      args,
+    }),
+  );
 }
 
-await principal();
+const [modo] = process.argv.slice(2);
 
-/** Reexportado para que el script se pueda importar en tests. */
-export { abrirLectura, abrirEscritura, atenderLinea, ejecutarPeticion, parsearPeticion };
+if (modo === '--server') {
+  await modoServidor();
+} else if (modo === undefined) {
+  responder({
+    ok: false,
+    error:
+      'Uso: dev-bridge.serve.ts --server | dev-bridge.serve.ts <operacion>\n' +
+      'Operaciones: ' +
+      Object.keys(MANEJADORES)
+        .sort()
+        .join(', '),
+  });
+} else {
+  await modoUnaVez(modo);
+}

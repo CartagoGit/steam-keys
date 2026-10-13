@@ -53,6 +53,8 @@ export type {
   Translator,
 } from './i18n.constants';
 
+export { DEFAULT_SETTINGS } from './settings.constants';
+
 export {
   LOCALE_BCP47,
   LOCALE_FLAG_SIZE,
