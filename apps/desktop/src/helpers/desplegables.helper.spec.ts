@@ -1411,10 +1411,17 @@ describe('el filtro de etiquetas', () => {
 
 describe('arranque sin salto de estilos', () => {
   const APP = fuente('app.component.tsx');
+  /**
+   * El estado de «las claves ya se han leido» vive en `useKeys`, asi que lo que
+   * se marca en el `finally` ya no esta en el componente. La guarda mira los dos
+   * ficheros porque lo que vigila es que la marca se ponga **siempre**, no que
+   * este en un sitio concreto.
+   */
+  const KEYS = fuente('use-keys.helper.ts');
 
   test('el cartel espera a los ajustes y a las claves', () => {
     expect(APP).toContain('todoListo');
-    expect(APP).toMatch(/todoListo\s*=\s*ajustesListos\s*&&\s*clavesCargadas/);
+    expect(APP).toMatch(/todoListo\s*=\s*ajustesListos\s*&&\s*keysLoaded/);
 
     // El flag sale del estado derivado, no de ponerlo en los dos sitios: asi no
     // se queda a medias si uno de los dos falla.
@@ -1445,7 +1452,10 @@ describe('arranque sin salto de estilos', () => {
   test('las claves marcan su carga aunque fallen', () => {
     // En el `finally`, no en el `try`: si la lectura falla, la pantalla tiene
     // que ensenar el error, no quedarse esperando para siempre.
-    expect(APP).toMatch(/finally\s*\{\s*setClavesCargadas\(true\)/);
+    expect(KEYS).toMatch(/finally\s*\{\s*setLoaded\(true\)/);
+
+    // Y el componente tiene que leer el nombre que devuelve el hook, no otro.
+    expect(APP).toMatch(/loaded:\s*keysLoaded/);
   });
 });
 /**

@@ -36,6 +36,7 @@ import { useArranque } from '@/helpers/use-arranque.helper';
 import { applyTheme } from '@/helpers/runtime.helper';
 import { commonTags } from '@/helpers/tags.helper';
 import { useToasts } from '@/helpers/use-toasts.helper';
+import { useKeys } from '@/helpers/use-keys.helper';
 import { borradorDe, useUndo, type IUndoEntry } from '@/helpers/undo.helper';
 import { gameKeyService, DuplicateKeyError } from '@/services/game-key.service';
 import { settingsService, DEFAULT_SETTINGS } from '@/services/settings.service';
@@ -103,7 +104,31 @@ function initialFilter(cargados: IAppSettings): IKeyFilter {
 }
 
 export function App() {
-  const [keys, setKeys] = useState<readonly IGameKey[]>([]);
+  const { toasts, notify, dismiss: dismissToast } = useToasts();
+
+  // --------------------------------------------------------- carga de datos ---
+
+/*
+   * La coleccion y las cuatro maneras de cambiarla.
+   *
+   * Lo que se le pasa va por parametro y no importado porque el hook es de
+   * `helpers/` y no puede mirar `services`: es la misma regla que sigue
+   * `useArranque`. Aqui la dependencia se ve en la llamada y no escondida en un
+   * `import`.
+   *
+   * El aviso se arma aqui y no dentro del hook porque el texto del error hay
+   * que traducirlo con el idioma de ahora, y el idioma lo tiene el componente.
+   */
+  const KEYS = useMemo(
+    () => ({
+      listar: () => gameKeyService.list(),
+      onError: (message: string) => notify(message, 'error'),
+    }),
+    [notify],
+  );
+
+  const { keys, loaded: keysLoaded, reload, patchKey, patch, removeKeys } =
+    useKeys(KEYS);
   const [filter, setFilter] = useState<IKeyFilter>(emptyFilter);
   const [sort, setSort] = useState<KeySort>(KeySort.Alfabetico);
 
@@ -142,8 +167,6 @@ export function App() {
    */
   const [listoParaPintar, setListoParaPintar] = useState(false);
   const [busy, setBusy] = useState(false);
-  /** Las claves ya se han leido, salga bien o mal. */
-  const [clavesCargadas, setClavesCargadas] = useState(false);
   const [storageOpen, setStorageOpen] = useState(false);
 
   // ------------------------------------------------------- seleccion ---
@@ -201,7 +224,7 @@ export function App() {
    * asi los dos caminos de llegada —ajustes leidos y claves leidas— no tienen
    * que acordarse de Levantarlo, y no se queda a medias si uno falla.
    */
-  const todoListo = ajustesListos && clavesCargadas;
+  const todoListo = ajustesListos && keysLoaded;
 
   useEffect(() => {
     setListoParaPintar(todoListo);
@@ -403,116 +426,6 @@ export function App() {
   const shortcutsVivo = useKeepMounted(shortcutsOpen);
 
   // ------------------------------------------------------------- avisos ---
-  const { toasts, notify, dismiss: dismissToast } = useToasts();
-
-  // --------------------------------------------------------- carga de datos ---
-
-  const reload = useCallback(async (): Promise<readonly IGameKey[] | null> => {
-    try {
-      const cargadas = await gameKeyService.list();
-
-      setKeys(cargadas);
-
-      return cargadas;
-    } catch (cause) {
-      notify(
-        cause instanceof Error ? cause.message : traducir('app.loadFailed'),
-        'error',
-      );
-
-      return null;
-    } finally {
-      setClavesCargadas(true);
-    }
-    // `traducir` tambien: sin el, el error de carga se queda en el idioma
-    // anterior si el usuario cambia de idioma con la lista ya cargada.
-  }, [notify, traducir]);
-  /**
-   * Carga las claves **una vez**, cuando la base pasa a estar disponible.
-   *
-   * Va por ref y no por dependencia directa a proposito. `reload` depende de
-   * `traducir`, que depende del idioma, asi que con `[reload, arranque]` cada
-   * vez que se elegia otro idioma se releian cuatrocientas filas desde SQLite
-   * sin `setLoading(true)` que lo justificara: con la base en un disco lento o
-   * en red —el modo portable la deja al lado del ejecutable— se notaba.
-   *
-   * El ref mantiene la version **actual** de la funcion sin que su identidad
-   * dispare nada. El error de carga si sale en el idioma bueno, que era lo que
-   * se queria: lo unico que hace falta es que el mensaje se traduzca al
-   * escribirse, no que la lista se recarge al cambiar de idioma.
-   */
-  const reloadRef = useRef(reload);
-  reloadRef.current = reload;
-
-  /**
-   * Sustituye **una** clave en memoria, sin releer la tabla.
-   *
-   * Es lo que hay que hacer despues de guardar una clave, borrarla o cambiarle
-   * un estado: el servicio ya ha devuelto la fila tal como ha quedado, asi que
-   * recargar la tabla entera es volver a pedir lo que ya se tiene.
-   *
-   * El coste: recargar son 1 ms con cuatrocientas claves y 6,5 MB con veinte
-   * mil. Y no es solo el arranque —`reload()` iba detras de cada accion—, asi
-   * que guardar un titulo releia la coleccion entera de la base de datos.
-   *
-   * Solo sustituye, y no reordena: el orden lo pone `sortKeys` en cada
-   * repintado a partir de `keys`, asi que si el titulo o la fecha han cambiado
-   * la fila se mueve sola. Si la clave no estaba —porque venia de otra parte,
-   * de una fusion o de un import— **se anade**, porque perderla seria peor que
-   * volver a leer.
-   */
-  const parchearClave = useCallback((clave: IGameKey): void => {
-    setKeys((actuales) => {
-      const existe = actuales.some((otra) => otra.id === clave.id);
-
-      if (!existe) return [...actuales, clave];
-
-      return actuales.map((otra) => (otra.id === clave.id ? clave : otra));
-    });
-  }, []);
-
-  /**
-   * Parchea las claves de una accion en bloque, o recurre si no son enteras.
-   *
-   * Lo que sale de `gameKeyService` es un `IGameKey` para guardar una clave y
-   * una lista de ellas para las acciones en bloque. Aqui se distingue por la
-   * forma: un solo objeto se parchea como una clave y una lista se parchea
-   * entera.
-   *
-   * Y **si la lista viene vacia no se puede saber nada**: vacio quiere decir
-   * «no hay nada que mostrar» o tambien «no he leido», y en el segundo caso
-   * parcheando nada la lista se quedaria vacia para siempre. Por eso ahi se
-   * recarga, que es lo unico que funciona en los dos casos.
-   */
-  const parchear = useCallback(
-    async (cambios: IGameKey | readonly IGameKey[]): Promise<void> => {
-      if (!Array.isArray(cambios)) {
-        parchearClave(cambios as IGameKey);
-        return;
-      }
-
-      if (cambios.length === 0) {
-        await reloadRef.current();
-        return;
-      }
-
-      for (const clave of cambios) parchearClave(clave);
-    },
-    [parchearClave],
-  );
-
-  /**
-   * Quita claves de memoria, sin releer la tabla.
-   *
-   * La contraparte de `parchearClave` para lo que desaparece: un borrado ya no
-   * tiene fila que sustituir, solo un `id` que quitar.
-   */
-  const quitarClaves = useCallback((ids: readonly number[]): void => {
-    const fuera = new Set(ids);
-
-    setKeys((actuales) => actuales.filter((clave) => !fuera.has(clave.id)));
-  }, []);
-
 
   useEffect(() => {
     // Sin base de datos no se toca nada: ni claves, ni ajustes. Es lo que
@@ -532,11 +445,11 @@ export function App() {
      * por su cuenta, como antes.
      */
     void (async () => {
-      const cargadas = await reloadRef.current();
+      const cargadas = await reload();
 
       await tagService.list(cargadas ?? undefined).then(setTags).catch(() => undefined);
     })();
-  }, [arranque?.database]);
+  }, [arranque?.database, reload]);
 
   // ---------------------------------------------------------------- deshacer ---
   /**
@@ -1168,7 +1081,7 @@ export function App() {
        * hay que hacer. Releer la tabla entera —1 ms con cuatrocientas claves,
        * 6,5 MB con veinte mil— era para tener lo mismo que ya venia en la mano.
        */
-      if (creada !== null) await parchear(creada);
+      if (creada !== null) await patch(creada);
     } catch (cause) {
       if (cause instanceof DuplicateKeyError) {
         // Aqui se traduce: el servicio no sabe en que idioma esta la app, y el
@@ -1204,7 +1117,7 @@ export function App() {
       notify(traducir('app.deleted') + ' ' + traducir('app.undoHint'), 'success');
 
       // Un borrado no deja fila que sustituir: se quita el `id` de la lista y ya.
-      quitarClaves([deleting.id]);
+      removeKeys([deleting.id]);
     } catch (cause) {
       notify(
         cause instanceof Error ? cause.message : traducir('app.deleteFailed'),
@@ -1283,7 +1196,7 @@ export function App() {
        * releer la tabla. `afectadas` son las copias de **antes** —por eso
        * servian para el deshacer—, asi que el estado hay que ponerlo aparte.
        */
-      for (const clave of afectadas) parchearClave({ ...clave, status });
+      for (const clave of afectadas) patchKey({ ...clave, status });
 
       // El aviso va **ademas** del mensaje del dialogo, no en vez de el:
       // el dialogo se puede cerrar sin leer y el cambio ya esta hecho.
@@ -1337,7 +1250,7 @@ export function App() {
        * modo que copiarla sin tocarle el estado dejaria la fila con lo que
        * tenia al pintarse el render anterior.
        */
-      parchearClave({ ...entry, status: next });
+      patchKey({ ...entry, status: next });
     } catch (cause) {
       // Sin esto, un fallo soltava un rechazo sin capturar desde un
       // manejador de evento — donde no hay nadie que lo recoja — y la
@@ -1440,7 +1353,7 @@ export function App() {
        * de estado y el destinatario cambien **ya**, sin esperar a la tabla.
        */
       for (const clave of actionableKeys) {
-        parchearClave({
+        patchKey({
           ...clave,
           status: KeyStatus.Gifted,
           giftedTo: limpio,
@@ -1493,7 +1406,7 @@ export function App() {
       // pone en la copia de memoria, sin releer la tabla. `affected` es una foto
       // de antes, asi que el estado hay que ponerlo aparte.
       for (const clave of affected) {
-        parchearClave({ ...clave, status: KeyStatus.Expired });
+        patchKey({ ...clave, status: KeyStatus.Expired });
       }
     } catch (cause) {
       notify(
@@ -1588,7 +1501,7 @@ export function App() {
       for (const asignacion of cambian) {
         const clave = selectedKeys.find((key) => key.id === asignacion.id);
 
-        if (clave !== undefined) parchearClave({ ...clave, tags: asignacion.tags });
+        if (clave !== undefined) patchKey({ ...clave, tags: asignacion.tags });
       }
     } catch (cause) {
       notify(
