@@ -39,6 +39,7 @@ export const PT: TranslationTable = Object.freeze({
   'sort.recent': 'Mais recentes',
   'sort.alpha': 'A - Z',
   'sort.status': 'Por estado',
+  'sort.inverse': 'Ordem inversa',
   'sort.platform': 'Por plataforma',
   'filter.platform': 'Plataforma',
   'filter.status': 'Estado',

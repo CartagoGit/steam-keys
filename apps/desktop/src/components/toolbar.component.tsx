@@ -14,6 +14,9 @@ export interface IToolbarProps {
   /** El catalogo de etiquetas, para el filtro de etiquetas. */
   catalogo: readonly ITag[];
   sort: KeySort;
+  /** Si el orden va dado la vuelta. */
+  sortInverso: boolean;
+  onSortInversoChange: (inverso: boolean) => void;
   searchRef: React.RefObject<HTMLInputElement | null>;
   /** Que tabla se ve ahora mismo. */
   view: AppView;
@@ -46,6 +49,8 @@ export function Toolbar({
   filter,
   stats,
   sort,
+  sortInverso,
+  onSortInversoChange,
   searchRef,
   view,
   cuenta,
@@ -228,8 +233,36 @@ export function Toolbar({
             value={sort}
             onChange={onSortChange}
             label={t('toolbar.sort')}
-            iconoBase={<Icon name="sort" size={15} className="shrink-0 text-t3" />}
+            iconoBase={
+              /*
+               * El icono **gira** con el sentido, y no hay dos iconos.
+               *
+               * El de ordenar son tres rayas con una flecha que baja: las
+               * rayas dicen «esto se ordena» y la flecha, hacia donde. Al
+               * invertir, la flecha sube y las rayas quedan encima, que es
+               * exactamente la lectura de un Z a la izquierda de una A.
+               *
+               * Rotarlo en vez de dibujar un segundo icono tiene dos
+               * ventajas: los dos estados no pueden separarse nunca —con dos
+               * iconos, un dia se cambia uno y no el otro—, y el giro se
+               * puede animar, con lo que el cambio se ve en la cabecera sin
+               * abrir el menu.
+               */
+              <Icon
+                name="sort"
+                size={15}
+                className={[
+                  'shrink-0 text-t3 transition-transform duration-200',
+                  sortInverso ? 'rotate-180' : '',
+                ].join(' ')}
+              />
+            }
             ajustarAncho
+            pie={{
+              texto: t('sort.inverse'),
+              marcada: sortInverso,
+              alCambiar: onSortInversoChange,
+            }}
           />
 
           <Button

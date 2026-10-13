@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 're
 
 import { Icon } from './icon.component';
 import { Popover, PopoverOption } from './popover.component';
-import { CAMPO_CLASS } from './ui.component';
+import { CAMPO_CLASS, Toggle } from './ui.component';
 
 /** Una opcion de un desplegable de una sola eleccion. */
 export interface ISelectOption<T extends string> {
@@ -61,6 +61,24 @@ export interface ISingleSelectProps<T extends string> {
    * motivo.
    */
   ajustarAncho?: boolean;
+  /**
+   * Fila con casilla al pie de la lista, para el otro sentido.
+   *
+   * Solo la lleva el desplegable de orden, y es el mismo control que el
+   * candado del filtro de etiquetas —«esta consulta o la contraria»— asi que
+   * es el mismo `Toggle`, no una copia.
+   *
+   * Va **dentro del menu** y no al lado del boton porque cambia lo que hay
+   * marcado: si se pulsara desde la cabecera, el boton tendria que abrir el
+   * menu solo para poder tocarlo, y el menu se cerraria al pulsar fuera antes
+   * de que se llegue. Y porque se elige **al ordenar**: al elegir el criterio
+   * se elige tambien hacia que lado.
+   */
+  pie?: {
+    texto: string;
+    marcada: boolean;
+    alCambiar: (marcada: boolean) => void;
+  };
   /** Clase del contenedor, para lo que cambia de sitio. */
   className?: string;
 }
@@ -80,6 +98,16 @@ export interface ISingleSelectProps<T extends string> {
  * el boton se encoge en 200 ms y lo que tiene al lado se recoloca en otra
  * cifra, los dos gestos se leen como dos cosas. Con la misma se leen como uno.
  */
+/**
+ * Alto maximo de la lista cuando hay fila de pie.
+ *
+ * Es holgado a proposito: solo se alcanza con el desplegable de orden, que
+ * tiene cuatro opciones, asi que en la practica casi nunca llega. Si se
+ * alcanzara, lo que se desplaza es la lista y el pie se queda quieto, que es
+ * justo para lo que esta.
+ */
+const ALTO_MAXIMO_CON_PIE = 420;
+
 const DURACION_ANCHO = '200ms';
 const CURVA_ANCHO = 'cubic-bezier(0.34, 1.3, 0.64, 1)';
 
@@ -114,6 +142,7 @@ export function SingleSelect<T extends string>({
   label,
   iconoBase,
   ajustarAncho = false,
+  pie,
   className = '',
 }: ISingleSelectProps<T>) {
   const [abierto, setAbierto] = useState(false);
@@ -284,6 +313,16 @@ export function SingleSelect<T extends string>({
         onCerrar={() => setAbierto(false)}
         resaltada={resaltada}
         aria-label={label}
+        /*
+         * `scrollCopia` solo cuando hay fila de pie.
+         *
+         * Sin ella el panel entero se desplaza y la casilla se va por arriba al
+         * bajar la lista, que es justo lo que no puede pasar: es la unica
+         * forma de volver a cambiar el sentido sin reabrir el menu.
+         */
+        scrollCopia={pie !== undefined}
+        altoMaximo={pie !== undefined ? ALTO_MAXIMO_CON_PIE : undefined}
+        className={pie !== undefined ? 'p-0' : ''}
       >
         {options.map((option, indice) => (
           <PopoverOption
@@ -304,6 +343,27 @@ export function SingleSelect<T extends string>({
             <span className="flex-1 truncate">{option.label}</span>
           </PopoverOption>
         ))}
+
+        {/*
+          El pie va **fuera** de la lista y con su propio borde.
+          *
+          * `PopoverOption` mide su caja para el ajuste del teclado, asi que si
+          * la casilla fuera una opcion mas se moveria con las flechas —que en
+          * una lista de eleccion unica no tienen nada que recorrer por ahi— y
+          * Enter sobre ella cerraria el menu sin elegir. Con su propio borde
+          * debajo se lee como lo que es: una opcion distinta, de otro tipo.
+        */}
+        {pie ? (
+          <div className="shrink-0 border-t border-line">
+            <Toggle
+              marcada={pie.marcada}
+              alCambiar={pie.alCambiar}
+              icono={pie.marcada ? 'check' : 'minus'}
+            >
+              {pie.texto}
+            </Toggle>
+          </div>
+        ) : null}
       </Popover>
     </div>
   );

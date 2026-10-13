@@ -102,6 +102,21 @@ export function App() {
   const [keys, setKeys] = useState<readonly IGameKey[]>([]);
   const [filter, setFilter] = useState<IKeyFilter>(emptyFilter);
   const [sort, setSort] = useState<KeySort>(KeySort.Alfabetico);
+
+  /**
+   * Si el orden va dado la vuelta.
+   *
+   * Vive al lado de `sort` y no dentro, porque son la misma pregunta —«como
+   * los ordeno»— con dos partes: por que y hacia que lado. Y van sueltos
+   * porque el desplegable ya las separa: el criterio se elige en la lista y el
+   * sentido en la casilla de abajo, que es la unica casilla de la cabecera y
+   * se reconoce porque esta al lado de la que ya conoce.
+   *
+   * No se guarda con el resto de los ajustes, igual que `sort`: son de esta
+   * sesion, y quien abre la app un dia quiere «A - Z» hacia abajo, no como
+   * lo dejo la ultima vez hace tres meses.
+   */
+  const [ordenInverso, setOrdenInverso] = useState(false);
   const [editing, setEditing] = useState<IGameKey | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [deleting, setDeleting] = useState<IGameKey | null>(null);
@@ -679,8 +694,8 @@ export function App() {
   }, [ajustesListos, filter.scope, filter.kind, vista]);
 
   const visible = useMemo(
-    () => sortKeys(filterKeys(keys, filter), sort),
-    [keys, filter, sort],
+    () => sortKeys(filterKeys(keys, filter), sort, ordenInverso),
+    [keys, filter, sort, ordenInverso],
   );
 
   const stats = useMemo(() => computeStats(keys, visible.length), [keys, visible.length]);
@@ -1845,6 +1860,8 @@ export function App() {
         view={vista}
         cuenta={cuenta}
         onFilterChange={patchFilter}
+        sortInverso={ordenInverso}
+        onSortInversoChange={setOrdenInverso}
         onSortChange={setSort}
         onViewChange={setVista}
         onOpenSteamSettings={() => openSettingsAt('account')}

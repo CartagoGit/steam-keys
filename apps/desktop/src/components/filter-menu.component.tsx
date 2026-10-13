@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 're
 
 import { Icon, type IconName } from './icon.component';
 import { Popover, PopoverOption } from './popover.component';
+import { Toggle } from './ui.component';
 import { Segmented } from './segmented.component';
 import { useT } from '@/context/locale.context';
 
@@ -971,28 +972,13 @@ export function FilterMenu<T extends string>({
             la nota de al lado, y la fila parecia un titular.
           */}
           {onExcluir ? (
-            <button
-              type="button"
-              role="checkbox"
-              aria-checked={excluir}
-              onClick={() => onExcluir(!excluir)}
-              style={{ fontSize: TAMANO_AVISO }}
-              className={[
-                'flex w-full items-center gap-2 px-3 py-2',
-                'text-left leading-relaxed transition-colors',
-                excluir ? 'text-t1' : 'text-t3 hover:text-t2',
-              ].join(' ')}
+            <Toggle
+              marcada={excluir}
+              alCambiar={onExcluir}
+              icono={excluir ? 'lock' : 'lock-open'}
             >
-              <Icon
-                name={excluir ? 'lock' : 'lock-open'}
-                size={13}
-                className="shrink-0"
-              />
-
-              <span>
-                {t(`filter.menu.orAnd.${excluir ? 'on' : 'off'}`)}
-              </span>
-            </button>
+              {t(`filter.menu.orAnd.${excluir ? 'on' : 'off'}`)}
+            </Toggle>
           ) : null}
           </div>
         </Popover>

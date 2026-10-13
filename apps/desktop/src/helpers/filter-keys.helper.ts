@@ -112,25 +112,52 @@ export function filterKeys(
  * llegara cada lista. Se notaba al quitar un filtro: las filas cambiaban de
  * sitio sin que hubiera cambiado nada.
  */
-export function sortKeys(keys: readonly IGameKey[], sort: KeySort): readonly IGameKey[] {
+export function sortKeys(
+  keys: readonly IGameKey[],
+  sort: KeySort,
+  inverso = false,
+): readonly IGameKey[] {
   const sorted = [...keys];
+
+  /*
+   * El inverso invierte **solo el primer criterio**, y no da la vuelta a la
+   * lista.
+   *
+   * «Por plataforma» son tres cosas en fila: plataforma, luego titulo, luego
+   * id. Al invertir solo la primera, Z sale antes que A **dentro** de Steam y
+   * los titulos de cada plataforma siguen en A-Z, que es lo que se espera al
+   * pedir «lo inverso»: no es «esta lista del reves», es «la misma pregunta
+   * con la flecha dada la vuelta».
+   *
+   * Darle la vuelta a la lista entera haria lo contrario: dentro de cada
+   * plataforma los titulos tambien saldrian al reves, y encima el desempate
+   * por id —que existe para que dos claves del mismo juego no cambien de sitio
+   * entre recargas— se invertiria con el. Un orden que no se puede repetir
+   * deja de ser un orden.
+   *
+   * Y se invierte con `* -1` y no con un `if` por rama: la funcion de
+   * comparacion es la misma en los dos sentidos, y duplicarla es como un
+   * cambio en la comparacion se queda sin aplicar en uno de los dos.
+   */
+  const sentido = inverso ? -1 : 1;
 
   switch (sort) {
     case KeySort.Alfabetico:
       return sorted.sort(
-        (a, b) => a.title.localeCompare(b.title, 'es') || a.id - b.id,
+        (a, b) =>
+          sentido * a.title.localeCompare(b.title, 'es') || a.id - b.id,
       );
     case KeySort.Estado:
       return sorted.sort(
         (a, b) =>
-          a.status.localeCompare(b.status, 'es') ||
+          sentido * a.status.localeCompare(b.status, 'es') ||
           a.title.localeCompare(b.title, 'es') ||
           a.id - b.id,
       );
     case KeySort.Plataforma:
       return sorted.sort(
         (a, b) =>
-          a.platform.localeCompare(b.platform, 'es') ||
+          sentido * a.platform.localeCompare(b.platform, 'es') ||
           a.title.localeCompare(b.title, 'es') ||
           a.id - b.id,
       );
@@ -138,7 +165,8 @@ export function sortKeys(keys: readonly IGameKey[], sort: KeySort): readonly IGa
     default:
       return sorted.sort(
         (a, b) =>
-          (b.addedOn ?? b.createdAt).localeCompare(a.addedOn ?? a.createdAt) ||
+          sentido *
+            (b.addedOn ?? b.createdAt).localeCompare(a.addedOn ?? a.createdAt) ||
           a.title.localeCompare(b.title, 'es') ||
           a.id - b.id,
       );

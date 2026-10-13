@@ -322,3 +322,61 @@ export function IconButton({
     </button>
   );
 }
+
+export interface IToggleProps {
+  /** Si esta puesto. */
+  marcada: boolean;
+  /** Recibe el valor nuevo, para poder cambiarlo. */
+  alCambiar: (marcada: boolean) => void;
+  /** Icono a la izquierda. Cambia con el estado, que es lo que lo hace legible. */
+  icono: IconName;
+  /** Texto de la fila. */
+  children: ReactNode;
+}
+
+/**
+ * Una fila con casilla, al pie de un desplegable.
+ *
+ * Es el patron de dos sitios y estaba escrito dos veces: la del candado del
+ * filtro de etiquetas y la del orden inverso. Se uniaron porque son lo mismo —
+ * «una de las dos lecturas, y aqui se elige»— y porque las dos estan en el pie
+ * de un `Popover`, debajo de una nota y encima de nada.
+ *
+ * **Casilla de Checkbox y no `switch`**, por lo mismo que el candado no es un
+ * interruptor: son dos estados que no se quedan puestos al cerrar el menu, se
+ * eligen y se aplican. Un interruptor promete un ajuste permanente.
+ *
+ * El tamano va en el `style` y no en la clase. `text-[10px]` no llega a un
+ * boton porque la regla de `font: inherit` de la hoja esta **fuera** de
+ * `@layer` —fuera, gana a cualquier utilidad— y como `font` es el atajo
+ * completo, pisa tambien el tamano. Se veia a 16 px junto a una nota a 10, y la
+ * fila parecia un titular.
+ */
+export function Toggle({ marcada, alCambiar, icono, children }: IToggleProps) {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={marcada}
+      onClick={() => alCambiar(!marcada)}
+      style={{ fontSize: TAMANO_TOGGLE }}
+      className={[
+        'flex w-full items-center gap-2 px-3 py-2',
+        'text-left leading-relaxed transition-colors',
+        marcada ? 'text-t1' : 'text-t3 hover:text-t2',
+      ].join(' ')}
+    >
+      <Icon name={icono} size={13} className="shrink-0" />
+      <span>{children}</span>
+    </button>
+  );
+}
+
+/**
+ * Tamano del texto de una fila con casilla.
+ *
+ * En el `style` de `Toggle` y no aqui como constante exportada: es lo unico que
+ * necesita el valor y sacarlo lo que haria que se pueda cambiar sin que se
+ * entere nadie. La nota de al lado, que va en un `<p>`, si usa una clase.
+ */
+const TAMANO_TOGGLE = '10px';

@@ -83,6 +83,7 @@ export const EN: TranslationTable = Object.freeze({
   'sort.recent': 'Most recent',
   'sort.alpha': 'A - Z',
   'sort.status': 'By status',
+  'sort.inverse': 'Reverse order',
   'sort.platform': 'By platform',
   'filter.platform': 'Platform',
   'filter.status': 'Status',

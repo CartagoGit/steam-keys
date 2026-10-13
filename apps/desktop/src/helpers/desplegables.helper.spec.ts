@@ -1092,10 +1092,19 @@ describe('el filtro de etiquetas', () => {
    * saber que existe.
    */
   test('la exclusion es un candado que sale siempre', () => {
-    // El boton del panel, con su estado para el lector de pantalla.
-    expect(FILTRO).toMatch(/role="checkbox"/);
-    expect(FILTRO).toContain('aria-checked={excluir}');
-    expect(FILTRO).toContain("name={excluir ? 'lock' : 'lock-open'}");
+    /**
+     * El boton del panel y su estado para el lector de pantalla.
+     *
+     * Los tres ya no estan escritos aqui: el filtro le pasa el estado al
+     * `Toggle` —que es el mismo control que la casilla de orden inverso— y el
+     * `Toggle` pone el `role` y el `aria-checked`. Se comprueba en los dos
+     * sitios porque cada uno podria deshacerse por su cuenta.
+     */
+    expect(FILTRO).toContain('<Toggle');
+    expect(FILTRO).toContain('marcada={excluir}');
+    expect(UI).toMatch(/role="checkbox"/);
+    expect(UI).toContain('aria-checked={marcada}');
+    expect(FILTRO).toContain("icono={excluir ? 'lock' : 'lock-open'}");
 
     /**
      * Siempre en el DOM, y apagado por `:disabled`.
@@ -1311,7 +1320,8 @@ describe('el filtro de etiquetas', () => {
     // Sale con `onExcluir`, no con un flag: un flag se desincroniza de la prop
     // que hace el trabajo, y asi llego el boton que salia y no hacia nada.
     expect(FILTRO).toContain('{onExcluir ? (');
-    expect(FILTRO).toContain('onClick={() => onExcluir(!excluir)}');
+    expect(FILTRO).toContain('alCambiar={onExcluir}');
+    expect(UI).toContain('onClick={() => alCambiar(!marcada)}');
 
     // Sin llamada opcional: con ella, se puede pulsar sin efecto.
     expect(FILTRO).not.toContain('onExcluir?.(');
@@ -1357,7 +1367,7 @@ describe('el filtro de etiquetas', () => {
     expect(FILTRO).not.toContain('disabled={marcadas.size < 2}');
     expect(FILTRO).not.toContain("cursor: marcadas.size < 2 ? 'not-allowed' : 'pointer'");
     expect(FILTRO).not.toContain("marcadas.size < 2 ? 'text-t5'");
-    expect(FILTRO).toContain("excluir ? 'text-t1' : 'text-t3 hover:text-t2'");
+    expect(UI).toContain("marcada ? 'text-t1' : 'text-t3 hover:text-t2'");
   });
 
   test('los dos modos de combinar llegan al filtro y se limpian juntos', () => {
@@ -1742,7 +1752,8 @@ describe('el ancho del desplegable de orden', () => {
     expect(UNICO).not.toContain('transitionProperty: TRANSICION');
 
     // Y el nombre del selector va en un icono, no escrito dentro del boton.
-    expect(BARRA).toContain('iconoBase={<Icon name="sort"');
+    expect(BARRA).toContain('name="sort"');
+    expect(BARRA).toContain('iconoBase={');
     expect(UNICO).not.toContain('prefijo');
   });
 });
@@ -1851,5 +1862,93 @@ describe('los enlaces del pie', () => {
     expect(PIE).toContain("title={t('footer.code')}");
     expect(PIE).toContain("title={t('footer.author')}");
     expect(UI).toContain('aria-label={title}');
+  });
+});
+
+/**
+ * El orden inverso.
+ *
+ * Invierte el **primer criterio** y no da la vuelta a la lista. «Por
+ * plataforma» son tres cosas en fila: plataforma, titulo e id. Al invertir solo
+ * la primera, Z sale antes que A **dentro** de Steam y los titulos de cada
+ * plataforma siguen en A-Z.
+ *
+ * Darle la vuelta a la lista entera haria lo contrario: dentro de cada
+ * plataforma los titulos tambien saldrian al reves, y el desempate por id —que
+ * existe para que dos claves del mismo juego no cambien de sitio entre
+ * recargas— se invertiria con el. Un orden que no se puede repetir deja de ser
+ * un orden.
+ *
+ * Y se invierte con `* -1` y no con un `if` por rama: la comparacion es la misma
+ * en los dos sentidos, y duplicarla es como un cambio en ella se queda sin
+ * aplicar en uno de los dos.
+ */
+describe('el orden inverso', () => {
+  test('se invierte el criterio, y solo el criterio', () => {
+    expect(FILTRAR).toContain('const sentido = inverso ? -1 : 1');
+
+    // El desempate por id se queda **fuera** del `sentido`: es el que evita que
+    // dos claves del mismo juego cambien de sitio entre recargas, y darlo la
+    // vuelta lo deshace igual que lo deshace el titulo.
+    expect(FILTRAR).toContain('sentido * a.title.localeCompare(b.title, \'es\') || a.id - b.id');
+    expect(FILTRAR).toContain('sentido * a.status.localeCompare(b.status, \'es\') ||');
+    expect(FILTRAR).toContain('sentido * a.platform.localeCompare(b.platform, \'es\') ||');
+
+    // Y el parametro tiene valor por defecto, para que llamarla como antes siga
+    // dando el mismo orden.
+    expect(FILTRAR).toContain('inverso = false');
+  });
+
+  test('la fila del pie es el mismo control que el candado', () => {
+    /*
+     * Los dos son «esta consulta o la contraria», y los dos estan al pie de un
+     * desplegable. Estaban escritos dos veces, con el mismo marcado y el mismo
+     * truco del tamano en el `style`.
+     */
+    expect(FILTRO).toContain('<Toggle');
+    expect(UNICO).toContain('<Toggle');
+
+    // Y no queda ninguna copia del boton con casilla.
+    expect(FILTRO).not.toContain('role="checkbox"');
+    expect(UNICO).not.toContain('role="checkbox"');
+    expect(UI).toContain("role=\"checkbox\"");
+  });
+
+  /**
+   * La lista se recalcula al cambiar **el sentido**.
+   *
+   * El `useMemo` de la lista visible llevaba `[keys, filter, sort]` y el
+   * sentido se colaba dentro sin declarar: cambiar la casilla marcaba la fila y
+   * giraba el icono, pero la lista se quedaba igual. Dos de las tres señales
+   * del cambio eran verdad y la tercera —la que importa— no, asi que no se
+   * veía como un fallo sino como un menu que no ordenaba.
+   */
+  test('el memo de la lista incluye el sentido', () => {
+    expect(APP).toContain('sortKeys(filterKeys(keys, filter), sort, ordenInverso)');
+    expect(APP).toMatch(
+      /sortKeys\(filterKeys\(keys, filter\), sort, ordenInverso\),\s*\[keys, filter, sort, ordenInverso\]/,
+    );
+  });
+
+  test('el icono del boton gira con el sentido', () => {
+    // Un solo icono, rotado. Con dos iconos, un dia se cambia uno y no el otro.
+    expect(BARRA).toContain("sortInverso ? 'rotate-180' : ''");
+    expect(BARRA).toContain('name="sort"');
+
+    // Y el giro se ve sin abrir el menu: lleva transicion.
+    expect(BARRA).toContain('transition-transform');
+  });
+
+  test('el pie no se desplaza con la lista', () => {
+    /*
+     * Con `scrollCopia` solo se desplaza la lista y la casilla se queda fija.
+     *
+     * Sin ella, el panel entero baja y la unica forma de volver a cambiar el
+     * sentido —sin reabrir el menu— se va por arriba. Y no puede ser una
+     * `PopoverOption` mas: la lista es de eleccion unica, donde las flechas no
+     * tienen nada que recorrer, y Enter sobre ella cerraria el menu sin elegir.
+     */
+    expect(UNICO).toContain('scrollCopia={pie !== undefined}');
+    expect(UNICO).toContain('className="shrink-0 border-t border-line"');
   });
 });
