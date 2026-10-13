@@ -410,7 +410,10 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
     });
   }
 
-  async syncTagsFromKeys(claves: readonly IGameKey[]): Promise<number> {
+  async syncTagsFromKeys(
+    claves: readonly IGameKey[],
+    catalogoLeido?: readonly ITagRow[],
+  ): Promise<number> {
     /**
      * Meten en el catalogo todo lo que ya usan las claves, en su forma
      * **normalizada**.
@@ -463,9 +466,19 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
      */
     const porNombre = new Map<string, ITagRow[]>();
 
-    for (const fila of await this.db.select<ITagRow>(
-      `SELECT nombre, color FROM ${TABLE_TAGS}`,
-    )) {
+    /*
+     * El catalogo se acepta ya leido, y si no se relee.
+     *
+     * Quien llama —`tagService.list()`— va a necesitar la tabla entera un
+     * momento despues, y antes la leia dos veces con la misma sentencia
+     * seguidas: una aqui para agrupar por nombre y otra en `listTags()` para
+     * pintar. El contenido no cambia entre medias —esta funcion solo anade
+     * nombres que faltan, nunca toca los colores—, asi que lo que se le pasa
+     * sigue valiendo despues.
+     */
+    const filas = catalogoLeido ?? (await this.listTags());
+
+    for (const fila of filas) {
       const clave = fila.nombre.toLowerCase();
       const lista = porNombre.get(clave);
 

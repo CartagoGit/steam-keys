@@ -44,10 +44,27 @@ export function memoryDatabaseClient(): IDatabaseClient {
       const limpio = sql.replace(/\s+/g, ' ').trim();
 
       if (ES_UPSERT.test(limpio)) {
-        const [key, value] = bind;
-        ajustes[String(key)] = bindToString(value);
+        /*
+         * Todos los pares, no solo el primero.
+         *
+         * `setMany` manda una sentencia con una fila por clave —los marcadores
+         * van de dos en dos—, asi que un `INSERT` puede traer tres pares. Leyendo
+         * solo el primero se guardaba el ambito y se perdian el tipo y la vista,
+         * sin decir nada: en el navegador el filtro se guardaba a medias.
+         *
+         * Se recorre de dos en dos porque es una tabla de clave y valor, y
+         * `setManyStatement` monta las filas de dos en dos por eso mismo.
+         */
+        let guardadas = 0;
+
+        for (let i = 0; i + 1 < bind.length; i += 2) {
+          ajustes[String(bind[i])] = bindToString(bind[i + 1]);
+          guardadas += 1;
+        }
+
         persist(ajustes);
-        return 1;
+
+        return guardadas;
       }
 
       return 0;

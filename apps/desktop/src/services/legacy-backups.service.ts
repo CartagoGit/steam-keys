@@ -74,6 +74,24 @@ async function leerFilas(nombre: string): Promise<readonly IGameKeyRow[]> {
  * y como se llega a la base es cosa de los servicios—.
  */
 export async function migrateLegacyBackupsSiHaceFalta(): Promise<void> {
+  /*
+   * Primero se pregunta si hay algo que traer, y solo despues se mira la
+   * bandera.
+   *
+   * El orden era el contrario: primero se leia la clave de la tabla de ajustes
+   * y luego, solo si hacia falta, `legacy_backups()`. Con el orden viejo era un
+   * viaje a la base de datos en **cada** arranque para decidir algo que ya se
+   * sabia: en cuanto las copias estan dentro, el unico sitio que puede
+   * contestarlo es Rust —«no hay carpeta», «la carpeta esta vacia»—, y eso no
+   * cuesta nada.
+   *
+   * Ahora la pregunta va ahi y la bandera solo se mira cuando de verdad hay
+   * ficheros esperando, que es la primera vez y ninguna mas.
+   */
+  const nombres = await nombresDeCopiasViejas();
+
+  if (nombres.length === 0) return;
+
   const db = await getDatabaseClient();
 
   // El propio servicio marca «ya no hace falta hacerlo». Si ya esta marcado,
@@ -81,7 +99,17 @@ export async function migrateLegacyBackupsSiHaceFalta(): Promise<void> {
   // anterior.
   if (await legacyBackupsMigrated(db)) return;
 
-  await migrateLegacyBackups(db);
+  await migrateLegacyBackups(db, nombres);
+}
+
+/** Los nombres de las copias antiguas, o `[]` si no hay de donde traerlas. */
+async function nombresDeCopiasViejas(): Promise<readonly string[]> {
+  try {
+    return await invoke<string[]>('legacy_backups');
+  } catch {
+    // Sin comando, o sin carpeta: no hay nada que traer. No es un error.
+    return [];
+  }
 }
 
 /**
@@ -93,15 +121,11 @@ export async function migrateLegacyBackupsSiHaceFalta(): Promise<void> {
  * `INSERT OR IGNORE` por nombre: si ya habia una copia con ese nombre, no se
  * pisa. Es lo que hace que se pueda volver a lanzar sin miedo.
  */
-export async function migrateLegacyBackups(db: IDatabaseClient): Promise<number> {
-  let nombres: string[];
-
-  try {
-    nombres = await invoke<string[]>('legacy_backups');
-  } catch {
-    // Sin comando, o sin carpeta: no hay nada que traer. No es un error.
-    return 0;
-  }
+export async function migrateLegacyBackups(
+  db: IDatabaseClient,
+  nombresYaConocidos?: readonly string[],
+): Promise<number> {
+  const nombres = nombresYaConocidos ?? (await nombresDeCopiasViejas());
 
   if (nombres.length === 0) return 0;
 

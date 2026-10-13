@@ -1,6 +1,9 @@
 import {
+  CLAVE_VERSION_ESQUEMA,
   COLUMNAS_ANADIDAS,
   SCHEMA_STATEMENTS,
+  TABLE_APP_SETTINGS,
+  VERSION_ESQUEMA,
   type IDatabaseClient,
 } from '@/contracts';
 
@@ -20,6 +23,23 @@ import {
  * `ADD COLUMN IF NOT EXISTS`.
  */
 export async function crearEsquema(db: IDatabaseClient): Promise<void> {
+  /*
+   * Una pregunta antes de nueve acciones.
+   *
+   * `SCHEMA_STATEMENTS` es todo idempotente, asi que ejecutarlo entero en cada
+   * arranque funciona... y son nueve viajes al puente para no cambiar nada en
+   * una base que ya esta al dia. Con la version guardada, lo normal es leer un
+   * numero y salir.
+   *
+   * Se escribe **al final**, no al principio: si algo falla a medio —el DDL
+   * entra pero las columnas no— la base se queda con la version de antes y el
+   * siguiente arranque lo vuelve a intentar entero. Marcarla antes haria que un
+   * fallo a medias se quedara para siempre.
+   */
+  const version = await leerVersion(db);
+
+  if (version === VERSION_ESQUEMA) return;
+
   for (const sentencia of SCHEMA_STATEMENTS) {
     await db.execute(sentencia);
   }
@@ -38,5 +58,33 @@ export async function crearEsquema(db: IDatabaseClient): Promise<void> {
     if (info.some((columna) => columna.name === nueva.columna)) continue;
 
     await db.execute(nueva.agregar);
+  }
+
+  await db.execute(
+    `INSERT INTO ${TABLE_APP_SETTINGS} (key, value) VALUES ($1, $2)
+     ON CONFLICT (key) DO UPDATE SET value = excluded.value`,
+    [CLAVE_VERSION_ESQUEMA, String(VERSION_ESQUEMA)],
+  );
+}
+
+/**
+ * La version con la que esta construida la base, o `null` si no se sabe.
+ *
+ * Si la tabla `app_settings` no existe todavia —que es el caso de una base
+ * recién creada— la consulta falla, y eso **no** es un error: significa
+ * justamente que hay que desplegar el esquema entero.
+ */
+async function leerVersion(db: IDatabaseClient): Promise<number | null> {
+  try {
+    const filas = await db.select<{ value: string }>(
+      `SELECT value FROM ${TABLE_APP_SETTINGS} WHERE key = $1`,
+      [CLAVE_VERSION_ESQUEMA],
+    );
+
+    const version = Number.parseInt(filas[0]?.value ?? '', 10);
+
+    return Number.isNaN(version) ? null : version;
+  } catch {
+    return null;
   }
 }

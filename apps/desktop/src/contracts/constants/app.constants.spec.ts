@@ -3,7 +3,12 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { APP_IDENTIFIER, APP_NAME } from './app.constants';
+import {
+  APP_IDENTIFIER,
+  APP_NAME,
+  PERFIL_URL,
+  PROYECTO_URL,
+} from './app.constants';
 
 /**
  * `tauri.conf.json` manda.
@@ -52,6 +57,47 @@ describe('la identidad de la app', () => {
     };
 
     expect(pkg.version).toBe(config.version);
+  });
+});
+
+describe('los enlaces del pie', () => {
+  /**
+   * El enlace del codigo tiene que ser el repositorio de verdad.
+   *
+   * Apuntaba a `cartagogit/steam-key`: en singular y en minusculas. GitHub
+   * redirige los dos —no son dos repositorios, es el mismo— asi que el enlace
+   * funcionaba y no se notaba. Lo que si es un fallo es el nombre, que es lo
+   * que ve el visitante antes de pinchar: un boton que dice «el codigo» y
+   * lleva a una direccion que no es la del proyecto.
+   *
+   * Se compara con `origin` y no contra una copia de la direccion: la copia es
+   * justamente lo que se desincroniza. Las mayusculas tambien van, porque
+   * `CartagoGit` y `cartagogit` son el mismo sitio pero no la misma direccion.
+   */
+  test('el enlace del codigo es el remoto de origen', () => {
+    const config = readFileSync(join(RAIZ, '.git/config'), 'utf8');
+
+    const url = config
+      .split('\n')
+      .map((linea) => linea.trim())
+      .find((linea) => linea.startsWith('url ='))
+      ?.slice('url ='.length)
+      .trim();
+
+    expect(url).toBeDefined();
+
+    const remoto =
+      url
+        ?.replace(/^git@github\.com:/, 'https://github.com/')
+        .replace(/\.git$/, '') ?? '';
+
+    expect(PROYECTO_URL).toBe(remoto);
+  });
+
+  test('el enlace del perfil es una direccion entera', () => {
+    // Lo de LinkedIn se dedujo del nombre y nadie lo ha confirmado. Al menos
+    // que tenga forma de enlace completo, para que un cambio se note.
+    expect(PERFIL_URL).toMatch(/^https:\/\/[a-z.]+\/in\/[a-z0-9-]+$/);
   });
 });
 

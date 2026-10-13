@@ -145,6 +145,24 @@ export const TABLE_TAGS = 'tags';
  * columna existe **en esa base de datos**, que es un estado y no una
  * definicion, asi que la pregunta no puede estar en el esquema.
  */
+/**
+ * Version del esquema, guardada en `app_settings`.
+ *
+ * Todas las sentencias de `SCHEMA_STATEMENTS` son idempotentes y se ejecutan
+ * todas en cada arranque, lo que son **nueve viajes** para no cambiar nada en
+ * una base ya al dia. Con esta marca, `crearEsquema` pregunta primero y solo
+ * entra si la base va por detras.
+ *
+ * **Hay que subirla cuando se toque el esquema.** No hay ninguna forma de que se
+ * avise sola: `CREATE TABLE IF NOT EXISTS` es idempotente precisamente porque
+ * no distingue una base nueva de una ya hecha, que es justo lo que hace falta
+ * distinguir aqui.
+ */
+export const CLAVE_VERSION_ESQUEMA = 'schemaVersion';
+
+/** Version del esquema tal y como esta este codigo. */
+export const VERSION_ESQUEMA = 2;
+
 export const COLUMNAS_ANADIDAS: readonly IColumnaAnadida[] = Object.freeze([
   Object.freeze({
     tabla: TABLE_TAGS,

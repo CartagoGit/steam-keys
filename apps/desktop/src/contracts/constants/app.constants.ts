@@ -42,7 +42,7 @@ export const STEAM_API_KEY_URL = 'https://steamcommunity.com/dev/apikey';
  * aplicacion de escritorio, y abrir una web en su propia ventana deja la
  * coleccion a medio cubrir y sin forma de volver sin cerrar antes.
  */
-export const PROYECTO_URL = 'https://github.com/cartagogit/steam-key';
+export const PROYECTO_URL = 'https://github.com/CartagoGit/steam-keys';
 
 /**
  * El perfil de quien mantiene la app.

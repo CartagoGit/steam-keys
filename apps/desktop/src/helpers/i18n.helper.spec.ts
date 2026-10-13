@@ -182,12 +182,20 @@ describe('cobertura de las traducciones', () => {
         'editor.parentPlaceholder', 'editor.tagsPlaceholder', 'owned.dlc',
         // "Manual" es la misma palabra en los dos idiomas.
         'storage.reason.manual',
+        // Sigla, y la misma en los cinco idiomas: el pie cuenta las DLC que se
+        // ven y no hay traducirla —en frances seria «DLC» tambien—. Va con el
+        // resto de siglas de arriba por lo mismo.
+        'footer.addOns',
       ],
       fr: [
         // Cognados con el castellano, mas lo mismo que en ingles.
+        // «Disponibles» es la misma palabra en frances que en castellano, y es
+        // la correcta en los dos idiomas: el frances tiene «disponible» tal cual.
+        'footer.available',
         'sort.alpha', 'status.available', 'import.available',
         'editor.titlePlaceholder', 'editor.keyPlaceholder',
         'editor.parentPlaceholder', 'editor.tagsPlaceholder', 'owned.dlc',
+        'footer.addOns',
       ],
       pt: [
         // El portugues y el castellano son lo bastante parecidos para que mas
@@ -233,6 +241,8 @@ describe('cobertura de las traducciones', () => {
         'tags.color.red', 'tags.color.orange', 'tags.color.amber',
         'tags.color.green', 'tags.color.sky', 'tags.color.violet',
         'tags.color.step1', 'tags.color.step2', 'tags.color.step3',
+        // Sigla, igual en los cinco idiomas.
+        'footer.addOns',
       ],
       de: ['sort.alpha', 'editor.titlePlaceholder', 'editor.keyPlaceholder',
         'editor.parentPlaceholder', 'editor.tagsPlaceholder', 'owned.dlc',
@@ -240,7 +250,9 @@ describe('cobertura de las traducciones', () => {
         // descuido, es la palabra correcta en las dos — y en un filtro de
         // seleccion multiple la otra, «sin marcar ninguna», seria peor,
         // porque «Alle» y «Keine» se distinguen de un vistazo.
-        'filter.menu.all'],
+        'filter.menu.all',
+        // Sigla, igual en los cinco idiomas.
+        'footer.addOns'],
     };
 
     // `app.title` tampoco se comprueba aqui: es una marca y tiene su test.

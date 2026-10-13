@@ -307,7 +307,10 @@ export class MemoryGameKeyRepository implements IGameKeyRepository {
    * Una sincronizacion que borrara por su cuenta desharia el borrado que el
    * usuario acaba de hacer a proposito.
    */
-  async syncTagsFromKeys(_claves: readonly IGameKey[]): Promise<number> {
+  async syncTagsFromKeys(
+    _claves: readonly IGameKey[],
+    _catalogoLeido?: readonly ITagRow[],
+  ): Promise<number> {
     const antes = new Set(this.catalogo);
 
     this.syncCatalogo();

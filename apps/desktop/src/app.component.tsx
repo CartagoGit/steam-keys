@@ -26,7 +26,8 @@ import { Toolbar } from './components/toolbar.component';
 import { Button } from './components/ui.component';
 
 import { AppTheme, AppView, DEFAULT_VIEW, KEY_STATUS_VALUES, KeyPlatform, KeyScope, KeySort, KeyStatus, PAGE_SIZE, mergeTags, type AppLocale, type IAppSettings, type IGameKey, type IGameKeyDraft, type IImportSummary, type IKeyFilter, type ISteamOwnedGame, type ITag, type SteamAccountStatus, type TranslationArgs, type Translator } from '@/contracts';
-import { computeStats, emptyFilter, filterKeys, sortKeys } from '@/helpers/filter-keys.helper';
+import { computeStats,
+  recuentoVisible, emptyFilter, filterKeys, sortKeys } from '@/helpers/filter-keys.helper';
 import { analyzeSelection, claveGrupo, isGiftable, podarSeleccion, resumenPorTitulo, type SelectAction } from '@/helpers/selection.helper';
 import { useKeepMounted } from '@/helpers/use-exit-animation.helper';
 import { useShortcuts } from '@/helpers/use-shortcuts.helper';
@@ -172,6 +173,19 @@ export function App() {
    * anterior. El resultado era que el filtro no se recordaba nunca.
    */
   const [ajustesListos, setAjustesListos] = useState(false);
+
+  /**
+   * Lo que hay ahora mismo en la base de datos, para el filtro y la vista.
+   *
+   * `null` mientras no se sepa —antes de leer, o si la lectura fallo—. En ese
+   * estado el siguiente guardado escribe de verdad, que es lo que toca: no se
+   * puede afirmar que un valor este puesto si no se ha mirado.
+   */
+  const guardadosRef = useRef<{
+    lastScope: IKeyFilter['scope'];
+    lastKind: IKeyFilter['kind'];
+    lastView: AppView;
+  } | null>(null);
 
   /**
    * Se puede pintar cuando estén **las dos** cosas.
@@ -596,8 +610,12 @@ export function App() {
     if (arranque?.database !== 'ready') return;
 
     const cargar = async (): Promise<void> => {
+      let leidos: IAppSettings | null = null;
+
       try {
         const cargados = await settingsService.load();
+
+        leidos = cargados;
         setSettings(cargados);
         setIdioma(cargados.locale);
         applyTheme(cargados.theme);
@@ -606,6 +624,23 @@ export function App() {
       } catch {
         // Sin ajustes: la app sigue con las claves, que es lo que importa.
       } finally {
+        /*
+         * Se apunta lo que hay en la base **antes** de poder escribir.
+         *
+         * El filtro y la vista se acaban de poner a lo que se ha leido, asi que
+         * el efecto que los guarda se dispara acto seguido con los mismos
+         * valores que ya estan ahi. Sin esta referencia los volvia a escribir:
+         * tres viajes a la base en cada arranque para dejar la tabla igual.
+         */
+        guardadosRef.current =
+          leidos === null
+            ? null
+            : {
+                lastScope: leidos.lastScope,
+                lastKind: leidos.lastKind,
+                lastView: leidos.lastView,
+              };
+
         // Se marca aqui y no dentro del `try`: aunque la carga falle, a partir
         // de este punto ya se puede guardar. Dejarlo en el `try` haria que una
         // base de datos que falla al leer nunca llegara a recordar el filtro,
@@ -711,15 +746,41 @@ export function App() {
    *
    * La comprobacion de `ajustesListos` no es opcional: sin ella, el primer
    * volcado escribe los valores por defecto encima de los guardados.
+   *
+   * Y con `guardadosRef` al lado, que es lo que hay en la base **de verdad**:
+   * si los tres valores son los que ya estaban, no se escribe nada.
    */
   useEffect(() => {
     if (!ajustesListos) return;
 
-    void settingsService.setMany({
+    const actual = {
       lastScope: filter.scope,
       lastKind: filter.kind,
       lastView: vista,
-    });
+    };
+
+    const previos = guardadosRef.current;
+
+    /*
+     * Sin cambios, no se escribe.
+     *
+     * El efecto se dispara tambien cuando los valores son los de siempre —al
+     * abrir la app, y otra vez por cada ajuste que se guarde desde el panel—,
+     * y guardar era escribir una tabla que ya estaba igual. Con `setMany`
+     * haciendo una sentencia por clave eran tres viajes cada vez.
+     */
+    if (
+      previos !== null &&
+      previos.lastScope === actual.lastScope &&
+      previos.lastKind === actual.lastKind &&
+      previos.lastView === actual.lastView
+    ) {
+      return;
+    }
+
+    guardadosRef.current = actual;
+
+    void settingsService.setMany(actual);
   }, [ajustesListos, filter.scope, filter.kind, vista]);
 
   const visible = useMemo(
@@ -752,6 +813,17 @@ export function App() {
   );
 
   const stats = useMemo(() => computeStats(keys, visible.length), [keys, visible.length]);
+
+  /**
+   * El reparto de **lo que se ve**, para el pie.
+   *
+   * `stats` va sobre la coleccion entera, y tiene que seguir asi: es lo que
+   * usan los menus de filtro, donde «Gifted: 222» tiene que seguir diciendo 222
+   * aunque el filtro activo sea ese mismo. El pie es al reves —pregunta «de las
+   * que veo, cuantas hay de cada cosa?»— y con el recuento de arriba diria lo
+   * mismo siempre: el numero entero, sin relacion con lo que se esta mirando.
+   */
+  const recuento = useMemo(() => recuentoVisible(visible), [visible]);
   const page = useMemo(() => visible.slice(0, PAGE_SIZE), [visible]);
 
   /**
@@ -1994,7 +2066,7 @@ export function App() {
         vista={vista}
         visibleCount={visible.length}
         totalCount={keys.length}
-        giftable={stats.available}
+        recuento={recuento}
         cuenta={cuenta}
         undo={deshacer.entrada}
         onUndo={() => void deshacerUltima()}

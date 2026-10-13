@@ -23,6 +23,11 @@ GENERADOR = pathlib.Path(__file__).resolve().parent / 'build-i18n.py'
 
 # clave, es, en, fr, pt, de
 FILAS = [
+    ('footer.available', ' · {0} disponibles', ' · {0} available', ' · {0} disponibles', ' · {0} disponiveis', ' · {0} verfugbar'),
+    ('footer.gifted', ' · {0} regaladas', ' · {0} gifted', ' · {0} offertes', ' · {0} oferecidas', ' · {0} verschenkt'),
+    ('footer.redeemed', ' · {0} canjeadas', ' · {0} redeemed', ' · {0} activees', ' · {0} ativadas', ' · {0} eingeloest'),
+    ('footer.expired', ' · {0} caducadas', ' · {0} expired', ' · {0} perimees', ' · {0} expiradas', ' · {0} abgelaufen'),
+    ('footer.addOns', ' · {0} DLC', ' · {0} DLC', ' · {0} DLC', ' · {0} DLC', ' · {0} DLC'),
     ('loading.more', '+{0}', '+{0} autres',
      '+{0} autres', 'e mais {0}', 'und {0} weitere'),
     ('loading.cancel', 'Cancelar', 'Cancel', 'Annuler', 'Cancelar', 'Abbrechen'),

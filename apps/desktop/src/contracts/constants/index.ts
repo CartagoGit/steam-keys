@@ -41,6 +41,7 @@ export {
   TABLE_GAME_KEYS,
   TABLE_TAGS,
 } from './db-schema.constants';
+export { CLAVE_VERSION_ESQUEMA, VERSION_ESQUEMA } from './db-schema.constants';
 export { COLUMNAS_ANADIDAS } from './db-schema.constants';
 export type { IColumnaAnadida } from './db-schema.constants';
 

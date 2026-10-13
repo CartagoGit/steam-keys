@@ -48,9 +48,35 @@ export const tagService = {
      */
     const propias = claves ?? (await repository.listAll());
 
-    await repository.syncTagsFromKeys(propias);
+    /*
+     * El catalogo se lee **una vez** y se usa para las dos cosas.
+     *
+     * Antes se leia dos veces con la misma sentencia y una detrás de otra:
+     * `syncTagsFromKeys()` lo leia para agrupar por nombre, y acto seguido
+     * `listTags()` lo releia para pintar. La sincronizacion solo anade nombres
+     * que falten y nunca toca un color, asi que lo que habia leido antes sigue
+     * valiendo despues —salvo las filas que ella misma haya añadido, que no
+     * existen hasta que se escriben—.
+     */
+    const delCatalogoInicial = await repository.listTags();
 
-    const delCatalogo = await repository.listTags();
+    const anadidas = await repository.syncTagsFromKeys(propias, delCatalogoInicial);
+
+    /*
+     * Si la sincronizacion ha anadido algo, se relee.
+     *
+     * Es el unico caso en que la lectura de antes queda corta: las etiquetas
+     * que estaban solo en las claves no existen en la tabla hasta que se
+     * escriben, y sin esta segunda lectura no saldrian en el catalogo hasta la
+     * proxima vez que se pidiera —que es justo el fallo que el comentario de
+     * `list()` dice querer evitar.
+     *
+     * Ocurre una vez por coleccion, no en cada arranque: en cuanto la
+     * etiqueta esta en la tabla, la sincronizacion no anade nada y aqui no se
+     * vuelve a leer.
+     */
+    const delCatalogo =
+      anadidas > 0 ? await repository.listTags() : delCatalogoInicial;
 
     const cuenta = contarUsos(propias.map((clave) => clave.tags));
 

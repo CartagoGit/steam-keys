@@ -109,7 +109,10 @@ export interface IGameKeyRepository {
    * escribieron en el catalogo, y sin esto no se podrian volver a marcar.
    * Devuelve cuantas han entrado de verdad.
    */
-  syncTagsFromKeys(claves: readonly IGameKey[]): Promise<number>;
+  syncTagsFromKeys(
+    claves: readonly IGameKey[],
+    catalogoLeido?: readonly ITagRow[],
+  ): Promise<number>;
   /** Insercion masiva en transaccion, ignorando claves ya presentes. */
   importRows(rows: readonly IImportRow[]): Promise<IImportSummary>;
   /** Todas las claves existentes, para deduplicar antes de importar. */

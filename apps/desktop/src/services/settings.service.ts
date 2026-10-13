@@ -9,6 +9,7 @@ import {
   type ISettingRow,
 } from '@/contracts';
 import { getDatabaseClient } from '@/repositories/repository.factory';
+import { sqlPlaceholders } from '@/helpers/sql.helper';
 import {
   readBool,
   readKind,
@@ -53,6 +54,35 @@ export const DEFAULT_SETTINGS: IAppSettings = Object.freeze({
  * en cualquier version. Un ajuste mal escrito se ignora y se cae al valor por
  * defecto, para que una fila corrupta no deje la app sin arrancar.
  */
+/**
+ * El `INSERT` de varios ajustes a la vez.
+ *
+ * Una fila por clave dentro de la misma sentencia, con el `ON CONFLICT` de
+ * siempre: guardar tres cosas son tres viajes, no uno. El navegador guarda
+ * ambito, tipo y vista juntos al cambiar un filtro, y con una sentencia por
+ * clave eran tres idas y venidas para escribir tres celdas de una tabla de
+ * tres filas.
+ *
+ * Los marcadores los pone `sqlPlaceholders`, que es quien los lleva haciendo
+ * bien en todas partes. El `no-inline-sql` lo acepta justamente porque de los
+ * valores aqui solo salen marcadores: las claves y los valores van en `binds`.
+ */
+export function setManyStatement(cuantas: number): string {
+  /*
+   * `placeholders`, y no otra cosa, porque es lo unico que va ahi dentro: cada
+   * grupo son dos marcadores —clave y valor— montados por `sqlPlaceholders`.
+   * Ni una letra de dato entra en el texto, que es justo lo que vigila el
+   * `no-inline-sql` cuando ve el nombre.
+   */
+  const placeholders = Array.from(
+    { length: cuantas },
+    (_, indice) => `(${sqlPlaceholders(2, indice * 2 + 1)})`,
+  ).join(', ');
+
+  return `INSERT INTO ${TABLE_APP_SETTINGS} (key, value) VALUES ${placeholders}
+     ON CONFLICT (key) DO UPDATE SET value = excluded.value`;
+}
+
 export const settingsService = {
   /** Todos los ajustes, con los que falten rellenados por su valor por defecto. */
   async load(): Promise<IAppSettings> {
@@ -98,16 +128,26 @@ export const settingsService = {
   },
 
   /**
-   * Guarda varios ajustes.
+   * Guarda varios ajustes de una vez.
    *
-   * Delega en `set` en vez de repetir la sentencia: eran el mismo `INSERT`
-   * escrito dos veces, y si un dia cambia solo se acordaba uno. Ademas
-   * `setMany` abria una conexion para nada cuando el parche venia vacio.
+   * Todos en la misma sentencia, y solo los que han cambiado de verdad.
+   *
+   * Delegar en `set` era lo de antes: eran el mismo `INSERT` repetido, y si un
+   * dia cambiaba solo se acordaba uno de los dos. Ademas, guardar ambito, tipo
+   * y vista —que es lo que pasa al cambiar un filtro— eran tres viajes para
+   * escribir tres celdas.
    */
   async setMany(patch: Partial<IAppSettings>): Promise<void> {
-    for (const [key, value] of Object.entries(patch)) {
-      await this.set(key as keyof IAppSettings, value as never);
-    }
+    const entradas = Object.entries(patch).filter(
+      ([, valor]) => valor !== undefined,
+    ) as [keyof IAppSettings, never][];
+
+    if (entradas.length === 0) return;
+
+    const db = await getDatabaseClient();
+    const binds = entradas.flatMap(([key, valor]) => [key, serializeSetting(valor)]);
+
+    await db.execute(setManyStatement(entradas.length), binds);
   },
 
   /** Borra la clave de la API de la base de datos. */

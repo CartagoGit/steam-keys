@@ -191,7 +191,18 @@ export function sortKeys(
   }
 }
 
-/** Recuento por estado, plataforma y total visible. */
+/**
+ * Recuento por estado, plataforma y total visible.
+ *
+ * `keys` son **todas** las claves y `visible` es cuantas se ven con los
+ * filtros de ahora. Los estados, las plataformas y el reparto de juegos y DLC
+ * se cuentan sobre todas, que es lo que necesita la barra de filtros: los
+ * menus muestran «cownik» de cada opcion dentro de la coleccion entera, y
+ * contarlos sobre lo ya filtrado haria que elegir «Gifted» dejara solo las
+ * regaladas y las demas opciones aparecieran a cero.
+ *
+ * Para lo que se ve **con los filtros puestos** esta `recuentoVisible`.
+ */
 export function computeStats(
   keys: readonly IGameKey[],
   visible: number,
@@ -254,6 +265,67 @@ export function computeStats(
  * `clavesPorTitulo` y la otra `resumenPorTitulo`— fue lo que dejo ver que
  * esta no la llamaba nadie, y se borro.
  */
+
+/** Lo que se ve ahora con los filtros puestos, contado por estado y tipo. */
+export interface IRecuentoVisible {
+  total: number;
+  available: number;
+  gifted: number;
+  redeemed: number;
+  expired: number;
+  unknown: number;
+  games: number;
+  addOns: number;
+}
+
+/**
+ * Cuenta **lo que se ve**, con los filtros de ahora.
+ *
+ * Es distinto de `computeStats` a proposito, y no es la misma funcion con otro
+ * nombre: los menus de filtro necesitan el recuento de la coleccion entera —
+«Gifted: 222» tiene que seguir diciendo 222 cuando el filtro es «Gifted»—, y el
+ * pie necesita el de lo que se esta mirando. Con una sola de las dos cosas se
+ * towards uno de los dos lados miente.
+ *
+ * Sale del mismo golpe que la lista, sin volver a recorrerla: quien la llama ya
+ * la tiene filtrada en la mano.
+ */
+export function recuentoVisible(visibles: readonly IGameKey[]): IRecuentoVisible {
+  const recuento: IRecuentoVisible = {
+    total: visibles.length,
+    available: 0,
+    gifted: 0,
+    redeemed: 0,
+    expired: 0,
+    unknown: 0,
+    games: 0,
+    addOns: 0,
+  };
+
+  for (const key of visibles) {
+    if (key.parentTitle) recuento.addOns += 1;
+    else recuento.games += 1;
+
+    switch (key.status) {
+      case KeyStatus.Available:
+        recuento.available += 1;
+        break;
+      case KeyStatus.Gifted:
+        recuento.gifted += 1;
+        break;
+      case KeyStatus.Redeemed:
+        recuento.redeemed += 1;
+        break;
+      case KeyStatus.Expired:
+        recuento.expired += 1;
+        break;
+      default:
+        recuento.unknown += 1;
+    }
+  }
+
+  return recuento;
+}
 
 function normalize(value: string): string {
   return value.trim().toLowerCase();

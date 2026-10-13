@@ -18,14 +18,22 @@ import {
   type SteamAccountStatus,
 } from '@/contracts';
 import type { IUndoEntry } from '@/helpers/undo.helper';
+import type { IRecuentoVisible } from '@/helpers/filter-keys.helper';
 
 export interface IAppFooterProps {
   vista: AppView;
   /** Lo que se ve ahora y lo que hay en total, para el recuento con filtro. */
   visibleCount: number;
   totalCount: number;
-  /** Cuantas quedan regalables. */
-  giftable: number;
+  /**
+   * El reparto de **lo que se ve** con los filtros de ahora.
+   *
+   * No es el mismo que el de la barra de filtros, que va sobre la coleccion
+   * entera: los menus tienen que seguir diciendo cuantos hay de cada cosa para
+   * poder elegirla. Este es el que responde a «y de estas que veo, cuantas hay
+   * de cada tipo».
+   */
+  recuento: IRecuentoVisible;
   cuenta: SteamAccountStatus;
   /** Ultima accion que se puede deshacer, o `null`. */
   undo: IUndoEntry | null;
@@ -45,7 +53,7 @@ export function AppFooter({
   vista,
   visibleCount,
   totalCount,
-  giftable,
+  recuento,
   cuenta,
   undo,
   onUndo,
@@ -57,45 +65,71 @@ export function AppFooter({
 
   return (
     /*
-     * Tres bloques en fila: **el recuento y la firma en el centro**, el estado
-     * del almacenamiento y los atajos a la derecha, y la izquierda vacia.
+     * Tres bloques en fila: **los recuentos a la izquierda**, la firma en el
+     * centro, y el estado del almacenamiento y los atajos a la derecha.
      *
-     * El centro es el sitio de lo que no se busca con el raton: el recuento —que
-     * no esta en ninguna parte mas— y el aviso de derechos, que en un pie de
-     * escritorio es lo primero que se mira para saber quien firma. A la
-     * izquierda, al lado del almacenamiento, el aviso se leia como una etiqueta
-     * mas de las que hay y no como lo que es.
+     * Los recuentos a la izquierda porque son **lo que cambia con el filtro**,
+     * y a la izquierda es donde se mira cuando se acaba de cambiar algo. En el
+     * centro competedian con la firma, que es lo unico que no cambia nunca y
+     * que no se busca con el raton: dos cosas quietas no pueden compartir sitio
+     * con una que cambia de largo cada vez que se toca un filtro.
      *
      * Y la rejilla de tres columnas es lo que mantiene el bloque quieto. Con
      * `justify-between` los dos extremos tendrian que medir igual para que el
-     * centro no se moviera, y el recuento —lo unico que cambia de texto— lo
-     * empujaba cada vez que era mas largo.
+     * centro no se moviera, y el recuento de la izquierda —que cambia de
+     * longitud cada vez que se filtra— lo empujaria.
      */
     <footer className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 border-t border-line bg-surface-1 px-4 py-2 text-[11px] text-t4">
-      <span className="min-w-0" />
-
-      <span className="flex min-w-0 items-center justify-center gap-3">
+      <span className="flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap">
         {vista === AppView.Games ? (
-          <span className="whitespace-nowrap">
+          <span className="truncate">
             {t('footer.games', [cuenta.juegos])}
             {cuenta.steamId ? ` · ${cuenta.steamId}` : ''}
           </span>
         ) : (
-          <span className="whitespace-nowrap">
+          <>
             {/*
               La forma la decide el TOTAL, no lo que se ve: con un filtro activo
               puede haber 1 clave visible de 200, y «1 clave» a secas diria que
-              solo hay una. `footer.countMany` es «{0} de {1} claves» justamente
-              para eso; el singular es solo el caso de una unica.
+              solo hay una. `footer.countMany` es «{0} de {1} claves»
+              justamente para eso; el singular es solo el caso de una unica.
             */}
-            {t(pluralKey(totalCount, 'footer.countOne', 'footer.countMany'), [
-              visibleCount,
-              totalCount,
-            ])}
-            {giftable > 0 ? t('footer.giftable', [giftable]) : ''}
-          </span>
-        )}
+            <span className="shrink-0">
+              {t(
+                pluralKey(totalCount, 'footer.countOne', 'footer.countMany'),
+                [visibleCount, totalCount],
+              )}
+            </span>
 
+            {/*
+              El reparto de lo que se ve, y **solo** lo que no sea cero.
+
+              Cada estado sale con su punto delante, porque son trozos sueltos de
+              una linea mas larga y sin el separador se leerian como una cifra
+              mal puesta. Lo que esta a cero no se enseña: «· 0 regaladas» ocupa
+              sitio para decir que no hay ninguna, y con cuatro estados mas los
+              DLC son justo el dato que se pierde de vista.
+
+              Y sale con los filtros puestos, que es lo que hace que responda a
+              algo: si se filtra por estado, «3 disponibles» habla de las que se
+              estan viendo, no de las 181 que hay en la coleccion.
+            */}
+            {recuento.available > 0
+              ? t('footer.available', [recuento.available])
+              : ''}
+            {recuento.gifted > 0 ? t('footer.gifted', [recuento.gifted]) : ''}
+            {recuento.redeemed > 0
+              ? t('footer.redeemed', [recuento.redeemed])
+              : ''}
+            {recuento.expired > 0
+              ? t('footer.expired', [recuento.expired])
+              : ''}
+            {recuento.addOns > 0 ? t('footer.addOns', [recuento.addOns]) : ''}
+          </>
+        )}
+      </span>
+
+      <span className="flex min-w-0 items-center justify-center gap-2">
         {/*
           El aviso de derechos, con el icono delante del nombre en los dos
           enlaces.
@@ -114,33 +148,31 @@ export function AppFooter({
           que no se actualiza cada mes, un ano guardado se queda viejo y no hay
           quien lo arregle.
         */}
-        <span className="flex min-w-0 items-center gap-2">
-          <span className="shrink-0 whitespace-nowrap">
-            © {new Date().getFullYear()}
-          </span>
-
-          <ExternalLink
-            url={PROYECTO_URL}
-            title={`${t('footer.code')}: ${FIRMA_CODIGO}`}
-            className="min-w-0 truncate"
-          >
-            <Icon name="github" size={13} className="shrink-0" />
-            {FIRMA_CODIGO}
-          </ExternalLink>
-
-          <span className="shrink-0 text-t5" aria-hidden="true">
-            ·
-          </span>
-
-          <ExternalLink
-            url={PERFIL_URL}
-            title={`${t('footer.author')}: ${FIRMA_PERFIL}`}
-            className="min-w-0 truncate"
-          >
-            <Icon name="linkedin" size={13} className="shrink-0" />
-            {FIRMA_PERFIL}
-          </ExternalLink>
+        <span className="shrink-0 whitespace-nowrap">
+          © {new Date().getFullYear()}
         </span>
+
+        <ExternalLink
+          url={PROYECTO_URL}
+          title={`${t('footer.code')}: ${FIRMA_CODIGO}`}
+          className="min-w-0 truncate"
+        >
+          <Icon name="github" size={13} className="shrink-0" />
+          {FIRMA_CODIGO}
+        </ExternalLink>
+
+        <span className="shrink-0 text-t5" aria-hidden="true">
+          ·
+        </span>
+
+        <ExternalLink
+          url={PERFIL_URL}
+          title={`${t('footer.author')}: ${FIRMA_PERFIL}`}
+          className="min-w-0 truncate"
+        >
+          <Icon name="linkedin" size={13} className="shrink-0" />
+          {FIRMA_PERFIL}
+        </ExternalLink>
       </span>
 
       <span className="flex min-w-0 items-center justify-end gap-3">
