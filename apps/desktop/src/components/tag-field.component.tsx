@@ -1,10 +1,12 @@
 import { useMemo, useRef, useState } from 'react';
 
-import { cleanTag, normalizeTag, type ITag } from '@/contracts';
+import { TAG_COLOR_CLASS, cleanTag, normalizeTag, type ITag } from '@/contracts';
 import { useT } from '@/context/locale.context';
 import { pluralKey } from '@/helpers/i18n.helper';
+import { colorDe } from '@/helpers/tags.helper';
 
 import { Icon } from './icon.component';
+import { TagChip } from './tag-chip.component';
 import { Popover, PopoverOption } from './popover.component';
 import { Button } from './ui.component';
 
@@ -133,22 +135,39 @@ export function TagField({
           Una pastilla se quita con un clic en la aspa y no hay forma de
           borrarse «media etiqueta» por error, que es lo que pasaba escribiendo.
         */}
+        {/*
+          La pastilla es la de toda la app —`TagChip`— con su tono, y la aspa va
+          **encima**, al borde derecho. Estaba al reves, con el boton dentro y
+          las clases de `info` escritas a mano, y por eso todas las etiquetas
+          salian del mismo azul. Encima y no dentro para dos cosas: el borde de
+          la pastilla queda entero y cerrado —si se parte en dos mitades, con un
+          `pr-0.5` a un lado y un `pl-0.5` al otro, sale una costura—, y el
+          hover puede teñir la pastilla entera en vez de solo la aspa.
+        */}
         {value.map((tag) => (
-          <span
-            key={tag}
-            className="inline-flex items-center gap-1 rounded-md bg-info/15 py-0.5 pr-0.5 pl-2 text-[11px] font-medium text-info-strong ring-1 ring-info/40"
-          >
-            {tag}
+          <span key={tag} className="group relative inline-flex">
+            <TagChip
+              tag={{
+                nombre: tag,
+                color:
+                  catalogo.find((c) => normalizeTag(c.nombre) === normalizeTag(tag))
+                    ?.color ?? '',
+              }}
+              marcada
+              className="gap-0 pr-5 group-hover:opacity-80"
+            />
 
             <button
               type="button"
-              onClick={() =>
-                onChange(value.filter((otra) => otra !== tag))
-              }
+              onClick={() => onChange(value.filter((otra) => otra !== tag))}
               disabled={disabled}
               title={t('tags.removeOne', [tag])}
               aria-label={t('tags.removeOne', [tag])}
-              className="rounded p-0.5 transition hover:bg-info/30 focus-visible:outline-2 focus-visible:outline-accent"
+              className={[
+                'absolute top-1/2 right-1 -translate-y-1/2 rounded-full p-0.5',
+                'transition focus-visible:outline-2 focus-visible:outline-offset-1',
+                'focus-visible:outline-on-accent',
+              ].join(' ')}
             >
               <Icon name="x" size={10} />
             </button>
@@ -241,6 +260,20 @@ export function TagField({
                     resaltada={resaltada === indice}
                     alPulsar={() => alternar(tag.nombre)}
                   >
+                    {/*
+                      El disco va delante del nombre, como en el filtro de la
+                      barra. Es el mismo dato —el tono— en el mismo sitio en los
+                      dos sitios donde se elige una etiqueta de una lista, y asi
+                      se reconoce que las dos listas hablan de lo mismo.
+                    */}
+                    <span
+                      aria-hidden="true"
+                      className={[
+                        'h-2 w-2 shrink-0 rounded-full',
+                        TAG_COLOR_CLASS[colorDe(tag)].punto,
+                      ].join(' ')}
+                    />
+
                     <span className="min-w-0 flex-1 truncate">{tag.nombre}</span>
 
                     <span className="shrink-0 text-[10px] tabular-nums text-t4">

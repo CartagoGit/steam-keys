@@ -72,7 +72,15 @@ export interface IGameKeyRepository {
   /** Las etiquetas que existen en la app, tal cual estan guardadas. */
   listTags(): Promise<readonly ITagRow[]>;
   /** Anade una etiqueta al catalogo. Si ya existe, no hace nada. */
-  createTag(nombre: string): Promise<void>;
+  createTag(nombre: string, color?: string): Promise<void>;
+  /**
+   * Cambia el tono con el que se pinta una etiqueta.
+   *
+   * Solo el catalogo: el color es como se ve, no como se llama, y las claves
+   * llevan el nombre en su columna de texto. Por eso no toca ninguna clave y no
+   * va en transaccion.
+   */
+  setTagColor(nombre: string, color: string): Promise<void>;
   /**
    * Quita una etiqueta del catalogo **y de todas las claves que la llevan**.
    *

@@ -1,5 +1,6 @@
 import { DEV_BRIDGE_PATH, DEV_BRIDGE_TOKEN_HEADER } from '../../dev-bridge.contract';
-import { SCHEMA_STATEMENTS, type IDatabaseClient } from '@/contracts';
+import type { IDatabaseClient } from '@/contracts';
+import { crearEsquema } from '@/repositories/crear-esquema.repository';
 import type { BridgeOperation, IBridgeResponse } from '../../dev-bridge.contract';
 
 /**
@@ -57,9 +58,7 @@ export const devBridgeDatabaseClient: IDatabaseClient = {
   },
 
   async migrate() {
-    for (const sentencia of SCHEMA_STATEMENTS) {
-      await devBridgeDatabaseClient.execute(sentencia);
-    }
+    await crearEsquema(devBridgeDatabaseClient);
   },
 
   /**

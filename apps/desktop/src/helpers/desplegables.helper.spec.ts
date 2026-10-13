@@ -167,15 +167,27 @@ describe('desplegables', () => {
 
     // Y lo aplica como ancho, no como minimo: en `minWidth` el panel se
     // estiraria igual con cualquier contenido ancho que metiera dentro.
-    expect(POPOVER).toMatch(/^\s*width: ANCHO,$/m);
+    expect(POPOVER).toMatch(/^\s*width: ancho,$/m);
     expect(POPOVER).not.toContain('minWidth: ancla.current');
 
     // El calculo de la posicion usa ese mismo ancho, no el de la caja del
     // ancla: si el panel mide 280 y el boton 400, la caja se sale de la
     // ventana por la derecha y `MARGEN` deja de ser un margen.
-    expect(POPOVER).toContain('caja.right - ANCHO');
-    expect(POPOVER).toContain('window.innerWidth - ANCHO - MARGEN');
+    expect(POPOVER).toContain('caja.right - ancho');
+    expect(POPOVER).toContain('window.innerWidth - ancho - MARGEN');
     expect(POPOVER).not.toContain('caja.right - caja.width');
+
+    /**
+     * Y `ancho` no es un atajo para volver a estirarlo.
+     *
+     * Lo que se guarda es un **numero**, no una clase ni una medida del boton:
+     * el panel de color son diez discos de 26 y no cabe en 280 sin una caja
+     * vacia alrededor, pero sigue siendo fijo. Con `minWidth` —o con
+     * `ancho: 'max-content'`— volveria exactamente al fallo de antes.
+     */
+    expect(POPOVER).toContain('ancho = ANCHO');
+    expect(POPOVER).not.toContain("ancho?: 'max-content'");
+    expect(POPOVER).not.toContain('minWidth');
   });
 
   test('el panel del filtro no se declara lista', () => {

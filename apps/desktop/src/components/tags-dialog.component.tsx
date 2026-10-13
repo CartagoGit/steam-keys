@@ -143,6 +143,10 @@ export function TagsDialog({
         catalogo.find((tag) => normalizeTag(tag.nombre) === clave) ?? {
           nombre: cleanTag(nombre),
           usos: 0,
+          // Una etiqueta de plataforma que todavia no esta en el catalogo no
+          // tiene tono elegido, y por eso lo saca del nombre. Es el mismo
+          // camino que las demas: lo decide `colorDe`, no este sitio.
+          color: '',
         },
       );
     }

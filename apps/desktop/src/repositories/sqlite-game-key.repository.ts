@@ -5,7 +5,7 @@ import {
   normalizeKey,
   serializeTags,
 } from '@/helpers/normalize-text.helper';
-import { GAME_KEY_COLUMNS, KeyPlatform, KeySource, KeyStatus, TABLE_GAME_KEYS, TABLE_TAGS, type IDatabaseClient, type IGameKey, type IGameKeyDraft, type IGameKeyInput, type IGameKeyRepository, type IGameKeyRow, type IImportRow, type IImportSummary, type ITagRow } from '@/contracts';
+import { GAME_KEY_COLUMNS, KeyPlatform, KeySource, KeyStatus, TABLE_GAME_KEYS, TABLE_TAGS, cleanTag, type IDatabaseClient, type IGameKey, type IGameKeyDraft, type IGameKeyInput, type IGameKeyRepository, type IGameKeyRow, type IImportRow, type IImportSummary, type ITagRow } from '@/contracts';
 
 /**
  * Repositorio de keys sobre SQLite.
@@ -252,15 +252,38 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
 // ------------------------------------------------------- catalogo de etiquetas ---
 
   async listTags(): Promise<readonly ITagRow[]> {
-    return this.db.select<ITagRow>(`SELECT nombre FROM ${TABLE_TAGS}`);
+    return this.db.select<ITagRow>(`SELECT nombre, color FROM ${TABLE_TAGS}`);
   }
 
-  async createTag(nombre: string): Promise<void> {
+  async createTag(nombre: string, color = ''): Promise<void> {
     // `OR IGNORE` y no un `SELECT` antes: la clave primaria ya lo garantiza, y
     // un `SELECT` previo deja hueco para dos llamadas a la vez.
+    //
+    // El color va con el `INSERT` y no en un `UPDATE` detras: la etiqueta nace
+    // con el, y quien la cree eligiendo un tono no tiene por que volver a
+    // escribirlo.
     await this.db.execute(
-      `INSERT OR IGNORE INTO ${TABLE_TAGS} (nombre) VALUES ($1)`,
-      [nombre],
+      `INSERT OR IGNORE INTO ${TABLE_TAGS} (nombre, color) VALUES ($1, $2)`,
+      [nombre, color],
+    );
+  }
+
+  /**
+   * Cambia el tono con el que se pinta una etiqueta.
+   *
+   * Solo la etiqueta: el color es una forma de verla, no un renombrado, y las
+   * claves llevan el **nombre** en su columna de texto. Por eso no hay que tocar
+   * ninguna fila de `game_keys` y esto no necesita transaccion.
+   *
+   * El `COLLATE NOCASE` no es un adorno. El catalogo guarda el nombre tal como
+   * se escribe en la clave —«Cumplidos»— mientras que quien llama lo pasa por
+   * `normalizeTag` y llega «cumplidos»; con `=` no coinciden, la escritura no
+   * tocaba ninguna fila y el color no se guardaba. Sin decir nada.
+   */
+  async setTagColor(nombre: string, color: string): Promise<void> {
+    await this.db.execute(
+      `UPDATE ${TABLE_TAGS} SET color = $1 WHERE nombre = $2 COLLATE NOCASE`,
+      [color, nombre],
     );
   }
 
@@ -280,7 +303,10 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
      * distintas con las mismas etiquetas son la norma, no la excepcion.
      */
     return this.db.transaccion(async () => {
-      await this.db.execute(`DELETE FROM ${TABLE_TAGS} WHERE nombre = $1`, [nombre]);
+      await this.db.execute(
+        `DELETE FROM ${TABLE_TAGS} WHERE nombre = $1 COLLATE NOCASE`,
+        [nombre],
+      );
 
       const marcadas = await this.db.select<{ id: number; tags: string }>(
         `SELECT id, tags FROM ${TABLE_GAME_KEYS}
@@ -365,10 +391,13 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
 
       // Si el nombre nuevo ya estaba, desaparece: una etiqueta con dos nombres
       // es dos etiquetas, y el filtro buscaria una que no lleva nadie.
-      await this.db.execute(`DELETE FROM ${TABLE_TAGS} WHERE nombre = $1`, [nuevo]);
+      await this.db.execute(
+        `DELETE FROM ${TABLE_TAGS} WHERE nombre = $1 COLLATE NOCASE`,
+        [nuevo],
+      );
 
       const renombradas = await this.db.execute(
-        `UPDATE ${TABLE_TAGS} SET nombre = $1 WHERE nombre = $2`,
+        `UPDATE ${TABLE_TAGS} SET nombre = $1 WHERE nombre = $2 COLLATE NOCASE`,
         [nuevo, actual],
       );
 
@@ -382,17 +411,25 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
 
   async syncTagsFromKeys(): Promise<number> {
     /**
-     * Meten en el catalogo todo lo que ya usan las claves.
+     * Meten en el catalogo todo lo que ya usan las claves, en su forma
+     * **normalizada**.
      *
      * Es la vuelta que recoge los datos que ya estaban: una coleccion con
      * cuatrocientas claves tiene dentro decenas de etiquetas —«contexto»,
-     * «promo winter»— que nunca se escribieron en el catalogo, porque
-     * hasta ahora el catalogo no existia. Sin esta vuelta no se podrian
-     * volver a marcar nunca, y las etiquetas que ya tienes serian las unicas
-     * que no se pueden volver a usar.
+     * «promo winter»— que nunca se escribieron en el catalogo, porque hasta
+     * ahora el catalogo no existia. Sin esta vuelta no se podrian volver a
+     * marcar nunca.
      *
-     * Solo anade, nunca quita: para eso esta `deleteTag`, que ademas limpia
-     * las claves. Aqui solo se rellena un hueco.
+     * Y normalizar no es un detalle, es lo que hace que el catalogo tenga **una
+     * sola fila por etiqueta**. Anadido tal cual esta escrito en la clave, «
+     * Cumplidos» y «cumplidos» —que es como lo busca quien borra, quien renombra
+     * o quien cambia el color— son dos filas distintas, y `INSERT OR IGNORE` no
+     * se quejaba de tenerlas las dos: la clave primaria las distingue porque no
+     * son iguales. Con una coleccion de mil claves, la mitad de las etiquetas
+     * Tenian dos filas y la mitad de los botones no hacian nada.
+     *
+     * Solo anade y **renombra**: nunca quita una etiqueta que no use ninguna
+     * clave, que para eso esta `deleteTag`, que ademas limpia las claves.
      */
     const filas = await this.db.select<{ tags: string }>(
       `SELECT tags FROM ${TABLE_GAME_KEYS}`,
@@ -402,7 +439,7 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
 
     for (const fila of filas) {
       for (const tag of (fila.tags ?? '').split(',')) {
-        const limpia = tag.trim();
+        const limpia = cleanTag(tag);
 
         if (limpia.length > 0) vistas.add(limpia);
       }
@@ -410,16 +447,82 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
 
     if (vistas.size === 0) return 0;
 
+    /**
+     * Que filas del catalogo corresponden a cada nombre, sin mirar la caja.
+     *
+     * Una **lista** y no una fila porque lo que hay que resolver es justo el
+     * caso de que haya varias: «cumplidos» y «Cumplidos» Producedo por una
+     * sincronizacion anterior a la normalizacion. Con una sola, la decision se
+     * tomaria sin ver la otra y las dos seguirian ahi.
+     */
+    const porNombre = new Map<string, ITagRow[]>();
+
+    for (const fila of await this.db.select<ITagRow>(
+      `SELECT nombre, color FROM ${TABLE_TAGS}`,
+    )) {
+      const clave = fila.nombre.toLowerCase();
+      const lista = porNombre.get(clave);
+
+      if (lista === undefined) porNombre.set(clave, [fila]);
+      else lista.push(fila);
+    }
+
     let anadidas = 0;
 
     for (const nombre of vistas) {
-      // `execute` devuelve las filas afectadas, y con `OR IGNORE` eso es
-      // exactamente lo que se ha anadido de verdad: si la etiqueta ya estaba
-      // en el catalogo devuelve 0, sin haber hecho falta preguntar antes.
-      anadidas += await this.db.execute(
-        `INSERT OR IGNORE INTO ${TABLE_TAGS} (nombre) VALUES ($1)`,
-        [nombre],
-      );
+      const candidatas = porNombre.get(nombre.toLowerCase()) ?? [];
+
+      if (candidatas.length === 0) {
+        anadidas += await this.db.execute(
+          `INSERT OR IGNORE INTO ${TABLE_TAGS} (nombre, color) VALUES ($1, '')`,
+          [nombre],
+        );
+
+        continue;
+      }
+
+      /**
+       * La que se queda es la del nombre **tal cual**, y si no hay, la que tenga
+       * color puesto.
+       *
+       * Se guarda el color a proposito: es la misma etiqueta con la pinta que
+       * alguien le eligio, y perderla por escribir «Cumplidos» con mayuscula en
+       * una clave seria un castigo por escribir.
+       */
+      const destino =
+        candidatas.find((fila) => fila.nombre === nombre) ??
+        candidatas.find((fila) => fila.color !== '') ??
+        candidatas[0];
+
+      // La lista no esta vacia —se ha comprobado arriba— pero el tipo no lo
+      // sabe y, sin esto, el `for` de abajo no compila.
+      if (destino === undefined) continue;
+
+      /*
+       * Aqui el borrado es **exacto**, y no `COLLATE NOCASE` como en el resto
+       * del fichero. Es justo al reves: aqui se va a borrar una fila concreta de
+       * entre varias que solo se distinguen por la caja, y con `NOCASE` el
+       * `DELETE` se las llevaria todas —incluida la que se quiere quedar—.
+       *
+       * `nombre` es exactamente el valor leido de esa fila, no un nombre buscado,
+       * y por eso la igualdad estricta es la que corresponde.
+       */
+      for (const sobrante of candidatas) {
+        if (sobrante === destino) continue;
+
+        await this.db.execute(`DELETE FROM ${TABLE_TAGS} WHERE nombre = $1`, [
+          sobrante.nombre,
+        ]);
+      }
+
+      // Y la que se queda se renombra al nombre normalizado, para que a partir
+      // de aqui la clave primaria y `normalizeTag` digan lo mismo.
+      if (destino.nombre !== nombre) {
+        await this.db.execute(
+          `UPDATE ${TABLE_TAGS} SET nombre = $1 WHERE nombre = $2`,
+          [nombre, destino.nombre],
+        );
+      }
     }
 
     return anadidas;

@@ -21,10 +21,13 @@ export class MemoryGameKeyRepository implements IGameKeyRepository {
    * las dos serian imposibles.
    */
   private catalogo: string[] = [];
+  /** Tono por etiqueta. Vive aparte porque el catalogo se guarda como lista. */
+  private colores: Record<string, string> = {};
 
   constructor() {
     this.keys = loadFromStorage();
     this.catalogo = loadCatalogo();
+    this.colores = loadColores();
     this.syncCatalogo();
   }
 
@@ -210,14 +213,26 @@ export class MemoryGameKeyRepository implements IGameKeyRepository {
   }
 
   async listTags(): Promise<readonly ITagRow[]> {
-    return this.catalogo.map((nombre) => ({ nombre }));
+    return this.catalogo.map((nombre) => ({
+      nombre,
+      color: this.colores[nombre] ?? '',
+    }));
   }
 
-  async createTag(nombre: string): Promise<void> {
+  async createTag(nombre: string, color = ''): Promise<void> {
     if (this.catalogo.includes(nombre)) return;
 
     this.catalogo = [...this.catalogo, nombre];
+    this.colores = { ...this.colores, [nombre]: color };
+
     persistCatalogo(this.catalogo);
+    persistColores(this.colores);
+  }
+
+  async setTagColor(nombre: string, color: string): Promise<void> {
+    this.colores = { ...this.colores, [nombre]: color };
+
+    persistColores(this.colores);
   }
 
   /**
@@ -240,8 +255,18 @@ export class MemoryGameKeyRepository implements IGameKeyRepository {
 
     this.catalogo = this.catalogo.filter((tag) => tag !== nombre);
 
+    /*
+     * El tono se va con la etiqueta. Si se dejaba, el nombre borrado followed
+     * guardando su color para siempre y, si alguien volviera a crear una
+     * etiqueta igual, se encontraria con un color que nadie eligio.
+     */
+    const { [nombre]: _fuera, ...resto } = this.colores;
+
+    this.colores = resto;
+
     persist(this.keys);
     persistCatalogo(this.catalogo);
+    persistColores(this.colores);
 
     return afectadas;
   }
@@ -293,8 +318,19 @@ export class MemoryGameKeyRepository implements IGameKeyRepository {
       nuevo,
     ];
 
+    /*
+     * El color **acompana** al renombrado, igual que en SQLite, donde la fila
+     * se renombra y el tono se queda en ella. Y si el destino ya existia, gana
+     * el color de la etiqueta que se renombra: es la que se sigue usando, la
+     * otra desaparece.
+     */
+    const { [actual]: colorActual, [nuevo]: _colorNuevo, ...resto } = this.colores;
+
+    this.colores = colorActual === undefined ? resto : { ...resto, [nuevo]: colorActual };
+
     persist(this.keys);
     persistCatalogo(this.catalogo);
+    persistColores(this.colores);
 
     return afectadas;
   }
@@ -391,6 +427,39 @@ function persistCatalogo(catalogo: readonly string[]): void {
 
   try {
     localStorage.setItem(STORAGE_KEY_CATALOGO, JSON.stringify(catalogo));
+  } catch {
+    // Cuota superada o modo privado: la app sigue funcionando en memoria.
+  }
+}
+
+/**
+ * Los tonos van en **otra clave**, y no dentro del catalogo.
+ *
+ * El catalogo se guarda como una lista de cadenas desde siempre, y cambiarle la
+ * forma obligaria a decidir que hacer con lo que ya hay escrito —una lista de
+ * objetos donde se esperaba una lista de cadenas no es un catalogo, es un
+ * `undefined` por cada fila—. Con una clave aparte, lo viejo se sigue leyendo
+ * tal cual y lo nuevo simplemente empieza vacio.
+ */
+const STORAGE_KEY_COLORES = `${STORAGE_KEY_PREFIX}:memory-tag-colors`;
+
+function loadColores(): Record<string, string> {
+  if (typeof localStorage === 'undefined') return {};
+
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_COLORES);
+
+    return raw ? (JSON.parse(raw) as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function persistColores(colores: Readonly<Record<string, string>>): void {
+  if (typeof localStorage === 'undefined') return;
+
+  try {
+    localStorage.setItem(STORAGE_KEY_COLORES, JSON.stringify(colores));
   } catch {
     // Cuota superada o modo privado: la app sigue funcionando en memoria.
   }

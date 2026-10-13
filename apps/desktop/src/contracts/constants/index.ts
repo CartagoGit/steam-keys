@@ -26,6 +26,7 @@ export type { IPlatformMeta } from './key-platform.constants';
 
 export { KEY_STATUS_META, statusMeta, statusOptions } from './key-status.constants';
 export type { IStatusMeta, IStatusMetaResuelta } from './key-status.constants';
+export type { TagColor, TagTone } from './tag.constants';
 
 export {
   GAME_KEY_COLUMNS,
@@ -38,6 +39,8 @@ export {
   TABLE_GAME_KEYS,
   TABLE_TAGS,
 } from './db-schema.constants';
+export { COLUMNAS_ANADIDAS } from './db-schema.constants';
+export type { IColumnaAnadida } from './db-schema.constants';
 
 export { EN, ES, TRANSLATIONS } from './i18n.constants';
 export type {
@@ -57,9 +60,14 @@ export {
 export {
   ORIGIN_TAGS,
   PLATFORM_TAGS,
+  TAG_COLORS,
+  TAG_COLOR_CLASS,
+  TAG_TONES,
+  TAG_TONES_DEDUCIDOS,
   cleanTag,
   mergeTags,
   normalizeTag,
+  parseTagColor,
   platformTags,
   removeTags,
   suggestionsFor,

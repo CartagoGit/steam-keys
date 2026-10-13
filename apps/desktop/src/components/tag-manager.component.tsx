@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 
-import { cleanTag, normalizeTag, type ITag } from '@/contracts';
+import { cleanTag, normalizeTag, type ITag, type TagColor } from '@/contracts';
 import { useT } from '@/context/locale.context';
 import { pluralKey } from '@/helpers/i18n.helper';
 
 import { ConfirmDialog } from './feedback.component';
 import { Modal, ModalHeader } from './modal.component';
+import { TagChip } from './tag-chip.component';
+import { TagColorPicker } from './tag-color-picker.component';
 import { Button, INPUT_CLASS } from './ui.component';
 
 export interface ITagManagerProps {
@@ -22,6 +24,17 @@ export interface ITagManagerProps {
   onRename: (actual: string, nuevo: string) => Promise<number | null>;
   /** Quita una etiqueta. Devuelve cuantas claves la llevaban. */
   onRemove: (nombre: string) => Promise<number>;
+  /**
+   * Cambia el tono con el que se pinta una etiqueta.
+   *
+   * Va aqui y no en el dialogo de etiquetar claves porque el color es del
+   * **vocabulario**, igual que el nombre: cambiar «dlc» de nombre propaga a las
+   * cuarenta claves que la llevan y cambiarlo de color tambien tiene que verse
+   * en las cuarenta. Si el selector de un dialogo de edicion pudesse hacerlo,
+   * bastaria con abrir la ficha de una clave y tocar su etiqueta para que dos
+   * etiquetas con el mismo nombre se vieran de dos maneras.
+   */
+  onColor: (nombre: string, color: TagColor | '') => Promise<void>;
   /** Pregunta si el nombre ya esta en el catalogo, para avisar de la fusion. */
   onExists: (nombre: string) => Promise<boolean>;
   onClose: () => void;
@@ -51,6 +64,7 @@ export function TagManager({
   onCreate,
   onRename,
   onRemove,
+  onColor,
   onExists,
   onClose,
 }: ITagManagerProps) {
@@ -251,8 +265,25 @@ export function TagManager({
                     </>
                   ) : (
                     <>
-                      <span className="min-w-0 flex-1 truncate text-xs text-t1">
-                        {tag.nombre}
+                      {/*
+                        El disco va **pegado a su etiqueta**, no pegado al
+                        boton de renombrar.
+                        *
+                        * Los dos van juntos en una caja que crece: si cada uno
+                        * ocupase el suyo, el disco se iria al otro extremo de la
+                        * fila, a un `w-` de distancia del color que cambia, y
+                        * habria que saltar la vista de un sitio a otro para
+                        * decir «este color es el de esa».
+                        */}
+                      <span className="flex min-w-0 flex-1 items-center gap-2">
+                        <TagChip tag={tag} />
+
+                        <TagColorPicker
+                          tag={tag}
+                          onChange={(color) => {
+                            if (!ocupado) void onColor(tag.nombre, color);
+                          }}
+                        />
                       </span>
 
                       <span className="shrink-0 text-[11px] tabular-nums text-t4">

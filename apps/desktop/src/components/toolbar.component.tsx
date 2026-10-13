@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { AppView, KEY_PLATFORM_META, KEY_PLATFORM_VALUES, KEY_STATUS_VALUES, KeyKind, KeyScope, KeySort, SEARCH_SHORTCUT, TRANSLATIONS, platformLabel, statusMeta, type IKeyFilter, type IKeyStats, type ITag, type SteamAccountStatus } from '@/contracts';
+import { AppView, KEY_PLATFORM_META, KEY_PLATFORM_VALUES, KEY_STATUS_VALUES, KeyKind, KeyScope, KeySort, SEARCH_SHORTCUT, TAG_COLOR_CLASS, TRANSLATIONS, platformLabel, statusMeta, type IKeyFilter, type IKeyStats, type ITag, type SteamAccountStatus } from '@/contracts';
 import { Icon } from './icon.component';
 import { Button, INPUT_CLASS } from './ui.component';
 import { FilterMenu } from './filter-menu.component';
@@ -7,6 +7,7 @@ import { Segmented } from './segmented.component';
 import { SingleSelect, type ISelectOption } from './single-select.component';
 import { ViewSwitch } from './view-switch.component';
 import { useT } from '@/context/locale.context';
+import { colorDe } from '@/helpers/tags.helper';
 
 export interface IToolbarProps {
   filter: IKeyFilter;
@@ -78,8 +79,23 @@ export function Toolbar({
    * donde estorban menos. Con el catalogo ya ordenado por usos, es solo un
    * `slice` del orden de la base.
    */
+  /**
+   * El disco de color va en la opcion y no se pinta aparte.
+   *
+   * `FilterMenu` ya sabe dibujar un punto al lado de cada opcion —es lo que
+   * usan las plataformas y los estados—, asi que la etiqueta lo unico que tiene
+   * que aportar es el tono. Marcarlo aqui y no en el filtro es ademas lo que
+   * hace que el color de una etiqueta sea el mismo en la lista de la barra y en
+   * la fila de la clave: lo calcula `colorDe`, que no depende de quien pregunta.
+   */
   const opcionesEtiqueta = useMemo(
-    () => catalogo.map((tag) => ({ value: tag.nombre, label: tag.nombre, count: tag.usos })),
+    () =>
+      catalogo.map((tag) => ({
+        value: tag.nombre,
+        label: tag.nombre,
+        count: tag.usos,
+        dot: TAG_COLOR_CLASS[colorDe(tag)].punto,
+      })),
     [catalogo],
   );
 

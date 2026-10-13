@@ -1,5 +1,5 @@
 import { getRepository } from '@/repositories/repository.factory';
-import { cleanTag, normalizeTag, type ITag } from '@/contracts';
+import { cleanTag, normalizeTag, parseTagColor, type ITag } from '@/contracts';
 import { contarUsos, sortTags } from '@/helpers/tags.helper';
 
 /**
@@ -42,10 +42,16 @@ export const tagService = {
     return sortTags(
       delCatalogo.map((fila) => ({
         nombre: fila.nombre,
+        // El color se normaliza al leer y no al escribir, para que una base
+        // editada a mano con un tono que no existe se pinte sin color en vez de
+        // romperse.
+        color: parseTagColor(fila.color),
         // Una etiqueta del catalogo que no lleva ninguna clave tiene cero
         // usos: es una etiqueta creada para usar despues, que es justo uno de
         // los motivos por los que existe el catalogo.
-        usos: cuenta.get(fila.nombre) ?? 0,
+        // Normalizado por los dos lados: `contarUsos` cuenta sobre el nombre
+        // normalizado porque es como esta en el catalogo.
+        usos: cuenta.get(normalizeTag(fila.nombre)) ?? 0,
       })),
     );
   },
@@ -110,6 +116,20 @@ export const tagService = {
     const repository = await getRepository();
 
     return repository.renameTag(desde, hasta);
+  },
+
+  /**
+   * Cambia el tono con el que se pinta una etiqueta.
+   *
+   * El nombre va **normalizado** —la columna lo guarda normalizado— y el color
+   * tambien pasa por `parseTagColor`, que devuelve `''` para lo que no conoce.
+   * Asi, desde la interfaz no hay forma de guardar un color que la app no sepa
+   * pintar.
+   */
+  async setColor(nombre: string, color: string): Promise<void> {
+    const repository = await getRepository();
+
+    await repository.setTagColor(normalizeTag(nombre), parseTagColor(color));
   },
 
   /**

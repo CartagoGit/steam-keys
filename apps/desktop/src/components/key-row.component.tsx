@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { KEY_PLATFORM_META, TRANSLATIONS, platformLabel, statusMeta, type IGameKey } from '@/contracts';
+import { KEY_PLATFORM_META, TRANSLATIONS, platformLabel, statusMeta, type IGameKey, type TagColor } from '@/contracts';
 import { formatShortDate } from '@/helpers/format-date.helper';
 import { maskKey } from '@/helpers/mask-key.helper';
 import { copyToClipboard } from '@/helpers/clipboard.helper';
 import { isGiftable } from '@/helpers/selection.helper';
 import { Badge } from './ui.component';
 import { Icon } from './icon.component';
+import { TagChip } from './tag-chip.component';
 import { useT } from '@/context/locale.context';
 
 export interface IKeyRowProps {
@@ -22,6 +23,19 @@ export interface IKeyRowProps {
   ownedOnSteam?: boolean;
   /** Etiquetas del juego, para mostrarlas resumidas. */
   tags?: readonly string[];
+  /**
+   * El tono **guardado** de cada etiqueta, por nombre.
+   *
+   * Solo el guardado, y no el color final: lo que no esta en el mapa lo deduce
+   * `colorDe` del nombre, y el nombre ya esta en `tags`. Mandar el color ya
+   * resuelto haria que la fila repitiese la cuenta —y que se quedase con el
+   * resultado de la apertura anterior si despues cambiase el nombre de una
+   * etiqueta—.
+   *
+   * Va como mapa y no como el catalogo entero porque es lo que se lee: la fila
+   * solo necesita el tono de las etiquetas que lleva su clave.
+   */
+  colores?: ReadonlyMap<string, TagColor>;
 }
 
 /**
@@ -44,6 +58,7 @@ export function KeyRow({
   siblings = 1,
   ownedOnSteam = false,
   tags = [],
+  colores = new Map(),
 }: IKeyRowProps) {
   const { t, locale } = useT();
 
@@ -180,11 +195,27 @@ export function KeyRow({
                 {formatShortDate(entry.addedOn, locale)}
               </span>
             ) : null}
+            {/*
+              Las etiquetas salen **pintadas**, no como texto con comas.
+              Estaban asi porque el color no existia; ahora que existe, una lista
+              de palabras sueltas al lado de la fecha se leia como un dato mas
+              de la letra pequena, y lo que distingue una etiqueta de otra es
+              justo el color. El `+N` se queda porque tres pastillas ya son
+              mucho y la fila no puede crecer con cada etiqueta que se anada.
+            */}
             {tags.length > 0 ? (
-              <span className="inline-flex items-center gap-1 truncate">
-                <Icon name="tag" size={11} />
-                {tags.slice(0, 3).join(', ')}
-                {tags.length > 3 ? ` +${tags.length - 3}` : ''}
+              <span className="inline-flex min-w-0 items-center gap-1.5">
+                <Icon name="tag" size={11} className="shrink-0" />
+
+                {tags.slice(0, 3).map((nombre) => (
+                  <TagChip key={nombre} tag={{ nombre, color: colores.get(nombre) ?? '' }} />
+                ))}
+
+                {tags.length > 3 ? (
+                  <span className="shrink-0 text-[11px] text-t4">
+                    {`+${tags.length - 3}`}
+                  </span>
+                ) : null}
               </span>
             ) : null}
           </div>

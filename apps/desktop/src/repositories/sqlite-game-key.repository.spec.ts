@@ -331,7 +331,12 @@ describe('el catalogo de etiquetas vive en la base de datos', () => {
     try {
       await repo.createTag('promo invierno');
 
-      expect(await repo.listTags()).toEqual([{ nombre: 'promo invierno' }]);
+      // `color` viene siempre, aunque este: una etiqueta sin tono elegido se
+      // guarda con la cadena vacia, no con `null`, y el tipo lo dice —si
+      // faltara, el sitio que la lee tendria que inventarse el valor.
+      expect(await repo.listTags()).toEqual([
+        { nombre: 'promo invierno', color: '' },
+      ]);
     } finally {
       limpiar();
     }
@@ -344,7 +349,7 @@ describe('el catalogo de etiquetas vive en la base de datos', () => {
       await repo.createTag('dlc');
       await repo.createTag('dlc');
 
-      expect(await repo.listTags()).toEqual([{ nombre: 'dlc' }]);
+      expect(await repo.listTags()).toEqual([{ nombre: 'dlc', color: '' }]);
     } finally {
       limpiar();
     }
@@ -554,3 +559,106 @@ function fila(keyValue: string) {
     addedOn: null,
   };
 }
+/**
+ * El nombre del catalogo es el **normalizado**, y de eso depende que los botones
+ * hagan algo.
+ *
+ * Quien borra, quien renombra y quien cambia el color pasan siempre el nombre
+ * por `normalizeTag`, que lo deja en minusculas. El catalogo, en cambio, se
+ * llenaba con el nombre tal cual estaba escrito en la columna de texto de la
+ * clave. Con una clave etiquetada «Cumplidos,2025» el catalogo guardaba
+ * `Cumplidos` y no `cumplidos`, asi que:
+ *
+ * - el boton de borrar no borraba la fila del catalogo —`=` no distingue— pero
+ *   si quitaba la etiqueta de las claves, porque `LIKE` si distingue sin caja;
+ * - el renombrado no renombraba nada, creaba la etiqueta nueva y dejaba la
+ *   vieja suelta para siempre;
+ * - y el color no se guardaba nunca.
+ *
+ * Todo eso sin un error: las consultas se ejecutaban y afectaban a cero filas.
+ */
+describe('el nombre del catalogo es el normalizado', () => {
+  test('una etiqueta escrita con mayusculas se guarda en minusculas', async () => {
+    const { repo, leer, limpiar } = crearRepositorio();
+
+    try {
+      await repo.insert({ ...fila('AAAA-1111-AAAA'), tags: ['Cumplidos', '2025'] });
+      await repo.syncTagsFromKeys();
+
+      expect(leer('SELECT nombre FROM tags ORDER BY nombre')).toEqual([
+        { nombre: '2025' },
+        { nombre: 'cumplidos' },
+      ]);
+    } finally {
+      limpiar();
+    }
+  });
+
+  test('el color se guarda aunque el nombre venga con mayusculas', async () => {
+    const { repo, leer, limpiar } = crearRepositorio();
+
+    try {
+      // Se escribe a mano en la base, como una coleccion que ya tendria.
+      await repo.createTag('Cumplidos');
+      await repo.setTagColor('cumplidos', 'danger');
+
+      expect(leer('SELECT nombre, color FROM tags')).toEqual([
+        { nombre: 'Cumplidos', color: 'danger' },
+      ]);
+    } finally {
+      limpiar();
+    }
+  });
+
+  test('sincronizar pliega la fila con mayusculas y conserva su color', async () => {
+    const { repo, leer, limpiar } = crearRepositorio();
+
+    try {
+      await repo.insert({ ...fila('AAAA-1111-AAAA'), tags: ['Cumplidos'] });
+      await repo.createTag('Cumplidos');
+      await repo.setTagColor('cumplidos', 'warn');
+
+      await repo.syncTagsFromKeys();
+
+      // Una sola fila, en minusculas y **con el color que ya tenia**.
+      expect(leer('SELECT nombre, color FROM tags')).toEqual([
+        { nombre: 'cumplidos', color: 'warn' },
+      ]);
+    } finally {
+      limpiar();
+    }
+  });
+
+  test('si estan las dos, se queda la del nombre normalizado', async () => {
+    const { repo, leer, limpiar } = crearRepositorio();
+
+    try {
+      await repo.insert({ ...fila('AAAA-1111-AAAA'), tags: ['Cumplidos'] });
+      await repo.createTag('Cumplidos');
+      await repo.createTag('cumplidos');
+
+      await repo.syncTagsFromKeys();
+
+      expect(leer('SELECT nombre FROM tags')).toEqual([{ nombre: 'cumplidos' }]);
+    } finally {
+      limpiar();
+    }
+  });
+
+  test('borrar y renombrar encuentran la fila con mayusculas', async () => {
+    const { repo, leer, limpiar } = crearRepositorio();
+
+    try {
+      await repo.createTag('Cumplidos');
+
+      expect(await repo.renameTag('cumplidos', 'cumplido')).toBe(0);
+      expect(leer('SELECT nombre FROM tags')).toEqual([{ nombre: 'cumplido' }]);
+
+      expect(await repo.deleteTag('cumplido')).toBe(0);
+      expect(leer('SELECT nombre FROM tags')).toEqual([]);
+    } finally {
+      limpiar();
+    }
+  });
+});
+

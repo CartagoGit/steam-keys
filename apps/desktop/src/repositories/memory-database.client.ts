@@ -1,5 +1,4 @@
 import {
-  SCHEMA_STATEMENTS,
   STORAGE_KEY_PREFIX,
   TABLE_APP_SETTINGS,
   type IAppSettings,
@@ -28,6 +27,7 @@ const STORAGE_KEY = `${STORAGE_KEY_PREFIX}:settings`;
  * Si alguna vez hiciera falta ejecutar SQL de verdad aqui, habria que traerse
  * `sql.js`, que son varios megabytes solo para el modo de desarrollo.
  */
+import { crearEsquema } from './crear-esquema.repository';
 export function memoryDatabaseClient(): IDatabaseClient {
   let ajustes: Record<string, string> = read();
 
@@ -68,13 +68,22 @@ export function memoryDatabaseClient(): IDatabaseClient {
       return [];
     },
 
+    /**
+     * No hace nada, y se puede dejar asi.
+     *
+     * Este cliente no tiene tablas: guarda ajustes en `localStorage` y
+     * reconoce las dos sentencias que la app emite sobre `app_settings` —una
+     * lectura y un upsert—. `SELECT` devuelve `[]` para lo demas y `execute`
+     * devuelve `0`, asi que llamar a `crearEsquema` aqui haria que el `PRAGMA
+     * table_info` saliera vacio y que se mandara un `ALTER TABLE` a la nada.
+     *
+     * Se llama igualmente, y no para que la lista de columnas nueva se pase
+     * por alto, sino por lo contrario: las tablas de verdad las tiene el
+     * repositorio de claves de este mismo navegador, que ya se encarga de lo
+     * suyo.
+     */
     async migrate() {
-      // Las sentencias CREATE no aplican a un almacen de pares clave/valor: la
-      // tabla no existe de verdad. Se recorren igual para que, si alguna vez se
-      // anade aqui algo que si deba aplicarse, no se pase por alto.
-      for (const statement of SCHEMA_STATEMENTS) {
-        void statement;
-      }
+      await crearEsquema(this);
     },
 
     async close() {

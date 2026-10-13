@@ -62,7 +62,8 @@ export const SCHEMA_STATEMENTS: readonly string[] = [
    * son la misma fila y no pueden coexistir.
    */
   `CREATE TABLE IF NOT EXISTS tags (
-     nombre TEXT PRIMARY KEY
+     nombre TEXT PRIMARY KEY,
+     color  TEXT NOT NULL DEFAULT ''
    );`,
 
   /**
@@ -124,6 +125,46 @@ export const TABLE_GAME_KEYS = 'game_keys';
 export const TABLE_APP_SETTINGS = 'app_settings';
 export const TABLE_BACKUPS = 'backups';
 export const TABLE_TAGS = 'tags';
+
+/**
+ * Columnas que se han anadido a una tabla **despues** de crearla.
+ *
+ * `CREATE TABLE IF NOT EXISTS` no toca una tabla que ya existe: quien ejecuto
+ * la version anterior se queda con la forma de entonces y no se entera. Por eso
+ * la columna de arriba esta en el DDL *y* aqui, y las dos cosas tienen que
+ * estar: el DDL para las bases nuevas y esta lista para las que ya hay.
+ *
+ * Cada entrada trae el `ALTER TABLE` **entero**, y no sus partes, porque SQLite
+ * no tiene `ADD COLUMN IF NOT EXISTS` y porque SQLite tampoco admite
+ * parametrizar un identificador —el nombre de la tabla y el de la columna van
+ * dentro de la cadena—: dejarlos montados aqui, con `TABLE_TAGS` en su sitio,
+ * es lo unico que hace que el `no-inline-sql` siga viendo solo identificadores
+ * conocidos y no un `${algo}` suelto.
+ *
+ * El `PRAGMA` va tambien entero por lo mismo: es la forma de preguntar si la
+ * columna existe **en esa base de datos**, que es un estado y no una
+ * definicion, asi que la pregunta no puede estar en el esquema.
+ */
+export const COLUMNAS_ANADIDAS: readonly IColumnaAnadida[] = Object.freeze([
+  Object.freeze({
+    tabla: TABLE_TAGS,
+    columna: 'color',
+    leer: `PRAGMA table_info(${TABLE_TAGS})`,
+    agregar: `ALTER TABLE ${TABLE_TAGS} ADD COLUMN color TEXT NOT NULL DEFAULT ''`,
+  }),
+]);
+
+/** Una columna que se anade a una tabla que ya puede existir. */
+export interface IColumnaAnadida {
+  /** Tabla a la que se anade. */
+  tabla: string;
+  /** Nombre de la columna nueva. */
+  columna: string;
+  /** El `PRAGMA` que dice si ya esta. */
+  leer: string;
+  /** El `ALTER TABLE` que la anade. */
+  agregar: string;
+}
 
 /**
  * Columnas de `game_keys` que se escriben, en el orden del esquema.

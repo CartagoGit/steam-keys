@@ -1,4 +1,5 @@
-import { DB_FILE_NAME, SCHEMA_STATEMENTS, type IDatabaseClient } from '@/contracts';
+import { DB_FILE_NAME, type IDatabaseClient } from '@/contracts';
+import { crearEsquema } from '@/repositories/crear-esquema.repository';
 import SqliteDatabase from '@tauri-apps/plugin-sql';
 import { invoke } from '@tauri-apps/api/core';
 
@@ -35,10 +36,7 @@ export const tauriDatabaseClient: IDatabaseClient = {
   },
 
   async migrate() {
-    const db = await getConnection();
-    for (const statement of SCHEMA_STATEMENTS) {
-      await db.execute(statement);
-    }
+    await crearEsquema(tauriDatabaseClient);
   },
 
   /**

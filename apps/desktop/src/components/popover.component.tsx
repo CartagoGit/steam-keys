@@ -20,6 +20,15 @@ export interface IPopoverProps {
   lado?: TPopoverLado;
   /** Alto maximo en pixeles. La lista se desplaza dentro si se pasa. */
   altoMaximo?: number;
+  /**
+   * Ancho del panel, en pixeles.
+   *
+   * `ANCHO` es el de una lista de opciones y no sirve para todo: el panel de
+   * color son diez discos de treinta pixeles, y a 280 se abre una caja vacia
+   * alrededor. Con esto lo elige quien lo abre, y el ajuste para no salirse de
+   * la ventana lo hace el mismo sitio de siempre.
+   */
+  ancho?: number;
   /** Indice de la opcion resaltada, para mantenerla a la vista. */
   resaltada?: number;
   /**
@@ -130,6 +139,7 @@ export function Popover({
   onCerrar,
   lado = 'izquierda',
   altoMaximo = 256,
+  ancho = ANCHO,
   resaltada,
   esLista = true,
   scrollCopia = false,
@@ -187,18 +197,15 @@ export function Popover({
       ),
     );
 
-    const left = lado === 'derecha' ? caja.right - ANCHO : caja.left;
+    const left = lado === 'derecha' ? caja.right - ancho : caja.left;
 
     setPosicion({
       top: arriba ? caja.top - SEPARACION - alto : caja.bottom + SEPARACION,
-      left: Math.max(
-        MARGEN,
-        Math.min(left, window.innerWidth - ANCHO - MARGEN),
-      ),
+      left: Math.max(MARGEN, Math.min(left, window.innerWidth - ancho - MARGEN)),
       alto,
       arriba,
     });
-  }, [altoMaximo, ancla, lado]);
+  }, [altoMaximo, ancla, ancho, lado]);
 
   useLayoutEffect(() => {
     if (!abierto) {
@@ -346,7 +353,7 @@ export function Popover({
          * Un menu es un menu: tiene el ancho que necesita para sus opciones,
          * no el que le happenca el boton que lo abre.
          */
-        width: ANCHO,
+        width: ancho,
         maxHeight: posicion.alto,
         /**
          * La escala sale desde el boton, no desde el centro: el menu tiene que
