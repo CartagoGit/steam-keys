@@ -1,6 +1,6 @@
 import { getRepository } from '@/repositories/repository.factory';
 import { cleanTag, normalizeTag, parseTagColor, type ITag } from '@/contracts';
-import { contarUsos, sortTags } from '@/helpers/tags.helper';
+import { contarUsos, nombresDe, sortTags } from '@/helpers/tags.helper';
 
 /**
  * El catalogo de etiquetas: cuales existen y cuantas claves las usan.
@@ -39,19 +39,35 @@ export const tagService = {
 
     const cuenta = contarUsos(claves.map((clave) => clave.tags));
 
+    /*
+     * El nombre con el que **se ve** cada etiqueta.
+     *
+     * Sale de las claves, y no del catalogo, porque es ahi donde esta escrito
+     * con la caja que le dio el usuario. El catalogo guarda la clave
+     * normalizada —«cumplidos»— y usarla para todo hacia que la etiqueta de la
+     * fila, que pone «Cumplidos», no se reconociera en el filtro ni en la ficha.
+     *
+     * Una etiqueta que todavia no la lleva ninguna clave cae al nombre del
+     * catalogo, que es lo unico que hay, y sale en minusculas. En cuanto se
+     * pone en una clave, aparece con la caja que tiene.
+     */
+    const nombres = nombresDe(claves.map((clave) => clave.tags));
+
     return sortTags(
       delCatalogo.map((fila) => ({
-        nombre: fila.nombre,
-        // El color se normaliza al leer y no al escribir, para que una base
-        // editada a mano con un tono que no existe se pinte sin color en vez de
-        // romperse.
+        clave: fila.nombre,
+        nombre: nombres.get(fila.nombre.toLowerCase()) ?? fila.nombre,
+        /*
+         * El color se comprueba al leer y no al escribir, para que una base
+         * editada a mano con cualquier cosa dentro de la columna se pinte sin
+         * color en vez de romperse: lo que no es un `hex` se trata como si la
+         * etiqueta no tuviera color elegido, que es justo lo que se ve entonces.
+         */
         color: parseTagColor(fila.color),
-        // Una etiqueta del catalogo que no lleva ninguna clave tiene cero
-        // usos: es una etiqueta creada para usar despues, que es justo uno de
-        // los motivos por los que existe el catalogo.
-        // Normalizado por los dos lados: `contarUsos` cuenta sobre el nombre
-        // normalizado porque es como esta en el catalogo.
-        usos: cuenta.get(normalizeTag(fila.nombre)) ?? 0,
+        // Una etiqueta del catalogo que no lleva ninguna clave tiene cero usos:
+        // es una etiqueta creada para usar despues, que es uno de los motivos
+        // por los que existe el catalogo.
+        usos: cuenta.get(fila.nombre.toLowerCase()) ?? 0,
       })),
     );
   },
@@ -119,17 +135,16 @@ export const tagService = {
   },
 
   /**
-   * Cambia el tono con el que se pinta una etiqueta.
+   * Cambia el color con el que se pinta una etiqueta.
    *
-   * El nombre va **normalizado** —la columna lo guarda normalizado— y el color
-   * tambien pasa por `parseTagColor`, que devuelve `''` para lo que no conoce.
-   * Asi, desde la interfaz no hay forma de guardar un color que la app no sepa
-   * pintar.
+   * El color pasa por `parseTagColor`, que devuelve `''` para lo que no es un
+   * `hex`. Asi, desde la interfaz no hay forma de guardar un color que la app no
+   * sepa pintar, aunque el dato venga de una base editada a mano.
    */
-  async setColor(nombre: string, color: string): Promise<void> {
+  async setColor(clave: string, color: string): Promise<void> {
     const repository = await getRepository();
 
-    await repository.setTagColor(normalizeTag(nombre), parseTagColor(color));
+    await repository.setTagColor(clave, parseTagColor(color));
   },
 
   /**

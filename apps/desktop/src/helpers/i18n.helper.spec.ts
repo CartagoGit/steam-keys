@@ -223,12 +223,16 @@ describe('cobertura de las traducciones', () => {
         // Cognado: en portugues se dice «cancelar» igual que en castellano. No
         // es un descuido de traduccion, es la palabra correcta.
         'loading.cancel',
-        // Los nombres de los tonos, que en portugues son los mismos que en
-        // castellano: «verde», «ambar» y «azul» se escriben igual en los dos. Son
-        // las palabras correctas, no una traduccion que se ha dejado sin hacer.
-        // Poner «esmeralda» en vez de «verde» seria mover el color para evitar
-        // una coincidencia de letras, y el color es lo que se esta nombrando.
-        'tags.color.ok', 'tags.color.warn', 'tags.color.info',
+        // Los nombres de los colores del panel, que en portugues coinciden con
+        // los del castellano mas de la mitad: «vermelho», «laranja», «ambar»,
+        // «verde», «azul», «violeta» y «claro», «medio», «escuro» se escriben
+        // igual en los dos. Son las palabras correctas, no una traduccion que se
+        // ha dejado sin hacer. Poner «turquesa» donde el color es azul seria
+        // mover el color para no tener una coincidencia de letras, y el color
+        // es justo lo que se esta nombrando.
+        'tags.color.red', 'tags.color.orange', 'tags.color.amber',
+        'tags.color.green', 'tags.color.sky', 'tags.color.violet',
+        'tags.color.step1', 'tags.color.step2', 'tags.color.step3',
       ],
       de: ['sort.alpha', 'editor.titlePlaceholder', 'editor.keyPlaceholder',
         'editor.parentPlaceholder', 'editor.tagsPlaceholder', 'owned.dlc',

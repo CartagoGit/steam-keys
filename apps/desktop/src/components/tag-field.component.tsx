@@ -1,9 +1,8 @@
 import { useMemo, useRef, useState } from 'react';
 
-import { TAG_COLOR_CLASS, cleanTag, normalizeTag, type ITag } from '@/contracts';
+import { cleanTag, normalizeTag, type ITag } from '@/contracts';
 import { useT } from '@/context/locale.context';
 import { pluralKey } from '@/helpers/i18n.helper';
-import { colorDe } from '@/helpers/tags.helper';
 
 import { Icon } from './icon.component';
 import { TagChip } from './tag-chip.component';
@@ -67,6 +66,21 @@ export function TagField({
 
   /** Las marcadas, para pintar la lista contra ellas. */
   const marcadas = useMemo(() => new Set(value.map(normalizeTag)), [value]);
+
+  /**
+   * El color de cada etiqueta del catalogo, por su clave normalizada.
+   *
+   * Se busca **una vez** y no dentro del `.find` de cada pastilla: el campo
+   * puede llevar diez etiquetas y el catalogo cuarenta, y con el `find` dentro
+   * eran cuatrocientas comparaciones en cada repintado.
+   *
+   * Las que no estan en el catalogo no tienen color, y por eso salen como texto
+   * —que es lo que hacen las etiquetas que todavia no se han guardado—.
+   */
+  const colores = useMemo(
+    () => new Map(catalogo.map((tag) => [normalizeTag(tag.nombre), tag.color])),
+    [catalogo],
+  );
 
   const alternar = (nombre: string): void => {
     const clave = normalizeTag(nombre);
@@ -136,43 +150,68 @@ export function TagField({
           borrarse «media etiqueta» por error, que es lo que pasaba escribiendo.
         */}
         {/*
-          La pastilla es la de toda la app —`TagChip`— con su tono, y la aspa va
-          **encima**, al borde derecho. Estaba al reves, con el boton dentro y
-          las clases de `info` escritas a mano, y por eso todas las etiquetas
-          salian del mismo azul. Encima y no dentro para dos cosas: el borde de
-          la pastilla queda entero y cerrado —si se parte en dos mitades, con un
-          `pr-0.5` a un lado y un `pl-0.5` al otro, sale una costura—, y el
-          hover puede teñir la pastilla entera en vez de solo la aspa.
+          La pastilla es la de toda la app —`TagChip`—, con el color que tenga,
+          y la aspa va **encima**, al borde derecho. Estaba al reves, con el
+          boton dentro y las clases de `info` escritas a mano, y por eso todas
+          las etiquetas salian del mismo azul. Encima y no dentro para dos
+          cosas: el borde de la pastilla queda entero y cerrado —si se parte en
+          dos mitades, con un `pr-0.5` a un lado y un `pl-0.5` al otro, sale una
+          costura—, y el hover puede teñir la pastilla entera en vez de solo la
+          aspa.
+
+          Sin color, la pastilla sale como texto y la aspa se pone al lado, no
+          encima: una etiqueta sin color no es una caja y no hay nada que
+          tapar.
         */}
-        {value.map((tag) => (
-          <span key={tag} className="group relative inline-flex">
+        {value.map((tag) => {
+          const color = colores.get(normalizeTag(tag)) ?? '';
+
+          return (
+          <span key={tag} className="group inline-flex items-center gap-0.5">
             <TagChip
-              tag={{
-                nombre: tag,
-                color:
-                  catalogo.find((c) => normalizeTag(c.nombre) === normalizeTag(tag))
-                    ?.color ?? '',
-              }}
+              tag={{ nombre: tag, color }}
               marcada
-              className="gap-0 pr-5 group-hover:opacity-80"
+              className={[
+                color === '' ? 'pr-1 group-hover:opacity-80' : 'gap-0 pr-5',
+                color === '' ? '' : 'group-hover:opacity-80',
+              ].join(' ')}
             />
 
-            <button
-              type="button"
-              onClick={() => onChange(value.filter((otra) => otra !== tag))}
-              disabled={disabled}
-              title={t('tags.removeOne', [tag])}
-              aria-label={t('tags.removeOne', [tag])}
-              className={[
-                'absolute top-1/2 right-1 -translate-y-1/2 rounded-full p-0.5',
-                'transition focus-visible:outline-2 focus-visible:outline-offset-1',
-                'focus-visible:outline-on-accent',
-              ].join(' ')}
-            >
-              <Icon name="x" size={10} />
-            </button>
+            {color === '' ? null : (
+              <button
+                type="button"
+                onClick={() => onChange(value.filter((otra) => otra !== tag))}
+                disabled={disabled}
+                title={t('tags.removeOne', [tag])}
+                aria-label={t('tags.removeOne', [tag])}
+                className={[
+                  'absolute top-1/2 right-1 -translate-y-1/2 rounded-full p-0.5',
+                  'transition focus-visible:outline-2 focus-visible:outline-offset-1',
+                  'focus-visible:outline-on-accent',
+                ].join(' ')}
+              >
+                <Icon name="x" size={10} />
+              </button>
+            )}
+
+            {color === '' ? (
+              <button
+                type="button"
+                onClick={() => onChange(value.filter((otra) => otra !== tag))}
+                disabled={disabled}
+                title={t('tags.removeOne', [tag])}
+                aria-label={t('tags.removeOne', [tag])}
+                className={[
+                  'rounded p-0.5 text-t4 transition hover:text-t1',
+                  'focus-visible:outline-2 focus-visible:outline-accent',
+                ].join(' ')}
+              >
+                <Icon name="x" size={10} />
+              </button>
+            ) : null}
           </span>
-        ))}
+          );
+        })}
 
         <button
           ref={botonRef}
@@ -262,17 +301,21 @@ export function TagField({
                   >
                     {/*
                       El disco va delante del nombre, como en el filtro de la
-                      barra. Es el mismo dato —el tono— en el mismo sitio en los
-                      dos sitios donde se elige una etiqueta de una lista, y asi
-                      se reconoce que las dos listas hablan de lo mismo.
+                      barra. Es el mismo dato en el mismo sitio en los dos sitios
+                      donde se elige una etiqueta de una lista, y asi se reconoce
+                      que las dos listas hablan de lo mismo.
+
+                      Solo si la etiqueta tiene color. Sin color no hay punto: un
+                      punto de un color cualquiera seria inventarselo, y es justo
+                      lo que se ha quitado de las otras partes.
                     */}
-                    <span
-                      aria-hidden="true"
-                      className={[
-                        'h-2 w-2 shrink-0 rounded-full',
-                        TAG_COLOR_CLASS[colorDe(tag)].punto,
-                      ].join(' ')}
-                    />
+                    {tag.color === '' ? null : (
+                      <span
+                        aria-hidden="true"
+                        className="h-2 w-2 shrink-0 rounded-full"
+                        style={{ backgroundColor: tag.color }}
+                      />
+                    )}
 
                     <span className="min-w-0 flex-1 truncate">{tag.nombre}</span>
 

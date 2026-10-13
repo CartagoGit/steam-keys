@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { cleanTag, normalizeTag, type ITag, type TagColor } from '@/contracts';
+import { cleanTag, normalizeTag, type ITag } from '@/contracts';
 import { useT } from '@/context/locale.context';
 import { pluralKey } from '@/helpers/i18n.helper';
 
@@ -8,7 +8,7 @@ import { ConfirmDialog } from './feedback.component';
 import { Modal, ModalHeader } from './modal.component';
 import { TagChip } from './tag-chip.component';
 import { TagColorPicker } from './tag-color-picker.component';
-import { Button, INPUT_CLASS } from './ui.component';
+import { Button, IconButton, INPUT_CLASS } from './ui.component';
 
 export interface ITagManagerProps {
   /** `false` reproduce la animacion de salida antes de desaparecer. */
@@ -34,7 +34,7 @@ export interface ITagManagerProps {
    * bastaria con abrir la ficha de una clave y tocar su etiqueta para que dos
    * etiquetas con el mismo nombre se vieran de dos maneras.
    */
-  onColor: (nombre: string, color: TagColor | '') => Promise<void>;
+  onColor: (clave: string, color: string) => Promise<void>;
   /** Pregunta si el nombre ya esta en el catalogo, para avisar de la fusion. */
   onExists: (nombre: string) => Promise<boolean>;
   onClose: () => void;
@@ -167,7 +167,7 @@ export function TagManager({
 
   return (
     <>
-      <Modal open={open} onClose={onClose} size="md" label={t('tags.manage.title')}>
+      <Modal open={open} onClose={onClose} size="auto" label={t('tags.manage.title')}>
         <ModalHeader
           title={t('tags.manage.title')}
           icon="tag"
@@ -266,51 +266,62 @@ export function TagManager({
                   ) : (
                     <>
                       {/*
-                        El disco va **pegado a su etiqueta**, no pegado al
-                        boton de renombrar.
-                        *
-                        * Los dos van juntos en una caja que crece: si cada uno
-                        * ocupase el suyo, el disco se iria al otro extremo de la
-                        * fila, a un `w-` de distancia del color que cambia, y
-                        * habria que saltar la vista de un sitio a otro para
-                        * decir «este color es el de esa».
-                        */}
-                      <span className="flex min-w-0 flex-1 items-center gap-2">
-                        <TagChip tag={tag} />
+                        El orden es **nombre, recuento, color, renombrar,
+                        borrar**, y los dos ultimos botones van solo con el icono.
 
+                        El nombre primero porque es lo que se esta leyendo, y lo
+                        unico que crece: lleva el `truncate` y se come el espacio
+ * que sobre. El recuento despues, y pegado al color porque los dos son
+                        cosas de la etiqueta que se miran de un vistazo y
+                        ninguno de los dos se toca.
+
+                        Lo que cambia respecto a como estaba es que el color
+                        **no va dentro de la pastilla**. Con el boton dentro, el
+                        boton se va al otro extremo de la fila —por muy ancho que
+                        sea el nombre— y a `w-` de distancia del color que
+                        cambia: habia que saltar la vista para decir «este es el
+                        de esa». Ahora esta en su propia columna, siempre a la
+                        misma distancia del final de la fila.
+
+                        Y los botones solo con el icono. Con el texto, la fila
+                        mas corta ocupaba casi cuatrocientos pixeles para cinco
+                        palabras, y el dialogo se abia mas ancho que para lo que
+                        hace. El texto no se pierde: va en el `title` y en el
+                        `aria-label`, que es donde lo lee quien pasa el raton y
+                        quien va con lector de pantalla.
+                      */}
+                      <span className="min-w-0 flex-1 truncate">
+                        <TagChip tag={tag} />
+                      </span>
+
+                      <span className="w-20 shrink-0 text-right text-[11px] tabular-nums text-t4">
+                        {t(pluralKey(tag.usos, 'tags.usesOne', 'tags.usesMany'), [
+                          tag.usos,
+                        ])}
+                      </span>
+
+                      <span className="flex w-8 shrink-0 justify-center">
                         <TagColorPicker
                           tag={tag}
                           onChange={(color) => {
-                            if (!ocupado) void onColor(tag.nombre, color);
+                            if (!ocupado) void onColor(tag.clave, color);
                           }}
                         />
                       </span>
 
-                      <span className="shrink-0 text-[11px] tabular-nums text-t4">
-                        {t(pluralKey(tag.usos, 'tags.usesOne', 'tags.usesMany'), [tag.usos])}
-                      </span>
-
-                      <Button
-                        variant="ghost"
+                      <IconButton
                         icon="pencil"
                         onClick={() => empezar(tag)}
                         disabled={ocupado}
                         title={t('tags.manage.rename')}
-                        aria-label={t('tags.manage.rename')}
-                      >
-                        {t('tags.manage.rename')}
-                      </Button>
+                      />
 
-                      <Button
-                        variant="ghost"
+                      <IconButton
                         icon="trash"
                         onClick={() => setBorrando(tag)}
                         disabled={ocupado}
                         title={t('action.delete')}
-                        aria-label={t('action.delete')}
-                      >
-                        {t('action.delete')}
-                      </Button>
+                      />
                     </>
                   )}
                 </li>

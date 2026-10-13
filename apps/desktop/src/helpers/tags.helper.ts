@@ -1,4 +1,4 @@
-import { TAG_TONES_DEDUCIDOS, normalizeTag, type ITag, type TagColor } from '@/contracts';
+import { normalizeTag, type ITag } from '@/contracts';
 
 /**
  * El catalogo de etiquetas, en el orden en que se pinta.
@@ -52,53 +52,66 @@ export function contarUsos(
 }
 
 /**
- * El tono de una etiqueta que **no tiene ninguno elegido**.
+ * El nombre **tal como esta escrito**, de entre todos los que se usan.
  *
- * Sale de las letras del nombre, y por eso es fijo: la misma etiqueta sale del
- * mismo color en el filtro, en la fila y en el selector, y no cambia entre una
- * sesion y otra. Con un color al azar —`Math.random`— la lista de etiquetas
- * bailaria en cada recarga; con uno fijo por categoria habria que mantener una
- * tabla a mano y basta con que alguien llame «dlc» a «dlc extra» para que las
- * dos se queden sin sitio en ella.
+ * El catalogo guarda el nombre normalizado —es su clave primaria y por eso «
+ * Cumplidos» y «cumplidos» no pueden ser dos etiquetas— pero las claves guardan
+ * el texto que se escribio, con su caja. La etiqueta que se ve no puede ser una
+ * de las dos cosas:
  *
- * Multiplicar por 31 antes de sumar es lo que reparte: con una suma a secas,
- * «dlc» y «dld» darian el mismo color, que es justo lo que no se quiere en
- * etiquetas que se parecen. El numero grande del final es para que el resto no
- * se agrupe siempre en un principio de la lista.
+ * - el nombre del catalogo, porque en la lista de una clave pone «Cumplidos» y
+ *   en el filtro «cumplidos», y no se reconoce que son la misma;
+ * - un nombre cualquiera, porque entonces «Cumplidos» y «cumplidos» podrian
+ *   acabar siendo etiquetas distintas en la vista, aunque el filtro las ffi
+ *   como una.
  *
- * De `TAG_TONES_DEDUCIDOS` y no de `TAG_TONES`: por defecto son diluidos. Un
- * color entero en cada etiqueta de cada fila hace que la lista parezca una
- * tabla de estados y que no se distinga lo que alguien ha marcado a proposito
- * de lo que sale solo.
+ * Asi que se busca en las claves el nombre que ya se esta usando, y solo se cae
+ * al del catalogo —normalizado— cuando ninguna clave lo lleva. Una etiqueta
+ * creada desde Ajustes y todavia sin usar sale en minusculas porque es lo unico
+ * que hay, y en cuanto se pone en una clave aparece con la caja que tiene.
+ *
+ * Se devuelven **todos** los que hay, y no solo el primero, porque una misma
+ * etiqueta puede estar escrita de dos maneras en la coleccion y hay que elegir
+ * la que mas se usa, no la que se encuentre antes.
  */
-export function tonoPorDefecto(nombre: string): TagColor {
-  let suma = 0;
+export function nombresDe(etiquetasDe: readonly (readonly string[])[]): Map<string, string> {
+  const cuenta = new Map<string, Map<string, number>>();
 
-  for (let i = 0; i < nombre.length; i += 1) {
-    suma = (suma * 31 + nombre.charCodeAt(i)) % 9973;
+  for (const etiquetas of etiquetasDe) {
+    for (const etiqueta of new Set(etiquetas)) {
+      const clave = normalizeTag(etiqueta);
+
+      if (clave.length === 0) continue;
+
+      const variantes = cuenta.get(clave);
+
+      if (variantes === undefined) {
+        cuenta.set(clave, new Map([[etiqueta, 1]]));
+        continue;
+      }
+
+      variantes.set(etiqueta, (variantes.get(etiqueta) ?? 0) + 1);
+    }
   }
 
-  /*
-   * El resto no puede salirse: `suma` ya esta acotado por el modulo de arriba y
-   * el divisor es el tamano de la paleta. El `??` esta por el tipo —con
-   * `noUncheckedIndexedAccess` leer un indice variable devuelve «o nada»— y
-   * dice ahi lo que haria si alguna vez pudiera pasar, en vez de callarlo con
-   * un `!`.
-   */
-  const color = TAG_TONES_DEDUCIDOS[suma % TAG_TONES_DEDUCIDOS.length];
+  const nombres = new Map<string, string>();
 
-  return color ?? 'accent';
-}
+  for (const [clave, variantes] of cuenta) {
+    /*
+     * A igual de veces gana el que va antes en el alfabeto.
+     *
+     * Sin ese desempate, una etiqueta repartida a partes iguales entre «
+     * Cumplidos» y «cumplidos» —que se puede dar si se fue cambiando la caja—
+     * podria salir con cualquiera de las dos, y cambiarla cada vez que se
+     * abria el filtro. Con el, el mismo conjunto de claves produce siempre la
+     * misma eleccion.
+     */
+    const elegida = [...variantes.entries()].sort(
+      (a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es'),
+    )[0];
 
-/**
- * El color con el que se pinta una etiqueta, elegido o deducido.
- *
- * Toda etiqueta visible pasa por aqui. Concentrarlo en un sitio es lo que hace
- * que «dlc» se vea igual en la fila y en el filtro: si cada sitio hiciera su
- * cuenta —`color || DEFAULT`— bastaria con que uno se olvidara y se tuviera la
- * misma palabra en dos colores, que es el fallo que no se nota hasta que se
- * busca.
- */
-export function colorDe(tag: Pick<ITag, 'nombre' | 'color'>): TagColor {
-  return tag.color === '' ? tonoPorDefecto(tag.nombre) : tag.color;
+    if (elegida !== undefined) nombres.set(clave, elegida[0]);
+  }
+
+  return nombres;
 }

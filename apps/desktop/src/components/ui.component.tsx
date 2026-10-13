@@ -147,6 +147,13 @@ export interface IExternalLinkProps {
    * lo que lee el lector de pantalla.
    */
   title?: string;
+  /**
+   * Clases extra, para cuando quien lo usa necesita otra cosa ademas del
+   * enlace. Va como prop y no como `className` aplicado por fuera porque el
+   * componente escribe su propia lista en el `<a>` y un envoltorio con clases
+   *eria una caja mas —y un `inline-flex` mas— en medio de la fila del pie.
+   */
+  className?: string;
 }
 
 /**
@@ -164,7 +171,13 @@ export interface IExternalLinkProps {
  * abrir en otra pestana con el boton central. Todo eso se pierde con un
  * `button` que solo llama a `window.open`.
  */
-export function ExternalLink({ url, children, showUrl = false, title }: IExternalLinkProps) {
+export function ExternalLink({
+  url,
+  children,
+  showUrl = false,
+  title,
+  className = '',
+}: IExternalLinkProps) {
   return (
     <a
       href={url}
@@ -177,11 +190,27 @@ export function ExternalLink({ url, children, showUrl = false, title }: IExterna
       // El tooltip enseña **la URL**, que es lo que se lleva a otra parte, y no
       // el nombre del enlace. Con los dos, el nombre va como texto accesible.
       title={title ?? url}
+      // El `aria-label` solo cuando hay un `title`. Con los dos a la vez, el
+      // lector de pantalla anuncia el texto del `title` y el del enlace queda
+      // fuera: «Codigo en GitHub: CartagoGit» en vez de «CartagoGit», que es lo
+      // que se ve.
       aria-label={title}
-      className="inline-flex items-center gap-1 text-info underline decoration-info/40 underline-offset-2 transition hover:decoration-info"
+      className={[
+        'inline-flex items-center gap-1 text-info underline',
+        'decoration-info/40 underline-offset-2 transition hover:decoration-info',
+        className,
+      ].join(' ')}
     >
       {showUrl ? url.replace(/^https?:\/\//, '') : children}
-      <Icon name="external" size={11} className="shrink-0" />
+
+      {/*
+        La flecha de «salir hacia fuera» solo cuando el enlace **no** trae ya
+        una marca: con el icono de GitHub al lado, la flecha es una segunda
+        señal diciendo lo mismo y lo unico que añade es ruido. Y se quita por
+        `showUrl`, que es el caso en el que el texto es la propia URL y la
+        flecha si dice algo.
+      */}
+      {showUrl ? <Icon name="external" size={11} className="shrink-0" /> : null}
     </a>
   );
 }
@@ -284,6 +313,16 @@ export interface IIconButtonProps {
    */
   tone?: string;
   size?: 'sm' | 'md';
+  /**
+   * Apagado.
+   *
+   * Faltaba, y no por capricho: los botones de icono de los dialogos se
+   * apagaban mientras se guardaba algo —el de renombrar, mientras se espera al
+   * `await`— y como no tenian la prop se hacia con `opacity` en el tono, o no se
+   * hacia. Con la prop, el estado apagado se pinta igual que en `Button`, que es
+   * donde ya se sabe como se ve.
+   */
+  disabled?: boolean;
 }
 
 /**
@@ -304,6 +343,7 @@ export function IconButton({
   onClick,
   tone = 'text-t4 hover:text-t1',
   size = 'md',
+  disabled = false,
 }: IIconButtonProps) {
   return (
     <button
@@ -311,8 +351,14 @@ export function IconButton({
       onClick={onClick}
       title={title}
       aria-label={title}
+      disabled={disabled}
       className={[
         'rounded-lg transition hover:bg-hover',
+        // El mismo `cursor` y el mismo `opacity` que `Button`. Antes solo el
+        // boton de texto se enteraba de que estaba apagado, y el de icono se
+        // quedaba con el mismo aspecto de siempre, sin hover pero sin rastro
+        // de por que.
+        'disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent',
         size === 'sm' ? 'p-1' : 'p-1.5',
         'shrink-0',
         tone,

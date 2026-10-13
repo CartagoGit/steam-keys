@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { KEY_PLATFORM_META, TRANSLATIONS, platformLabel, statusMeta, type IGameKey, type TagColor } from '@/contracts';
+import { KEY_PLATFORM_META, TRANSLATIONS, platformLabel, statusMeta, type IGameKey } from '@/contracts';
 import { formatShortDate } from '@/helpers/format-date.helper';
 import { maskKey } from '@/helpers/mask-key.helper';
 import { copyToClipboard } from '@/helpers/clipboard.helper';
 import { isGiftable } from '@/helpers/selection.helper';
+import { normalizeTag } from '@/contracts';
 import { Badge } from './ui.component';
 import { Icon } from './icon.component';
 import { TagChip } from './tag-chip.component';
@@ -24,18 +25,20 @@ export interface IKeyRowProps {
   /** Etiquetas del juego, para mostrarlas resumidas. */
   tags?: readonly string[];
   /**
-   * El tono **guardado** de cada etiqueta, por nombre.
+   * El color **elegido** de cada etiqueta, por su clave normalizada.
    *
-   * Solo el guardado, y no el color final: lo que no esta en el mapa lo deduce
-   * `colorDe` del nombre, y el nombre ya esta en `tags`. Mandar el color ya
-   * resuelto haria que la fila repitiese la cuenta —y que se quedase con el
-   * resultado de la apertura anterior si despues cambiase el nombre de una
-   * etiqueta—.
+   * La clave y no el nombre porque las claves guardan el texto tal cual —«
+   * Cumplidos»— y el catalogo lo tiene normalizado; con el nombre tal cual, el
+   * mapa se llenaba de entradas que no llegaban a usarse y el color no salia.
+   *
+   * Solo van los que hay elegido color: los demas salen como texto, que es lo
+   * que se ha visto siempre. No hace falta meterlos con `''` para que cada
+   * sitio decida: `TagChip` ya sabe lo que hacer sin color.
    *
    * Va como mapa y no como el catalogo entero porque es lo que se lee: la fila
-   * solo necesita el tono de las etiquetas que lleva su clave.
+   * solo necesita el color de las etiquetas que lleva su clave.
    */
-  colores?: ReadonlyMap<string, TagColor>;
+  colores?: ReadonlyMap<string, string>;
 }
 
 /**
@@ -208,7 +211,10 @@ export function KeyRow({
                 <Icon name="tag" size={11} className="shrink-0" />
 
                 {tags.slice(0, 3).map((nombre) => (
-                  <TagChip key={nombre} tag={{ nombre, color: colores.get(nombre) ?? '' }} />
+                  <TagChip
+                    key={nombre}
+                    tag={{ nombre, color: colores.get(normalizeTag(nombre)) ?? '' }}
+                  />
                 ))}
 
                 {tags.length > 3 ? (

@@ -25,7 +25,7 @@ import { TagsDialog } from './components/tags-dialog.component';
 import { Toolbar } from './components/toolbar.component';
 import { Button } from './components/ui.component';
 
-import { AppTheme, AppView, DEFAULT_VIEW, KEY_STATUS_VALUES, KeyPlatform, KeyScope, KeySort, KeyStatus, PAGE_SIZE, mergeTags, type AppLocale, type IAppSettings, type IGameKey, type IGameKeyDraft, type IImportSummary, type IKeyFilter, type ISteamOwnedGame, type ITag, type SteamAccountStatus, type TagColor, type TranslationArgs, type Translator } from '@/contracts';
+import { AppTheme, AppView, DEFAULT_VIEW, KEY_STATUS_VALUES, KeyPlatform, KeyScope, KeySort, KeyStatus, PAGE_SIZE, mergeTags, type AppLocale, type IAppSettings, type IGameKey, type IGameKeyDraft, type IImportSummary, type IKeyFilter, type ISteamOwnedGame, type ITag, type SteamAccountStatus, type TranslationArgs, type Translator } from '@/contracts';
 import { computeStats, emptyFilter, filterKeys, sortKeys } from '@/helpers/filter-keys.helper';
 import { analyzeSelection, claveGrupo, isGiftable, podarSeleccion, resumenPorTitulo, type SelectAction } from '@/helpers/selection.helper';
 import { useKeepMounted } from '@/helpers/use-exit-animation.helper';
@@ -699,24 +699,25 @@ export function App() {
   );
 
   /**
-   * El tono guardado de cada etiqueta, para las filas.
+   * El color elegido de cada etiqueta, para las filas.
    *
    * Se construye aqui y no dentro de `KeyRow` porque se lee una vez por fila y
    * por etiqueta: recorrer el catalogo dentro de cada fila seria recorrerlo
-   * quince veces por cada repintado de la lista. Y es un `Map` porque es una
-   * busqueda por nombre, que es lo que se hace.
+   * quince veces por cada repintado de la lista. Y es un `Map` porque lo que se
+   * hace es una busqueda por etiqueta, que es lo que se busca.
    *
-   * Solo van los tonos **elegidos**. Una etiqueta sin tono elegido se queda
-   * fuera a proposito: `colorDe` la deduce del nombre, y meterla con `''`
-   * seria meter el mismo camino con mas trabajo. Asi el mapa queda con lo que
-   * de verdad se ha decidido y no con el catalogo entero.
+   * Va **por la clave normalizada** y no por el nombre visible: las claves
+   * guardan el texto tal cual —«Cumplidos»— y el catalogo lo tiene normalizado,
+   * asi que con el nombre las dos mitades no se encuentra nada.
+   *
+   * Y solo van las que tienen color. Las demas salen como texto, sin mas.
    */
   const coloresEtiquetas = useMemo(
     () =>
       new Map(
         tags
           .filter((tag) => tag.color !== '')
-          .map((tag) => [tag.nombre, tag.color] as [string, TagColor]),
+          .map((tag) => [tag.clave, tag.color] as [string, string]),
       ),
     [tags],
   );
@@ -1494,8 +1495,8 @@ export function App() {
    * distinto sea el color de una pastilla seria gasto sin motivo.
    */
   const colorearEtiqueta = useCallback(
-    async (nombre: string, color: TagColor | ''): Promise<void> => {
-      await tagService.setColor(nombre, color);
+    async (clave: string, color: string): Promise<void> => {
+      await tagService.setColor(clave, color);
 
       await recargarTags();
     },

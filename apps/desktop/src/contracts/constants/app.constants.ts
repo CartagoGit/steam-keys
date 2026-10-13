@@ -55,6 +55,22 @@ export const PROYECTO_URL = 'https://github.com/cartagogit/steam-key';
 export const PERFIL_URL = 'https://www.linkedin.com/in/mario-cabrero-volarich';
 
 /**
+ * Quien firma la app, al lado de sus dos enlaces.
+ *
+ * Son **nombres propios**: `CartagoGit` y `Mario Cabrero Volarich` se escriben
+ * asi, con mayusculas y como les gusta, y no se traducen ni se «normalizan» a
+ * minusculas como las etiquetas. El guard de la interfaz sin tildes no los
+ * toca —mira el codigo, no lo que se pinta con el— y por eso estan aqui y no
+ * dentro de un texto traducible.
+ *
+ * El ano del aviso se calcula al pintar y no se guarda: en una app que no se
+ * actualiza cada mes, un ano escrito a mano se queda viejo y no hay quien lo
+ * arregle.
+ */
+export const FIRMA_CODIGO = 'CartagoGit';
+export const FIRMA_PERFIL = 'Mario Cabrero Volarich';
+
+/**
  * Cuantas posiciones de la clave se dejan visibles al inspeccionarla.
  * La clave se enmascara por defecto; solo se revela bajo demanda.
  */

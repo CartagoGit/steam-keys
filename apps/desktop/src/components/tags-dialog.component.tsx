@@ -141,11 +141,13 @@ export function TagsDialog({
       // ahi, para que «dlc» salga con el mismo numero de usos vaya donde vaya.
       salida.push(
         catalogo.find((tag) => normalizeTag(tag.nombre) === clave) ?? {
+          // Una etiqueta de plataforma que todavia no esta en el catalogo.
+          // Sale con su clave normalizada y **sin color**, que es lo que
+          // significa no tener color: sale como texto, no como una pastilla con
+          // un color que nadie ha elegido.
+          clave,
           nombre: cleanTag(nombre),
           usos: 0,
-          // Una etiqueta de plataforma que todavia no esta en el catalogo no
-          // tiene tono elegido, y por eso lo saca del nombre. Es el mismo
-          // camino que las demas: lo decide `colorDe`, no este sitio.
           color: '',
         },
       );

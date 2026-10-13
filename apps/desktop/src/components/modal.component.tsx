@@ -21,7 +21,7 @@ export interface IModalProps {
   /** `onSubmit` del `<form>`, cuando `as="form"`. */
   onSubmit?: (event: React.FormEvent<HTMLFormElement>) => void;
   /** Ancho maximo del panel. */
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'auto';
   /** Al pulsar fuera, se cierra. Los dialogos de confirmacion, si. */
   closeOnBackdrop?: boolean;
   /** Al pulsar Escape, se cierra. */
@@ -44,6 +44,23 @@ const SIZES: Record<TSize, string> = {
    * dialogo obligaba a acordarse de que ese no la usaba.
    */
   xl: 'max-w-2xl',
+  /*
+   * `auto` mide el contenido, y esta ahi por el catalogo de etiquetas.
+   *
+   * Los demas son un ancho fijo —con el suyo, todos los dialogos se abren
+   * igual— y un dialogo de formulario lo necesita: los campos tienen que estar
+   * en el mismo sitio cada vez que se abre. El catalogo no: su ancho depende de
+   * lo larga que sea la etiqueta mas larga, y con un ancho fijo ese hueco se
+   * resolvia como se pudo, que era.recortando el nombre o —si no cabia nada—
+   * aplastando los botones de la fila encima. Ajustandolo al contenido, cada
+   * fila ocupa lo que necesita y el dialogo se abre al ancho que de verdad hace
+   * falta.
+   *
+   * Se combina con `md` en lugar de sustituirlo: `w-fit max-w-md` quiere decir
+   * «lo que necesite, hasta el ancho de un dialogo normal». Sin el `max-w` un
+   * nombre de cuarenta letras abriria un dialogo mas ancho que la ventana.
+   */
+  auto: 'w-fit max-w-md',
 };
 
 /**

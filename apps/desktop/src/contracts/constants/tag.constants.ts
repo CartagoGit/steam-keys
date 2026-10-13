@@ -95,159 +95,104 @@ export function suggestionsFor(
 }
 
 /**
- * Los tonos con los que se puede pintar una etiqueta.
+ * Las familias de color del panel.
  *
- * Se guardan por **nombre** y no por color, y no es una comodidad de la base
- * de datos: con `#a855f7` la etiqueta se veria igual de bien en los cinco temas
- * oscuros y mal en los cuatro claros, que es justo lo que los `--ok` y `--warn`
- * de cada tema vienen a evitar. Aqui solo se dice «esta etiqueta es de tono
- * `warn`» y el color lo pone el tema.
- *
- * Son los cinco colores con significado que ya declara `styles/index.css`, y no
- * uno mas, porque son los unicos que se sabe que se leen sobre cualquier
- * superficie en los nueve temas. Un sexto seria inventar una variable nueva
- * para nueve temas a cambio de un matiz.
+ * Se agrupan por **familia** y no por tono suelto porque es como se elige: primero
+ * el color —rojo, verde, azul— y despues lo claro o lo oscuro. Al reves, con
+ * dieciocho tonos sin familia, habia que acordarse de que el morado claro estaba
+ * en la fila de arriba a la izquierda.
  */
-export const TAG_TONES = ['accent', 'ok', 'warn', 'info', 'danger'] as const;
+export const TAG_FAMILIAS = ['red', 'orange', 'amber', 'green', 'sky', 'violet'] as const;
 
-/** Uno de los tonos de la paleta de etiquetas. */
-export type TagTone = (typeof TAG_TONES)[number];
+/** Una de las familias del panel de color. */
+export type TagFamilia = (typeof TAG_FAMILIAS)[number];
 
 /**
- * Dos intensidades por tono, y no tonos distintos.
+ * Un color del panel.
  *
- * Cinco colores para una paleta se quedan cortos en cuanto hay veinte
- * etiquetas, pero el color que hace falta para distinguirlas **no es un matiz
- * mas**: es saber cuales destacan y cuales se quedan de fondo. `info` e
- * `info-soft` cuentan eso con el mismo color.
+ * El `hex` va **escrito**, y no como una clase de Tailwind, porque es lo unico
+ * que esta app pinta con un color que no viene de un tema: lo elige la persona.
+ * Con `bg-red-500` solo habria diez colores y ademas estarian atados al tema —
+ * un rojo de fondo oscuro se lava sobre un crema—, mientras que un `hex` se
+ * pinta igual en los nueve.
  *
- * El relleno es el color entero y el texto el que se lee encima, al reves que en
- * los estados —alli el color va diluido y el texto fuerte, porque una pastilla
- * de estado tiene que leerse sin parecer un boton—. Aqui la etiqueta es lo que se
- * quiere mirar, no lo que se quiere pulsar.
+ * Son los que trae la rampa de Tailwind, convertidos a `hex` para poder
+ * guardarlos y poder medir su contraste. Las clases `bg-red-500` y las demas
+ * **no** se usan para esto: un color elegido no es un color de la rampa, es un
+ * color cualquiera, y ahi si hay que poder contrastarlo.
  */
-export type TagColor = TagTone | `${TagTone}-soft`;
+export interface ITagTono {
+  /** El color, en hexadecimal. */
+  hex: string;
+  /** La familia a la que pertenece. */
+  familia: TagFamilia;
+  /**
+   * Cuanto claro es: 1 el mas claro, 3 el mas oscuro.
+   *
+   * Es un numero y no un color porque el panel los ordena por el y porque las
+   * tres columnas son el mismo tono a distinta luz: no son tres colores, es uno
+   * con tres pasos de claridad.
+   */
+  paso: 1 | 2 | 3;
+}
 
-/**
- * Los mismos cinco tonos, pero diluidos.
- *
- * Son los que se usan **por defecto**, mientras nadie ha elegido un color. Un
- * color entero de salida convierte cada etiqueta en un boton y hace que la fila
- * se parezca a una tabla de estados; diluidos se leen como lo que son —una
- * etiqueta al lado de una fecha— y ademas se distinguen de las que alguien ha
- * marcado a proposito, que son las unicas que tienen por que highlightarse.
- */
-export const TAG_TONES_DEDUCIDOS: readonly TagColor[] = Object.freeze(
-  TAG_TONES.map((tono) => `${tono}-soft` as TagColor),
-);
-
-/** Los diez colores, en el orden en que los ofrece el panel. */
-export const TAG_COLORS: readonly TagColor[] = Object.freeze([
-  ...TAG_TONES,
-  ...TAG_TONES.map((tono) => `${tono}-soft` as TagColor),
+/** Las dieciocho muestras, por filas: de la familia mas clara a la mas oscura. */
+export const TAG_TONOS: readonly ITagTono[] = Object.freeze([
+  { hex: '#ffa2a2', familia: 'red', paso: 1 },
+  { hex: '#ffb86a', familia: 'orange', paso: 1 },
+  { hex: '#ffd230', familia: 'amber', paso: 1 },
+  { hex: '#7bf1a8', familia: 'green', paso: 1 },
+  { hex: '#74d4ff', familia: 'sky', paso: 1 },
+  { hex: '#c4b4ff', familia: 'violet', paso: 1 },
+  { hex: '#fb2c36', familia: 'red', paso: 2 },
+  { hex: '#ff6900', familia: 'orange', paso: 2 },
+  { hex: '#fe9a00', familia: 'amber', paso: 2 },
+  { hex: '#00c950', familia: 'green', paso: 2 },
+  { hex: '#00a6f4', familia: 'sky', paso: 2 },
+  { hex: '#8e51ff', familia: 'violet', paso: 2 },
+  { hex: '#c10007', familia: 'red', paso: 3 },
+  { hex: '#ca3500', familia: 'orange', paso: 3 },
+  { hex: '#bb4d00', familia: 'amber', paso: 3 },
+  { hex: '#008236', familia: 'green', paso: 3 },
+  { hex: '#0069a8', familia: 'sky', paso: 3 },
+  { hex: '#7008e7', familia: 'violet', paso: 3 },
 ]);
 
-/**
- * Un color, en las tres piezas que se pintan.
- *
- * - `punto`: el disco del selector. Va **lleno** en las dos intensidades: un
- *   punto de `bg-info/15` sobre `bg-surface-2` no se ve.
- * - `pastilla`: la etiqueta en si, y es lo unico que cambia de verdad.
- * - `tinta`: el texto que va encima. El acento no tiene variante `-strong` —no
- *   la necesita, `--accent` ya es el tono de texto— y por eso el suyo es el
- *   mismo en las dos intensidades.
- * - `aro`: el anillo, para cuando hay que distinguirla de un boton. Va al 40
- *   y no a /60 como el borde de los controles, porque alrededor de un texto
- *   pequeno un anillo fuerte convierte la etiqueta en algo pulsable.
- *
- * Las clases van **escritas**, y no montadas con `bg-${tono}`: Tailwind lee el
- * codigo fuente, y una clase construida en tiempo de ejecucion no existe para
- * el y no sale en el CSS final. La pastilla se queda sin borde a proposito: un
- * borde alrededor de un texto pequeno lo convierte en un boton, y una etiqueta
- * no se pulsa.
- */
-export const TAG_COLOR_CLASS: Readonly<
-  Record<TagColor, { punto: string; pastilla: string; tinta: string; aro: string }>
-> = Object.freeze({
-  accent: {
-    punto: 'bg-accent',
-    pastilla: 'bg-accent text-on-accent',
-    tinta: 'text-on-accent',
-    aro: 'ring-accent/40',
-  },
-  ok: {
-    punto: 'bg-ok',
-    pastilla: 'bg-ok text-on-accent',
-    tinta: 'text-on-accent',
-    aro: 'ring-ok/40',
-  },
-  warn: {
-    punto: 'bg-warn',
-    pastilla: 'bg-warn text-on-accent',
-    tinta: 'text-on-accent',
-    aro: 'ring-warn/40',
-  },
-  info: {
-    punto: 'bg-info',
-    pastilla: 'bg-info text-on-accent',
-    tinta: 'text-on-accent',
-    aro: 'ring-info/40',
-  },
-  danger: {
-    punto: 'bg-danger',
-    pastilla: 'bg-danger text-on-accent',
-    tinta: 'text-on-accent',
-    aro: 'ring-danger/40',
-  },
-  'accent-soft': {
-    punto: 'bg-accent',
-    pastilla: 'bg-accent/15 text-accent',
-    tinta: 'text-accent',
-    aro: 'ring-accent/40',
-  },
-  'ok-soft': {
-    punto: 'bg-ok',
-    pastilla: 'bg-ok/15 text-ok-strong',
-    tinta: 'text-ok-strong',
-    aro: 'ring-ok/40',
-  },
-  'warn-soft': {
-    punto: 'bg-warn',
-    pastilla: 'bg-warn/15 text-warn-strong',
-    tinta: 'text-warn-strong',
-    aro: 'ring-warn/40',
-  },
-  'info-soft': {
-    punto: 'bg-info',
-    pastilla: 'bg-info/15 text-info-strong',
-    tinta: 'text-info-strong',
-    aro: 'ring-info/40',
-  },
-  'danger-soft': {
-    punto: 'bg-danger',
-    pastilla: 'bg-danger/15 text-danger-strong',
-    tinta: 'text-danger-strong',
-    aro: 'ring-danger/40',
-  },
-});
+/** Las tres columnas del panel: de la mas clara a la mas oscura. */
+export const TAG_PASOS: readonly (1 | 2 | 3)[] = Object.freeze([1, 2, 3]);
+
+/** El texto que se pone encima de un color, medido contra el. */
+export const TEXTO_CLARO = '#ffffff';
+export const TEXTO_OSCURO = '#10151f';
 
 /**
- * Lee un color guardado y lo normaliza.
+ * Si un color guardado es de los que se sabe pintar.
  *
- * La columna la escribe la app y solo la app, asi que en teoria nunca llega
- * nada raro. Pero la base de datos es un fichero que se puede abrir, editar a
- * mano y volver a abrir con otra version —y una etiqueta con un color que no
- * existe dejaria de tener color y se pintaria como si no tuviera, sin decir
- * nada—. Por eso lo que no se reconoce se devuelve como **sin color**, que es
- * lo que se muestra, y no como un error.
+ * Es la unica puerta por la que pasa lo que llega de la base de datos, y tiene que
+ * ser estrecha. La columna la escribe la app, pero el fichero de la base se
+ * puede abrir y editar a mano, y un `color` con cualquier cosa dentro —un
+ * `red`, un `#fff` de tres digitos, un texto entero— se pondria tal cual en el
+ * `style` de la pastilla. Ahi no hay ni error ni aviso: sale un color raro y ya
+ * esta. Lo que no se reconoce se trata como **sin color**, que es justo lo que
+ * se ve entonces.
  */
-export function parseTagColor(valor: string): TagColor | '' {
+export function parseTagColor(valor: string): string {
   const limpio = valor.trim().toLowerCase();
 
-  return (TAG_COLORS as readonly string[]).includes(limpio)
-    ? (limpio as TagColor)
-    : '';
+  return /^#[0-9a-f]{6}$/.test(limpio) ? limpio : '';
 }
+
+/**
+ * Si un color es el que hay en la paleta.
+ *
+ * Distinto de `parseTagColor`: aqui se admite cualquier hexadecimal, porque el
+ * panel podria crecer y una base con un color de una version anterior tiene que
+ * seguir pintandose. Lo que se rechaza es lo que no es un color.
+ */
+export function esHex(limpio: string): boolean {
+  return /^#[0-9a-f]{6}$/.test(limpio);
+}
+
 /** Une etiquetas sin repetir, ignorando mayusculas y acentos. */
 export function mergeTags(
   actuales: readonly string[],

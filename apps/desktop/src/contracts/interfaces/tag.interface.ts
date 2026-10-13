@@ -1,5 +1,3 @@
-import type { TagColor } from '../constants/tag.constants';
-
 /**
  * Una etiqueta del catalogo, con cuantos juegos la usan.
  *
@@ -11,21 +9,47 @@ import type { TagColor } from '../constants/tag.constants';
  * servir, ni de saber cuantas claves la usaban.
  */
 export interface ITag {
-  /** La etiqueta, ya normalizada para poder compararla. */
+  /**
+   * La etiqueta **tal como se ve**, con la caja con la que esta escrita.
+   *
+   * No es la clave del catalogo —esa va normalizada en `clave`—, sino el texto
+   * que hay escrito en las claves de la coleccion. Las dos cosas se separan
+   * porque el catalogo necesita una clave unica y sin mayusculas y la lista
+   * necesita enseñar lo que puso el usuario; usar la clave para todo hacia que
+   * «Cumplidos» saliera «cumplidos» en el filtro y en la ficha, y entonces no
+   * se reconocía la etiqueta de la fila.
+   */
   nombre: string;
   /**
-   * El tono con el que se pinta, o `''` si no tiene ninguno.
+   * La etiqueta normalizada, que es como se busca en todas partes.
+   *
+   * Es la clave primaria de la tabla `tags` y lo que comparan el filtro, el
+   * borrado, el renombrado y el color. Todo lo que vaya a tocar la base de
+   * datos pasa por aqui, sin excepciones: es lo unico que evita que «
+   * Cumplidos» y «cumplidos» se acaben tratando como dos etiquetas.
+   */
+  clave: string;
+  /**
+   * El color con el que se pinta, o `''` si no tiene ninguno.
    *
    * Viaja **en la etiqueta** y no como un ajuste aparte porque es parte de lo
    * que la etiqueta es: «dlc» en rojo tiene que ser el mismo «dlc» en la fila,
    * en el filtro y en el selector de etiquetas. Separado, el filtro y el
    * catalogo podrian acabar mostrando colores distintos para la misma palabra.
    *
-   * Se guarda el **nombre** del tono y no su color —`info`, no `#38bdf8`— para
-   * que siga siendo legible en los nueve temas; quien lo pone es
-   * `styles/index.css`.
+   * Es un `hex` y no el nombre de un color de la app. Se cambio porque los
+   * nombres unifican el color con el tema —y con eso se leia bien en los cinco
+   * oscuros y mal en los cuatro claros— pero no dejan elegir: eran cinco, y en
+   * una coleccion con veinte etiquetas «dlc» y «dlc extra» no se distinguian.
+   * Con un `hex` hay dieciocho y el texto que va encima lo decide `textoSobre`,
+   * que lo mide. Es la unica parte de la app que se pinta con un color que no
+   * viene de `styles/index.css`, y por eso es la unica que lleva la cuenta.
+   *
+   * La cadena vacia **no** quiere decir «que le pongan un color». Quiere decir
+   * que la etiqueta no tiene color y sale como texto, que es como se ha
+   * visto siempre.
    */
-  color: TagColor | '';
+  color: string;
   /**
    * Cuantas claves la llevan ahora mismo.
    *

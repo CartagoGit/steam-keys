@@ -15,6 +15,8 @@ export {
   MASK_VISIBLE_CHARS,
   PAGE_SIZE,
   SEARCH_SHORTCUT,
+  FIRMA_CODIGO,
+  FIRMA_PERFIL,
   PERFIL_URL,
   PROYECTO_URL,
   STEAM_API_KEY_URL,
@@ -26,7 +28,7 @@ export type { IPlatformMeta } from './key-platform.constants';
 
 export { KEY_STATUS_META, statusMeta, statusOptions } from './key-status.constants';
 export type { IStatusMeta, IStatusMetaResuelta } from './key-status.constants';
-export type { TagColor, TagTone } from './tag.constants';
+export type { ITagTono, TagFamilia } from './tag.constants';
 
 export {
   GAME_KEY_COLUMNS,
@@ -60,10 +62,12 @@ export {
 export {
   ORIGIN_TAGS,
   PLATFORM_TAGS,
-  TAG_COLORS,
-  TAG_COLOR_CLASS,
-  TAG_TONES,
-  TAG_TONES_DEDUCIDOS,
+  TAG_FAMILIAS,
+  TAG_PASOS,
+  TAG_TONOS,
+  TEXTO_CLARO,
+  TEXTO_OSCURO,
+  esHex,
   cleanTag,
   mergeTags,
   normalizeTag,

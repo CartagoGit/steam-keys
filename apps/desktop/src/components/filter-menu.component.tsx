@@ -101,8 +101,56 @@ export interface IFilterOption<T extends string> {
   icon?: IconName;
   /** Clase del punto de color, o el icono, para distinguirla de un vistazo. */
   dot?: string;
+  /**
+   * El punto con un color **concreto**, en hexadecimal.
+   *
+   * Distinto de `dot` porque `dot` es una clase y las clases del tema no cubren
+   * todo: las etiquetas llevan el color que ha elegido la persona, que no es de
+   * la app. Con solo `dot` habia dos formas de poner un punto y se acababa
+   * usando la que tocara en cada sitio.
+   */
+  color?: string;
   /** Cuantas claves hay. `undefined` si el filtro no lo cuenta. */
   count?: number;
+}
+
+/**
+ * El punto de color o el icono que lleva la opcion, en uno de los tres sitios
+ * donde sale: la pastilla de la columna y la fila de la lista.
+ *
+ * Estaba escrito dos veces y las dos copias se habian quedado sin la mitad de lo
+ * que hace falta. La pastilla —un punto de seis pixeles al lado del texto— es
+ * justo donde un color claro se pierde, porque no tiene borde: por eso el aro.
+ */
+function PuntoDeOpcion<T extends string>({
+  option,
+  lado,
+}: {
+  option: IFilterOption<T>;
+  /** Lado del punto en pixeles. */
+  lado: '1.5' | '2';
+}) {
+  const clase = [
+    lado === '2' ? 'h-2 w-2' : 'h-1.5 w-1.5',
+    'shrink-0 rounded-full',
+    option.dot ?? '',
+  ].join(' ');
+
+  if (option.color !== undefined && option.color !== '') {
+    return (
+      <span
+        aria-hidden="true"
+        className={clase}
+        style={{ backgroundColor: option.color }}
+      />
+    );
+  }
+
+  if (option.dot !== undefined) {
+    return <span aria-hidden="true" className={clase} />;
+  }
+
+  return <Icon name={option.icon as IconName} size={9} className="shrink-0 opacity-80" />;
 }
 
 /**
@@ -382,14 +430,7 @@ export function FilterMenu<T extends string>({
       ].join(' ')}
       style={{ maxWidth: ANCHO_MAX_TAG, fontSize: TAMANO_CHIP }}
     >
-      {option.dot ? (
-        <span
-          aria-hidden="true"
-          className={['h-1.5 w-1.5 shrink-0 rounded-full', option.dot].join(' ')}
-        />
-      ) : option.icon ? (
-        <Icon name={option.icon} size={9} className="shrink-0 opacity-80" />
-      ) : null}
+      <PuntoDeOpcion option={option} lado="1.5" />
 
       <span className="truncate">{t(option.label)}</span>
     </span>
@@ -864,11 +905,8 @@ export function FilterMenu<T extends string>({
                   alEntrar={() => setResaltada(indice)}
                   alPulsar={() => alternar(option.value)}
                 >
-                  {option.dot ? (
-                    <span
-                      aria-hidden="true"
-                      className={['h-2 w-2 shrink-0 rounded-full', option.dot].join(' ')}
-                    />
+                  {option.color !== undefined || option.dot !== undefined ? (
+                    <PuntoDeOpcion option={option} lado="2" />
                   ) : option.icon ? (
                     /*
                      * Icono de verdad, no glifo. En un boton de 28 px un SVG

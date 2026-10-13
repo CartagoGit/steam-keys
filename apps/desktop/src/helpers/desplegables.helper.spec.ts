@@ -626,14 +626,29 @@ describe('el filtro de etiquetas', () => {
     // `undefined` y `.has` reventaria en la primera tecla.
     expect(FILTRAR).toMatch(/emptyFilter\([^)]*\)[^{]*\{[\s\S]{0,300}?tags:\s*\[\]/);
 
-    // Se compara contra un conjunto: es la diferencia entre comprobar cada
-    // etiqueta suelta y comprobar una vez.
-    expect(FILTRAR).toContain('const tags = new Set<string>(filter.tags)');
+    /**
+     * Se compara contra un conjunto, y **los dos lados normalizados**.
+     *
+     * El filtro guarda claves —«cumplidos»— y las claves guardan el texto tal
+     * cual se escribio —«Cumplidos»—. Con `includes` y sin normalizar, marcar
+     * una etiqueta en el filtro no filtraba nada: se abria, se marcaba y la
+     * lista no se movia, sin error ni aviso. Es el mismo fallo que hacia que
+     * la palabra se viera distinta en la fila y en el filtro, visto desde el
+     * otro lado.
+     *
+     * Y la normalizacion de la clave se hace **una vez por clave**, en un
+     * `Set` propio, y no dentro del comparador: con cinco marcadas y
+     * cuatrocientas claves, normalizar por combinacion son veinte mil
+     * normalizaciones.
+     */
+    expect(FILTRAR).toContain('const tags = new Set<string>(filter.tags.map(normalizeTag))');
+    expect(FILTRAR).toContain('const propias = new Set(key.tags.map(normalizeTag))');
+    expect(FILTRAR).not.toContain('key.tags.includes(tag)');
 
     // Y es una disyccion, no una conjunccion: con dos marcadas sale lo que
     // tenga cualquiera de las dos. Conjuncion seria «lo que tenga las dos», que
     // es un filtro que casi nunca devuelve nada y parece roto.
-    expect(FILTRAR).toContain('!key.tags.some((tag) => tags.has(tag))');
+    expect(FILTRAR).toContain('![...propias].some((tag) => tags.has(tag))');
   });
 
   /**
@@ -1868,12 +1883,48 @@ describe('los enlaces del pie', () => {
     expect(PIE).not.toContain('window.open');
   });
 
-  test('los enlaces tienen nombre aunque no se vea texto', () => {
-    // Un icono solo no tiene nombre: ni para el lector de pantalla ni para el
-    // tooltip. Es lo unico que dice adonde lleva.
-    expect(PIE).toContain("title={t('footer.code')}");
-    expect(PIE).toContain("title={t('footer.author')}");
+  test('los enlaces llevan el nombre de quien firma, no solo el icono', () => {
+    /**
+     * Los enlaces **enseñan** el nombre de la firma y no solo el icono.
+     *
+     * Antes eran solo el icono de la marca, con el nombre en el `title`. Con
+     * eso habia que pasar el raton por cada uno para saber a quien llevaban, y
+     * lo unico que se veía en el pie era «una flecha y otra flecha». El nombre
+     * va delante del icono porque es el que dice **quien** firma, y el icono
+     * identifica la marca sin tener que leer.
+     *
+     * Los dos, ademas, salen de `app.constants` y no de un texto traducible:
+     * `CartagoGit` y `Mario Cabrero Volarich` son nombres propios y se escriben
+     * como son, con mayusculas.
+     */
+    expect(PIE).toContain('{FIRMA_CODIGO}');
+    expect(PIE).toContain('{FIRMA_PERFIL}');
+    expect(PIE).toContain('name="github"');
+    expect(PIE).toContain('name="linkedin"');
+
+    // Y el `title` los nombra tambien, que es lo que lee quien va con lector de
+    // pantalla: el texto del enlace ya dice el nombre, pero el `title` dice
+    // tambien a donde lleva.
+    expect(PIE).toContain("t('footer.code')");
+    expect(PIE).toContain("t('footer.author')");
     expect(UI).toContain('aria-label={title}');
+  });
+
+  test('el aviso de derechos va centrado, con el recuento al lado', () => {
+    /*
+     * En un pie de escritorio el centro es el sitio de la firma. Con
+     * `justify-between` los dos extremos tienen que medir igual para que el
+     * bloque de en medio no se mueva, y el recuento —lo unico que cambia de
+     * texto— lo empujaba cada vez que era mas largo.
+     */
+    expect(PIE).toContain('grid-cols-[1fr_auto_1fr]');
+    expect(PIE).toContain('justify-center');
+    expect(PIE).not.toContain('justify-between');
+
+    // Y el ano no esta escrito a mano: se pide al pintar, porque una app que
+    // no se actualiza cada mes deja el ano viejo y no hay quien lo arregle.
+    expect(PIE).toContain('new Date().getFullYear()');
+    expect(PIE).not.toMatch(/©\s*20\d\d/);
   });
 });
 

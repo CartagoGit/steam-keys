@@ -1,4 +1,4 @@
-import { GIFTABLE_STATUSES, KeyKind, KeyPlatform, KeyScope, KeySort, KeyStatus, type IGameKey, type IKeyFilter, type IKeyStats } from '@/contracts';
+import { GIFTABLE_STATUSES, KeyKind, KeyPlatform, KeyScope, KeySort, KeyStatus, normalizeTag, type IGameKey, type IKeyFilter, type IKeyStats } from '@/contracts';
 
 /**
  * Filtro por defecto: solo las claves que siguen disponibles.
@@ -39,7 +39,17 @@ export function filterKeys(
   const needle = normalize(filter.search);
   const platforms = new Set<KeyPlatform>(filter.platforms);
   const giftable = new Set<KeyStatus>(GIFTABLE_STATUSES);
-  const tags = new Set<string>(filter.tags);
+  /**
+   * Las etiquetas que se filtran, **normalizadas**.
+   *
+   * El filtro guarda claves —«cumplidos»— y las claves guardan el texto tal
+   * cual se escribio —«Cumplidos»—. Comparar los dos con `includes` no
+   * encuentra nada en una coleccion en la que las mayusculas importan, que es
+   * la normal: el filtro se abria, se marcaba «Cumplidos» y no salia nada, sin
+   * error ni aviso. Normalizar los dos lados es lo que hace que las dos mitades
+   * se hablen.
+   */
+  const tags = new Set<string>(filter.tags.map(normalizeTag));
 
   // El filtro de estado solo cuenta cuando el ambito es "todos"; si ya estamos
   // en "solo disponibles", el estado no se puede acotar mas.
@@ -78,9 +88,17 @@ export function filterKeys(
      * explicitandolo se entiende que el filtro esta apagado, que es distinto.
      */
     if (tags.size > 0) {
+      /*
+       * Las etiquetas de la clave se normalizan una vez por clave, no una vez
+       * por combinacion: con cinco marcadas y cuatrocientas claves, comparar
+       * sin normalizar por cada combinacion es veinte mil normalizaciones, y
+       * normalizar es la parte cara.
+       */
+      const propias = new Set(key.tags.map(normalizeTag));
+
       if (filter.excluir) {
-        if (![...tags].every((tag) => key.tags.includes(tag))) return false;
-      } else if (!key.tags.some((tag) => tags.has(tag))) {
+        if (![...tags].every((tag) => propias.has(tag))) return false;
+      } else if (![...propias].some((tag) => tags.has(tag))) {
         return false;
       }
     }
