@@ -137,6 +137,12 @@ export const EN: TranslationTable = Object.freeze({
 
   // --------------------------------------------------------- footer ---
   'footer.countOne': '{0} key',
+  'footer.paraVarias': 'for {0} people',
+  'footer.paraUna': 'for 1 person',
+  'footer.repetidaMany': '{0} duplicates',
+  'footer.repetidaOne': '{0} duplicate',
+  'footer.tituloMany': '{0} games',
+  'footer.tituloOne': '{0} game',
   'footer.countMany': '{0} of {1} keys',
 
   // -------------------------------------------------------- tags modal ---
@@ -539,11 +545,12 @@ export const EN: TranslationTable = Object.freeze({
     'The {0} selected keys will be marked as expired and will leave the available list. You can change them later with the status toggle.',
   'footer.code': 'Code on GitHub',
   'footer.author': 'Profile of the author',
-  'footer.available': ' · {0} available',
-  'footer.gifted': ' · {0} gifted',
-  'footer.redeemed': ' · {0} redeemed',
-  'footer.expired': ' · {0} expired',
-  'footer.addOns': ' · {0} DLC',
+  'footer.available': '{0} available',
+  'footer.gifted': '{0} gifted',
+  'footer.redeemed': '{0} redeemed',
+  'footer.expired': '{0} expired',
+  'footer.addOns': '{0} DLC',
+  'footer.verTodo': 'Show these keys',
   'footer.games': '{0} games on Steam',
   'footer.shortcutSearch': 'search',
   'footer.shortcutNew': 'new',

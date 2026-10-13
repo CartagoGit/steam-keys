@@ -1,3 +1,5 @@
+import { Fragment } from 'react';
+import { useMemo } from 'react';
 import { Icon } from './icon.component';
 import { ExternalLink } from './ui.component';
 import { useT } from '@/context/locale.context';
@@ -14,11 +16,19 @@ import {
   PERFIL_URL,
   PROYECTO_URL,
   SEARCH_SHORTCUT,
+  KEY_PLATFORM_VALUES,
+  TRANSLATIONS,
+  platformLabel,
+  KeyKind,
+  KeyPlatform,
+  KeyScope,
+  KeyStatus,
   StorageMode,
+  type IKeyFilter,
   type SteamAccountStatus,
 } from '@/contracts';
 import type { IUndoEntry } from '@/helpers/undo.helper';
-import type { IRecuentoVisible } from '@/helpers/filter-keys.helper';
+import { apagarFiltro, coincide, type IResumenPie, type ITrozoPie } from '@/helpers/resumen-pie.helper';
 
 export interface IAppFooterProps {
   vista: AppView;
@@ -26,17 +36,22 @@ export interface IAppFooterProps {
   visibleCount: number;
   totalCount: number;
   /**
-   * El reparto de **lo que se ve** con los filtros de ahora.
+   * Lo que dicen las claves que se ven.
    *
    * No es el mismo que el de la barra de filtros, que va sobre la coleccion
    * entera: los menus tienen que seguir diciendo cuantos hay de cada cosa para
    * poder elegirla. Este es el que responde a «y de estas que veo, cuantas hay
-   * de cada tipo».
+   * de cada tipo» y, mas alla de los estados, cuantas son de juegos repetidos,
+   * de que plataformas y para cuanta gente.
    */
-  recuento: IRecuentoVisible;
+  resumen: IResumenPie;
   cuenta: SteamAccountStatus;
   /** Ultima accion que se puede deshacer, o `null`. */
   undo: IUndoEntry | null;
+  /** El filtro de ahora, para marcar que tramos estan ya puestos. */
+  filter: IKeyFilter;
+  /** Cambia el filtro. Los tramos del pie la usan como botones. */
+  onFilter: (changes: Partial<IKeyFilter>) => void;
   onUndo: () => void;
   onOpenShortcuts: () => void;
 }
@@ -53,15 +68,172 @@ export function AppFooter({
   vista,
   visibleCount,
   totalCount,
-  recuento,
+  resumen,
   cuenta,
   undo,
+  filter,
+  onFilter,
   onUndo,
   onOpenShortcuts,
 }: IAppFooterProps) {
-  const { t } = useT();
+  const { t, locale } = useT();
 
   const modo = getStorageMode();
+
+  /*
+   * Los tramos del pie, en el orden en que se leen de izquierda a derecha.
+   *
+   * Es una lista y no JSX suelto porque tienen que ser **comparables**: el
+   * boton se enciende con `coincide(filter, tramo.filtro)`, y para eso el
+   * filtro tiene que ser un dato al que se pueda mirar, no algo que se
+   * escriba de nuevo dentro del onclick. Con JSX suelto cada boton
+   * compararia el filtro con una condicion distinta escrita a mano y
+   * bastaria con que una se equivocara para que un tramo quedara
+   * encendido sin estar puesto.
+   *
+   * Y van sin los que valen cero. «0 repetidas», «0 para 0 personas» y «otras
+   * plataformas: 0» ocupan sitio para decir que no hay ninguna, y lo que se
+   * pierde de vista es justamente el dato raro: las 47 claves repetidas.
+   */
+  const tramos = useMemo<ITrozoPie[]>(() => {
+    if (vista === AppView.Games) return [];
+
+    const trozos: ITrozoPie[] = [];
+
+    /*
+     * Enciende un tramo y devuelve lo que hay que mandarle a `patchFilter`.
+     *
+     * Lo del return es lo que hace que el boton sea de poner y quitar: si ya
+     * esta puesto, devuelve el filtro **vaciado** —`{ statuses: [] }` en vez de
+     * `{ statuses: ['gifted'] }`— y con eso `patchFilter`, que va por encima de
+     * lo que hay, se queda sin filtrar por estado. Sin esto el boton se
+     * pulsaba y no pasaba nada, porque reponer el mismo valor sobre el mismo
+     * valor no cambia el filtro: el boton quedaria encendido y sin manera de
+     * apagarlo, que es la peor forma de boton.
+     *
+     * Y por eso el filtro lleva tambien `scope: All` cuando toca el estado:
+     * `filterKeys` **ignora** `statuses` mientras el ambito sea «solo
+     * disponibles», que es el de por defecto, asi que sin esto el boton se
+     * encendia y la lista no cambiaba. Al pulsarlo tambien se pone el ambito
+     * en «todos», que es lo que hace falta para que el filtro de estado
+     * signifique algo —y es lo que haria alguien desde el menu de la barra—.
+     */
+    const anade = (
+      texto: string,
+      filtro: Partial<IKeyFilter> | null,
+      alPulsar?: Partial<IKeyFilter>,
+    ): void => {
+      const activo = filtro !== null && coincide(filter, filtro);
+
+      // Un tramo sin filtro es solo informacion: no hay nada que poner ni que
+      // quitar, y `{}` es lo que hace que al pulsarlo no change nada en vez de
+      // reponer un filtro que no existe.
+      const cambios = filtro === null ? {} : (activo ? apagarFiltro(filtro) : (alPulsar ?? filtro));
+
+      trozos.push({ texto, activo, pulsable: filtro !== null, cambios });
+    };
+
+    if (resumen.available > 0) {
+      anade(t('footer.available', [resumen.available]), { statuses: [KeyStatus.Available] }, {
+        statuses: [KeyStatus.Available],
+        scope: KeyScope.All,
+      });
+    }
+    if (resumen.gifted > 0) {
+      anade(t('footer.gifted', [resumen.gifted]), { statuses: [KeyStatus.Gifted] }, {
+        statuses: [KeyStatus.Gifted],
+        scope: KeyScope.All,
+      });
+    }
+    if (resumen.redeemed > 0) {
+      anade(t('footer.redeemed', [resumen.redeemed]), { statuses: [KeyStatus.Redeemed] }, {
+        statuses: [KeyStatus.Redeemed],
+        scope: KeyScope.All,
+      });
+    }
+    if (resumen.expired > 0) {
+      anade(t('footer.expired', [resumen.expired]), { statuses: [KeyStatus.Expired] }, {
+        statuses: [KeyStatus.Expired],
+        scope: KeyScope.All,
+      });
+    }
+    if (resumen.addOns > 0) anade(t('footer.addOns', [resumen.addOns]), { kind: KeyKind.Dlc });
+
+    /*
+     * Los juegos, y las claves repetidas.
+     *
+     * «356 juegos» es el dato que mas cambia de un filtro a otro y el que
+     * nadie tiene a la vista: con 403 claves no se sabe si son 403 juegos o
+     * 40 con cinco DLC cada uno, y son cosas muy distintas. Al pincharlo se
+     * dejan fuera las DLC y se ven solo los juegos base, que es la unica
+     * forma de que el numero de la lista y el de arriba digan lo mismo.
+     *
+     * Las repetidas solo salen si hay alguna, porque un cero aqui es ruido y
+     * ademas invites a creerse que ya se esta mirando una lista sin
+     * duplicados cuando lo que pasa es que no hay.
+     */
+    if (resumen.titulos > 0) {
+      anade(
+        t(pluralKey(resumen.titulos, 'footer.tituloOne', 'footer.tituloMany'), [
+          resumen.titulos,
+        ]),
+        { kind: KeyKind.Games },
+      );
+    }
+
+    /*
+     * Las repetidas y los destinatarios salen **sin filtro**, y es a proposito.
+     *
+     * Los dos son preguntas que no tienen forma de filtro todavia —«solo las
+     * claves cuyo titulo sale dos veces» y «solo las que tienen destinatario»—
+     * y anadir esos dos campos al `IKeyFilter` para que dos numeros del pie
+     * fueran pulsables es MUCHISIMO mas trabajo del que aportan: habria que
+     * guardarlos, teacharlos en el `emptyFilter`, meterlos en `filterKeys`, en
+     * la limpieza de la URL y en el menu que los muestra. Un boton que no
+     * hace nada es peor que un numero, y aqui se sabe que no hace nada.
+     *
+     * Se enseñan igual porque el dato es bueno: que haya 47 claves repetidas
+     * o 3 personas es justo lo que no se ve en ninguna parte de la pantalla.
+     */
+    if (resumen.duplicadas > 0) {
+      anade(
+        t(pluralKey(resumen.duplicadas, 'footer.repetidaOne', 'footer.repetidaMany'), [
+          resumen.duplicadas,
+        ]),
+        null,
+      );
+    }
+
+    if (resumen.destinatarios > 0) {
+      anade(
+        t(pluralKey(resumen.destinatarios, 'footer.paraUna', 'footer.paraVarias'), [
+          resumen.destinatarios,
+        ]),
+        null,
+      );
+    }
+
+    /*
+     * Las plataformas que no son Steam, y solo esas.
+     *
+     * Steam sale ya en la cuenta de arriba, y repetir «370 Steam» al lado de
+     * un filtro que ya es de Steam no aporta nada. Lo que si aporta es que
+     * queden a la vista las que no lo son: una coleccion de claves de Steam
+     * con 28 de Guild Wars 2 esconde media coleccion, y sin esto no hay forma
+     * de saber que estan.
+     */
+    for (const plataforma of KEY_PLATFORM_VALUES) {
+      const cuantas = resumen.porPlataforma[plataforma] ?? 0;
+
+      if (cuantas === 0 || plataforma === KeyPlatform.Steam) continue;
+
+      anade(`${cuantas} ${platformLabel(plataforma, TRANSLATIONS[locale])}`, {
+        platforms: [plataforma],
+      });
+    }
+
+    return trozos;
+  }, [vista, resumen, filter, t, locale]);
 
   return (
     /*
@@ -102,29 +274,55 @@ export function AppFooter({
             </span>
 
             {/*
-              El reparto de lo que se ve, y **solo** lo que no sea cero.
+              Los tramos, y **solo** los que dicen algo.
 
-              Cada estado sale con su punto delante, porque son trozos sueltos de
-              una linea mas larga y sin el separador se leerian como una cifra
-              mal puesta. Lo que esta a cero no se enseña: «· 0 regaladas» ocupa
-              sitio para decir que no hay ninguna, y con cuatro estados mas los
-              DLC son justo el dato que se pierde de vista.
-
-              Y sale con los filtros puestos, que es lo que hace que responda a
-              algo: si se filtra por estado, «3 disponibles» habla de las que se
-              estan viendo, no de las 181 que hay en la coleccion.
+              Cada uno lleva su punto delante porque son trozos sueltos de una
+              linea mas larga y sin el separador se leerian como una cifra mal
+              puesta. Y van construidos en `tramos`, que ya ha dejado fuera lo
+              que vale cero: «· 0 regaladas» ocupa sitio para decir que no hay
+              ninguna, y con cuatro estados mas los DLC y las repetidas son
+              justo el dato que se pierde de vista.
             */}
-            {recuento.available > 0
-              ? t('footer.available', [recuento.available])
-              : ''}
-            {recuento.gifted > 0 ? t('footer.gifted', [recuento.gifted]) : ''}
-            {recuento.redeemed > 0
-              ? t('footer.redeemed', [recuento.redeemed])
-              : ''}
-            {recuento.expired > 0
-              ? t('footer.expired', [recuento.expired])
-              : ''}
-            {recuento.addOns > 0 ? t('footer.addOns', [recuento.addOns]) : ''}
+            {tramos.map((tramo, indice) => (
+              <Fragment key={`${tramo.texto}-${indice}`}>
+                {indice > 0 ? (
+                  <span className="shrink-0 text-t5" aria-hidden="true">
+                    ·
+                  </span>
+                ) : null}
+
+                {tramo.pulsable ? (
+                  /*
+                    El tramo con filtro es un boton.
+                    *
+                    * Ponerlo y quitarlo, no anadir: si esta puesto y lo pulsas se
+                    * va, y si no esta puesto lo pone. Lo que se manda al pulsarlo
+                    * ya viene resuelto en `cambios` —poner o vaciar— porque son
+                    * dos operaciones distintas y si se mandara siempre el
+                    * filtro crudo el boton encendido no se podria apagar.
+                    *
+                    * El estado lo decide `coincide` y no una comparacion escrita
+                    * aqui, para que el boton no pueda decir «estoy encendido»
+                    * cuando el filtro que hay puesto es otro.
+                    */
+                  <button
+                    type="button"
+                    onClick={() => onFilter(tramo.cambios)}
+                    title={t('footer.verTodo')}
+                    aria-pressed={tramo.activo}
+                    className={[
+                      'shrink-0 rounded px-0.5 transition hover:bg-hover hover:text-t2',
+                      tramo.activo ? 'font-semibold text-t2 underline decoration-dotted underline-offset-2' : '',
+                    ].join(' ')}
+                  >
+                    {tramo.texto}
+                  </button>
+                ) : (
+                  // Sin filtro no hay nada que pulsar: solo es informacion.
+                  <span className="shrink-0">{tramo.texto}</span>
+                )}
+              </Fragment>
+            ))}
           </>
         )}
       </span>

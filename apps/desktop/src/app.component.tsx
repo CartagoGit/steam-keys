@@ -27,7 +27,8 @@ import { Button } from './components/ui.component';
 
 import { AppTheme, AppView, DEFAULT_VIEW, KEY_STATUS_VALUES, KeyPlatform, KeyScope, KeySort, KeyStatus, PAGE_SIZE, mergeTags, type AppLocale, type IAppSettings, type IGameKey, type IGameKeyDraft, type IImportSummary, type IKeyFilter, type ISteamOwnedGame, type ITag, type SteamAccountStatus, type TranslationArgs, type Translator } from '@/contracts';
 import { computeStats,
-  recuentoVisible, emptyFilter, filterKeys, sortKeys } from '@/helpers/filter-keys.helper';
+  emptyFilter, filterKeys, sortKeys } from '@/helpers/filter-keys.helper';
+import { resumenPie } from '@/helpers/resumen-pie.helper';
 import { analyzeSelection, claveGrupo, isGiftable, podarSeleccion, resumenPorTitulo, type SelectAction } from '@/helpers/selection.helper';
 import { useKeepMounted } from '@/helpers/use-exit-animation.helper';
 import { useShortcuts } from '@/helpers/use-shortcuts.helper';
@@ -416,14 +417,6 @@ export function App() {
 
   // --------------------------------------------------------- carga de datos ---
 
-  /**
-   * Devuelve las claves recien leidas, o `null` si la lectura fallo.
-   *
-   * El valor de retorno no es un extra: lo necesita el arranque para no leer
-   * la tabla dos veces seguidas —una para las claves, otra para el recuento de
-   * las etiquetas—. En cuanto se fleshara con el resto de recargas, se deja
-   * de mirar.
-   */
   const reload = useCallback(async (): Promise<readonly IGameKey[] | null> => {
     try {
       const cargadas = await gameKeyService.list();
@@ -460,6 +453,76 @@ export function App() {
    */
   const reloadRef = useRef(reload);
   reloadRef.current = reload;
+
+  /**
+   * Sustituye **una** clave en memoria, sin releer la tabla.
+   *
+   * Es lo que hay que hacer despues de guardar una clave, borrarla o cambiarle
+   * un estado: el servicio ya ha devuelto la fila tal como ha quedado, asi que
+   * recargar la tabla entera es volver a pedir lo que ya se tiene.
+   *
+   * El coste: recargar son 1 ms con cuatrocientas claves y 6,5 MB con veinte
+   * mil. Y no es solo el arranque —`reload()` iba detras de cada accion—, asi
+   * que guardar un titulo releia la coleccion entera de la base de datos.
+   *
+   * Solo sustituye, y no reordena: el orden lo pone `sortKeys` en cada
+   * repintado a partir de `keys`, asi que si el titulo o la fecha han cambiado
+   * la fila se mueve sola. Si la clave no estaba —porque venia de otra parte,
+   * de una fusion o de un import— **se anade**, porque perderla seria peor que
+   * volver a leer.
+   */
+  const parchearClave = useCallback((clave: IGameKey): void => {
+    setKeys((actuales) => {
+      const existe = actuales.some((otra) => otra.id === clave.id);
+
+      if (!existe) return [...actuales, clave];
+
+      return actuales.map((otra) => (otra.id === clave.id ? clave : otra));
+    });
+  }, []);
+
+  /**
+   * Parchea las claves de una accion en bloque, o recurre si no son enteras.
+   *
+   * Lo que sale de `gameKeyService` es un `IGameKey` para guardar una clave y
+   * una lista de ellas para las acciones en bloque. Aqui se distingue por la
+   * forma: un solo objeto se parchea como una clave y una lista se parchea
+   * entera.
+   *
+   * Y **si la lista viene vacia no se puede saber nada**: vacio quiere decir
+   * «no hay nada que mostrar» o tambien «no he leido», y en el segundo caso
+   * parcheando nada la lista se quedaria vacia para siempre. Por eso ahi se
+   * recarga, que es lo unico que funciona en los dos casos.
+   */
+  const parchear = useCallback(
+    async (cambios: IGameKey | readonly IGameKey[]): Promise<void> => {
+      if (!Array.isArray(cambios)) {
+        parchearClave(cambios as IGameKey);
+        return;
+      }
+
+      if (cambios.length === 0) {
+        await reloadRef.current();
+        return;
+      }
+
+      for (const clave of cambios) parchearClave(clave);
+    },
+    [parchearClave],
+  );
+
+  /**
+   * Quita claves de memoria, sin releer la tabla.
+   *
+   * La contraparte de `parchearClave` para lo que desaparece: un borrado ya no
+   * tiene fila que sustituir, solo un `id` que quitar.
+   */
+  const quitarClaves = useCallback((ids: readonly number[]): void => {
+    const fuera = new Set(ids);
+
+    setKeys((actuales) => actuales.filter((clave) => !fuera.has(clave.id)));
+  }, []);
+
 
   useEffect(() => {
     // Sin base de datos no se toca nada: ni claves, ni ajustes. Es lo que
@@ -557,6 +620,13 @@ export function App() {
           }
         }
 
+        /*
+         * Aqui si se relee, y es a proposito: deshacer una entrada puede tener
+         * que **volver a crear** filas —una clave que se habia borrado vuelve a
+         * nacer con un `id` nuevo— y no hay forma de saberlo sin preguntarle a la
+         * base. El resto de acciones si conocen su resultado y por eso se
+         * parchean; esta no.
+         */
         await reload();
 
         /**
@@ -823,7 +893,7 @@ export function App() {
    * que veo, cuantas hay de cada cosa?»— y con el recuento de arriba diria lo
    * mismo siempre: el numero entero, sin relacion con lo que se esta mirando.
    */
-  const recuento = useMemo(() => recuentoVisible(visible), [visible]);
+  const resumen = useMemo(() => resumenPie(visible), [visible]);
   const page = useMemo(() => visible.slice(0, PAGE_SIZE), [visible]);
 
   /**
@@ -1045,8 +1115,10 @@ export function App() {
        */
       const r = await conCarga('loading.saving', async () => {
         if (editing) {
-          await gameKeyService.update(editing.id, draft);
-          return { creada: null as IGameKey | null };
+          // El servicio **devuelve** la fila ya actualizada. Se llevaba
+          // tirando y luego se releia la tabla entera para conseguir lo mismo
+          // que ya estaba en la mano; por eso se devuelve y se parchea.
+          return { creada: await gameKeyService.update(editing.id, draft) };
         }
 
         return {
@@ -1075,10 +1147,13 @@ export function App() {
        * el estado anterior. Crear se deshace borrando, y para eso hace falta la
        * clave **tal como ha quedado**: si el usuario le pone destinatario o
        * etiquetas antes de guardar, esa es la fila que hay que volver a quitar.
+       *
+       * Y las dos ramas tienen que distinguir «edita» de «crea» por `editing`,
+       * que es lo unico que las separa: `creada` es la fila en los dos casos.
        */
-      if (creada === null) {
-        if (editing !== null) deshacer.registrar(editing.title, [editing]);
-      } else {
+      if (editing !== null) {
+        deshacer.registrar(editing.title, [editing]);
+      } else if (creada !== null) {
         // `true` = se deshace borrando, porque la fila es nueva y no hay a que
         // devolverla a ningun sitio: solo hay que quitar lo que se creo.
         deshacer.registrar(creada.title, [creada], true);
@@ -1089,12 +1164,21 @@ export function App() {
       /*
        * Solo se cierra. `editing` se suelta al abrir, no aqui: vaciarlo en el
        * guardado hacia lo mismo que al cerrar —el formulario se vaciaba a la
-       * vista mientras se cerraba— y ademas `reload()` puede tardar mas que la
-       * animacion, con lo que la lista de debajo se quedaba con la clave
+       * vista mientras se cerraba— y ademas la recarga puede tardar mas que
+       * la animacion, con lo que la lista de debajo se quedaba con la clave
        * `editing` todavia puesta.
        */
       setEditorOpen(false);
-      await reload();
+
+      /*
+       * Se parchea la fila que el servicio acaba de devolver, y no se relee.
+       *
+       * Editando y creando el camino es el mismo: `gameKeyService` devuelve la
+       * clave tal como ha quedado, y sustituirla en memoria es lo unico que
+       * hay que hacer. Releer la tabla entera —1 ms con cuatrocientas claves,
+       * 6,5 MB con veinte mil— era para tener lo mismo que ya venia en la mano.
+       */
+      if (creada !== null) await parchear(creada);
     } catch (cause) {
       if (cause instanceof DuplicateKeyError) {
         // Aqui se traduce: el servicio no sabe en que idioma esta la app, y el
@@ -1128,7 +1212,9 @@ export function App() {
 
       setDeleting(null);
       notify(traducir('app.deleted') + ' ' + traducir('app.undoHint'), 'success');
-      await reload();
+
+      // Un borrado no deja fila que sustituir: se quita el `id` de la lista y ya.
+      quitarClaves([deleting.id]);
     } catch (cause) {
       notify(
         cause instanceof Error ? cause.message : traducir('app.deleteFailed'),
@@ -1202,7 +1288,12 @@ export function App() {
         afectadas,
       );
 
-      await reload();
+      /*
+       * Cada fila afectada recibe el estado que se acaba de escribir, sin
+       * releer la tabla. `afectadas` son las copias de **antes** —por eso
+       * servian para el deshacer—, asi que el estado hay que ponerlo aparte.
+       */
+      for (const clave of afectadas) parchearClave({ ...clave, status });
 
       // El aviso va **ademas** del mensaje del dialogo, no en vez de el:
       // el dialogo se puede cerrar sin leer y el cambio ya esta hecho.
@@ -1243,7 +1334,20 @@ export function App() {
 
       deshacer.registrar(entry.title, [entry]);
 
-      await reload();
+      /*
+       * El estado que se acaba de escribir se pone en la copia de memoria, y no
+       * se relee la tabla para averiguarlo.
+       *
+       * El servicio no devuelve nada —hace un `UPDATE` y ya— pero quien llama
+       * sabe exactamente que cambio: es `next`, y lo acaba de mandar. Reconstruir
+       * la fila con ese dato es exacto y no cuesta ninguna consulta, mientras
+       * que releer son 1 ms con cuatrocientas claves y 6,5 MB con veinte mil.
+       *
+       * Y hay un motivo mas: `entry` es una foto de **antes** del cambio, de
+       * modo que copiarla sin tocarle el estado dejaria la fila con lo que
+       * tenia al pintarse el render anterior.
+       */
+      parchearClave({ ...entry, status: next });
     } catch (cause) {
       // Sin esto, un fallo soltava un rechazo sin capturar desde un
       // manejador de evento — donde no hay nadie que lo recoja — y la
@@ -1337,7 +1441,21 @@ export function App() {
         traducir(pluralKey(total, 'app.giftedOne', 'app.giftedMany'), [total, limpio]),
         'success',
       );
-      await reload();
+      /*
+       * Cada clave regalada queda «gifted» con su destinatario, sin releer.
+       *
+       * Los dos campos son los que acaba de escribir `giftMany`, y estan a la
+       * vista en las dos variables de aqui, de modo que la fila en memoria se
+       * puede reconstruir exactamente. Es lo que hace falta para que la pastilla
+       * de estado y el destinatario cambien **ya**, sin esperar a la tabla.
+       */
+      for (const clave of actionableKeys) {
+        parchearClave({
+          ...clave,
+          status: KeyStatus.Gifted,
+          giftedTo: limpio,
+        });
+      }
     } catch (cause) {
       notify(
         cause instanceof Error ? cause.message : traducir('app.markFailed'),
@@ -1380,7 +1498,13 @@ export function App() {
         traducir(pluralKey(total, 'app.expiredOne', 'app.expiredMany'), [total]),
         'success',
       );
-      await reload();
+
+      // Mismo criterio que al regalar: el estado que se acaba de escribir se
+      // pone en la copia de memoria, sin releer la tabla. `affected` es una foto
+      // de antes, asi que el estado hay que ponerlo aparte.
+      for (const clave of affected) {
+        parchearClave({ ...clave, status: KeyStatus.Expired });
+      }
     } catch (cause) {
       notify(
         cause instanceof Error ? cause.message : traducir('app.markFailed'),
@@ -1424,16 +1548,23 @@ export function App() {
         tags: mergeTags(key.tags, tags),
       }));
 
+      /*
+       * Las etiquetas finales de cada clave, y las que de verdad cambian.
+       *
+       * Se calculan **antes** de escribir y se sacan fuera del `conCarga` a
+       * proposito: hacen falta despues para parchar la memoria, y dentro del
+       * callback solo las usaria la escritura.
+       */
+      const cambian = finales.filter(
+        (asignacion) =>
+          asignacion.tags.join('\u0000') !==
+          (selectedKeys.find((key) => key.id === asignacion.id)?.tags ?? [])
+            .join('\u0000'),
+      );
+
       const r = await conCarga('loading.tags', async () => {
         // Las claves que ya tienen todas esas etiquetas no se tocan: el
         // resultado seria identico y la escritura no compra nada.
-        const cambian = finales.filter(
-          (asignacion) =>
-            asignacion.tags.join('\u0000') !==
-            (selectedKeys.find((key) => key.id === asignacion.id)?.tags ?? [])
-              .join('\u0000'),
-        );
-
         await gameKeyService.setTagsForKeys(cambian);
       });
 
@@ -1455,7 +1586,20 @@ export function App() {
         traducir(pluralKey(total, 'app.tagsOne', 'app.tagsMany'), [total]),
         'success',
       );
-      await reload();
+
+      /*
+       * Las etiquetas van a memoria sin releer la tabla.
+       *
+       * Aqui es donde mas merecia la pena: las pastillas de etiquetas salen de
+       * `keys`, y con la recarga aparecian ya cambiadas —pero habia que
+       * pedir las 403 filas enteras, o las veinte mil, para saber lo que el
+       * propio dialogo acababa de calcular. Las finales ya estan en `cambian`.
+       */
+      for (const asignacion of cambian) {
+        const clave = selectedKeys.find((key) => key.id === asignacion.id);
+
+        if (clave !== undefined) parchearClave({ ...clave, tags: asignacion.tags });
+      }
     } catch (cause) {
       notify(
         cause instanceof Error ? cause.message : traducir('app.tagsFailed'),
@@ -1825,6 +1969,14 @@ export function App() {
         return guardado;
       });
 
+      /*
+       * Importar tambien relee, y por lo mismo que deshacer.
+       *
+       * Una fusion trae filas que venian de otra base con sus propios `id`, y
+       * aqui no se sabe cuales han quedado ni que fecha les ha puesto el motor.
+       * Es el otro sitio donde recargar no es un descuido sino la unica forma de
+       * saber la verdad.
+       */
       if (r.ok) await reload();
     } catch (cause) {
       notify(
@@ -2066,9 +2218,11 @@ export function App() {
         vista={vista}
         visibleCount={visible.length}
         totalCount={keys.length}
-        recuento={recuento}
+        resumen={resumen}
         cuenta={cuenta}
         undo={deshacer.entrada}
+        filter={filter}
+        onFilter={patchFilter}
         onUndo={() => void deshacerUltima()}
         onOpenShortcuts={() => setShortcutsOpen(true)}
       />

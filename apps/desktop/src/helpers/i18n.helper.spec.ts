@@ -212,6 +212,10 @@ describe('cobertura de las traducciones', () => {
         // el menu de seleccion multiple necesita distinguirla de «Nenhuma».
         'filter.tags', 'filter.menu.all',
         'select.tags', 'select.groupOrganize', 'tags.title',
+        // «Repetidas» es la misma palabra en los dos idiomas, y es la
+        // portuguesa: alli lo normal es «repetida» y no «duplicada», que es
+        // la palabra que se usa en ingles.
+        'footer.repetidaOne', 'footer.repetidaMany',
         // «Aplicar» es la misma palabra en los dos. Como `action.confirm` y
         // `action.edit`, que ya estaban.
         'action.apply',

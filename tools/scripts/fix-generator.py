@@ -23,11 +23,18 @@ GENERADOR = pathlib.Path(__file__).resolve().parent / 'build-i18n.py'
 
 # clave, es, en, fr, pt, de
 FILAS = [
-    ('footer.available', ' · {0} disponibles', ' · {0} available', ' · {0} disponibles', ' · {0} disponiveis', ' · {0} verfugbar'),
-    ('footer.gifted', ' · {0} regaladas', ' · {0} gifted', ' · {0} offertes', ' · {0} oferecidas', ' · {0} verschenkt'),
-    ('footer.redeemed', ' · {0} canjeadas', ' · {0} redeemed', ' · {0} activees', ' · {0} ativadas', ' · {0} eingeloest'),
-    ('footer.expired', ' · {0} caducadas', ' · {0} expired', ' · {0} perimees', ' · {0} expiradas', ' · {0} abgelaufen'),
-    ('footer.addOns', ' · {0} DLC', ' · {0} DLC', ' · {0} DLC', ' · {0} DLC', ' · {0} DLC'),
+    ('footer.paraVarias', 'para {0} personas', 'for {0} people', 'pour {0} personnes', 'para {0} pessoas', 'fuer {0} Personen'),
+    ('footer.paraUna', 'para 1 persona', 'for 1 person', 'pour 1 personne', 'para 1 pessoa', 'fuer 1 Person'),
+    ('footer.repetidaMany', '{0} repetidas', '{0} duplicates', '{0} en double', '{0} repetidas', '{0} mehrfach'),
+    ('footer.repetidaOne', '{0} repetida', '{0} duplicate', '{0} en double', '{0} repetida', '{0} mehrfach'),
+    ('footer.tituloMany', '{0} juegos', '{0} games', '{0} jeux', '{0} jogos', '{0} Spiele'),
+    ('footer.tituloOne', '{0} juego', '{0} game', '{0} jeu', '{0} jogo', '{0} Spiel'),
+    ('footer.verTodo', 'Ver estas claves', 'Show these keys', 'Voir ces cles', 'Ver estas chaves', 'Diese Schlüssel zeigen'),
+    ('footer.available', '{0} disponibles', ' · {0} available', ' · {0} disponibles', ' · {0} disponiveis', ' · {0} verfugbar'),
+    ('footer.gifted', '{0} regaladas', ' · {0} gifted', ' · {0} offertes', ' · {0} oferecidas', ' · {0} verschenkt'),
+    ('footer.redeemed', '{0} canjeadas', ' · {0} redeemed', ' · {0} activees', ' · {0} ativadas', ' · {0} eingeloest'),
+    ('footer.expired', '{0} caducadas', ' · {0} expired', ' · {0} perimees', ' · {0} expiradas', ' · {0} abgelaufen'),
+    ('footer.addOns', '{0} DLC', ' · {0} DLC', ' · {0} DLC', ' · {0} DLC', ' · {0} DLC'),
     ('loading.more', '+{0}', '+{0} autres',
      '+{0} autres', 'e mais {0}', 'und {0} weitere'),
     ('loading.cancel', 'Cancelar', 'Cancel', 'Annuler', 'Cancelar', 'Abbrechen'),

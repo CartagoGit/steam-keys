@@ -23,12 +23,14 @@ import { Database } from 'bun:sqlite';
 
 import { parseLegacyTxt } from '@/helpers/parse-legacy-txt.helper';
 import { maskKey } from '@/helpers/mask-key.helper';
-import {
-  keyFingerprint,
-  parseTags,
-} from '@/helpers/normalize-text.helper';
+import { parseTags } from '@/helpers/normalize-text.helper';
 import { TABLE_GAME_KEYS } from '@/contracts/constants/db-schema.constants';
-import type { IParsedEntry } from '@/contracts';
+import {
+  juntarEtiquetas,
+  reconciliar,
+  resumenDeCambios,
+} from '@/helpers/reconciliar.helper';
+import type { IChange, IFilaReconciliable } from '@/helpers/reconciliar.helper';
 import { databasePath } from './support/db-path.helper';
 
 const args = process.argv.slice(2);
@@ -37,29 +39,6 @@ const dryRun = args.includes('--dry-run') || (!force && !args.includes('--yes'))
 
 const TXT_PATH = join(import.meta.dir, '..', '..', 'original', 'steam-keys.txt');
 const DB_PATH = databasePath();
-
-/** Lo que el TXT dice de una clave: lo unico que se compara con la fila. */
-type IParseada = Pick<IParsedEntry, 'status' | 'tags'>;
-
-/** Una fila de la base de datos con lo justo para saber que cambiar. */
-interface IRow {
-  id: number;
-  title: string;
-  key_value: string;
-  status: string;
-  tags: string;
-}
-
-/** Un cambio de estado pendiente de aplicar. */
-interface IChange {
-  id: number;
-  title: string;
-  masked: string;
-  before: string;
-  after: string;
-  /** Etiquetas nuevas que hay que anadir a la clave. */
-  tags: readonly string[];
-}
 
 if (!existsSync(DB_PATH)) {
   console.error(`No existe la base de datos en ${DB_PATH}. Importa primero el TXT.`);
@@ -84,68 +63,14 @@ const db = new Database(DB_PATH);
 const parsed = parseLegacyTxt(raw);
 
 const rows = db
-  .query<IRow, []>(
+  .query<IFilaReconciliable, []>(
     `SELECT id, title, key_value, status, tags FROM ${TABLE_GAME_KEYS}`,
   )
   .all();
 
-const porClave = new Map<string, IParseada>();
-
-for (const entry of parsed.entries) {
-  porClave.set(keyFingerprint(entry.keyValue), {
-    status: entry.status,
-    tags: entry.tags ?? [],
-  });
-}
-
-const cambios: IChange[] = [];
-const sinPareja: IRow[] = [];
-
-for (const row of rows) {
-  const delTxt = porClave.get(keyFingerprint(row.key_value));
-
-  // Una clave que no esta en el TXT se deja como esta: la habria anadido a
-  // mano, y el TXT no dice nada de ella.
-  if (delTxt === undefined) {
-    sinPareja.push(row);
-    continue;
-  }
-
-  const actuales = parseTags(row.tags);
-
-  // Las etiquetas del TXT que aun no estan en la clave. Se comparan en minuscula
-  // porque la app las guarda normalizadas asi.
-  const nuevas = delTxt.tags.filter(
-    (tag) => !actuales.some((actual) => actual.toLowerCase() === tag.toLowerCase()),
-  );
-
-  const cambiaEstado = delTxt.status !== row.status;
-
-  if (!cambiaEstado && nuevas.length === 0) continue;
-
-  cambios.push({
-    id: row.id,
-    title: row.title,
-    masked: maskKey(row.key_value),
-    before: row.status,
-    after: delTxt.status,
-    tags: nuevas,
-  });
-}
-
-const resumen = (lista: readonly { before: string; after: string }[]): string => {
-  const cuenta = new Map<string, number>();
-
-  for (const item of lista) {
-    const clave = `${item.before} -> ${item.after}`;
-    cuenta.set(clave, (cuenta.get(clave) ?? 0) + 1);
-  }
-
-  return [...cuenta.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .map(([clave, n]) => `    ${clave.padEnd(28)} ${n}`)
-    .join('\n');
-};
+// Toda la decision —que cambia, cuales no, y como se cuenta— esta en el
+// helper, que esta probado. Aqui solo se ejecuta.
+const { cambios, sinPareja } = reconciliar(rows, parsed.entries);
 
 console.log('=====================================================');
 console.log(' Reconciliacion de estados con el TXT original');
@@ -161,13 +86,17 @@ console.log('');
 
 if (cambios.length > 0) {
   console.log('Cambios por tipo:');
-  console.log(resumen(cambios));
+  console.log(resumenDeCambios(cambios));
   console.log('');
 
   if (args.includes('--verbose') || args.includes('-v')) {
     console.log('Detalle (claves enmascaradas):');
     for (const cambio of cambios.slice(0, 50)) {
-      console.log(`  #${cambio.id} ${cambio.title} [${cambio.masked}] ${cambio.before} -> ${cambio.after}`);
+      const fila = rows.find((r) => r.id === cambio.id);
+
+      console.log(
+        `  #${cambio.id} ${cambio.title} [${maskKey(fila?.key_value ?? '')}] ${cambio.before} -> ${cambio.after}`,
+      );
     }
     if (cambios.length > 50) console.log(`  ... y ${cambios.length - 50} mas`);
     console.log('');
@@ -208,14 +137,7 @@ const aplicar = db.transaction((lista: readonly IChange[]) => {
 
     // Se anaden a las que ya habia, nunca se reemplazan: las que se hayan
     // puesto a mano se quedan.
-    const juntas = [...actuales];
-    for (const tag of cambio.tags) {
-      if (!juntas.some((existente) => existente.toLowerCase() === tag.toLowerCase())) {
-        juntas.push(tag);
-      }
-    }
-
-    cambiar.run(cambio.after, juntas.join(','), cambio.id);
+    cambiar.run(cambio.after, juntarEtiquetas(actuales, cambio.tags).join(','), cambio.id);
   }
 });
 
