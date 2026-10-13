@@ -15,7 +15,17 @@ export const DEV_BRIDGE_PATH = '/__dev-bridge__/sql';
 /** Header con el token que debe enviar el navegador. */
 export const DEV_BRIDGE_TOKEN_HEADER = 'x-steam-keys-dev-token';
 
-/** Variable global que recibe el token, inyectada por `define`. */
+/**
+ * Identificador que el plugin sustituye por el token en el cliente.
+ *
+ * Va como texto plano y no por `define` de Vite a proposito: desde Vite 6 los
+ * `define` del usuario **no se aplican al codigo del cliente en desarrollo** —
+ * solo a la entrada del cliente y a `process.env.NODE_ENV`—, asi que un
+ * `define` con el token ahi se quedaba sin sustituir, `typeof` de un
+ * identificador sin declarar daba `"undefined"`, y toda peticion al puente
+ * volvia con un 403 sin que nada fallara por el camino. El plugin lo
+ * sustituye con un `transform` propio, que es donde si llega.
+ */
 export const DEV_TOKEN_GLOBAL = '__STEAM_KEYS_DEV_TOKEN__';
 
 /** Operaciones que entiende el puente. */

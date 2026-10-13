@@ -194,8 +194,8 @@ export class MemoryGameKeyRepository implements IGameKeyRepository {
    * Se llama al construir, para que el navegador no se vea con un catalogo
    * vacio: las etiquetas de la coleccion ya existen aunque el catalogo no las
    * tenga, y sin esta vuelta serian inelegibles. En SQLite lo hace
-   * `syncTagsFromKeys()`; aqui se hace de golpe porque no hay nada mas que
-   * sincronizar.
+   * `syncTagsFromKeys()` —que ademas ya recibe las claves, porque aqui estan
+   * en memoria—; se hace de golpe porque no hay nada mas que sincronizar.
    */
   private syncCatalogo(): void {
     const vistas = new Set<string>();
@@ -276,7 +276,7 @@ export class MemoryGameKeyRepository implements IGameKeyRepository {
    * Una sincronizacion que borrara por su cuenta desharia el borrado que el
    * usuario acaba de hacer a proposito.
    */
-  async syncTagsFromKeys(): Promise<number> {
+  async syncTagsFromKeys(_claves: readonly IGameKey[]): Promise<number> {
     const antes = new Set(this.catalogo);
 
     this.syncCatalogo();

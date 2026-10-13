@@ -409,7 +409,7 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
     });
   }
 
-  async syncTagsFromKeys(): Promise<number> {
+  async syncTagsFromKeys(claves: readonly IGameKey[]): Promise<number> {
     /**
      * Meten en el catalogo todo lo que ya usan las claves, en su forma
      * **normalizada**.
@@ -431,14 +431,19 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
      * Solo anade y **renombra**: nunca quita una etiqueta que no use ninguna
      * clave, que para eso esta `deleteTag`, que ademas limpia las claves.
      */
-    const filas = await this.db.select<{ tags: string }>(
-      `SELECT tags FROM ${TABLE_GAME_KEYS}`,
-    );
-
+    /*
+     * Las claves las pasa quien llama, y no se releen aqui.
+     *
+     * Antes esta sincronizacion hacia su propio `SELECT tags FROM
+     * game_keys` y quien la llamaba habia leido la tabla entera un momento
+     * antes: dos lecturas de lo mismo por cada carga de etiquetas, con
+     * cuatrocientas filas y por el puente. Quien ya las tiene en la mano las
+     * pasa y se ahorra el viaje.
+     */
     const vistas = new Set<string>();
 
-    for (const fila of filas) {
-      for (const tag of (fila.tags ?? '').split(',')) {
+    for (const clave of claves) {
+      for (const tag of clave.tags) {
         const limpia = cleanTag(tag);
 
         if (limpia.length > 0) vistas.add(limpia);

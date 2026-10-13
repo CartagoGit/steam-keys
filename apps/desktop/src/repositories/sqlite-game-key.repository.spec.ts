@@ -302,7 +302,7 @@ describe('el catalogo de etiquetas vive en la base de datos', () => {
       await repo.insert({ ...fila('BBBB-2222-BBBB'), tags: ['contexto'] });
 
       // Nadie ha pedido todavia el catalogo: las claves ya estaban ahi.
-      expect(await repo.syncTagsFromKeys()).toBe(2);
+      expect(await repo.syncTagsFromKeys(await repo.listAll())).toBe(2);
       expect(leer('SELECT nombre FROM tags ORDER BY nombre')).toEqual([
         { nombre: 'contexto' },
         { nombre: 'dlc' },
@@ -318,8 +318,8 @@ describe('el catalogo de etiquetas vive en la base de datos', () => {
     try {
       await repo.insert({ ...fila('AAAA-1111-AAAA'), tags: ['contexto'] });
 
-      expect(await repo.syncTagsFromKeys()).toBe(1);
-      expect(await repo.syncTagsFromKeys()).toBe(0);
+      expect(await repo.syncTagsFromKeys(await repo.listAll())).toBe(1);
+      expect(await repo.syncTagsFromKeys(await repo.listAll())).toBe(0);
     } finally {
       limpiar();
     }
@@ -365,7 +365,7 @@ describe('el catalogo de etiquetas vive en la base de datos', () => {
 
       // El catalogo se llena al leerlo, no al insertar: por eso la app sincroniza
       // antes de enseñar la lista.
-      await repo.syncTagsFromKeys();
+      await repo.syncTagsFromKeys(await repo.listAll());
 
       expect(await repo.deleteTag('dlc')).toBe(2);
 
@@ -416,7 +416,7 @@ describe('renombrar una etiqueta propaga a toda la coleccion', () => {
       await repo.insert({ ...fila('AAAA-1111-AAAA'), tags: ['humble', 'dlc'] });
       await repo.insert({ ...fila('BBBB-2222-BBBB'), tags: ['humble'] });
 
-      await repo.syncTagsFromKeys();
+      await repo.syncTagsFromKeys(await repo.listAll());
 
       expect(await repo.renameTag('humble', 'humble bundle')).toBe(2);
 
@@ -462,7 +462,7 @@ describe('renombrar una etiqueta propaga a toda la coleccion', () => {
 
     try {
       await repo.insert({ ...fila('AAAA-1111-AAAA'), tags: ['contexto'] });
-      await repo.syncTagsFromKeys();
+      await repo.syncTagsFromKeys(await repo.listAll());
 
       await repo.renameTag('contexto', 'a contexto');
 
@@ -583,7 +583,7 @@ describe('el nombre del catalogo es el normalizado', () => {
 
     try {
       await repo.insert({ ...fila('AAAA-1111-AAAA'), tags: ['Cumplidos', '2025'] });
-      await repo.syncTagsFromKeys();
+      await repo.syncTagsFromKeys(await repo.listAll());
 
       expect(leer('SELECT nombre FROM tags ORDER BY nombre')).toEqual([
         { nombre: '2025' },
@@ -618,7 +618,7 @@ describe('el nombre del catalogo es el normalizado', () => {
       await repo.createTag('Cumplidos');
       await repo.setTagColor('cumplidos', 'warn');
 
-      await repo.syncTagsFromKeys();
+      await repo.syncTagsFromKeys(await repo.listAll());
 
       // Una sola fila, en minusculas y **con el color que ya tenia**.
       expect(leer('SELECT nombre, color FROM tags')).toEqual([
@@ -637,7 +637,7 @@ describe('el nombre del catalogo es el normalizado', () => {
       await repo.createTag('Cumplidos');
       await repo.createTag('cumplidos');
 
-      await repo.syncTagsFromKeys();
+      await repo.syncTagsFromKeys(await repo.listAll());
 
       expect(leer('SELECT nombre FROM tags')).toEqual([{ nombre: 'cumplidos' }]);
     } finally {

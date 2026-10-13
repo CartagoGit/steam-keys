@@ -402,14 +402,28 @@ export function App() {
 
   // --------------------------------------------------------- carga de datos ---
 
-  const reload = useCallback(async (): Promise<void> => {
+  /**
+   * Devuelve las claves recien leidas, o `null` si la lectura fallo.
+   *
+   * El valor de retorno no es un extra: lo necesita el arranque para no leer
+   * la tabla dos veces seguidas —una para las claves, otra para el recuento de
+   * las etiquetas—. En cuanto se fleshara con el resto de recargas, se deja
+   * de mirar.
+   */
+  const reload = useCallback(async (): Promise<readonly IGameKey[] | null> => {
     try {
-      setKeys(await gameKeyService.list());
+      const cargadas = await gameKeyService.list();
+
+      setKeys(cargadas);
+
+      return cargadas;
     } catch (cause) {
       notify(
         cause instanceof Error ? cause.message : traducir('app.loadFailed'),
         'error',
       );
+
+      return null;
     } finally {
       setClavesCargadas(true);
     }
@@ -438,8 +452,23 @@ export function App() {
     // mantiene el programa sin crear un fichero vacio al abrirlo.
     if (arranque?.database !== 'ready') return;
 
-    void reloadRef.current();
-    void tagService.list().then(setTags).catch(() => undefined);
+    /*
+     * Las etiquetas van **despues** y con las claves ya leidas.
+     *
+     * Antes las dos iban en paralelo, y cada una por su cuenta: entre
+     * `reload()` y el recuento de `tagService.list()` la tabla entera se
+     * leia tres veces al abrir la app. Ahora se lee una y las etiquetas salen
+     * de ahi.
+     *
+     * Y si las claves no se pudieron leer no se les pasa una lista vacia —que
+     * haria que todas las etiquetas parecieran sin usar—: se pide el catalogo
+     * por su cuenta, como antes.
+     */
+    void (async () => {
+      const cargadas = await reloadRef.current();
+
+      await tagService.list(cargadas ?? undefined).then(setTags).catch(() => undefined);
+    })();
   }, [arranque?.database]);
 
   // ---------------------------------------------------------------- deshacer ---

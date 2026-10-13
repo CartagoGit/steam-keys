@@ -7,7 +7,27 @@ import type { IDatabaseClient, IGameKeyRepository } from '@/contracts';
 let instancia: IGameKeyRepository | null = null;
 let modoRepositorio: StorageMode | null = null;
 
-let clienteInstancia: IDatabaseClient | null = null;
+/**
+ * El cliente, guardando la **promesa** y no el cliente ya resuelto.
+ *
+ * Es la diferencia entre que el esquema se despliegue una vez y cuatro. La
+ * cache guardaba el valor, y hay un `await import()` en medio de la resolucion:
+ * ese `await` devuelve el control a la cola de microtareas **siempre**, incluso
+ * con el modulo ya cargado. Cuatro efectos del arranque llaman a esta funcion
+ * en el mismo commit, los cuatro pasan la comprobacion de cache antes de que
+ * nadie escriba en `clienteInstancia`, y cada uno construye su cliente y lanza
+ * su `migrate()`.
+ *
+ * Se ve en el arranque del navegador: cuatro `CREATE TABLE IF NOT EXISTS
+ * game_keys` identicos, uno detras de otro, en el mismo instante. Con la
+ * promesa cacheada los cuatro reciben **la misma** y `migrate()` corre una vez.
+ *
+ * Y no es solo el arranque. `Promise.all` con dos operaciones de datos —leer
+ * las claves y leer el catalogo de etiquetas— hace lo mismo en cualquier
+ * momento, y a veces que el repositorio salga duplicado y las dos copias
+ * escriban la misma fila.
+ */
+let clientePromesa: Promise<IDatabaseClient> | null = null;
 let modoCliente: StorageMode | null = null;
 
 /**
@@ -31,13 +51,45 @@ let modoCliente: StorageMode | null = null;
 export async function getDatabaseClient(): Promise<IDatabaseClient> {
   const modo = getStorageMode();
 
-  if (clienteInstancia && modoCliente === modo && modo !== StorageMode.Memory) {
-    return clienteInstancia;
-  }
+  /*
+   * En modo memoria no se cachea nada.
+   *
+   * El cliente de memoria guarda los ajustes en un closure, asi que cada
+   * llamada crea uno nuevo con su propio almacen —que es lo que quiere el modo
+   * memoria—. Cachearlo haria que dos llamadas compartieran estado y se
+   * arreglaria un problema que no existe a costa de romper el que si.
+   */
+  if (modo === StorageMode.Memory) return crearCliente(modo);
+
+  if (clientePromesa !== null && modoCliente === modo) return clientePromesa;
+
+  modoCliente = modo;
+
+  /*
+   * Se guarda **antes** de esperar al import.
+   *
+   * `crearCliente` es `async` y lleva un `await import()` dentro; sin esto, el
+   * segundo llamante —que sale en el mismo commit— llegaria aqui, veria
+   * `clientePromesa` a `null` y crearia el suyo. Es la misma carrera de antes,
+   * un nivel mas arriba, y por eso la asignacion va antes del `return`.
+   */
+  clientePromesa = crearCliente(modo);
+
+  return clientePromesa;
+}
+
+/**
+ * Construye el cliente del modo indicado y despliega el esquema.
+ *
+ * No cachea nada: de eso se encarga `getDatabaseClient`, que es quien sabe si la
+ * peticion es la primera o una repetida.
+ */
+async function crearCliente(modo: StorageMode): Promise<IDatabaseClient> {
+  let cliente: IDatabaseClient;
 
   switch (modo) {
     case StorageMode.Tauri: {
-      clienteInstancia = tauriDatabaseClient;
+      cliente = tauriDatabaseClient;
       break;
     }
 
@@ -47,7 +99,7 @@ export async function getDatabaseClient(): Promise<IDatabaseClient> {
         '@/services/dev-bridge-database.service'
       );
 
-      clienteInstancia = devBridgeDatabaseClient;
+      cliente = devBridgeDatabaseClient;
       break;
     }
 
@@ -57,18 +109,16 @@ export async function getDatabaseClient(): Promise<IDatabaseClient> {
         '@/repositories/memory-database.client'
       );
 
-      clienteInstancia = memoryDatabaseClient();
+      cliente = memoryDatabaseClient();
       break;
     }
   }
 
-  modoCliente = modo;
-
   // La migracion solo cuando hay esquema que desplegar. En modo memoria el
   // cliente construye sus tablas al crearse y no tiene nada que migrar.
-  if (modo !== StorageMode.Memory) await clienteInstancia.migrate();
+  if (modo !== StorageMode.Memory) await cliente.migrate();
 
-  return clienteInstancia;
+  return cliente;
 }
 
 /**
@@ -120,6 +170,6 @@ export function isPersistent(): boolean {
 export function resetRepository(): void {
   instancia = null;
   modoRepositorio = null;
-  clienteInstancia = null;
+  clientePromesa = null;
   modoCliente = null;
 }

@@ -13,8 +13,25 @@
  *
  * Uso interno, invocado por el middleware de Vite:
  *
- *   bun dev-bridge.serve.ts exec <json>   -> ejecuta una sentencia de escritura
- *   bun dev-bridge.serve.ts select <json> -> ejecuta una consulta
+ *   bun dev-bridge.serve.ts --server      -> proceso persistente (lo normal)
+ *   bun dev-bridge.serve.ts exec <json>   -> una sentencia y salir
+ *   bun dev-bridge.serve.ts select <json> -> una consulta y salir
+ *
+ * El modo normal es `--server`: se abre **una** conexion y se queda con ella,
+ * hablando por entrada y salida con una peticion JSON por linea. Antes cada
+ * sentencia era un proceso Bun nuevo, y eso rompia dos cosas:
+ *
+ * 1. **Las transacciones no existian.** `BEGIN` abria una conexion y la
+ *    cerraba al terminar el proceso; el `INSERT` siguiente iba sobre otra, y el
+ *    `COMMIT` sobre una tercera. Cada frase por su cuenta y sin confirmar nada
+ *    entre ellas: un `import` que fallara a mitad dejaba las anteriores
+ *    escritas. Con una sola conexion, el `BEGIN` sigue abierto de verdad.
+ * 2. **Coste por frase.** Levantar el runtime cuesta unos 21ms frente a las
+ *    0,2ms que tarda la sentencia en SQLite. El arranque hacia cuarenta y
+ *    pico viajes solo para desplegar el esquema.
+ *
+ * Los modos de una sola vez se conservan porque son lo que usan los tests y lo
+ * que se puede teclear a mano paraechar una sentencia.
  *
  * Solo hay dos operaciones a proposito. Una tercera, de volcado masivo, se
  * descarto porque devolvia la tabla entera con las claves en claro: aqui no
@@ -119,47 +136,157 @@ function responder(respuesta: IRespuesta): void {
   process.stdout.write(JSON.stringify(respuesta));
 }
 
+/**
+ * Escribe la respuesta en modo servidor, **con salto de linea**.
+ *
+ * El protocolo es de una linea por peticion, y el salto es lo unico que le dice
+ * al padre donde acaba una respuesta y empieza la siguiente. Sin el, quien lee
+ * con `readline` no ve nunca una linea entera —`readline` solo emite al llegar
+ * el `\n`— y se queda esperando en silencio mientras el padre espera una
+ * respuesta que ya ha salido. En el modo de una vez el salto no hace falta: se
+ * lee la salida entera y se parsea.
+ */
+function responderLinea(respuesta: IRespuesta): void {
+  process.stdout.write(`${JSON.stringify(respuesta)}\n`);
+}
+
+/**
+ * Ejecuta una peticion contra la conexion que se le pase.
+ *
+ * Es el nucleo, y lo comparten los dos modos: el worker le pasa **su**
+ * conexion —la unica que hay— y el modo de una vez, una recien abierta. La
+ * diferencia entre que una transaccion funcione y no la marca exactamente esta
+ * funcion: recibe el mango en vez de abrirlo por dentro.
+ */
+function ejecutarPeticion(
+  operacion: string,
+  cuerpo: string,
+  db: Database,
+): IRespuesta {
+  switch (operacion) {
+    case 'exec': {
+      const peticion = parsearPeticion(cuerpo);
+      const resultado = db.run(peticion.sql, (peticion.binds ?? []) as never[]);
+
+      return { ok: true, rowsAffected: Number(resultado.changes) };
+    }
+
+    case 'select': {
+      const peticion = parsearPeticion(cuerpo);
+
+      /*
+       * El puente acepta lo que mande el navegador y solo reenvia el `bind` a
+       * SQLite. `SQLQueryBindings` es la union de lo que Bun acepta de verdad;
+       * el enunciado llega como `unknown[]` porque viene por JSON, y el motor
+       * es quien avisa si se le pasa algo que no sea un valor.
+       */
+      const binds = (peticion.binds ?? []) as SQLQueryBindings[];
+      const filas = db.query(peticion.sql).all(...binds) as unknown[];
+
+      return { ok: true, rows: filas };
+    }
+
+    default:
+      return { ok: false, error: `Operacion desconocida: ${operacion}` };
+  }
+}
+
+/**
+ * Atiende una linea del protocolo y devuelve lo que hay que responder.
+ *
+ * El enunciado va **dentro** de la linea, como texto, y no suelto. Es lo que
+ * permite el protocolo de una linea por peticion: el SQL lleva saltos de linea
+ * propios, asi que suelto partiria la linea en varios pedazos y cada uno se
+ * leeria como una peticion distinta. Al serializarlo entero, los saltos van
+ * dentro de las comillas del JSON.
+ */
+function atenderLinea(linea: string, db: Database): IRespuesta {
+  if (linea.trim().length === 0) return { ok: true };
+
+  try {
+    const peticion = JSON.parse(linea) as { op?: string; cuerpo?: string };
+
+    return ejecutarPeticion(peticion.op ?? '', peticion.cuerpo ?? '', db);
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+/**
+ * Modo `--server`: una conexion para toda la vida del proceso.
+ *
+ * Lee **una peticion por linea** de la entrada estandar y escribe **una
+ * respuesta por linea**, en el mismo orden. Todo lo que hay dentro del bucle
+ * es sincrono —decodificar, partir, ejecutar y responder—, asi que las
+ * peticiones salen estrictamente en serie: si dos transacciones se solaparan,
+ * sus `BEGIN` y `COMMIT` se entremezarian en la conexion y la segunda cerraria
+ * lo que hubiera abierto la primera. En serie no puede pasar.
+ *
+ * La entrada se lee a mano y **no** con `node:readline`. Sobre `process.stdin`
+ * de Bun, `readline` se queda esperando eternamente cuando el padre escribe por
+ * una tuberia —que es justo como le habla el plugin de Vite—: el proceso
+ * arranca, no dice nada y se come la primera peticion sin contestarla. Con
+ * `Bun.stdin.stream()` llega a la primera.
+ */
+async function modoServidor(): Promise<void> {
+  const db = abrirEscritura();
+  const decodificador = new TextDecoder();
+
+  /** Lo que ha llegado del ultimo trozo y todavia no forma una linea entera. */
+  let resto = '';
+
+  try {
+    for await (const trozo of Bun.stdin.stream() as AsyncIterable<Uint8Array>) {
+      resto += decodificador.decode(trozo, { stream: true });
+
+      let corte = resto.indexOf('\n');
+
+      while (corte !== -1) {
+        responderLinea(atenderLinea(resto.slice(0, corte), db));
+
+        resto = resto.slice(corte + 1);
+        corte = resto.indexOf('\n');
+      }
+    }
+
+    // Lo que llegue sin salto de linea final se responde igualmente: si no,
+    // esa peticion se pierde en silencio y el padre espera hasta su tiempo
+    // limite sin entender por que.
+    if (resto.trim().length > 0) responderLinea(atenderLinea(resto, db));
+  } finally {
+    db.close();
+  }
+}
+
 async function principal(): Promise<void> {
   const operacion = process.argv[2] ?? '';
 
+  if (operacion === '--server') {
+    await modoServidor();
+    return;
+  }
+
   try {
-    switch (operacion) {
-      // ------------------------------------------------------- ejecutar ---
-      case 'exec': {
-        const peticion = parsearPeticion(await leerEntrada());
-        const db = abrirEscritura();
+    const cuerpo = await leerEntrada();
 
-        try {
-          const resultado = db.run(peticion.sql, (peticion.binds ?? []) as never[]);
-          responder({ ok: true, rowsAffected: Number(resultado.changes) });
-        } finally {
-          db.close();
-        }
-        return;
-      }
+    if (operacion !== 'exec' && operacion !== 'select') {
+      responder({ ok: false, error: `Operacion desconocida: ${operacion}` });
+      process.exitCode = 1;
+      return;
+    }
 
-      // ------------------------------------------------------- consultar ---
-      case 'select': {
-        const peticion = parsearPeticion(await leerEntrada());
-        const db = abrirLectura();
+    // Una consulta de solo lectura falla si el fichero no existe, y el aviso
+    // lo trae `abrirLectura()`: es mucho mas util que el error generico de
+    // SQLite. Para escribir, en cambio, la base se crea sola.
+    const db = operacion === 'exec' ? abrirEscritura() : abrirLectura();
 
-        try {
-          // El puente acepta lo que mande el navegador y solo reenvia el `bind` a
-          // SQLite. `SQLQueryBindings` es la union de lo que Bun acepta de verdad;
-          // el enunciado llega como `unknown[]` porque viene por JSON, y el motor
-          // es quien avisa si se le pasa algo que no sea un valor.
-          const binds = (peticion.binds ?? []) as SQLQueryBindings[];
-          const filas = db.query(peticion.sql).all(...binds) as unknown[];
-          responder({ ok: true, rows: filas });
-        } finally {
-          db.close();
-        }
-        return;
-      }
-
-      default:
-        responder({ ok: false, error: `Operacion desconocida: ${operacion}` });
-        process.exitCode = 1;
+    try {
+      responder(ejecutarPeticion(operacion, cuerpo, db));
+    } finally {
+      db.close();
     }
   } catch (error) {
     responder({
@@ -173,7 +300,7 @@ async function principal(): Promise<void> {
 await principal();
 
 /** Reexportado para que el script se pueda importar en tests. */
-export { abrirLectura, abrirEscritura, parsearPeticion };
+export { abrirLectura, abrirEscritura, atenderLinea, ejecutarPeticion, parsearPeticion };
 
 /** Ruta esperada de la base de datos, util para diagnostico. */
 export const RUTA_BD = devDatabasePath;

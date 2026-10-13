@@ -1,5 +1,5 @@
 import { getRepository } from '@/repositories/repository.factory';
-import { cleanTag, normalizeTag, parseTagColor, type ITag } from '@/contracts';
+import { cleanTag, normalizeTag, parseTagColor, type IGameKey, type ITag } from '@/contracts';
 import { contarUsos, nombresDe, sortTags } from '@/helpers/tags.helper';
 
 /**
@@ -26,18 +26,33 @@ export const tagService = {
    * catalogo vacio la primera vez y sus decenas de etiquetas —«contexto»,
    * «promo winter»— no se podrian volver a marcar nunca. Es idempotente, asi
    * que llamarlo en cada apertura no cuesta nada.
+   *
+   * `claves` es opcional y solo sirve para no releer la tabla: quien ya la
+   * tiene cargada —la pantalla, al abrir— la pasa y el recuento sale de ahi.
+   * Quien no, la lee. El resultado es el mismo en los dos casos.
    */
-  async list(): Promise<readonly ITag[]> {
+  async list(claves?: readonly IGameKey[]): Promise<readonly ITag[]> {
     const repository = await getRepository();
 
-    await repository.syncTagsFromKeys();
+    /*
+     * Las claves se leen una vez.
+     *
+     * Antes esta funcion hacia dos viajes por la misma tabla: uno para
+     * `syncTagsFromKeys()` y otro para contar. Y como la pantalla carga las
+     * claves por su cuenta en paralelo, eran tres. Con cuatrocientas filas y
+     * por el puente de desarrollo eso son tres SELECT identicos que podian
+     * ser uno.
+     *
+     * Quien ya las tiene en la mano las pasa y se ahorra el viaje. Quien no,
+     * las lee —que es lo unico que puede hacer—, y el resultado es el mismo.
+     */
+    const propias = claves ?? (await repository.listAll());
 
-    const [delCatalogo, claves] = await Promise.all([
-      repository.listTags(),
-      repository.listAll(),
-    ]);
+    await repository.syncTagsFromKeys(propias);
 
-    const cuenta = contarUsos(claves.map((clave) => clave.tags));
+    const delCatalogo = await repository.listTags();
+
+    const cuenta = contarUsos(propias.map((clave) => clave.tags));
 
     /*
      * El nombre con el que **se ve** cada etiqueta.
@@ -51,7 +66,7 @@ export const tagService = {
      * catalogo, que es lo unico que hay, y sale en minusculas. En cuanto se
      * pone en una clave, aparece con la caja que tiene.
      */
-    const nombres = nombresDe(claves.map((clave) => clave.tags));
+    const nombres = nombresDe(propias.map((clave) => clave.tags));
 
     return sortTags(
       delCatalogo.map((fila) => ({
