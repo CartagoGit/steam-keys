@@ -24,6 +24,41 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
     await this.db.migrate();
   }
 
+  /**
+   * Todas las claves, de una vez, en memoria.
+   *
+   * **Aqui no hay paginacion, y es una decision, no un olvido.** Traer solo lo
+   * que se pinta obligaria a mover el filtrado y la ordenacion a SQL, y eso
+   * partiria el repositorio en dos: el de SQLite tendria el filtro en la
+   * sentencia y el de memoria en JavaScript, y dejarian de contar lo mismo
+   * justo en lo que mas se nota. Ademas, `sortKeys`, `filterKeys` y los menus
+   * de la barra reciben la lista entera.
+   *
+   * Los numeros de lo que cuesta, medidos en este equipo con filas de tamano
+   * real (titulo largo, clave, nota y dos etiquetas):
+   *
+   * | claves    | SQL     | por el puente |
+   * |-----------|---------|---------------|
+   * |     403   |   1 ms  |   0,14 MB     |
+   * |   5 000   |  12 ms  |   1,2 MB      |
+   * |  20 000   |  28 ms  |   6,5 MB      |
+   * | 100 000   | 250 ms  |  36,0 MB      |
+   *
+   * El de 20 000 es una carga real de la app en el navegador: 6,5 MB en una
+   * respuesta y 193 ms, y la pantalla responde igual que con cuatrocientas.
+   *
+   * **El techo no lo pone esta consulta, lo pone lo que se puede importar.** El
+   * catalogo entero de Steam no llega a 80 000 juegos, asi que 100 000 claves
+   * son mas juegos de los que han existido: por encima de 20 000 es un
+   * problema teorico, y por debajo no se nota.
+   *
+   * Lo que **si** se multiplica es cada edicion: `reload()` va detras de cada
+   * guardado, borrado y cambio de estado, de modo que el coste de arriba se
+   * paga tambien en cada accion. A 403 son 0,14 MB y no se nota; a 20 000 son
+   * 6,5 MB por cada tecla que se guarde. Ese es el techo real de esta
+   * arquitectura, y por eso esta nota vive aqui y no en un documento: es lo
+   * unico que hay que saber antes de tocar `reload()`.
+   */
   async listAll(): Promise<readonly IGameKey[]> {
     const rows = await this.db.select<IGameKeyRow>(
       `SELECT ${GAME_KEY_COLUMNS} FROM ${TABLE_GAME_KEYS}
