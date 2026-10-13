@@ -53,6 +53,8 @@ export type {
   IStartup,
 } from './startup.interface';
 
+export type { IToast, ToastTone } from './toast.interface';
+
 export type {
   IAppMatch,
   IResolvedKey,

@@ -2,14 +2,9 @@ import { useRef, useState } from 'react';
 import { Icon, type IconName } from './icon.component';
 import { useT } from '@/context/locale.context';
 import { Modal } from './modal.component';
+import type { IToast, ToastTone } from '@/contracts';
 
-export type ToastTone = 'info' | 'success' | 'error';
-
-export interface IToast {
-  id: number;
-  message: string;
-  tone: ToastTone;
-}
+export type { IToast, ToastTone } from '@/contracts';
 
 const TONES: Record<ToastTone, { icon: IconName; ring: string }> = {
   info: { icon: 'info', ring: 'ring-line-strong text-t1' },

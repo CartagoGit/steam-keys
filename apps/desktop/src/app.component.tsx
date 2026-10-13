@@ -3,13 +3,13 @@ import { pluralKey, setCurrentLocale, translate } from '@/helpers/i18n.helper';
 import { normalizeForMatch } from '@/helpers/match-title.helper';
 import { normalizeKey } from '@/helpers/normalize-text.helper';
 import { buildOwnershipIndex, ownershipCandidates } from '@/helpers/match-owned.helper';
-import { LocaleContext, useT, type ITranslator } from './context/locale.context';
+import { LocaleContext, type ITranslator } from './context/locale.context';
 
 import { AppFooter } from './components/app-footer.component';
 import { BulkStatusDialog } from './components/bulk-status-dialog.component';
-import { ConfirmDialog, ToastStack, type IToast, type ToastTone } from './components/feedback.component';
+import { ConfirmDialog, ToastStack } from './components/feedback.component';
+import { EmptyState } from './components/empty-state.component';
 import { GiftDialog } from './components/gift-dialog.component';
-import { Icon } from './components/icon.component';
 import { ImportPreview } from './components/import-preview.component';
 import { KeyEditor } from './components/key-editor.component';
 import { KeyRow } from './components/key-row.component';
@@ -23,9 +23,8 @@ import { SteamNotConnected } from './components/view-switch.component';
 import { TagManager } from './components/tag-manager.component';
 import { TagsDialog } from './components/tags-dialog.component';
 import { Toolbar } from './components/toolbar.component';
-import { Button } from './components/ui.component';
 
-import { AppTheme, AppView, DEFAULT_VIEW, KEY_STATUS_VALUES, KeyPlatform, KeyScope, KeySort, KeyStatus, PAGE_SIZE, mergeTags, type AppLocale, type IAppSettings, type IGameKey, type IGameKeyDraft, type IImportSummary, type IKeyFilter, type ISteamOwnedGame, type ITag, type SteamAccountStatus, type TranslationArgs, type Translator } from '@/contracts';
+import { AppView, DEFAULT_VIEW, KEY_STATUS_VALUES, KeyPlatform, KeyScope, KeySort, KeyStatus, PAGE_SIZE, mergeTags, type AppLocale, type IAppSettings, type IGameKey, type IGameKeyDraft, type IImportSummary, type IKeyFilter, type ISteamOwnedGame, type ITag, type SteamAccountStatus, type TranslationArgs, type Translator } from '@/contracts';
 import { computeStats,
   emptyFilter, filterKeys, sortKeys } from '@/helpers/filter-keys.helper';
 import { resumenPie } from '@/helpers/resumen-pie.helper';
@@ -34,6 +33,9 @@ import { useKeepMounted } from '@/helpers/use-exit-animation.helper';
 import { useShortcuts } from '@/helpers/use-shortcuts.helper';
 import { useLoading, type TConTiempo } from '@/helpers/use-loading.helper';
 import { useArranque } from '@/helpers/use-arranque.helper';
+import { applyTheme } from '@/helpers/runtime.helper';
+import { etiquetasComunes } from '@/helpers/tags.helper';
+import { useToasts } from '@/helpers/use-toasts.helper';
 import { borradorDe, useUndo, type IUndoEntry } from '@/helpers/undo.helper';
 import { gameKeyService, DuplicateKeyError } from '@/services/game-key.service';
 import { settingsService, DEFAULT_SETTINGS } from '@/services/settings.service';
@@ -122,7 +124,6 @@ export function App() {
   const [editing, setEditing] = useState<IGameKey | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [deleting, setDeleting] = useState<IGameKey | null>(null);
-  const [toasts, setToasts] = useState<readonly IToast[]>([]);
   /**
    * `true` hasta que se ha leido **todo** lo que la pantalla usa.
    *
@@ -330,7 +331,6 @@ export function App() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   const searchRef = useRef<HTMLInputElement>(null);
-  const nextToastId = useRef(1);
 
   // ---------------------------------------------------------- carga en curso ---
   /**
@@ -403,17 +403,7 @@ export function App() {
   const shortcutsVivo = useKeepMounted(shortcutsOpen);
 
   // ------------------------------------------------------------- avisos ---
-  const notify = useCallback((message: string, tone: ToastTone = 'info'): void => {
-    const id = nextToastId.current++;
-    setToasts((current) => [...current, { id, message, tone }]);
-    setTimeout(() => {
-      setToasts((current) => current.filter((toast) => toast.id !== id));
-    }, 4200);
-  }, []);
-
-  const dismissToast = useCallback((id: number): void => {
-    setToasts((current) => current.filter((toast) => toast.id !== id));
-  }, []);
+  const { toasts, notify, dismiss: dismissToast } = useToasts();
 
   // --------------------------------------------------------- carga de datos ---
 
@@ -2410,94 +2400,4 @@ export function App() {
 /** `true` si la clave se puede regalar todavia. */
 function isAvailable(entry: IGameKey): boolean {
   return isGiftable(entry);
-}
-
-/** Las etiquetas que aparecen en todas las claves seleccionadas. */
-function etiquetasComunes(entries: readonly IGameKey[]): readonly string[] {
-  if (entries.length === 0) return [];
-
-  const [primera, ...resto] = entries;
-
-  if (!primera) return [];
-
-  return primera.tags.filter((tag) =>
-    resto.every((key) => key.tags.includes(tag)),
-  );
-}
-
-/**
- * Aplica el tema al documento.
- *
- * Cuando el tema es `system` se traduce a `light` o `dark` segun lo que diga
- * el sistema operativo. No se puede dejar el atributo en `system` y confiar en
- * el CSS del todo, porque hay reglas de los componentes que dependen de
- * variables y hay que resolverlas aqui una sola vez y para todas.
- */
-function applyTheme(tema: AppTheme): void {
-  if (typeof document === 'undefined') return;
-
-  if (tema !== AppTheme.System) {
-    document.documentElement.dataset.theme = tema;
-    return;
-  }
-
-  const claro =
-    typeof matchMedia === 'function' &&
-    matchMedia('(prefers-color-scheme: light)').matches;
-
-  document.documentElement.dataset.theme = claro
-    ? AppTheme.Light
-    : AppTheme.Dark;
-}
-
-interface IEmptyStateProps {
-  hasKeys: boolean;
-  onCreate: () => void;
-  onImport: () => void;
-  onClearFilters: () => void;
-}
-
-function EmptyState({ hasKeys, onCreate, onImport, onClearFilters }: IEmptyStateProps) {
-  // Los dos estados (no hay nada / no hay resultados) estaban escritos en
-  // español en el marcado, asi que con la app en cualquier otro idioma salian
-  // en castellano justo en las pantallas que se ven la primera vez. Se traducen
-  // con `useT()`, que es el mismo traductor que consume el resto del arbol.
-  const { t } = useT();
-
-  if (hasKeys) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-hover text-t4">
-          <Icon name="search" size={22} />
-        </div>
-        <div>
-          <h3 className="text-sm font-medium text-t2">{t('empty.noResults')}</h3>
-          <p className="mt-1 text-xs text-t4">{t('empty.noResultsHint')}</p>
-        </div>
-        <Button variant="subtle" size="sm" onClick={onClearFilters}>
-          {t('empty.clearFilters')}
-        </Button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
-      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-info/10 text-info ring-1 ring-info/20">
-        <Icon name="key" size={22} />
-      </div>
-      <div>
-        <h3 className="text-sm font-medium text-t2">{t('empty.title')}</h3>
-        <p className="mt-1 text-xs text-t4">{t('empty.hint')}</p>
-      </div>
-      <div className="flex gap-2">
-        <Button variant="primary" icon="upload" onClick={onImport}>
-          {t('empty.import')}
-        </Button>
-        <Button variant="subtle" icon="plus" onClick={onCreate}>
-          {t('empty.create')}
-        </Button>
-      </div>
-    </div>
-  );
 }

@@ -1,4 +1,4 @@
-import { StorageMode, type TranslationKey } from '@/contracts';
+import { AppTheme, StorageMode, type TranslationKey } from '@/contracts';
 
 export { StorageMode };
 
@@ -94,4 +94,31 @@ export function isPersistent(): boolean {
  */
 export function supportsBackups(): boolean {
   return isPersistent();
+}
+/**
+ * Pone el tema en el `<html>`, resolviendo `system` a lo que diga el sistema.
+ *
+ * No se puede dejar el atributo en `system` y confiar en el CSS: las variables
+ * de tema se resuelven en JavaScript —ver `applyTheme` en la app—, y hay
+ * reglas de componentes que dependen de ellas, asi que hace falta resolverlo
+ * aqui una sola vez y para todas. Sin este `typeof`, el helper revienta al
+ * probarlo en Bun, donde no hay `document` ni `matchMedia`.
+ *
+ * Se escribe en el atributo `data-theme` y no en clases porque los componentes
+ * se pintan con utilidades de Tailwind que apuntan a las variables: lo que
+ * cambia es que variable vale cada una, no que clases se aplican.
+ */
+export function applyTheme(tema: AppTheme): void {
+  if (typeof document === 'undefined') return;
+
+  if (tema !== AppTheme.System) {
+    document.documentElement.dataset.theme = tema;
+    return;
+  }
+
+  const claro =
+    typeof matchMedia === 'function' &&
+    matchMedia('(prefers-color-scheme: light)').matches;
+
+  document.documentElement.dataset.theme = claro ? AppTheme.Light : AppTheme.Dark;
 }

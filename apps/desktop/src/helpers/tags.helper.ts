@@ -1,4 +1,4 @@
-import { normalizeTag, type ITag } from '@/contracts';
+import { normalizeTag, type IGameKey, type ITag } from '@/contracts';
 
 /**
  * El catalogo de etiquetas, en el orden en que se pinta.
@@ -114,4 +114,31 @@ export function nombresDe(etiquetasDe: readonly (readonly string[])[]): Map<stri
   }
 
   return nombres;
+}
+
+/**
+ * Las etiquetas que llevan **todas** las claves de una lista.
+ *
+ * Sale del primer elemento y se va quitando lo que no comparte con el resto,
+ * que es lo unico que se puede hacer en una pasada: cualquier etiqueta que
+ * aparezca en todas las claves tiene que estar en la primera, asi que empezar
+ * por ahi no deja ninguna fuera.
+ *
+ * Devuelve las de la primera clave **con su caja**, y no normalizadas: el
+ * dialogo de etiquetas las enseña y si se normalizaran saldrian todas en
+ * minusculas, que es justo lo que el usuario ya ve corregido en la lista.
+ * Comparar con `includes` sin normalizar es correcto porque las etiquetas se
+ * guardan normalizadas —ver `normalizeTag`— y por tanto dos etiquetas iguales
+ * son la misma cadena.
+ */
+export function etiquetasComunes(entries: readonly IGameKey[]): readonly string[] {
+  if (entries.length === 0) return [];
+
+  const [primera, ...resto] = entries;
+
+  // La lista vacia ya ha salido antes, pero `primera` sigue siendo
+  // `IGameKey | undefined` para el typechecker y no comprueba rangos.
+  if (primera === undefined) return [];
+
+  return primera.tags.filter((tag) => resto.every((key) => key.tags.includes(tag)));
 }
