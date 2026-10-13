@@ -536,6 +536,8 @@ export const EN: TranslationTable = Object.freeze({
     '«{0}» will be marked as expired and will leave the available list. You can change it later with the status toggle.',
   'expire.bodyMany':
     'The {0} selected keys will be marked as expired and will leave the available list. You can change them later with the status toggle.',
+  'footer.code': 'Code on GitHub',
+  'footer.author': 'Profile of the author',
   'footer.giftable': '· {0} giftable',
   'footer.games': '{0} games on Steam',
   'footer.shortcutSearch': 'search',

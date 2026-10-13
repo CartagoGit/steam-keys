@@ -120,6 +120,26 @@ const PATHS: Record<IconName, ReactNode> = {
     </>
   ),
   filter: <path d="M3 5h18l-7 8v6l-4 2v-8L3 5Z" />,
+  /**
+   * Ordenar: tres rayas de largo decreciente y una flecha que baja.
+   *
+   * El set no tenia nada para esto, y no vale pedir prestado otro: `filter`
+   * son tres rayas con una flecha **horizontal** —ordenar y filtrar no son
+   * lo mismo— y `chevron-down` solo dice «esto se abre».
+   *
+   * Las rayas van en el mismo trazo y con la misma esquina que el resto del
+   * set (`1.8` por defecto, `round`): un icono dibujado con otro grosor se ve
+   * pegado al de al lado aunque las formas sean las mismas.
+   */
+  sort: (
+    <>
+      <path d="M3 6h11" />
+      <path d="M3 12h8" />
+      <path d="M3 18h5" />
+      <path d="M18 5v12" />
+      <path d="m14 13 4 4 4-4" />
+    </>
+  ),
   'chevron-down': <path d="m6 9 6 6 6-6" />,
   package: (
     <>
@@ -178,6 +198,32 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="M20 4 11 13" />
       <path d="M18 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5" />
     </>
+  ),
+  /**
+   * GitHub y LinkedIn, dibujadas como sus marcas.
+   *
+   * No es adorno: un enlace a GitHub con un icono de candado no dice a donde
+   * va, y en el pie —que es donde se acumulan las cosas de servicio— hace
+   * falta reconocerlo de un vistazo.
+   *
+   * Van **rellenas** y no en trazo, al reves que el resto del set, y por un
+   * motivo concreto: estas dos marcas no tienen version de trazo que se
+   * parezca a nada. Dibujadas con el grosor de 1,8 del set salen finas y
+   * cosas raras, y se reconocen peor que el dibujo llano.
+   */
+  github: (
+    <path
+      fill="currentColor"
+      stroke="none"
+      d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48l-.01-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.6 9.6 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85l-.01 2.75c0 .27.18.58.69.48A10 10 0 0 0 12 2Z"
+    />
+  ),
+  linkedin: (
+    <path
+      fill="currentColor"
+      stroke="none"
+      d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5ZM3 9h4v12H3V9Zm7 0h3.8v1.7h.05c.53-1 1.83-2.05 3.76-2.05C21.4 8.65 22 11 22 14.1V21h-4v-6.1c0-1.46-.03-3.34-2.03-3.34-2.04 0-2.35 1.59-2.35 3.23V21h-4V9Z"
+    />
   ),
   info: (
     <>

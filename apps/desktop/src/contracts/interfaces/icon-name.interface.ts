@@ -30,6 +30,8 @@ export type IconName =
   | 'upload'
   | 'download'
   | 'filter'
+  /** Tres rayas de largo decreciente y una flecha: el orden de una lista. */
+  | 'sort'
   | 'chevron-down'
   | 'package'
   | 'calendar'
@@ -41,6 +43,10 @@ export type IconName =
   /** Flecha que vuelve atras: la accion de deshacer. */
   | 'undo'
   | 'external'
+  /** Marca de GitHub. */
+  | 'github'
+  /** Marca de LinkedIn. */
+  | 'linkedin'
   | 'info'
   /** Cerrojo cerrado: el filtro es excluyente, hay que cumplir todos los marcados. */
   | 'lock'

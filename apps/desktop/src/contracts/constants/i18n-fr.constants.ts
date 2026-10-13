@@ -372,6 +372,8 @@ export const FR: TranslationTable = Object.freeze({
     '« {0} » sera marquee comme expiree et quittera la liste des disponibles. Vous pourrez la changer plus tard avec le bouton de statut.',
   'expire.bodyMany':
     'Les {0} cles selectionnees seront marquees comme expirees et quitteront la liste des disponibles. Vous pourrez les changer plus tard avec le bouton de statut.',
+  'footer.code': 'Code sur GitHub',
+  'footer.author': 'Profil de celle qui la fait',
   'footer.giftable': '· {0} offeringables',
   'footer.games': '{0} jeux sur Steam',
   'footer.shortcutSearch': 'chercher',

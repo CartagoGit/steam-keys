@@ -68,6 +68,8 @@ const UI = fuente('components/ui.component.tsx');
 const FILTRO_CLAVE = fuente('contracts/interfaces/key-filter.interface.ts');
 const FILTRAR = fuente('helpers/filter-keys.helper.ts');
 const UNICO = fuente('components/single-select.component.tsx');
+const EDITOR = fuente('components/key-editor.component.tsx');
+const PIE = fuente('components/app-footer.component.tsx');
 const ATASJOS = fuente('helpers/use-shortcuts.helper.ts');
 const PILA = fuente('helpers/dialogos.helper.ts');
 const IDIOMA = fuente('components/locale-select.component.tsx');
@@ -1681,5 +1683,173 @@ describe('que cierra escape', () => {
      */
     expect(DIALOGO).not.toContain("event.key !== 'Escape'");
     expect(DIALOGO).not.toContain("window.addEventListener('keydown'");
+  });
+});
+
+/**
+ * El ancho del boton de un desplegable, medido y con transicion.
+ *
+ * El de «Ordenar por» lleva `w-44` fijo. Con el texto del nombre delante, el
+ * boton se salia de ahi: «Ordenar por» + «Por plataforma» + relleno son mas
+ * de 220 px en la traduzccion mas larga, y lo que sobra se comia el buscador o
+ * empujaba el resto de la barra.
+ *
+ * Y con el ancho en vez del texto, al cambiar de orden el boton encoge y **no
+ * empuja a nadie**: mide lo que mide lo seleccionado y lo demas se queda quieto.
+ */
+describe('el ancho del desplegable de orden', () => {
+  test('el ancho se mide, no se escribe', () => {
+    expect(UNICO).toContain('ajustarAncho');
+    expect(UNICO).toContain("nodo.style.width = ''");
+    expect(UNICO).toContain('nodo.style.width = `${nodo.offsetWidth}px`');
+
+    // Y no hay ancho fijo en el toolbar.
+    expect(BARRA).toContain('ajustarAncho');
+    expect(BARRA).not.toContain('className="w-44"');
+  });
+
+  test('se suprime el ancho puesto antes de medir', () => {
+    /**
+     * Sin la primera linea, la medida no es la del contenido.
+     *
+     * El ancho puesto manda sobre el natural, asi que la segunda medida daria
+     * el ancho de la opcion anterior y el boton se quedaria clavado en la
+     * primera que se eligio: elegir «Por plataforma» no moveria nada.
+     */
+    const medir = UNICO.slice(
+      UNICO.indexOf('const medir = (): void => {'),
+      UNICO.indexOf("window.addEventListener('resize'"),
+    );
+
+    expect(medir.indexOf("style.width = ''")).toBeLessThan(
+      medir.indexOf('offsetWidth'),
+    );
+  });
+
+  test('la transicion del ancho va en sus tres propiedades', () => {
+    /**
+     * El atajo entero en `transitionProperty` no hace nada.
+     *
+     * Ahi va solo la lista de propiedades. Poner `width 200ms cubic-bezier(...)`
+     * hace que la declaracion no valide, el navegador la descarta, y el boton se
+     * queda con la lista de la clase `transition` —colores, sombra, opacidad—
+     * que no incluye el ancho. El ancho salta de golpe y no hay ningun sintoma:
+     * el estilo se ve puesto en el inspector.
+     */
+    expect(UNICO).toContain("transitionProperty: 'width'");
+    expect(UNICO).toContain('transitionDuration: DURACION_ANCHO');
+    expect(UNICO).toContain('transitionTimingFunction: CURVA_ANCHO');
+    expect(UNICO).not.toContain('transitionProperty: TRANSICION');
+
+    // Y el nombre del selector va en un icono, no escrito dentro del boton.
+    expect(BARRA).toContain('iconoBase={<Icon name="sort"');
+    expect(UNICO).not.toContain('prefijo');
+  });
+});
+
+/**
+ * La pompa de un selector se mide **despues** de que termine la animacion.
+ *
+ * `getBoundingClientRect` devuelve medidas ya transformadas. El dialogo entra
+ * con `animate-scale-in`, que va de 0,96 a 1, asi que midiendo a mitad de
+ * camino la pompa salia multiplicada por la escala —5 pixeles corta en un
+ * boton de 180— y se quedaba ahi para siempre, porque no habia ningun cambio
+ * posterior que la midiera otra vez.
+ *
+ * Se notaba en las pestanas de Ajustes abiertas desde «Mis juegos» sin cuenta
+ * conectada: el texto de la pestana activa se salia medio pixel fuera de la
+ * pastilla. El `aria-checked` estaba bien, que es por lo que se leia como un
+ * fallo de dibujado y no de estado.
+ */
+describe('la pompa se mide cuando el dialogo ya esta quieto', () => {
+  test('vuelve a medir al terminar cualquier animacion', () => {
+    expect(SELECTOR).toContain("window.addEventListener('animationend', alTerminar, true)");
+    expect(SELECTOR).toContain("window.removeEventListener('animationend', alTerminar, true)");
+
+    // Y se quita al desmontar: un listener que se queda escucha animaciones de
+    // dialogos que ya no existen.
+    expect(SELECTOR).toContain('observador?.disconnect()');
+  });
+
+  test('sigue mirando el ancho de la pista y el de la ventana', () => {
+    // El idioma cambia el ancho de los botones, y la ventana tambien.
+    expect(SELECTOR).toContain('new ResizeObserver(() => medir())');
+    expect(SELECTOR).toContain("window.addEventListener('resize', medir)");
+  });
+});
+
+/**
+ * El editor se cierra **despues** de vaciarse.
+ *
+ * Dos fallos en el mismo boton:
+ *
+ * - Se le pasaba `open` a pelo, siempre `true`. `Modal` ya sabe reproducir la
+ *   salida, pero nunca se le decia que se estaba cerrando, asi que el panel se
+ *   borraba en el fotograma en que `open` de fuera pasaba a `false` y el
+ *   `useKeepMounted` no tenia nada que reproducir.
+ * - Al cerrar se soltaba la clave que se estaba editando. `editing` es lo que
+ *   el formulario lee al abrirse, asi que vaciarlo hacia que `entry` pasara a
+ *   `null` en el mismo instante en que empezaba la salida: los campos se
+ *   vaciaban solos, a la vista, durante los 140 ms de la animacion. Se veia
+ *   como un guardado que se iba al traste.
+ */
+describe('el editor se cierra mirandose', () => {
+  test('recibe `open` y lo pasa al `Modal`', () => {
+    expect(EDITOR).toContain('open = true');
+    expect(EDITOR).toContain('<Modal\n      open={open}');
+
+    // El `open` a pelo era el fallo.
+    expect(EDITOR).not.toMatch(/<Modal\s*\n\s*open\s*\n/);
+  });
+
+  test('cerrar no suelta la clave que se esta editando', () => {
+    expect(APP).toContain('onClose={() => setEditorOpen(false)}');
+
+    // Y guardar tampoco: `editing` se suelta al abrir, que es donde importa.
+    expect(APP).not.toMatch(/setEditorOpen\(false\);\s*\n\s*setEditing\(null\)/);
+  });
+
+  test('la clave se suelta al abrir, en los tres caminos', () => {
+    // Nueva en blanco: se suelta antes de abrir.
+    expect(APP).toMatch(/setEditing\(null\);\s*\n\s*setEditorOpen\(true\)/);
+
+    // Editar: se pone la nueva antes de abrir.
+    expect(APP).toMatch(/setEditing\(entry\);\s*\n\s*setEditorOpen\(true\)/);
+  });
+});
+
+/**
+ * Los enlaces del pie, con nombre y sin ocupar sitio.
+ *
+ * Con dos nombres mas el pie se quedaba sin sitio en una ventana estrecha, y
+ * lo que se perdia era el recuento de claves, que es lo unico que no esta en
+ * ninguna parte mas.
+ */
+describe('los enlaces del pie', () => {
+  test('van al repositorio y al perfil, y solo con el icono', () => {
+    expect(PIE).toContain('url={PROYECTO_URL}');
+    expect(PIE).toContain('url={PERFIL_URL}');
+    expect(PIE).toContain('<Icon name="github"');
+    expect(PIE).toContain('<Icon name="linkedin"');
+
+    // Las URLs estan en los contratos, no escritas en el componente: cambiar la
+    // del perfil debe ser cambiar una linea.
+    expect(PIE).not.toContain('github.com');
+    expect(PIE).not.toContain('linkedin.com');
+  });
+
+  test('se abren con `ExternalLink`, que sale del navegador del sistema', () => {
+    // Un `<a>` a pelo puede no abrirse en una ventana de escritorio y
+    // acabarse navegando a la web, dejando la coleccion en blanco.
+    expect(PIE).toContain('<ExternalLink');
+    expect(PIE).not.toContain('window.open');
+  });
+
+  test('los enlaces tienen nombre aunque no se vea texto', () => {
+    // Un icono solo no tiene nombre: ni para el lector de pantalla ni para el
+    // tooltip. Es lo unico que dice adonde lleva.
+    expect(PIE).toContain("title={t('footer.code')}");
+    expect(PIE).toContain("title={t('footer.author')}");
+    expect(UI).toContain('aria-label={title}');
   });
 });

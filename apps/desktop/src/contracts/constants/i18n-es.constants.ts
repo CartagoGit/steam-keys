@@ -450,6 +450,8 @@ export const ES: TranslationTable = Object.freeze({
     '«{0}» quedara como caducada y saldra de la lista de disponibles. Puedes cambiarlo luego con el toggle de estado.',
   'expire.bodyMany':
     'Las {0} claves seleccionadas quedaran como caducadas y saldran de la lista de disponibles. Puedes cambiarlas luego con el toggle de estado.',
+  'footer.code': 'Codigo en GitHub',
+  'footer.author': 'Perfil de quien la hace',
   'footer.giftable': '· {0} regalables',
   'footer.games': '{0} juegos en Steam',
   'footer.shortcutSearch': 'buscar',

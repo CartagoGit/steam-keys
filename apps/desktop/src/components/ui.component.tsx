@@ -138,6 +138,15 @@ export interface IExternalLinkProps {
   children: ReactNode;
   /** Si se escribe la URL en vez de un texto corto. */
   showUrl?: boolean;
+  /**
+   * Texto del tooltip, cuando lo que se ve no lo explica.
+   *
+   * En el pie los enlaces son **solo el icono de la marca**: el nombre de la
+   * web ya esta ahi, pero un icono sin nombre es un icono sin nombre, y el
+   * nombre es lo unico que dice adonde va. Va tambien como `aria-label`, que es
+   * lo que lee el lector de pantalla.
+   */
+  title?: string;
 }
 
 /**
@@ -155,7 +164,7 @@ export interface IExternalLinkProps {
  * abrir en otra pestana con el boton central. Todo eso se pierde con un
  * `button` que solo llama a `window.open`.
  */
-export function ExternalLink({ url, children, showUrl = false }: IExternalLinkProps) {
+export function ExternalLink({ url, children, showUrl = false, title }: IExternalLinkProps) {
   return (
     <a
       href={url}
@@ -165,7 +174,10 @@ export function ExternalLink({ url, children, showUrl = false }: IExternalLinkPr
         event.preventDefault();
         window.open(url, '_blank', 'noopener,noreferrer');
       }}
-      title={url}
+      // El tooltip enseña **la URL**, que es lo que se lleva a otra parte, y no
+      // el nombre del enlace. Con los dos, el nombre va como texto accesible.
+      title={title ?? url}
+      aria-label={title}
       className="inline-flex items-center gap-1 text-info underline decoration-info/40 underline-offset-2 transition hover:decoration-info"
     >
       {showUrl ? url.replace(/^https?:\/\//, '') : children}

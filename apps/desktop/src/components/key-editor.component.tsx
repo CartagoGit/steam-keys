@@ -8,6 +8,16 @@ import { useT } from '@/context/locale.context';
 import { conTiempoLimite } from '@/helpers/use-loading.helper';
 
 export interface IKeyEditorProps {
+  /**
+   * `false` reproduce la animacion de salida antes de desaparecer.
+   *
+   * Sin esto el dialogo se desmontaba de golpe. `Modal` ya sabe cerrar —tiene
+   * el estado para eso—, pero aqui se le pasaba `open` a pelo, siempre
+   * `true`, asi que la salida no se veia: el panel se borraba en el
+   * fotograma en que `open` de fuera pasaba a `false` y el `useKeepMounted`
+   * que lo mantenia montado 140 ms no tenia nada que reproducir.
+   */
+  open?: boolean;
   /** `null` para crear una key nueva. */
   entry: IGameKey | null;
   /**
@@ -40,6 +50,7 @@ const EMPTY_DRAFT: IGameKeyDraft = {
 
 /** Formulario de alta y edicion. */
 export function KeyEditor({
+  open = true,
   entry,
   catalogo,
   onCreateTag,
@@ -143,7 +154,7 @@ export function KeyEditor({
 
   return (
     <Modal
-      open
+      open={open}
       onClose={onClose}
       as="form"
       onSubmit={handleSubmit}

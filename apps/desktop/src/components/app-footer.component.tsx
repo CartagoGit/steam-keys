@@ -1,4 +1,5 @@
 import { Icon } from './icon.component';
+import { ExternalLink } from './ui.component';
 import { useT } from '@/context/locale.context';
 import { pluralKey } from '@/helpers/i18n.helper';
 import {
@@ -6,7 +7,7 @@ import {
   STORAGE_MODE_NOTICE,
   getStorageMode,
 } from '@/helpers/runtime.helper';
-import { AppView, SEARCH_SHORTCUT, StorageMode, type SteamAccountStatus } from '@/contracts';
+import { AppView, PERFIL_URL, PROYECTO_URL, SEARCH_SHORTCUT, StorageMode, type SteamAccountStatus } from '@/contracts';
 import type { IUndoEntry } from '@/helpers/undo.helper';
 
 export interface IAppFooterProps {
@@ -101,6 +102,32 @@ export function AppFooter({
           <Icon name="package" size={12} />
           {t(STORAGE_MODE_LABEL[modo])}
         </span>
+
+        {/*
+          El codigo y quien lo ha hecho.
+
+          Van antes que el resto y **solo con el icono**. El pie ya lleva el
+          recuento, el estado del almacenamiento, «Atajos» y dos atajos de
+          teclado; con dos nombres mas se quedaba sin sitio en una ventana
+          estrecha, y lo que se perdia era el recuento, que es lo unico que no
+          esta en ninguna parte mas.
+
+          Las marcas van dibujadas y no con el icono generico de enlace
+          exterior: en un pie lleno de cosas, un icono de flecha no dice a
+          donde lleva y hay que pasar el raton para enterarse.
+
+          Se abren con `ExternalLink`, que a su vez intercepta el clic para
+          llamar a `window.open`. Sin eso, una ventana de escritorio puede no
+          recoger el `_blank` y acabarse navegando a la web dejando la
+          coleccion en blanco.
+        */}
+        <ExternalLink url={PROYECTO_URL} title={t('footer.code')}>
+          <Icon name="github" size={13} />
+        </ExternalLink>
+
+        <ExternalLink url={PERFIL_URL} title={t('footer.author')}>
+          <Icon name="linkedin" size={13} />
+        </ExternalLink>
 
         <button
           type="button"

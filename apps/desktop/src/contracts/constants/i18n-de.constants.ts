@@ -374,6 +374,8 @@ export const DE: TranslationTable = Object.freeze({
     '«{0}» wird als abgelaufen markiert und verlaesst die Liste der verfuegbaren. Das laesst sich spaeter ueber den Status-Schalter aendern.',
   'expire.bodyMany':
     'Die {0} ausgewaehlten Schluessel werden als abgelaufen markiert und verlassen die Liste der verfuegbaren. Das laesst sich spaeter ueber den Status-Schalter aendern.',
+  'footer.code': 'Code auf GitHub',
+  'footer.author': 'Profil der Autorin',
   'footer.giftable': '· {0} verschenkbar',
   'footer.games': '{0} Spiele bei Steam',
   'footer.shortcutSearch': 'suchen',

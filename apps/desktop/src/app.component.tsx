@@ -946,8 +946,14 @@ export function App() {
 
       notify(traducir(editing === null ? 'app.created' : 'app.saved'), 'success');
 
+      /*
+       * Solo se cierra. `editing` se suelta al abrir, no aqui: vaciarlo en el
+       * guardado hacia lo mismo que al cerrar —el formulario se vaciaba a la
+       * vista mientras se cerraba— y ademas `reload()` puede tardar mas que la
+       * animacion, con lo que la lista de debajo se quedaba con la clave
+       * `editing` todavia puesta.
+       */
       setEditorOpen(false);
-      setEditing(null);
       await reload();
     } catch (cause) {
       if (cause instanceof DuplicateKeyError) {
@@ -1944,15 +1950,26 @@ export function App() {
 
       {editorVivo ? (
         <KeyEditor
+          open={editorOpen}
           entry={editing}
           catalogo={tags}
           onCreateTag={crearEtiqueta}
           onManageTags={() => setGestorOpen(true)}
           onSave={handleSave}
-          onClose={() => {
-            setEditorOpen(false);
-            setEditing(null);
-          }}
+          /*
+           * Al cerrar **no** se suelta la clave.
+           *
+           * `editing` es lo que el formulario lee al abrirse, y vaciarlo aqui
+           * hacia que `entry` pasara a `null` en el mismo instante en que
+           * empezaba la salida: el formulario se vaciaba —a la vista, con los
+           * campos vaciandose solos— durante los 140 ms de la animacion, y
+           * luego se borraba. Se veia como un fallo de guardado.
+           *
+           * La clave se suelta al **abrir**, que es donde importa: al abrir en
+           * blanco se pone a `null` antes de `setEditorOpen(true)`, y al abrir
+           * para editar se pone la nueva. Cerrar no necesita soltar nada.
+           */
+          onClose={() => setEditorOpen(false)}
         />
       ) : null}
 

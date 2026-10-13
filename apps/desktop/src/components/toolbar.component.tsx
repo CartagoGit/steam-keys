@@ -228,8 +228,8 @@ export function Toolbar({
             value={sort}
             onChange={onSortChange}
             label={t('toolbar.sort')}
-            prefijo={t('toolbar.sort')}
-            className="w-44"
+            iconoBase={<Icon name="sort" size={15} className="shrink-0 text-t3" />}
+            ajustarAncho
           />
 
           <Button

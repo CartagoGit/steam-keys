@@ -32,6 +32,29 @@ export const SEARCH_SHORTCUT = '/';
 export const STEAM_API_KEY_URL = 'https://steamcommunity.com/dev/apikey';
 
 /**
+ * Los enlaces del pie: el codigo y quien lo ha hecho.
+ *
+ * Van en el pie y no en un «Acerca de» porque son dos, son de lo que mas se
+ * consulta y no hay nada que explicar sobre ellos. El codigo es de un solo
+ * clic para reportar un fallo; el perfil, para quien prefiera escribir.
+ *
+ * Se abren en el navegador del sistema y no dentro de la ventana: es una
+ * aplicacion de escritorio, y abrir una web en su propia ventana deja la
+ * coleccion a medio cubrir y sin forma de volver sin cerrar antes.
+ */
+export const PROYECTO_URL = 'https://github.com/cartagogit/steam-key';
+
+/**
+ * El perfil de quien mantiene la app.
+ *
+ * La direccion sale del nombre, que es como lo construyen casi todos los
+ * perfiles publicos de LinkedIn: nombre y apellidos en minusculas y separados
+ * por guion. **Si el perfil no es exactamente ese, se cambia aqui** y ya: no
+ * esta escrito en ningun otro sitio.
+ */
+export const PERFIL_URL = 'https://www.linkedin.com/in/mario-cabrero-volarich';
+
+/**
  * Cuantas posiciones de la clave se dejan visibles al inspeccionarla.
  * La clave se enmascara por defecto; solo se revela bajo demanda.
  */

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 
 import { Icon } from './icon.component';
 import { Popover, PopoverOption } from './popover.component';
@@ -32,18 +32,56 @@ export interface ISingleSelectProps<T extends string> {
   /** Nombre accesible del control. */
   label: string;
   /**
-   * Lo que se ve delante del valor puesto, a la izquierda del separador.
+   * Lo que se ve a la izquierda, del todo: el icono que dice **de que** es el
+   * desplegable.
    *
-   * Es lo unico que se parece a una etiqueta y no lo es: el texto de la
-   * cabecera —«Ordenar por»— que dice **de que** es el desplegable, porque ahi
-   * no hay sitio para un titulo encima sin estirar la barra. En los selectores
-   * de un dialogo el nombre ya lo pone el `Field` que lo envuelve, y por eso
-   * no llevan prefijo.
+   * Es lo unico que se parece a una etiqueta y no lo es. En un dialogo el
+   * nombre ya lo pone el `Field` que lo envuelve y no hace falta nada; en la
+   * cabecera no hay sitio para un titulo encima sin estirar la barra entera,
+   * asi que el nombre va en un icono.
+   *
+   * Va antes que el `icono` de la opcion y no en su lugar: `icono` es lo que
+   * ha elegido quien usa el selector —la bandera, el color del estado— y esto
+   * es de que es el selector. Juntos se leen «ordenar: A - Z» sin que el
+   * segundo pise al primero.
    */
-  prefijo?: string;
-  /** Clase del boton para lo que cambia: el ancho. */
+  iconoBase?: ReactNode;
+  /**
+   * Que el boton mida lo que mide lo seleccionado.
+   *
+   * En un dialogo el boton ocupa el ancho entero del campo y da igual: se ve
+   * dentro de un formulario y el ancho lo lleva el formulario. En la cabecera
+   * no: hay tres cosas en una fila y un boton que cambia de ancho al cambiar
+   * de opcion arrastra a las de al lado.
+   *
+   * Con esto mide **lo que ocupa el valor puesto** —ni mas ni menos— y al
+   * cambiar de valor el ancho se interpola en vez de saltar. Un boton que
+   * encoge de golpe y empuja el «Anadir» 60 pixeles a la izquierda es un
+   * parpadeo en cada cambio de orden, y lo que hay alrededor se ve moverse sin
+   * motivo.
+   */
+  ajustarAncho?: boolean;
+  /** Clase del contenedor, para lo que cambia de sitio. */
   className?: string;
 }
+
+/**
+ * La transicion del ancho, en sus tres partes.
+ *
+ * El atajo entero no se puede poner en `transitionProperty`: ahi va **solo** la
+ * lista de propiedades. Escribir ahi `width 200ms cubic-bezier(...)` hace que la
+ * declaracion no valida, el navegador la tira, y el boton se queda con la
+ * lista de la clase `transition` —colores, sombra, opacidad— que no incluye el
+ * ancho. El ancho entonces salta de golpe, que es justo lo que se queria
+ * evitar, y ademas no hay ningun sintoma: el estilo se ve puesto en el
+ * inspector y no hace nada.
+ *
+ * La duracion y la curva son las de la pompa de `Segmented`, y a proposito: si
+ * el boton se encoge en 200 ms y lo que tiene al lado se recoloca en otra
+ * cifra, los dos gestos se leen como dos cosas. Con la misma se leen como uno.
+ */
+const DURACION_ANCHO = '200ms';
+const CURVA_ANCHO = 'cubic-bezier(0.34, 1.3, 0.64, 1)';
 
 /**
  * Desplegable de **una sola eleccion**. Es el patron de la app.
@@ -74,7 +112,8 @@ export function SingleSelect<T extends string>({
   value,
   onChange,
   label,
-  prefijo,
+  iconoBase,
+  ajustarAncho = false,
   className = '',
 }: ISingleSelectProps<T>) {
   const [abierto, setAbierto] = useState(false);
@@ -99,6 +138,52 @@ export function SingleSelect<T extends string>({
     setAbierto(false);
     if (opcion !== value) onChange(opcion);
   };
+
+  /**
+   * El ancho del boton, cuando `ajustarAncho` lo pide.
+   *
+   * No se guarda en estado de React: se escribe **en el DOM**, desde un efecto
+   * de layout. Y no porque sea mas corto, sino porque un ancho medido necesita
+   * dos pasos que en un render no existen: primero quitar el ancho puesto para
+   * que el boton se mida al natural, y despues volver a ponerselo.
+   *
+   * Con estado habria un bucle: el estado cambia, React repinta con el ancho
+   * viejo puesto, el efecto mide ese ancho —que ya no es el natural— y lo
+   * guarda, y el efecto vuelve a medirse. Con el ancho en el DOM los dos pasos
+   * ocurren en el mismo efecto y antes de pintar, que es justo cuando se
+   * quiere que ocurran.
+   */
+  useLayoutEffect(() => {
+    const nodo = boton.current;
+
+    if (!ajustarAncho || !nodo) return;
+
+    const medir = (): void => {
+      // Se suprime el ancho puesto antes de leer. Sin esto, la segunda medida
+      // daria el ancho de la anterior y el boton se quedaria clavado en la
+      // primera opcion que se eligio.
+      nodo.style.width = '';
+      nodo.style.width = `${nodo.offsetWidth}px`;
+    };
+
+    medir();
+
+    /*
+     * Se vuelve a medir cuando cambia el idioma y cuando se estrecha la
+     * ventana. El texto es lo unico que puede cambiar el ancho, y sin esto el
+     * boton se queda con la medida del castellano —o con la de una ventana
+     * ancha, si la medida se tomo antes de que la caja se encogiera— y el
+     * texto se sale o sobra espacio por el mismo lado.
+     */
+    const alCambiarIdioma = (): void => medir();
+
+    window.addEventListener('resize', alCambiarIdioma);
+
+    return () => {
+      window.removeEventListener('resize', alCambiarIdioma);
+      nodo.style.width = '';
+    };
+  }, [ajustarAncho, elegida?.label]);
 
   /**
    * El teclado va **ahi** y no en el panel.
@@ -157,21 +242,25 @@ export function SingleSelect<T extends string>({
         aria-haspopup="listbox"
         aria-expanded={abierto}
         className={`${CAMPO_CLASS} flex items-center gap-2 text-left`}
+        style={
+          ajustarAncho
+            ? {
+                /*
+                 * `width` **sustituye** la lista de la clase `transition`, no
+                 * se anade a ella: `transition-property` no es acumulable. Con
+                 * las dos, la de aqui gana —es la ultima— y el boton deja de
+                 * transicionar el color al pasar por encima.
+                 */
+                transitionProperty: 'width',
+                transitionDuration: DURACION_ANCHO,
+                transitionTimingFunction: CURVA_ANCHO,
+              }
+            : undefined
+        }
       >
+        {iconoBase}
+
         {elegida?.icono}
-
-        {prefijo ? (
-          <>
-            <span className="shrink-0 text-t4">{prefijo}</span>
-
-            {/*
-              El separador va con el texto, no como un borde del boton: el
-              control entero es una sola pieza y dibujarle una linea vertical
-              lo parte en dos cosas que no lo son.
-            */}
-            <span aria-hidden="true" className="h-4 w-px shrink-0 bg-line-strong" />
-          </>
-        ) : null}
 
         <span className="flex-1 truncate">{elegida?.label ?? value}</span>
 

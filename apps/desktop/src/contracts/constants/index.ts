@@ -15,6 +15,8 @@ export {
   MASK_VISIBLE_CHARS,
   PAGE_SIZE,
   SEARCH_SHORTCUT,
+  PERFIL_URL,
+  PROYECTO_URL,
   STEAM_API_KEY_URL,
   STORAGE_KEY_PREFIX,
 } from './app.constants';

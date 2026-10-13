@@ -213,16 +213,44 @@ export function Segmented<T extends string>({
 
     const pista = pistaRef.current;
 
-    if (!pista || typeof ResizeObserver === 'undefined') return;
+    if (!pista) return;
 
-    const observador = new ResizeObserver(() => medir());
+    const observador =
+      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => medir());
 
-    observador.observe(pista);
+    observador?.observe(pista);
     window.addEventListener('resize', medir);
 
+    /**
+     * Se vuelve a medir al terminar cualquier animacion.
+     *
+     * `getBoundingClientRect` devuelve medidas **ya transformadas**, asi que
+     * medir durante la animacion de entrada del dialogo devuelve la caja
+     * escalada. El dialogo entra con `animate-scale-in`, que va de 0,96 a 1:
+     * medido a mitad de camino, el desplazamiento salia multiplicado por 0,97
+     * —5 pixeles corto en un boton de 180— y la pompa se quedaba ahi para
+     * siempre, porque no habia ningun cambio posterior que la midiera otra vez.
+     *
+     * Se notaba en las pestanas de Ajustes: abiertas desde «Mis juegos» sin
+     * cuenta conectada, la pompa de «Cuenta de Steam» no llegaba al final de
+     * su boton y el texto se salia medio pixel fuera de la pastilla. El
+     * `aria-checked` estaba bien, que es por lo que se leia mas bien como un
+     * fallo de dibujado que de estado.
+     *
+     * Va en `window` y en fase de captura porque la animacion es de un
+     * **ancestro** —el panel del dialogo—, y `animationend` se escucha en la
+     * fase de captura para que llegue antes de que se deshaga. Medir es barato
+     * y no hace falta filtrar: cualquier animacion que termine vuelve a
+     * poner la pompa en su sitio, que es justo lo que se quiere.
+     */
+    const alTerminar = (): void => medir();
+
+    window.addEventListener('animationend', alTerminar, true);
+
     return () => {
-      observador.disconnect();
+      observador?.disconnect();
       window.removeEventListener('resize', medir);
+      window.removeEventListener('animationend', alTerminar, true);
     };
   }, [medir, options.length]);
 
