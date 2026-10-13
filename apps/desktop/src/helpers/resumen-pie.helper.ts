@@ -156,7 +156,7 @@ export interface ITrozoPie {
    * `false` cuando el tramo es solo informacion y no se puede pulsar.
    *
    * Va como bandera y no se deduce de que `cambios` este vacio porque las dos
-   * cosas signifiran distinto en cuanto haya un filtro que se mande vacio de
+   * cosas significan distinto en cuanto haya un tramo que se mande vacio de
    * verdad: «este numero no hace nada» y «este boton no filtra nada» no son lo
    * mismo, y en pantalla uno no se pincha y el otro si.
    */
@@ -193,10 +193,12 @@ export interface ITrozoPie {
  *   `{ kind: KeyKind.All }`—. Devolver el mismo valor no lo quita de nada:
  *   seguiria dizendo «solo DLC».
  *
- * `scope` se deja como esta a proposito. Los tramos de estado mandan el ambito
- * a «todos» al pulsarse porque sin eso `filterKeys` ignoraria el filtro, pero
- * ese ambito no es lo que el boton enciende ni apaga, y devolverlo al valor
- * de partida al apagar seria cambiar un filtro que el usuario no ha tocado.
+ * `scope` se deja como esta a proposito, y no por casualidad. Los tramos de
+ * estado ya no lo tocan —no salen en el ambito «solo disponibles» precisamente
+ * para no tener que—it, pero si llegara, devolverlo al valor de partida seria
+ * cambiar un filtro que el usuario no ha tocado: lo puso el desde la barra, y
+ * el boton del pie no tiene por que deshacerlo. Lo mismo con `search` y
+ * `excluir`, que ningun tramo pone.
  */
 export function apagarFiltro(filtro: Partial<IKeyFilter>): Partial<IKeyFilter> {
   const apagado: Record<string, unknown> = { ...filtro };

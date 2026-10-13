@@ -282,11 +282,12 @@ describe('quitar un filtro que ya esta puesto', () => {
 
   test('el ambito no se toca al apagar', () => {
     /*
-     * Los tramos de estado ponen el ambito a «todos» al pulsarse, porque sin
-     * eso `filterKeys` ignoraria el filtro de estado. Pero ese ambito no es lo
-     * que el boton enciende: devolverlo al valor de partida al apagar seria
-     * cambiar un filtro que el usuario no ha tocado, y la lista cambiaria
-     * sola justo cuando alguien cree que la esta volviendo a donde estaba.
+     * `scope` no lo pone ningun tramo del pie —no salen en el ambito «solo
+     * disponibles» precisamente para no tener que—, pero si llegara, dejarlo
+     * como esta es lo correcto: lo puso el usuario desde la barra de filtros y
+     * el boton del pie no tiene por que deshacerlo. Devolverlo al valor de
+     * partida haria que la lista se moviera sola justo cuando alguien cree que
+     * la esta volviendo a donde estaba.
      */
     const apagado = apagarFiltro({
       statuses: [KeyStatus.Gifted],
@@ -295,6 +296,19 @@ describe('quitar un filtro que ya esta puesto', () => {
 
     expect(apagado.scope).toBe(KeyScope.All);
     expect(apagado.statuses).toEqual([]);
+  });
+
+  test('la busqueda y el modo and de etiquetas tampoco se tocan', () => {
+    /*
+     * Los tres campos que el pie nunca manda. Se comprueban igual porque
+     * `apagarFiltro` es generica y el dia que un tramo los use, tiene que
+     * saber que dejarlos como estan es lo que se quiere —o lo que no—.
+     */
+    expect(apagarFiltro({ search: 'portal', tags: ['navidad'], excluir: true })).toEqual({
+      search: 'portal',
+      tags: [],
+      excluir: true,
+    });
   });
 
   test('un filtro vacio se apaga a un filtro vacio', () => {

@@ -26,6 +26,7 @@ import {
   StorageMode,
   type IKeyFilter,
   type SteamAccountStatus,
+  type TranslationKey,
 } from '@/contracts';
 import type { IUndoEntry } from '@/helpers/undo.helper';
 import { apagarFiltro, coincide, type IResumenPie, type ITrozoPie } from '@/helpers/resumen-pie.helper';
@@ -55,6 +56,40 @@ export interface IAppFooterProps {
   onUndo: () => void;
   onOpenShortcuts: () => void;
 }
+
+/**
+ * Los contadores de `IResumenPie` que son un estado de la clave.
+ *
+ * Es un tipo y no un `keyof IResumenPie` entero porque `IResumenPie` tambien
+ * tiene `total`, `titulos` o `destinatarios`, que **no** son estados: dejar
+ * que `keyof` entrara cualquiera haria que un `resumen[campo]` mal escrito
+ * compilase y saliese con la cuenta equivocada.
+ */
+type TCampoEstado = 'available' | 'gifted' | 'redeemed' | 'expired';
+
+/**
+ * Los estados que salen en el pie, y de donde sale cada numero y cada texto.
+ *
+ * Es una tabla y no cuatro `if` porque los cuatro tramos son **exactamente** lo
+ * mismo con un valor distinto: se cuentan igual, se filtran igual y se apagan
+ * igual. Escritos cuatro veces, cualquier cambio —un estado nuevo, una forma de
+ * plural distinta, un filtro que hay que mandar con el— hay que acordarse de
+ * hacerlo en los cuatro, y basta con olvidarse en uno para que ese boton se
+ * comporte distinto de los otros tres sin que nada falle.
+ *
+ * El orden es el de `KEY_STATUS_VALUES` menos `Unknown`, y el texto de cada uno
+ * sale de `footer.<campo>`, que ya existe para el recuento con numero.
+ */
+const TRAMOS_DE_ESTADO = [
+  { estado: KeyStatus.Available, campo: 'available', clave: 'footer.available' },
+  { estado: KeyStatus.Gifted, campo: 'gifted', clave: 'footer.gifted' },
+  { estado: KeyStatus.Redeemed, campo: 'redeemed', clave: 'footer.redeemed' },
+  { estado: KeyStatus.Expired, campo: 'expired', clave: 'footer.expired' },
+] as const satisfies readonly {
+  estado: KeyStatus;
+  campo: TCampoEstado;
+  clave: TranslationKey;
+}[];
 
 /**
  * Pie de la ventana: recuento, firma, estado del almacenamiento y atajos.
@@ -101,7 +136,7 @@ export function AppFooter({
     const trozos: ITrozoPie[] = [];
 
     /*
-     * Enciende un tramo y devuelve lo que hay que mandarle a `patchFilter`.
+     * Enciende un tramo y resuelve lo que hay que mandarle a `patchFilter`.
      *
      * Lo del return es lo que hace que el boton sea de poner y quitar: si ya
      * esta puesto, devuelve el filtro **vaciado** —`{ statuses: [] }` en vez de
@@ -110,53 +145,42 @@ export function AppFooter({
      * pulsaba y no pasaba nada, porque reponer el mismo valor sobre el mismo
      * valor no cambia el filtro: el boton quedaria encendido y sin manera de
      * apagarlo, que es la peor forma de boton.
-     *
-     * Y por eso el filtro lleva tambien `scope: All` cuando toca el estado:
-     * `filterKeys` **ignora** `statuses` mientras el ambito sea «solo
-     * disponibles», que es el de por defecto, asi que sin esto el boton se
-     * encendia y la lista no cambiaba. Al pulsarlo tambien se pone el ambito
-     * en «todos», que es lo que hace falta para que el filtro de estado
-     * signifique algo —y es lo que haria alguien desde el menu de la barra—.
      */
-    const anade = (
-      texto: string,
-      filtro: Partial<IKeyFilter> | null,
-      alPulsar?: Partial<IKeyFilter>,
-    ): void => {
+    const anade = (texto: string, filtro: Partial<IKeyFilter> | null): void => {
       const activo = filtro !== null && coincide(filter, filtro);
 
       // Un tramo sin filtro es solo informacion: no hay nada que poner ni que
-      // quitar, y `{}` es lo que hace que al pulsarlo no change nada en vez de
-      // reponer un filtro que no existe.
-      const cambios = filtro === null ? {} : (activo ? apagarFiltro(filtro) : (alPulsar ?? filtro));
+      // quitar, y `{}` es lo que hace que al pulsarlo no se mande nada en vez
+      // de reponer un filtro que no existe.
+      const cambios = filtro === null ? {} : (activo ? apagarFiltro(filtro) : filtro);
 
       trozos.push({ texto, activo, pulsable: filtro !== null, cambios });
     };
 
-    if (resumen.available > 0) {
-      anade(t('footer.available', [resumen.available]), { statuses: [KeyStatus.Available] }, {
-        statuses: [KeyStatus.Available],
-        scope: KeyScope.All,
-      });
+    /*
+     * Los estados, y **solo** con el ambito en «todos».
+     *
+     * Con el ambito en «solo disponibles», que es el de por defecto, `filterKeys`
+     * **ignora** `statuses` y ademas todas las claves que se ven ya estan
+     * disponibles: el unico tramo que sale es «3 disponibles» y no puede hacer
+     * nada. Antes se les mandaba el ambito a «todos» al pulsarlos para que
+     * signieran algo, pero al apagarlos el ambito se quedaba en «todos» y la
+     * lista se quedaba mostrando mas claves de las que habia: pulsar el boton
+     * dos veces no volvia a donde estabas, sino a otro sitio.
+     *
+     * Lo que se hace es no ensenar el boton cuando no puede hacer nada. En «solo
+     * disponibles» el ambito ya es el filtro de estado, y quien quiera ver las
+     * regaladas o las caducadas tiene el selector de arriba —o el boton
+     * «Todos»— que es donde vive esa decision.
+     */
+    if (filter.scope === KeyScope.All) {
+      for (const { estado, campo, clave } of TRAMOS_DE_ESTADO) {
+        const cuenta = resumen[campo];
+
+        if (cuenta > 0) anade(t(clave, [cuenta]), { statuses: [estado] });
+      }
     }
-    if (resumen.gifted > 0) {
-      anade(t('footer.gifted', [resumen.gifted]), { statuses: [KeyStatus.Gifted] }, {
-        statuses: [KeyStatus.Gifted],
-        scope: KeyScope.All,
-      });
-    }
-    if (resumen.redeemed > 0) {
-      anade(t('footer.redeemed', [resumen.redeemed]), { statuses: [KeyStatus.Redeemed] }, {
-        statuses: [KeyStatus.Redeemed],
-        scope: KeyScope.All,
-      });
-    }
-    if (resumen.expired > 0) {
-      anade(t('footer.expired', [resumen.expired]), { statuses: [KeyStatus.Expired] }, {
-        statuses: [KeyStatus.Expired],
-        scope: KeyScope.All,
-      });
-    }
+
     if (resumen.addOns > 0) anade(t('footer.addOns', [resumen.addOns]), { kind: KeyKind.Dlc });
 
     /*
