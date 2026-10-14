@@ -631,6 +631,15 @@ export const EN: TranslationTable = Object.freeze({
   'tags.manage.merge': 'Merge',
   'tags.renamedOne': '«{0}» has been renamed and 1 key now uses it.',
   'tags.renamedMany': '«{0}» has been renamed and {1} keys now use it.',
+  /*
+   * A rename that touches **no** key.
+   *
+   * That is changing «dlc» to «DLC»: the key stays «dlc» in every row and only
+   * the display name changes. Without this the toast read «renamed and 0 keys
+   * now use it», which means nothing and looks like a bug — on top of being
+   * plural, since `pluralKey` picks by number and 0 falls into the plural.
+   */
+  'tags.recased': '«{0}» is now written that way.',
 
 });
 

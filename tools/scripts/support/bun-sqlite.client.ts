@@ -59,10 +59,30 @@ export class BunSqliteClient implements IDatabaseClient {
     return existsSync(ruta);
   }
 
-  async execute(sql: string, bind: readonly unknown[] = []): Promise<number> {
-    const sentencia = this.db.prepare(sql);
+/**
+ * Ejecuta una sentencia y devuelve **cuantas filas ha tocado**.
+ *
+ * El `as unknown as number` de antes no era un atajo: `bun:sqlite` devuelve un
+ * objeto `{ lastInsertRowid, changes }`, no un numero, asi que el repositorio
+ * recibia un objeto donde esperaba un conteo. El `as` tapaba el desajuste —el
+ * compilador no puede mirarlo a traves de dos conversions— y en JavaScript un
+ * objeto comparado con `> 0` se convierte a `"[object Object]"`, que es `NaN`.
+ *
+ * Con eso `INSERT OR IGNORE` devolvia **siempre** `false`, asi que crear una
+ * etiqueta por el puente de desarrollo anunciaba «ya existe» y la creaba
+ * igualmente: el aviso y el resultado decia lo contrario. Lo mismo pasaba con
+ * `syncTagsFromKeys`, que suma el valor de `execute` para saber cuantas filas
+ * han entrado —una suma con un objeto da una cadena— y con `renameTag`, que
+ * compara contra `0` para saber si crear la etiqueta nueva.
+ *
+ * Se devuelve `changes` porque es lo que un `execute` significa en las otras dos
+ * implementaciones: el plugin de Tauri y el cliente en memoria devuelven las
+ * filas afectadas, y el repositorio esta escrito contra eso.
+ */
+async execute(sql: string, bind: readonly unknown[] = []): Promise<number> {
+  const sentencia = this.db.prepare(sql);
 
-    return sentencia.run(...aBindings(bind)) as unknown as number;
+  return sentencia.run(...aBindings(bind)).changes;
   }
 
   /**

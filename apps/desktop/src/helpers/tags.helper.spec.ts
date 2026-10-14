@@ -3,7 +3,7 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { contarUsos, sortTags } from './tags.helper';
+import { contarUsos, claveDeRenombrado, sortTags } from './tags.helper';
 import {
   TAG_FAMILIAS,
   TAG_PASOS,
@@ -26,6 +26,37 @@ import {
 function catalogo(...nombres: string[]): ITag[] {
   return nombres.map((nombre) => ({ clave: nombre, nombre, usos: 0, color: '' }));
 }
+
+/**
+ * Que aviso sale tras un renombrado.
+ *
+ * El caso que motivo separarlo del `pluralKey` es el de **cero**: cambiar
+ * «ZAPATAZO» por «Zapatazo» no reescribe ninguna clave —la clave sigue siendo
+ * `zapatazo` en las que la llevan— y solo cambia el titulo del catalogo. Si
+ * cero cayera en el plural, el aviso decia «se ha renombrado y 0 claves la
+ * llevan ahora», que es lo contrario de lo que ha pasado.
+ */
+describe('el aviso de un renombrado', () => {
+  test('cero claves no es «se renombro y no lo lleva nadie»', () => {
+    expect(claveDeRenombrado(0)).toBe('tags.recased');
+  });
+
+  test('una clave y varias eligen plural', () => {
+    expect(claveDeRenombrado(1)).toBe('tags.renamedOne');
+    expect(claveDeRenombrado(40)).toBe('tags.renamedMany');
+  });
+
+  test('un numero que no sea de claves tampoco cae en el plural', () => {
+    /*
+     * El numero sale de `changes`, que es un entero con signo y no se controla
+     * desde aqui. Un `-1` en el plural daria «se ha renombrado y -1 claves la
+     * llevan ahora», que es un numero imposible en pantalla. Aqui cae en el
+     * texto de «solo cambia como se ve», que es lo que quiere decir cuando no
+     * hay ninguna clave afectada.
+     */
+    expect(claveDeRenombrado(-1)).toBe('tags.recased');
+  });
+});
 
 describe('ordenar el catalogo de etiquetas', () => {
   test('las etiquetas mas usadas van primero', () => {

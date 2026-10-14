@@ -185,6 +185,8 @@ FILAS = [
      '« {0} » a ete renommee et 1 cle la porte maintenant.', '«{0}» foi renomeada e 1 chave usa-a agora.', '«{0}» wurde umbenannt und 1 Schluessel verwendet es jetzt.'),
     ('tags.renamedMany', '«{0}» se ha renombrado y {1} claves la llevan ahora.', '«{0}» has been renamed and {1} keys now use it.',
      '« {0} » a ete renommee et {1} cles la portent maintenant.', '«{0}» foi renomeada e {1} chaves usam-na agora.', '«{0}» wurde umbenannt und {1} Schluessel verwenden es jetzt.'),
+    ('tags.recased', '«{0}» se escribe ahora asi.', '«{0}» is now written that way.',
+     '« {0} » s ecrit maintenant comme cela.', '«{0}» passa a escrever-se assim.', '«{0}» wird jetzt so geschrieben.'),
     ('tags.removeLabel', 'Quitar la etiqueta {0}', 'Remove the tag {0}',
      'Retirer l etiquette {0}', 'Remover a etiqueta {0}', 'Markierung {0} entfernen'),
     ('tags.removedOne', 'Se quito de {0} clave.', 'Removed from {0} key.',

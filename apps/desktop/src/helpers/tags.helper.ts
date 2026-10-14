@@ -1,4 +1,39 @@
-import { normalizeTag, type IGameKey, type ITag } from '@/contracts';
+import { normalizeTag, type IGameKey, type ITag, type TranslationKey } from '@/contracts';
+
+import { pluralKey } from './i18n.helper';
+
+/**
+ * Que aviso sale tras renombrar una etiqueta, en forma de clave.
+ *
+ * Vive aqui y no en el hook porque es una **decision con dos salidas que se
+ * contradicen** y no cabe en un `pluralKey`: cero claves afectadas no es
+ * «se renombro y no lo lleva nadie», es «solo se ha cambiado como se ve».
+ *
+ * Renombrar «ZAPATAZO» a «Zapatazo» deja la clave `zapatazo` intacta en las dos
+ * claves que la llevan —su clave no cambia, solo el titulo del catalogo— asi
+ * que el servicio devuelve cero. Con el texto de siempre salia «se ha
+ * renombrado y 0 claves la llevan ahora»: dice justo lo contrario de lo que ha
+ * pasado, y ademas en plural, porque `pluralKey` elige por el numero y cero cae
+ * en el plural.
+ *
+ * Se devuelve la **clave** y no el texto para que quien llama la traduzca con su
+ * idioma: el hook es el unico sitio que tiene el traductor a mano.
+ */
+export function claveDeRenombrado(afectadas: number): TranslationKey {
+  /*
+   * `<= 0` y no `=== 0`.
+   *
+   * El numero sale de `changes`, que es un entero con signo y no se controla
+   * aqui. Un `-1` caeria en el plural y el aviso diria «se ha renombrado y -1
+   * claves la llevan ahora»: peor que el caso de antes, porque ya no es solo
+   * raro, es un numero imposible. Con `<= 0` cualquier valor que no represente
+   * claves afectadas cae en «solo se ha cambiado como se ve», que es lo que
+   * quiere decir cuando no hay ninguna.
+   */
+  if (afectadas <= 0) return 'tags.recased';
+
+  return pluralKey(afectadas, 'tags.renamedOne', 'tags.renamedMany');
+}
 
 /**
  * El catalogo de etiquetas, en el orden en que se pinta.

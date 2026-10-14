@@ -548,4 +548,14 @@ export const ES: TranslationTable = Object.freeze({
   'tags.manage.merge': 'Unir',
   'tags.renamedOne': '«{0}» se ha renombrado y {1} clave la lleva ahora.',
   'tags.renamedMany': '«{0}» se ha renombrado y {1} claves la llevan ahora.',
+  /*
+   * Renombrado que **no** toca ninguna clave.
+   *
+   * Es el caso de cambiar «dlc» por «DLC»: la clave sigue siendo «dlc» en las
+   * cuatrocientas claves y lo unico que cambia es como se ve. Sin este texto
+   * salia «se ha renombrado y 0 claves la llevan ahora», que es una frase que
+   * no significa nada y parece un fallo —ademas de plural en singular, porque
+   * `pluralKey` elige por el numero y 0 cae en el plural—.
+   */
+  'tags.recased': '«{0}» se escribe ahora asi.',
 });

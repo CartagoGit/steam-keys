@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 
 import { DuplicateTagError, type ITag, type Translator } from '@/contracts';
 import { pluralKey } from './i18n.helper';
+import { claveDeRenombrado } from './tags.helper';
 
 /**
  * Lo que el hook necesita del mundo exterior.
@@ -188,10 +189,7 @@ export function useTags(insumos: IUseTagsInsumos): IUseTags {
 
         if (r.valor !== null) {
           notify(
-            traducir(
-              pluralKey(r.valor, 'tags.renamedOne', 'tags.renamedMany'),
-              [nuevo, r.valor],
-            ),
+            traducir(claveDeRenombrado(r.valor), [nuevo, r.valor]),
             'success',
           );
         }

@@ -455,4 +455,5 @@ export const PT: TranslationTable = Object.freeze({
   'tags.manage.merge': 'Juntar',
   'tags.renamedOne': '«{0}» foi renomeada e 1 chave usa-a agora.',
   'tags.renamedMany': '«{0}» foi renomeada e {1} chaves usam-na agora.',
+  'tags.recased': '«{0}» passa a escrever-se assim.',
 });

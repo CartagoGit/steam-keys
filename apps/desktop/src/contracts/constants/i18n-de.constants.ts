@@ -466,4 +466,5 @@ export const DE: TranslationTable = Object.freeze({
   'tags.manage.merge': 'Zusammenfuehren',
   'tags.renamedOne': '«{0}» wurde umbenannt und 1 Schluessel verwendet es jetzt.',
   'tags.renamedMany': '«{0}» wurde umbenannt und {1} Schluessel verwenden es jetzt.',
+  'tags.recased': '«{0}» wird jetzt so geschrieben.',
 });
