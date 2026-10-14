@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { cleanTag, normalizeTag, type ITag } from '@/contracts';
+import { normalizeTag, presentaTag, type ITag } from '@/contracts';
 import { useT } from '@/context/locale.context';
 import { pluralKey } from '@/helpers/i18n.helper';
 
@@ -131,9 +131,20 @@ export function TagManager({
   /**
    * Guarda el nombre nuevo de la etiqueta que se estaba editando.
    *
-   * Si el destino ya existe se abre la confirmacion de fusion **antes** de
-   * escribir nada, para que cancelar deje el catalogo como estaba en lugar de
-   * haberlo cambiado ya y luego avisado.
+   * Hay tres casos y no son el mismo:
+   *
+   * - **No hay cambio.** Se sale sin escribir. Comparar el texto tal cual, y no
+   *   las claves normalizadas: cambiar «dlc» por «DLC» no es «no hay cambio»,
+   *   es exactamente lo que se ha pedido —cambiarle la caja a la etiqueta—, y
+   *   es el unico modo de arreglar un nombre mal escrito en su dia.
+   * - **Es otra etiqueta.** Se pregunta si ya existe y, si es asi, se pide
+   *   confirmacion de fusion **antes** de escribir nada, para que cancelar
+   *   deje el catalogo como estaba en lugar de haberlo cambiado ya y avisado
+   *   despues.
+   * - **La misma con otra caja.** No hay fusion que confirmar: «DLC» no se
+   *   fusiona con «dlc», es la misma entrada del catalogo con otro titulo. Sin
+   *   este cuidado, renombrar «dlc» a «DLC» abria un aviso de «se va a fusionar
+   *   con dlc» sobre la propia etiqueta, que no tiene sentido.
    */
   const renombrar = async (): Promise<void> => {
     if (ocupado || editando === null) return;
@@ -141,16 +152,18 @@ export function TagManager({
     setOcupado(true);
 
     try {
-      const destino = cleanTag(renombrando);
+      const destino = presentaTag(renombrando);
 
-      if (destino.length === 0 || normalizeTag(destino) === normalizeTag(editando)) {
+      if (destino.length === 0 || destino === editando) {
         setEditando(null);
         return;
       }
 
-      if (await onExists(destino)) {
-        setFusion({ desde: editando, hacia: destino });
-        return;
+      if (normalizeTag(destino) !== normalizeTag(editando)) {
+        if (await onExists(destino)) {
+          setFusion({ desde: editando, hacia: destino });
+          return;
+        }
       }
 
       await onRename(editando, destino);

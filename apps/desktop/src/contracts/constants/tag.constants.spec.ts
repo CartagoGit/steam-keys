@@ -5,10 +5,42 @@ import {
   mergeTags,
   normalizeTag,
   platformTags,
+  presentaTag,
   removeTags,
   suggestionsFor,
 } from '@/contracts/constants/tag.constants';
 import { KeyPlatform } from '@/contracts/enums/key-platform.enum';
+
+/**
+ * La clave y el titulo son dos preguntas distintas, y por eso dos funciones.
+ *
+ * `normalizeTag` contesta «¿son la misma etiqueta?» y `presentaTag` contesta
+ * «¿cómo se escribe?». Si se usara la primera para las dos, renombrar «dlc» a
+ * «DLC» no tendria sitio donde guardarse; si se usara la segunda para buscar,
+ * «dlc» y «DLC» serian dos etiquetas.
+ */
+describe('el titulo de una etiqueta', () => {
+  test('limpia los espacios pero respeta como esta escrito', () => {
+    expect(presentaTag('  juego   de   rol  ')).toBe('juego de rol');
+    expect(presentaTag('DLC')).toBe('DLC');
+    expect(presentaTag('Promo Café')).toBe('Promo Café');
+  });
+
+  test('la clave de ese mismo titulo es la normalizada', () => {
+    /*
+     * La pareja completa, que es la que se guarda. «Promo Café» se enseña tal
+     * cual y se busca como «promo cafe»: si se buscara con la caja, escribir
+     * «promo cafe» no encontraria la etiqueta que esta escrita con tilde.
+     */
+    const escrito = presentaTag('Promo Café');
+
+    expect(normalizeTag(escrito)).toBe('promo cafe');
+  });
+
+  test('los espacios de en medio tambien se aprietan en la clave', () => {
+    expect(normalizeTag(presentaTag('  juego   de   rol  '))).toBe('juego de rol');
+  });
+});
 
 describe('normalizar etiquetas', () => {
   test('quita acentos y pasa a minusculas', () => {

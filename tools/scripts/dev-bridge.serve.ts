@@ -73,6 +73,7 @@ import { MANEJADORES, manejadorDe } from './support/bridge-handlers';
 import { SqliteBackupRepository } from '@/repositories/sqlite-backup.repository';
 import { SqliteGameKeyRepository } from '@/repositories/sqlite-game-key.repository';
 import { SqliteSettingsRepository } from '@/repositories/sqlite-settings.repository';
+import { crearEsquema } from '@/repositories/crear-esquema.repository';
 import type { IBridgeContext, BridgeOperationName } from '@/contracts';
 
 /** Una peticion que llega por la entrada estandar. */
@@ -116,11 +117,49 @@ function rutaBaseDeDatos(): string {
 function montarContexto(): IBridgeContext {
   const db = new BunSqliteClient(rutaBaseDeDatos());
 
+  /*
+   * El esquema se despliega aqui y no solo dentro del constructor del cliente.
+   *
+   * `BunSqliteClient` ejecuta `SCHEMA_STATEMENTS`, que es todo
+   * `CREATE TABLE IF NOT EXISTS` —idempotente, pero que **no toca una tabla que
+   * ya existe**—. Las columnas que se hayan anadido despues —el tono de las
+   * etiquetas, el titulo— no estan ahi: solo viven en `COLUMNAS_ANADIDAS`, y
+   * esa lista no la ejecuta nadie. Sin esta llamada, abrir la base de
+   * desarrollo con el codigo nuevo falla con «no such column» en la primera
+   * consulta, y parece un fallo del repositorio cuando lo que falta es el
+   * despliegue del esquema.
+   *
+   * Se reutiliza `crearEsquema` y no una copia: es el unico sitio donde esta
+   * escrito, y una copia es justo lo que se desincroniza cuando se anade una
+   * columna nueva —la app de escritorio migra bien y el puente no, que es la
+   * forma mas incomoda de descubrirlo.
+   */
+  esquemaPendiente = crearEsquema(db);
+
   return {
     claves: new SqliteGameKeyRepository(db),
     ajustes: new SqliteSettingsRepository(db),
     respaldos: new SqliteBackupRepository(db),
   };
+}
+
+/**
+ * La migracion en curso, o `null` si no hay ninguna.
+ *
+ * Va como promesa y no como `await` porque `montarContexto` es sincrono: es lo
+ * que se pasa a los manejadores y no puede ponerse a esperar. `esperarEsquema`
+ * la consume antes de atender la primera peticion, que es el unico sitio donde
+ * importa —si el esquema no esta, la consulta falla.
+ */
+let esquemaPendiente: Promise<void> | null = null;
+
+/** Espera a que el esquema este al dia. Idempotente y barato de repetir. */
+async function esperarEsquema(): Promise<void> {
+  const pendiente = esquemaPendiente;
+
+  if (pendiente === null) return;
+
+  await pendiente;
 }
 
 function responder(respuesta: IRespuesta): void {
@@ -148,6 +187,16 @@ async function ejecutar(
   contexto: IBridgeContext,
   peticion: IPeticion,
 ): Promise<IRespuesta> {
+  /*
+   * Antes de mirar la peticion.
+   *
+   * El esquema va por su cuenta y no hay ninguna peticion que lo pida —tampoco
+   * en la app de escritorio, donde lo dispara `migrate()` al abrir el cliente—,
+   * asi que la primera consulta despues de arrancar seria la que se encontrase
+   * con una base sin migrar. Se espera una vez, aqui, que es donde se ensure.
+   */
+  await esperarEsquema();
+
   const manejador = manejadorDe(peticion.operacion);
 
   if (manejador === null) {

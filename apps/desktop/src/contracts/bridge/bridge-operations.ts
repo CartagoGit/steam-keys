@@ -115,10 +115,22 @@ export interface IBridgeOperations {
 
   // ------------------------------------------------------- catalogo de etiquetas ---
   'tags/list': { args: void; result: readonly ITagRow[] };
-  'tags/create': { args: { nombre: string; color?: string }; result: void };
+  /**
+   * `titulo` va aparte de `nombre` porque son dos cosas distintas: la clave
+   * busca, el titulo enseña. Si se mandara solo el nombre habria que decidir
+   * en el servidor cual de los dos es, y la respuesta a esa pregunta es «los
+   * dos».
+   */
+  'tags/create': {
+    args: { nombre: string; color?: string; titulo?: string };
+    result: boolean;
+  };
   'tags/set-color': { args: { nombre: string; color: string }; result: void };
   'tags/delete': { args: { nombre: string }; result: number };
-  'tags/rename': { args: { actual: string; nuevo: string }; result: number };
+  'tags/rename': {
+    args: { actual: string; claveNueva: string; tituloNuevo: string };
+    result: number;
+  };
   /**
    * Mete en el catalogo todo lo que ya usan las claves. Sin argumentos.
    *

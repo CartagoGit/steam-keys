@@ -74,6 +74,7 @@ export {
   normalizeTag,
   parseTagColor,
   platformTags,
+  presentaTag,
   removeTags,
   suggestionsFor,
 } from './tag.constants';

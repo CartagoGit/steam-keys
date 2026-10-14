@@ -1,6 +1,6 @@
 import { getRepository } from '@/repositories/repository.factory';
-import { cleanTag, normalizeTag, parseTagColor, type IGameKey, type ITag } from '@/contracts';
-import { contarUsos, nombresDe, sortTags } from '@/helpers/tags.helper';
+import { DuplicateTagError, normalizeTag, parseTagColor, presentaTag, type IGameKey, type ITag } from '@/contracts';
+import { contarUsos, sortTags } from '@/helpers/tags.helper';
 
 /**
  * El catalogo de etiquetas: cuales existen y cuantas claves las usan.
@@ -96,12 +96,24 @@ export const tagService = {
      * minusculas. Dos formas de la misma palabra en el mismo sitio, que es
      * justo lo que hace ilegible el filtro.
      */
-    const nombres = nombresDe(propias.map((clave) => clave.tags));
-
+    /*
+     * El nombre con el que **se ve** cada etiqueta sale del catalogo, y no de
+     * las claves.
+     *
+     * Antes se buscaba en las claves y el nombre que ganaba era el primero que
+     * aparecia en la lista, asi que «Zapatazo» y «zapatazo» se repartian la
+     * pantalla segun el orden de las filas. Y despues de normalizar al leer,
+     * ganaba siempre el de la clave —en minusculas— y un renombrado a «DLC»
+     * se deshacia en el siguiente arranque.
+     *
+     * El catalogo es quien sabe como se llama cada etiqueta, porque es el unico
+     * sitio donde se guarda el renombrado. Las claves guardan la clave, y para
+     * ellas da igual: una clave es lo que se busca, no lo que se enseña.
+     */
     return sortTags(
       delCatalogo.map((fila) => ({
         clave: fila.nombre,
-        nombre: nombres.get(fila.nombre.toLowerCase()) ?? cleanTag(fila.nombre),
+        nombre: fila.titulo !== '' ? fila.titulo : fila.nombre,
         /*
          * El color se comprueba al leer y no al escribir, para que una base
          * editada a mano con cualquier cosa dentro de la columna se pinte sin
@@ -112,7 +124,7 @@ export const tagService = {
         // Una etiqueta del catalogo que no lleva ninguna clave tiene cero usos:
         // es una etiqueta creada para usar despues, que es uno de los motivos
         // por los que existe el catalogo.
-        usos: cuenta.get(fila.nombre.toLowerCase()) ?? 0,
+        usos: cuenta.get(fila.nombre) ?? 0,
       })),
     );
   },
@@ -125,18 +137,50 @@ export const tagService = {
    * existe. Un catalogo de etiquetas se parece mas a un conjunto de palabras
    * que a un borrador, y por eso vive en la base de datos.
    *
-   * Devuelve el nombre ya limpio, para que quien llama lo use tal cual.
+   * **No** crea la que ya esta, y avisa con `DuplicateTagError`. Que «Zapatazo»
+   * y «zapatazo» no puedan acabar siendo dos filas no es un capricho del indice:
+   * son la misma palabra, y con dos filas el filtro de una no encontraria la
+   * otra, el color se pondria en una y no en la otra, y borrar una dejaria la
+   * otra puesta.
+   *
+   * Se guarda la clave normalizada y, aparte, **la caja con la que se ha
+   * escrito** como titulo. Sin lo segundo, crear «DLC» y luego buscar «dlc» son
+   * la misma etiqueta pero solo se guarda una de las dos formas, y «se ha
+   * creado» no podria distinguirse de «no ha pasado nada».
+   *
+   * Devuelve la clave ya normalizada, para que quien llama la use tal cual.
    */
   async create(entrada: string): Promise<string | null> {
-    const nombre = cleanTag(entrada);
+    const titulo = presentaTag(entrada);
+    const nombre = normalizeTag(titulo);
 
     if (nombre.length === 0) return null;
 
     const repository = await getRepository();
 
-    // Con la clave primaria, «humble» y «Humble» no pueden ser dos filas, y
-    // la que se guarda es la que se ha limpiado ya.
-    await repository.createTag(nombre);
+    /*
+     * El «¿existe?» lo responde el propio `INSERT OR IGNORE`, y no una consulta
+     * previa. Preguntar antes deja hueco para que entre las dos cosas otra
+     * peticion cree la misma etiqueta, y entonces el aviso de «ya existe»
+     * saldaria justo en el caso en que si se acaba de crear.
+     */
+    if (!(await repository.createTag(nombre, '', titulo))) {
+      /*
+       * El aviso lleva el nombre **por el que ya se conoce**, no el que se ha
+       * escrito: si ya hay una «Zapatazo» y alguien intenta crear «zapatazo»,
+       * el mensaje tiene que decir «Zapatazo», que es lo que hay en pantalla.
+       * Salir con el texto nuevo haria pensar que hay dos.
+       */
+      const yaEsta = (await repository.listTags()).find(
+        (fila) => fila.nombre === nombre,
+      );
+
+      throw new DuplicateTagError(
+        yaEsta === undefined || yaEsta.titulo === ''
+          ? (yaEsta?.nombre ?? nombre)
+          : yaEsta.titulo,
+      );
+    }
 
     return nombre;
   },
@@ -159,24 +203,29 @@ export const tagService = {
    * Renombra una etiqueta de toda la coleccion.
    *
    * Devuelve el numero de claves afectadas para poder decirlo, o `null` si el
-   * nombre escrito no sirve —esta vacio, o es el mismo que ya tenia—. Un
-   * `null` aqui no es un fallo: es «no hay nada que renombrar», y quien llama
-   * lo trata cerrando el dialogo sin avisar.
+   * nombre escrito no sirve —esta vacio, o es el mismo nombre con el mismo
+   * aspecto—.
    *
-   * Se comparan los nombres ya normalizados, no los que ha escrito la persona.
-   * Renombrar «Humble» a «humble» no es un cambio de nada, es el mismo
-   * nombre con otra caja: sin esta comparacion se reescribirian cuarenta
-   * claves para que no cambiasen.
+   * **Renombrar «dlc» a «DLC» no es «no hay nada que renombrar».** Antes lo
+   * era: las dos mitades se comparaban ya normalizadas y el servicio devolvia
+   * `null` sin tocar nada, de modo que cambiar la caja de un nombre era
+   * imposible —no habia sitio donde guardarla—. Ahora la clave puede ser la
+   * misma y el titulo distinto, que es justo lo que hace que la ultima edicion
+   * se quede, y devuelve `0` porque no ha tocado ninguna clave.
    */
   async rename(actual: string, nuevo: string): Promise<number | null> {
+    const titulo = presentaTag(nuevo);
     const desde = normalizeTag(actual);
-    const hasta = cleanTag(nuevo);
+    const hasta = normalizeTag(titulo);
 
-    if (hasta.length === 0 || normalizeTag(hasta) === desde) return null;
+    if (titulo.length === 0) return null;
+
+    // Mismo nombre y misma caja: no hay nada escrito ni que escribir.
+    if (hasta === desde && titulo === presentaTag(actual)) return null;
 
     const repository = await getRepository();
 
-    return repository.renameTag(desde, hasta);
+    return repository.renameTag(desde, hasta, titulo);
   },
 
   /**

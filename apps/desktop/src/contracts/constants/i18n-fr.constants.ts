@@ -113,6 +113,8 @@ export const FR: TranslationTable = Object.freeze({
   'tags.removeLabel': 'Retirer l etiquette {0}',
   'tags.removedOne': 'Retiree de {0} cle.',
   'tags.removedMany': 'Retiree de {0} cles.',
+  'tags.duplicate':
+    'Une etiquette nommee «{0}» existe deja. Marquez-la plutot que de la recreer.',
   'tags.title': 'Etiquettes',
   'tags.new': 'Nouvelle etiquette',
   'tags.addHint': 'Ajouter le mot-cle a la selection',
@@ -435,6 +437,7 @@ export const FR: TranslationTable = Object.freeze({
     'Exporter la collection dans le TXT habituel, en importer un, ou voir ou est le fichier et combien il occupe.',
   'settings.keys.tags.hint':
     'Comment les etiquettes de la collection sont nommees. Renommer une change son nom dans toutes les cles qui l utilisent.',
+  'settings.keys.tags.manage': 'Gerer les etiquettes',
   'settings.keys.tags.total': 'dans le catalogue',
   'settings.keys.tags.inUseOne': '{0} en usage',
   'settings.keys.tags.inUseMany': '{0} en usage',

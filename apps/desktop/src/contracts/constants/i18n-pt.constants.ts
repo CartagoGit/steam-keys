@@ -112,6 +112,8 @@ export const PT: TranslationTable = Object.freeze({
   'tags.removeLabel': 'Remover a etiqueta {0}',
   'tags.removedOne': 'Removida de {0} chave.',
   'tags.removedMany': 'Removida de {0} chaves.',
+  'tags.duplicate':
+    'Ja existe uma etiqueta chamada «{0}». Marque-a em vez de a criar outra vez.',
   'tags.title': 'Etiquetas',
   'tags.new': 'Nova etiqueta',
   'tags.addHint': 'Adicionar a etiqueta a selecao',
@@ -426,6 +428,7 @@ export const PT: TranslationTable = Object.freeze({
     'Exportar a colecao para o TXT de sempre, importar um, ou ver onde esta o ficheiro e quanto ocupa.',
   'settings.keys.tags.hint':
     'Como se chamam as etiquetas da colecao. Renomear uma muda o nome em todas as chaves que a usam.',
+  'settings.keys.tags.manage': 'Gerir as etiquetas',
   'settings.keys.tags.total': 'no catalogo',
   'settings.keys.tags.inUseOne': '{0} em uso',
   'settings.keys.tags.inUseMany': '{0} em uso',

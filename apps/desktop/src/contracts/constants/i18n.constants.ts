@@ -155,6 +155,14 @@ export const EN: TranslationTable = Object.freeze({
   'tags.removeLabel': 'Remove the tag {0}',
   'tags.removedOne': 'Removed from {0} key.',
   'tags.removedMany': 'Removed from {0} keys.',
+  /*
+   * Duplicate tag warning.
+   *
+   * The name is the one already known, not the one that was typed: with a
+   * «Zapatazo» in the catalogue and «zapatazo» being typed, saying «zapatazo
+   * already exists» reads as if there were two of them.
+   */
+  'tags.duplicate': 'There is already a tag called «{0}». Mark it instead of creating it again.',
   'tags.title': 'Tags',
   'tags.new': 'New tag',
 
@@ -598,6 +606,7 @@ export const EN: TranslationTable = Object.freeze({
   'settings.keys.file': 'The file',
   'settings.keys.file.hint': 'Export the collection to the usual TXT, import one, or see where the file is and how big it is.',
   'settings.keys.tags.hint': 'How the collection tags are named. Renaming one changes it in every key that uses it.',
+  'settings.keys.tags.manage': 'Manage tags',
   'settings.keys.tags.total': 'in the catalogue',
   'settings.keys.tags.inUseOne': '{0} in use',
   'settings.keys.tags.inUseMany': '{0} in use',

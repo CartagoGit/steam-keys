@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 
-import { type ITag, type Translator } from '@/contracts';
+import { DuplicateTagError, type ITag, type Translator } from '@/contracts';
 import { pluralKey } from './i18n.helper';
 
 /**
@@ -110,6 +110,22 @@ export function useTags(insumos: IUseTagsInsumos): IUseTags {
 
         return r.valor;
       } catch (cause) {
+        /*
+         * La etiqueta repetida tiene su propio aviso, y no el generico.
+         *
+         * Sin esto salia «No se ha podido guardar», que no dice nada: quien
+         * ha escrito «Zapatazo» no sabe si fallo por eso o porque ya existia,
+         * y la diferencia es enorme —una se corrige escribiendo otra cosa y la
+         * otra no se corrige de ninguna forma, porque la etiqueta ya esta y
+         * solo hay que marcarla—. El mensaje lleva el nombre por el que ya se
+         * conoce, no el que se ha escrito, que es lo que hay en pantalla.
+         */
+        if (cause instanceof DuplicateTagError) {
+          notify(traducir('tags.duplicate', [cause.existente]), 'error');
+
+          return null;
+        }
+
         notify(
           cause instanceof Error ? cause.message : traducir('app.saveFailed'),
           'error',

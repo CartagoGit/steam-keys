@@ -8,7 +8,7 @@ import {
   parseTags,
   serializeTags,
 } from '@/helpers/normalize-text.helper';
-import { GAME_KEY_COLUMNS, KeyPlatform, KeySource, KeyStatus, TABLE_GAME_KEYS, TABLE_TAGS, cleanTag, type IDatabaseClient, type IGameKey, type IGameKeyDraft, type IGameKeyInput, type IGameKeyRepository, type IGameKeyRow, type IImportRow, type IImportSummary, type ITagRow } from '@/contracts';
+import { GAME_KEY_COLUMNS, KeyPlatform, KeySource, KeyStatus, TABLE_GAME_KEYS, TABLE_TAGS, cleanTag, normalizeTag, presentaTag, type IDatabaseClient, type IGameKey, type IGameKeyDraft, type IGameKeyInput, type IGameKeyRepository, type IGameKeyRow, type IImportRow, type IImportSummary, type ITagRow } from '@/contracts';
 
 /**
  * Repositorio de keys sobre SQLite.
@@ -290,42 +290,98 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
 // ------------------------------------------------------- catalogo de etiquetas ---
 
   async listTags(): Promise<readonly ITagRow[]> {
-    return this.db.select<ITagRow>(`SELECT nombre, color FROM ${TABLE_TAGS}`);
+    return this.db.select<ITagRow>(
+      `SELECT nombre, titulo, color FROM ${TABLE_TAGS}`,
+    );
   }
 
-  async createTag(nombre: string, color = ''): Promise<void> {
-    // `OR IGNORE` y no un `SELECT` antes: la clave primaria ya lo garantiza, y
-    // un `SELECT` previo deja hueco para dos llamadas a la vez.
-    //
-    // El color va con el `INSERT` y no en un `UPDATE` detras: la etiqueta nace
-    // con el, y quien la cree eligiendo un tono no tiene por que volver a
-    // escribirlo.
-    await this.db.execute(
-      `INSERT OR IGNORE INTO ${TABLE_TAGS} (nombre, color) VALUES ($1, $2)`,
-      [nombre, color],
+  /**
+   * Anade una etiqueta al catalogo y dice si ha entrado.
+   *
+   * `INSERT OR IGNORE` y no un `SELECT` antes: la clave primaria ya lo
+   * garantiza, y un `SELECT` previo deja hueco para que dos llamadas a la vez
+   * creen la misma etiqueta —y para que el aviso de «ya existe» salga cuando si
+   * se acaba de crear—. El valor de `execute` es justamente las filas metidas,
+   * que es de donde sale el booleano.
+   *
+   * El color va con el `INSERT` y no en un `UPDATE` detras: la etiqueta nace
+   * con el, y quien la cree eligiendo un tono no tiene por que volver a
+   * escribirlo.
+   */
+  async createTag(
+    nombre: string,
+    color = '',
+    tituloParam = '',
+  ): Promise<boolean> {
+    /*
+     * La clave se normaliza **aqui**, no se espera que quien llama lo haga.
+     *
+     * Es el unico sitio por el que entran filas en la tabla, y `nombre` es la
+     * clave primaria que representa la identidad de la etiqueta. Si quien
+     * escribiera «Cumplidos» entrara tal cual, tendriamos dos filas para la
+     * misma palabra —la clave primaria las distingue porque no son iguales— y
+     * el borrado, el color y el renombrado, que buscan por la clave normalizada,
+     * no tocarian ninguna de las dos. Se ejecutan, afectan a cero filas y no
+     * dicen nada. Normalizar en el servicio deja que eso dependa de que todos
+     * los llamantes se acuerden.
+     */
+    const clave = normalizeTag(nombre);
+
+    if (clave.length === 0) return false;
+
+    /*
+     * Si no se pasa titulo, se saca del nombre recibido.
+     *
+     * Sin esto, `createTag('Cumplidos')` guardaria la clave `cumplidos` y un
+     * titulo vacio, que se enseña como `cumplidos`: la caja con la que se ha
+     * escrito se perderia al entrar, sin que nadie se entere. Quien llama puede
+     * no tener titulo porque le da igual —una etiqueta que se acaba de
+     * sincronizar desde una clave—; perder la caja **si** importa, asi que se
+     * deduce. Solo cuando el titulo coincide con la clave se guarda vacio, que
+     * es lo que significa «no hace falta guarda nada».
+     */
+    const escrito = presentaTag(nombre);
+    const titulo = tituloParam === '' ? escrito : tituloParam;
+
+    const metidas = await this.db.execute(
+      `INSERT OR IGNORE INTO ${TABLE_TAGS} (nombre, titulo, color) VALUES ($1, $2, $3)`,
+      [clave, titulo === clave ? '' : titulo, color],
     );
+
+    return metidas > 0;
   }
 
   /**
    * Cambia el tono con el que se pinta una etiqueta.
    *
    * Solo la etiqueta: el color es una forma de verla, no un renombrado, y las
-   * claves llevan el **nombre** en su columna de texto. Por eso no hay que tocar
+   * claves llevan la **clave** en su columna de texto. Por eso no hay que tocar
    * ninguna fila de `game_keys` y esto no necesita transaccion.
    *
-   * El `COLLATE NOCASE` no es un adorno. El catalogo guarda el nombre tal como
-   * se escribe en la clave —«Cumplidos»— mientras que quien llama lo pasa por
-   * `normalizeTag` y llega «cumplidos»; con `=` no coinciden, la escritura no
-   * tocaba ninguna fila y el color no se guardaba. Sin decir nada.
+   * La busqueda es **exacta**, sin `COLLATE NOCASE`, y ya no hace falta el
+   * rodeo. Cuando el catalogo guardaba la etiqueta tal como estaba escrita en
+   * la clave —«Cumplidos»— y quien llamaba pasaba por `normalizeTag`, no habia
+   * forma de que coincidieran con acentos, porque SQLite solo ignora la caja
+   * de las letras ASCII. Ahora la columna `nombre` esta normalizada de verdad y
+   * las dos mitades llegan igual.
    */
   async setTagColor(nombre: string, color: string): Promise<void> {
-    await this.db.execute(
-      `UPDATE ${TABLE_TAGS} SET color = $1 WHERE nombre = $2 COLLATE NOCASE`,
-      [color, nombre],
-    );
+    await this.db.execute(`UPDATE ${TABLE_TAGS} SET color = $1 WHERE nombre = $2`, [
+      color,
+      normalizeTag(nombre),
+    ]);
   }
 
   async deleteTag(nombre: string): Promise<number> {
+    /*
+     * La clave se normaliza antes de buscar, y no solo por lo de la caja: la
+     * columna `tags` de las claves guarda la clave normalizada —`serializeTags`
+     * la pasa por `cleanTag`—, asi que «Cumpleaños» tiene que buscar
+     * «cumpleanos» para que el `LIKE` la encuentre. Con el texto tal cual, la
+     * etiqueta se quitaria del catalogo y **no** de las claves.
+     */
+    const clave = normalizeTag(nombre);
+
     /**
      * La etiqueta sale del catalogo **y** de todas las claves que la llevan.
      *
@@ -341,23 +397,23 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
      * distintas con las mismas etiquetas son la norma, no la excepcion.
      */
     return this.db.transaccion(async () => {
-      await this.db.execute(
-        `DELETE FROM ${TABLE_TAGS} WHERE nombre = $1 COLLATE NOCASE`,
-        [nombre],
-      );
+      await this.db.execute(`DELETE FROM ${TABLE_TAGS} WHERE nombre = $1`, [
+        clave,
+      ]);
 
       const marcadas = await this.db.select<{ id: number; tags: string }>(
         `SELECT id, tags FROM ${TABLE_GAME_KEYS}
          WHERE ',' || tags || ',' LIKE '%,' || $1 || ',%'`,
-        [nombre],
+        [clave],
       );
 
       const ahora = nowSqliteTimestamp();
 
       for (const fila of marcadas) {
         // `parseTags` es el que deserializa, no una copia suya: el filtro de
-        // lo que se va lo pone este metodo, no el lector.
-        const quedan = parseTags(fila.tags).filter((tag) => tag !== nombre);
+        // lo que se va lo pone este metodo, no el lector. Y devuelve claves
+        // normalizadas, asi que `clave` es lo que hay que comparar.
+        const quedan = parseTags(fila.tags).filter((tag) => tag !== clave);
 
         await this.db.execute(
           `UPDATE ${TABLE_GAME_KEYS} SET tags = $1, updated_at = $2 WHERE id = $3`,
@@ -370,21 +426,53 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
   }
 
   /**
-   * Cambia el nombre de una etiqueta en todas las claves que la llevan.
+   * Cambia el nombre de una etiqueta en toda la coleccion.
    *
-   * Una etiqueta es una entidad por si misma, no un texto suelto: si se
-   * renombra en el catalogo y no en las claves, «humble» pasa a ser
-   * «humble bundle» en la lista de etiquetas pero las cuarenta claves que la
-   * llevan siguen saying «humble», y entonces hay dos etiquetas distintas con
-   * el mismo significado. Renombrar propaga, o no renombra.
+   * Son dos cosas y solo una necesita tocar las claves.
    *
-   * Si el destino ya existe, se fusiona: el nombre viejo desaparece y las
-   * claves que lo llevaba se quedan con el nuevo. Es lo que espera quien
-   * escribe «Humble» un dia y «humble» otro, y no una fila duplicada que
-   * solo se distingue por mayusculas.
+   * **La clave** —`nombre`— es la identidad de la etiqueta, y va normalizada:
+   * si dos etiquetas solo se distinguieran por la caja, «dlc» y «DLC» serian
+   * dos filas, el filtro de una no encontraria la otra y el catalogo tendria
+   * duplicados que no se pueden distinguir. Por eso el renombrado propaga: si
+   * el catalogo pasa a «humble bundle» y las claves se quedan en «humble», hay
+   * dos etiquetas con el mismo significado y el filtro deja de encontrar
+   * ninguna.
+   *
+   * **El titulo** —`titulo`— es lo que se ve, y no necesita propagar porque no
+   * vive en las claves. Renombrar «dlc» a «DLC» cambia el titulo y **no** toca
+   * ninguna fila de `game_keys`: las cuarenta claves que llevan «dlc» siguen
+   * llevando «dlc», que es su clave, y se muestran como «DLC» porque el catalogo
+   * es el que se enseña. Es lo que hace que la ultima edicion se quede.
    */
-  async renameTag(actual: string, nuevo: string): Promise<number> {
-    if (actual === nuevo) return 0;
+  async renameTag(
+    actual: string,
+    claveNueva: string,
+    tituloNuevo: string,
+  ): Promise<number> {
+    /*
+     * Las dos mitades se normalizan por separado y a proposito. La clave es
+     * donde se busca y tiene que ser una sola; el titulo es lo que se ha
+     * escrito y es justo lo que se quiere guardar, con su caja.
+     */
+    const desde = normalizeTag(actual);
+    const hasta = normalizeTag(claveNueva);
+    const titulo = tituloNuevo === hasta ? '' : tituloNuevo;
+
+    /*
+     * Misma etiqueta, otra caja.
+     *
+     * Se sale antes de abrir la transaccion porque no hay nada que propagar:
+     * reescribir las cuarenta claves para cambiar «dlc» por «dlc» gastaria
+     * mil viajes a la base para no cambiar nada.
+     */
+    if (desde === hasta) {
+      await this.db.execute(
+        `UPDATE ${TABLE_TAGS} SET titulo = $1 WHERE nombre = $2`,
+        [titulo, desde],
+      );
+
+      return 0;
+    }
 
     return this.db.transaccion(async () => {
       /*
@@ -404,44 +492,50 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
        * Renombrar es una operacion rara y la columna es de texto corto. Mil
        * viajes a la base de datos en transaccion tardan menos que el rato
        * que se pierde entendiendo porque el `replace` en vez de eso.
+       *
+       * El `LIKE` va sin `COLLATE NOCASE` porque SQLite lo aplica ya de por si
+       * —es la unica de las dos donde no hacia falta pedirlo—, y las columnas
+       * guardan la clave normalizada, asi que lo que se compara con `$1` y
+       * `$2` es lo mismo que hay escrito.
        */
       const afectadas = await this.db.select<{ id: number; tags: string }>(
         `SELECT id, tags FROM ${TABLE_GAME_KEYS}
          WHERE ',' || tags || ',' LIKE '%,' || $1 || ',%'
             OR ',' || tags || ',' LIKE '%,' || $2 || ',%'`,
-        [actual, nuevo],
+        [desde, hasta],
       );
 
       const ahora = nowSqliteTimestamp();
 
       for (const fila of afectadas) {
         const quedan = parseTags(fila.tags).filter(
-          (tag) => tag !== actual && tag !== nuevo,
+          (tag) => tag !== desde && tag !== hasta,
         );
 
         await this.db.execute(
           `UPDATE ${TABLE_GAME_KEYS} SET tags = $1, updated_at = $2 WHERE id = $3`,
-          [serializeTags([...quedan, nuevo]), ahora, fila.id],
+          [serializeTags([...quedan, hasta]), ahora, fila.id],
         );
       }
 
       // Si el nombre nuevo ya estaba, desaparece: una etiqueta con dos nombres
-      // es dos etiquetas, y el filtro buscaria una que no lleva nadie.
-      await this.db.execute(
-        `DELETE FROM ${TABLE_TAGS} WHERE nombre = $1 COLLATE NOCASE`,
-        [nuevo],
-      );
+      // es dos etiquetas, y el filtro buscaria una que no lleva nadie. Se
+      // lleva tambien su titulo, porque si no «dlc» se llevaria por delante el
+      // titulo de «dlc extra» y la que se queda mostraria el nombre de la otra.
+      await this.db.execute(`DELETE FROM ${TABLE_TAGS} WHERE nombre = $1`, [
+        hasta,
+      ]);
 
       const renombradas = await this.db.execute(
-        `UPDATE ${TABLE_TAGS} SET nombre = $1 WHERE nombre = $2 COLLATE NOCASE`,
-        [nuevo, actual],
+        `UPDATE ${TABLE_TAGS} SET nombre = $1, titulo = $2 WHERE nombre = $3`,
+        [hasta, titulo, desde],
       );
 
       // La etiqueta nueva puede no existir todavia en el catalogo —nadie la ha
       // guardado nunca— y el renombrado no la crea.
-      if (renombradas === 0) await this.createTag(nuevo);
+      if (renombradas === 0) await this.createTag(hasta, '', titulo);
 
-      return afectadas.filter((fila) => fila.tags.includes(actual)).length;
+      return afectadas.filter((fila) => fila.tags.includes(desde)).length;
     });
   }
 
@@ -467,8 +561,16 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
      * son iguales. Con una coleccion de mil claves, la mitad de las etiquetas
      * Tenian dos filas y la mitad de los botones no hacian nada.
      *
-     * Solo anade y **renombra**: nunca quita una etiqueta que no use ninguna
+     * Solo anade y **normaliza**: nunca quita una etiqueta que no use ninguna
      * clave, que para eso esta `deleteTag`, que ademas limpia las claves.
+     *
+     * Y lo que no puede hacer, ni de broma, es **volver a renombrar**. Antes
+     * acababa el bucle con un `UPDATE` que ponia el nombre de la clave en
+     * `nombre` sin mirar nada mas, y eso deshacia el renombrado entero en el
+     * siguiente arranque: «dlc» pasaba a «DLC», se guardaba en el titulo y a los
+     * diez segundos la etiqueta volvia a salir «dlc». Aqui la caja que se
+     * encuentra escrito se **conserva en `titulo`** y el nombre se normaliza una
+     * sola vez.
      */
     /*
      * Las claves las pasa quien llama, y no se releen aqui.
@@ -492,12 +594,19 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
     if (vistas.size === 0) return 0;
 
     /**
-     * Que filas del catalogo corresponden a cada nombre, sin mirar la caja.
+     * Que filas del catalogo corresponden a cada clave, sin mirar la caja.
      *
      * Una **lista** y no una fila porque lo que hay que resolver es justo el
-     * caso de que haya varias: «cumplidos» y «Cumplidos» Producedo por una
+     * caso de que haya varias: «cumplidos» y «Cumplidos» producedo por una
      * sincronizacion anterior a la normalizacion. Con una sola, la decision se
      * tomaria sin ver la otra y las dos seguirian ahi.
+     *
+     * Se agrupa con `normalizeTag` y no con `toLowerCase`. La diferencia son
+     * los acentos: una fila antigua puede llamarse «Cumpleaños», y
+     * `toLowerCase()` deja «cumpleaños» mientras que el nombre que trae la
+     * clave es «cumpleanos». No coinciden, la etiqueta se daba por nueva y se
+     * insertaba **otra fila** al lado —la misma palabra dos veces en el
+     * catalogo, y el color y el borrado de una sin tocar la otra—.
      */
     const porNombre = new Map<string, ITagRow[]>();
 
@@ -514,7 +623,7 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
     const filas = catalogoLeido ?? (await this.listTags());
 
     for (const fila of filas) {
-      const clave = fila.nombre.toLowerCase();
+      const clave = normalizeTag(fila.nombre);
       const lista = porNombre.get(clave);
 
       if (lista === undefined) porNombre.set(clave, [fila]);
@@ -524,11 +633,11 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
     let anadidas = 0;
 
     for (const nombre of vistas) {
-      const candidatas = porNombre.get(nombre.toLowerCase()) ?? [];
+      const candidatas = porNombre.get(nombre) ?? [];
 
       if (candidatas.length === 0) {
         anadidas += await this.db.execute(
-          `INSERT OR IGNORE INTO ${TABLE_TAGS} (nombre, color) VALUES ($1, '')`,
+          `INSERT OR IGNORE INTO ${TABLE_TAGS} (nombre, titulo, color) VALUES ($1, '', '')`,
           [nombre],
         );
 
@@ -536,16 +645,16 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
       }
 
       /**
-       * La que se queda es la del nombre **tal cual**, y si no hay, la que tenga
-       * color puesto.
+       * La que se queda es la que ya estaba normalizada, y si no hay, la que
+       * tenga algo escrito —titulo o color— puesto.
        *
-       * Se guarda el color a proposito: es la misma etiqueta con la pinta que
-       * alguien le eligio, y perderla por escribir «Cumplidos» con mayuscula en
-       * una clave seria un castigo por escribir.
+       * Se guarda lo que haya puesto a proposito: es la misma etiqueta con la
+       * pinta y el nombre que alguien le eligio, y perderlos por escribir
+       * «Cumplidos» con mayuscula en una clave seria un castigo por escribir.
        */
       const destino =
         candidatas.find((fila) => fila.nombre === nombre) ??
-        candidatas.find((fila) => fila.color !== '') ??
+        candidatas.find((fila) => fila.titulo !== '' || fila.color !== '') ??
         candidatas[0];
 
       // La lista no esta vacia —se ha comprobado arriba— pero el tipo no lo
@@ -569,12 +678,27 @@ export class SqliteGameKeyRepository implements IGameKeyRepository {
         ]);
       }
 
-      // Y la que se queda se renombra al nombre normalizado, para que a partir
-      // de aqui la clave primaria y `normalizeTag` digan lo mismo.
+      /*
+       * Y la que se queda se normaliza **una sola vez**, de ahi en adelante la
+       * clave primaria y `normalizeTag` dicen lo mismo.
+       *
+       * La caja que se ha quedado escrita no se tira: pasa al `titulo`, que es
+       * donde vive. Perderla seria tirar la ultima edicion de quien habia
+       * renombrado «dlc» a «DLC», y el `UPDATE` que hacia esto antes lo hacia
+       * en cada arranque.
+       */
       if (destino.nombre !== nombre) {
+        /*
+         * La caja que se ha quedado escrita no se tira: pasa al `titulo`, que
+         * es donde vive a partir de ahora. Si la fila ya tenia un titulo —
+         * alguien lo habia renombrado— ese manda: es la ultima edicion y este
+         * `UPDATE` solo esta normalizando una fila antigua.
+         */
+        const titulo = destino.titulo !== '' ? destino.titulo : destino.nombre;
+
         await this.db.execute(
-          `UPDATE ${TABLE_TAGS} SET nombre = $1 WHERE nombre = $2`,
-          [nombre, destino.nombre],
+          `UPDATE ${TABLE_TAGS} SET nombre = $1, titulo = $2 WHERE nombre = $3`,
+          [nombre, titulo, destino.nombre],
         );
       }
     }

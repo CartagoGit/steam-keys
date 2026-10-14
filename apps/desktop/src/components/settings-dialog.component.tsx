@@ -33,6 +33,11 @@ export interface ISettingsDialogProps {
   /** El catalogo de etiquetas, para el resumen de la pestana de claves. */
   catalogo: readonly ITag[];
   /**
+   * Abre el gestor de etiquetas. Vive aqui para poder cerrarlo desde ajustes:
+   * se abre encima del dialogo y hay que volver a el cuando se cierra.
+   */
+  onManageTags: () => void;
+  /**
    * Las acciones sobre el fichero entero.
    *
    * Vivian en la barra de arriba y ahora estan aqui, en la pestana de claves.
@@ -78,6 +83,7 @@ export function SettingsDialog({
   initialTab = 'appearance',
   cuenta,
   catalogo,
+  onManageTags,
   onExport,
   onImport,
   onOpenStorage,
@@ -297,6 +303,7 @@ export function SettingsDialog({
         ) : tab === 'keys' ? (
           <KeysSettings
             catalogo={catalogo}
+            onManageTags={onManageTags}
             onExport={onExport}
             onImport={onImport}
             onOpenStorage={onOpenStorage}

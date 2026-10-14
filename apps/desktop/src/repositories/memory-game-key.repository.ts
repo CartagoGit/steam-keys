@@ -24,11 +24,14 @@ export class MemoryGameKeyRepository implements IGameKeyRepository {
   private catalogo: string[] = [];
   /** Tono por etiqueta. Vive aparte porque el catalogo se guarda como lista. */
   private colores: Record<string, string> = {};
+  /** Como se ve cada etiqueta, por clave. `''` o nada: se ve como la clave. */
+  private titulos: Record<string, string> = {};
 
   constructor() {
     this.keys = loadFromStorage();
     this.catalogo = loadCatalogo();
     this.colores = loadColores();
+    this.titulos = loadTitulos();
     this.syncCatalogo();
   }
 
@@ -227,9 +230,17 @@ export class MemoryGameKeyRepository implements IGameKeyRepository {
    * Ese fallo se arreglo en SQLite y se seguia haciendo en el navegador: lo
    * que se remataba en una base de datos, aqui no, y lo unico que se notaba
    * era que en el navegador unos botones no hacian nada.
+   *
+   * **Suma, no sustituye.** Antes se reescribia la lista entera con lo que
+   * hubiera en las claves, y eso se llevaba por delante las etiquetas que se
+   * hayan creado para usar mas tarde y todavia no lleva ninguna clave —que son
+   * justo las que ha creado el usuario en Ajustes—. SQLite no lo hace, y una
+   * implementacion que pierde lo que la otra guarda no esta implementando el
+   * mismo contrato. El borrado sigue siendo de `deleteTag`, que ademas limpia
+   * las claves.
    */
   private syncCatalogo(): void {
-    const vistas = new Set<string>();
+    const vistas = new Set(this.catalogo);
 
     for (const clave of this.keys) {
       for (const tag of clave.tags) {
@@ -246,22 +257,57 @@ export class MemoryGameKeyRepository implements IGameKeyRepository {
   async listTags(): Promise<readonly ITagRow[]> {
     return this.catalogo.map((nombre) => ({
       nombre,
+      titulo: this.titulos[nombre] ?? '',
       color: this.colores[nombre] ?? '',
     }));
   }
 
-  async createTag(nombre: string, color = ''): Promise<void> {
-    if (this.catalogo.includes(nombre)) return;
+  /**
+   * Anade la etiqueta y dice si ha entrado de verdad.
+   *
+   * No dice `false` por tenerla ya sin mas: quien llama necesita distinguirlo
+   * para poder avisar de que ya existe, que es una accion distinta de crear.
+   * Un titulo ya escrito tampoco se pisa —quien lo escribio decidio como se ve—
+   * pero el color si se acepta, porque es de la creacion.
+   */
+  async createTag(nombre: string, color = '', titulo = ''): Promise<boolean> {
+    /*
+     * La clave se normaliza aqui y no se espera que quien llama lo haga, por lo
+     * mismo que en SQLite: `nombre` es la identidad de la etiqueta y si
+     * entrara «Cumplidos» tendriamos dos entradas para la misma palabra, y el
+     * borrado, el color y el renombrado —que buscan por la clave normalizada—
+     * no tocarian ninguna de las dos.
+     */
+    const clave = cleanTag(nombre);
 
-    this.catalogo = [...this.catalogo, nombre];
-    this.colores = { ...this.colores, [nombre]: color };
+    if (clave.length === 0 || this.catalogo.includes(clave)) return false;
+
+    /*
+     * Sin titulo se deduce del nombre recibido, igual que en SQLite: perder la
+     * caja con la que se ha escrito al entrar no dice ninguna parte de la
+     * operacion.
+     */
+    const escrito = titulo !== '' ? titulo : cleanTag(nombre);
+    const visible = escrito === clave ? '' : escrito;
+
+    this.catalogo = [...this.catalogo, clave];
+    this.colores = { ...this.colores, [clave]: color };
+
+    if (visible !== '') {
+      this.titulos = { ...this.titulos, [clave]: visible };
+    }
 
     persistCatalogo(this.catalogo);
     persistColores(this.colores);
+    persistTitulos(this.titulos);
+
+    return true;
   }
 
   async setTagColor(nombre: string, color: string): Promise<void> {
-    this.colores = { ...this.colores, [nombre]: color };
+    const clave = cleanTag(nombre);
+
+    this.colores = { ...this.colores, [clave]: color };
 
     persistColores(this.colores);
   }
@@ -274,30 +320,39 @@ export class MemoryGameKeyRepository implements IGameKeyRepository {
    * dirian cosas distintas y el boton de borrar pareceria no hacer nada.
    */
   async deleteTag(nombre: string): Promise<number> {
+    const clave = cleanTag(nombre);
+
     let afectadas = 0;
 
-    this.keys = this.keys.map((clave) => {
-      if (!clave.tags.includes(nombre)) return clave;
+    this.keys = this.keys.map((claveActual) => {
+      if (!claveActual.tags.includes(clave)) return claveActual;
 
       afectadas += 1;
 
-      return { ...clave, tags: clave.tags.filter((tag) => tag !== nombre) };
+      return {
+        ...claveActual,
+        tags: claveActual.tags.filter((tag) => tag !== clave),
+      };
     });
 
-    this.catalogo = this.catalogo.filter((tag) => tag !== nombre);
+    this.catalogo = this.catalogo.filter((tag) => tag !== clave);
 
     /*
-     * El tono se va con la etiqueta. Si se dejaba, el nombre borrado followed
-     * guardando su color para siempre y, si alguien volviera a crear una
-     * etiqueta igual, se encontraria con un color que nadie eligio.
-     */
-    const { [nombre]: _fuera, ...resto } = this.colores;
+ * El tono se va con la etiqueta. Si se dejaba, el nombre borrado se quedaria
+ * guardando su color para siempre y, si alguien volviera a crear una
+ * etiqueta igual, se encontraria con un color y un nombre que nadie eligio
+ * para ella.
+ */
+    const { [clave]: _fuera, ...resto } = this.colores;
+    const { [clave]: _fueraTitulo, ...restoTitulos } = this.titulos;
 
     this.colores = resto;
+    this.titulos = restoTitulos;
 
     persist(this.keys);
     persistCatalogo(this.catalogo);
     persistColores(this.colores);
+    persistTitulos(this.titulos);
 
     return afectadas;
   }
@@ -319,22 +374,45 @@ export class MemoryGameKeyRepository implements IGameKeyRepository {
   }
 
   /**
-   * Renombra la etiqueta en el catalogo y en todas las claves que la llevan.
+   * Renombra la etiqueta en el catalogo y, si la clave cambia, en las claves.
    *
-   * Una etiqueta es una entidad por si misma: si el catalogo dice una cosa y
-   * las claves otra, hay dos etiquetas con el mismo significado y el filtro
-   * deja de encontrar ninguna. Por eso el renombrado propaga.
+   * Son dos cosas y solo una necesita tocar las claves. La **clave** es la
+   * identidad —tiene que ser una sola para que «dlc» y «DLC» no sean dos
+   * etiquetas— y por eso propagar es lo que hace que el filtro siga
+   * encontrándola. El **titulo** es lo que se ve y no vive en las claves:
+   * renombrar «dlc» a «DLC» lo unico que cambia es como se enseña.
    *
    * Si el destino ya existe, se fusiona en lugar de duplicar: las claves que
    * lo llevaban se quedan con una sola vez el nombre nuevo.
    */
-  async renameTag(actual: string, nuevo: string): Promise<number> {
-    if (actual === nuevo) return 0;
+  async renameTag(
+    actual: string,
+    claveNueva: string,
+    tituloNuevo: string,
+  ): Promise<number> {
+    const desde = cleanTag(actual);
+    const hasta = cleanTag(claveNueva);
+    const titulo = tituloNuevo === hasta ? '' : tituloNuevo;
+
+    /*
+     * Misma clave, otra caja: no hay claves que reescribir. Es el caso de
+     * renombrar «dlc» a «DLC», que antes de existir `titulo` no se podia ni
+     * dejar escrito.
+     */
+    if (desde === hasta) {
+      const { [desde]: _fuera, ...resto } = this.titulos;
+
+      this.titulos = titulo === '' ? resto : { ...resto, [desde]: titulo };
+
+      persistTitulos(this.titulos);
+
+      return 0;
+    }
 
     let afectadas = 0;
 
     this.keys = this.keys.map((clave) => {
-      const tieneActual = clave.tags.includes(actual);
+      const tieneActual = clave.tags.includes(desde);
 
       if (!tieneActual) return clave;
 
@@ -342,14 +420,14 @@ export class MemoryGameKeyRepository implements IGameKeyRepository {
 
       // Se filtra el nombre nuevo antes de anadirlo: una clave que ya llevaba
       // los dos nombres no puede acabar con el nuevo dos veces.
-      const quedan = clave.tags.filter((tag) => tag !== actual && tag !== nuevo);
+      const quedan = clave.tags.filter((tag) => tag !== desde && tag !== hasta);
 
-      return { ...clave, tags: [...quedan, nuevo] };
+      return { ...clave, tags: [...quedan, hasta] };
     });
 
     this.catalogo = [
-      ...this.catalogo.filter((tag) => tag !== actual && tag !== nuevo),
-      nuevo,
+      ...this.catalogo.filter((tag) => tag !== desde && tag !== hasta),
+      hasta,
     ];
 
     /*
@@ -358,13 +436,22 @@ export class MemoryGameKeyRepository implements IGameKeyRepository {
      * el color de la etiqueta que se renombra: es la que se sigue usando, la
      * otra desaparece.
      */
-    const { [actual]: colorActual, [nuevo]: _colorNuevo, ...resto } = this.colores;
+    const { [desde]: colorActual, [hasta]: _colorNuevo, ...resto } =
+      this.colores;
 
-    this.colores = colorActual === undefined ? resto : { ...resto, [nuevo]: colorActual };
+    this.colores =
+      colorActual === undefined ? resto : { ...resto, [hasta]: colorActual };
+
+    const { [desde]: _tituloActual, [hasta]: _tituloNuevo, ...restoTitulos } =
+      this.titulos;
+
+    this.titulos =
+      titulo === '' ? restoTitulos : { ...restoTitulos, [hasta]: titulo };
 
     persist(this.keys);
     persistCatalogo(this.catalogo);
     persistColores(this.colores);
+    persistTitulos(this.titulos);
 
     return afectadas;
   }
@@ -486,6 +573,37 @@ function persistColores(colores: Readonly<Record<string, string>>): void {
 
   try {
     localStorage.setItem(STORAGE_KEY_COLORES, JSON.stringify(colores));
+  } catch {
+    // Cuota superada o modo privado: la app sigue funcionando en memoria.
+  }
+}
+
+/**
+ * Los titulos van en **otra clave**, igual que los tonos y por el mismo motivo.
+ *
+ * Solo se guardan los que **se diferencian** de la clave —«DLC» para «dlc»— y
+ * vacio significa «enseñame la clave». Asi el valor mas comun de la coleccion,
+ * que es la etiqueta que nadie ha renombrado nunca, no ocupa sitio en el disco.
+ */
+const STORAGE_KEY_TITULOS = `${STORAGE_KEY_PREFIX}:memory-tag-titles`;
+
+function loadTitulos(): Record<string, string> {
+  if (typeof localStorage === 'undefined') return {};
+
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_TITULOS);
+
+    return raw ? (JSON.parse(raw) as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function persistTitulos(titulos: Readonly<Record<string, string>>): void {
+  if (typeof localStorage === 'undefined') return;
+
+  try {
+    localStorage.setItem(STORAGE_KEY_TITULOS, JSON.stringify(titulos));
   } catch {
     // Cuota superada o modo privado: la app sigue funcionando en memoria.
   }

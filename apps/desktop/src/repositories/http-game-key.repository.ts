@@ -111,8 +111,8 @@ export class HttpGameKeyRepository implements IGameKeyRepository {
     return pedir('tags/list');
   }
 
-  async createTag(nombre: string, color?: string): Promise<void> {
-    await pedir('tags/create', { nombre, color });
+  async createTag(nombre: string, color?: string, titulo?: string): Promise<boolean> {
+    return pedir('tags/create', { nombre, color, titulo });
   }
 
   async setTagColor(nombre: string, color: string): Promise<void> {
@@ -123,8 +123,12 @@ export class HttpGameKeyRepository implements IGameKeyRepository {
     return pedir('tags/delete', { nombre });
   }
 
-  async renameTag(actual: string, nuevo: string): Promise<number> {
-    return pedir('tags/rename', { actual, nuevo });
+  async renameTag(
+    actual: string,
+    claveNueva: string,
+    tituloNuevo: string,
+  ): Promise<number> {
+    return pedir('tags/rename', { actual, claveNueva, tituloNuevo });
   }
 
   /**

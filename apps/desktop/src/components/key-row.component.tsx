@@ -1,10 +1,9 @@
 import { useState } from 'react';
-import { KEY_PLATFORM_META, TRANSLATIONS, platformLabel, statusMeta, type IGameKey } from '@/contracts';
+import { KEY_PLATFORM_META, TRANSLATIONS, normalizeTag, platformLabel, statusMeta, type IGameKey, type ITag } from '@/contracts';
 import { formatShortDate } from '@/helpers/format-date.helper';
 import { maskKey } from '@/helpers/mask-key.helper';
 import { copyToClipboard } from '@/helpers/clipboard.helper';
 import { isGiftable } from '@/helpers/selection.helper';
-import { normalizeTag } from '@/contracts';
 import { Badge } from './ui.component';
 import { Icon } from './icon.component';
 import { TagChip } from './tag-chip.component';
@@ -25,20 +24,23 @@ export interface IKeyRowProps {
   /** Etiquetas del juego, para mostrarlas resumidas. */
   tags?: readonly string[];
   /**
-   * El color **elegido** de cada etiqueta, por su clave normalizada.
+   * El catalogo, indexado por su **clave** normalizada.
    *
-   * La clave y no el nombre porque las claves guardan el texto tal cual —«
-   * Cumplidos»— y el catalogo lo tiene normalizado; con el nombre tal cual, el
-   * mapa se llenaba de entradas que no llegaban a usarse y el color no salia.
+   * La clave y no el nombre porque las claves de cada fila guardan la clave —«
+   * cumplidos»— y el catalogo la tiene en `clave`: con el nombre tal cual, el
+   * mapa se llenaba de entradas que no llegaban a usarse y ni el color ni el
+   * nombre salian.
    *
-   * Solo van los que hay elegido color: los demas salen como texto, que es lo
-   * que se ha visto siempre. No hace falta meterlos con `''` para que cada
-   * sitio decida: `TagChip` ya sabe lo que hacer sin color.
+   * Va el **catalogo entero** y no solo los colores. Es el unico sitio que
+   * sabe como se llama cada etiqueta —«dlc» seenseña «DLC» si alguien lo
+   * renombro así— y las filas lo necesitan para las dos cosas: el color y el
+   * nombre. Con dos mapas en paralelo, el nombre y el color de una etiqueta
+   * podrian venir de sitios distintos y acabar emparejados.
    *
-   * Va como mapa y no como el catalogo entero porque es lo que se lee: la fila
-   * solo necesita el color de las etiquetas que lleva su clave.
+   * No hace falta filtrar los que no tienen color: `TagChip` ya sabe lo que
+   * hacer sin color.
    */
-  colores?: ReadonlyMap<string, string>;
+  etiquetas?: ReadonlyMap<string, ITag>;
 }
 
 /**
@@ -61,7 +63,7 @@ export function KeyRow({
   siblings = 1,
   ownedOnSteam = false,
   tags = [],
-  colores = new Map(),
+  etiquetas = new Map(),
 }: IKeyRowProps) {
   const { t, locale } = useT();
 
@@ -210,12 +212,23 @@ export function KeyRow({
               <span className="inline-flex min-w-0 items-center gap-1.5">
                 <Icon name="tag" size={11} className="shrink-0" />
 
-                {tags.slice(0, 3).map((nombre) => (
-                  <TagChip
-                    key={nombre}
-                    tag={{ nombre, color: colores.get(normalizeTag(nombre)) ?? '' }}
-                  />
-                ))}
+                {tags.slice(0, 3).map((clave) => {
+                  /*
+                   * Lo que se ensena es el **titulo** del catalogo, y lo que
+                   * se busca es la clave. Si se enseñara la clave de la fila,
+                   * renombrar «dlc» a «DLC» no se notaria en ningun sitio: el
+                   * renombrado se guardaria y, al siguiente arranque, las
+                   * cuatrocientas claves volverian a decir «dlc».
+                   */
+                  const etiqueta = etiquetas.get(normalizeTag(clave));
+
+                  return (
+                    <TagChip
+                      key={clave}
+                      tag={{ nombre: etiqueta?.nombre ?? clave, color: etiqueta?.color ?? '' }}
+                    />
+                  );
+                })}
 
                 {tags.length > 3 ? (
                   <span className="shrink-0 text-[11px] text-t4">

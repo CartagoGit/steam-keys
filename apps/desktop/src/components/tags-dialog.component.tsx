@@ -139,8 +139,11 @@ export function TagsDialog({
 
       // Las de plataforma que ya estan en el catalogo toman su recuento de
       // ahi, para que «dlc» salga con el mismo numero de usos vaya donde vaya.
+      // La busqueda es por `clave`, no normalizando `nombre`: el nombre es lo
+      // que se enseña —«DLC» si alguien lo renombro así— y normalizarlo otra vez
+      // seria deshacer justo lo que el titulo guarda.
       salida.push(
-        catalogo.find((tag) => normalizeTag(tag.nombre) === clave) ?? {
+        catalogo.find((tag) => tag.clave === clave) ?? {
           // Una etiqueta de plataforma que todavia no esta en el catalogo.
           // Sale con su clave normalizada y **sin color**, que es lo que
           // significa no tener color: sale como texto, no como una pastilla con
@@ -154,11 +157,9 @@ export function TagsDialog({
     }
 
     for (const tag of catalogo) {
-      const clave = normalizeTag(tag.nombre);
+      if (tag.clave.length === 0 || vistas.has(tag.clave)) continue;
 
-      if (clave.length === 0 || vistas.has(clave)) continue;
-
-      vistas.add(clave);
+      vistas.add(tag.clave);
       salida.push(tag);
     }
 

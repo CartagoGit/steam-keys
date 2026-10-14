@@ -7,6 +7,14 @@ import { Button, Field } from './ui.component';
 export interface IKeysSettingsProps {
   /** El catalogo de etiquetas, con su recuento de usos. */
   catalogo: readonly ITag[];
+  /**
+   * Abre el gestor de etiquetas.
+   *
+   * El catalogo se enseña resumido aqui y se edita ahi. Renombrar o borrar una
+   * etiqueta se lleva por delante las claves que la llevan, y eso necesita ver
+   * cuantas son, no un boton suelto debajo de una lista de seis nombres.
+   */
+  onManageTags: () => void;
   /** Exporta la coleccion al TXT de siempre. */
   onExport: () => void;
   /** Abre el selector de ficheros para importar un TXT. */
@@ -24,13 +32,15 @@ export interface IKeysSettingsProps {
  * Steam. Las claves son lo que queda: como se llaman sus etiquetas, que
  * significa cada una, y que se puede hacer con el fichero entero.
  *
- * El catalogo se enseña resumido y se edita en el gestor. Caben todas las
- * etiquetas en una pestana de ajustes —una coleccion tiene seis, y una persona
- * llega a treinta— pero una lista de treinta filas con tres botones cada una
- * hace que el resto de los ajustes se salga de la vista.
+ * El catalogo se enseña resumido y se edita en el gestor, que se abre con un
+ * boton debajo. Caben todas las etiquetas en una pestana de ajustes —una
+ * coleccion tiene seis, y una persona llega a treinta— pero una lista de treinta
+ * filas con tres botones cada una hace que el resto de los ajustes se salga de
+ * la vista.
  */
 export function KeysSettings({
   catalogo,
+  onManageTags,
   onExport,
   onImport,
   onOpenStorage,
@@ -69,19 +79,8 @@ export function KeysSettings({
           {/*
             Las mas usadas salen como Pastillas y no como una lista: son las
             que alguien querria marcar ahora mismo, y verlas de un vistazo es
-            el resumen util. El resto no cabe, y no tiene por que caber.
-
-            Esto es un **resumen**, no el sitio para managearlas. Renombrar o
-            borrar una etiqueta se lleva por delante las claves que la llevan,
-            y eso necesita ver cuantas son —que es lo que hace el gestor—, no
-            un boton suelto debajo de una lista de seis nombres.
-
-            Tampoco hay un boton que abra el gestor desde aqui. Antes lo habia, y
-            salia **debajo** de estas pastillas: un boton de texto con la misma
-            anchura visual que ellas pero con otro aspecto, que se leia como
-            una etiqueta mas y no como una accion. Quien llegue por el editor de
-            una clave tiene el engranaje al lado de «Anadir etiqueta», que es
-            donde se managean de verdad.
+            el resumen util. El resto no cabe, y no tiene por que caber: para
+            eso esta el gestor.
           */}
           {enUso > 0 ? (
             <div className="flex flex-wrap gap-1.5">
@@ -107,6 +106,21 @@ export function KeysSettings({
           ) : null}
         </div>
       </Field>
+
+      {/*
+        El gestor va **fuera** del campo, y no dentro, y no es una mania de
+        colocacion. `Field` es un `<label>`, asi que su primer control
+        labelable es **el** control de todo el campo: con el boton dentro,
+        pulsar en cualquier sitio —en el recuento, en una pastilla, en la nota—
+        pulsaba «Gestionar etiquetas». Ademas el boton se anunciaba con todo el
+        texto del campo delante, porque para el lector de pantalla era la
+        etiqueta del boton entero.
+      */}
+      <div className="flex justify-end">
+        <Button icon="tag" variant="subtle" onClick={onManageTags}>
+          {t('settings.keys.tags.manage')}
+        </Button>
+      </div>
 
       {/*
         El fichero entero: exportar, importar y donde vive.

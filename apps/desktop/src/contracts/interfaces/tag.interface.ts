@@ -62,7 +62,18 @@ export interface ITag {
 
 /** Fila cruda de la tabla de etiquetas, tal cual la devuelve SQLite. */
 export interface ITagRow {
+  /** La clave normalizada: sin mayusculas ni acentos. Busca con esta. */
   nombre: string;
+  /**
+   * Como se ve la etiqueta, o `''` si se ve como `nombre`.
+   *
+   * Solo se llena cuando el titulo y la clave **no** coinciden, que es cuando
+   * alguien ha escrito «DLC» para una etiqueta cuya clave es «dlc». En el caso
+   * normal —la etiqueta que nunca se ha renombrado— va vacio y se enseña
+   * `nombre`: dos copias del mismo texto que alguien tendria que mantener
+   * sincronizadas no aportan nada.
+   */
+  titulo: string;
   /** Lo que hay en la columna, sin comprobar: puede no ser un tono. */
   color: string;
 }

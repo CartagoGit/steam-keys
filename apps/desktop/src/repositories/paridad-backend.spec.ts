@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { KeyPlatform, KeyStatus, type IDatabaseClient, type IGameKeyDraft } from '@/contracts';
+import { KeyPlatform, KeyStatus, type IDatabaseClient, type IGameKeyDraft, type IGameKeyRepository } from '@/contracts';
 import { MemoryGameKeyRepository } from '@/repositories/memory-game-key.repository';
 import { SqliteGameKeyRepository } from '@/repositories/sqlite-game-key.repository';
 import { crearEsquema } from '@/repositories/crear-esquema.repository';
@@ -145,5 +145,58 @@ describe('memoria y SQLite cuentan lo mismo', () => {
      */
     expect(enMemoria).toEqual(enSqlite);
     expect(enMemoria.filter((nombre) => nombre === 'cumplidos')).toHaveLength(1);
+  });
+
+  test('las dos guardan el titulo y rechazan la etiqueta repetida', async () => {
+    const montados = await montarLosDos();
+
+    limpiar = montados.limpiar;
+
+    const titulo = async (
+      repo: IGameKeyRepository,
+      nombre: string,
+    ): Promise<string | undefined> =>
+      (await repo.listTags()).find((f) => f.nombre === nombre)?.titulo;
+
+    for (const repo of [montados.memoria, montados.sqlite]) {
+      await repo.createTag('dlc', '', 'DLC');
+    }
+
+    expect(await titulo(montados.memoria, 'dlc')).toBe('DLC');
+    expect(await titulo(montados.sqlite, 'dlc')).toBe('DLC');
+
+    /*
+     * El rechazo es lo que convierte el titulo en algo trustworthy: si crear
+     * dos veces la misma etiqueta devolviera «hecho» en los dos casos, el
+     * aviso de «ya existe» —que es lo que impide tener «dlc» y «DLC» en el
+     * catalogo— dependeria de que un(repository) se acuerde. Y el `false` es
+     * la unica forma de saberlo sin una consulta previa que deja hueco para
+     * que otra peticion cree la misma entre medias.
+     */
+    expect(await montados.memoria.createTag('dlc', '', 'dlc')).toBe(false);
+    expect(await montados.sqlite.createTag('dlc', '', 'dlc')).toBe(false);
+
+    // Y el titulo del que ya estaba sigue intacto.
+    expect(await titulo(montados.memoria, 'dlc')).toBe('DLC');
+    expect(await titulo(montados.sqlite, 'dlc')).toBe('DLC');
+  });
+
+  test('renombrar solo la caja no toca las claves en ninguna de las dos', async () => {
+    const montados = await montarLosDos();
+
+    limpiar = montados.limpiar;
+
+    for (const repo of [montados.memoria, montados.sqlite]) {
+      await repo.createTag('dlc');
+      await repo.renameTag('dlc', 'dlc', 'DLC');
+    }
+
+    const titulos = await Promise.all(
+      [montados.memoria, montados.sqlite].map(async (repo) =>
+        (await repo.listTags()).find((f) => f.nombre === 'dlc')?.titulo,
+      ),
+    );
+
+    expect(titulos).toEqual(['DLC', 'DLC']);
   });
 });

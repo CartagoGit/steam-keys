@@ -24,7 +24,7 @@ import { TagManager } from './components/tag-manager.component';
 import { TagsDialog } from './components/tags-dialog.component';
 import { Toolbar } from './components/toolbar.component';
 
-import { AppView, DEFAULT_VIEW, KEY_STATUS_VALUES, KeyPlatform, KeySort, KeyStatus, PAGE_SIZE, mergeTags, type AppLocale, type IAppSettings, type IGameKey, type IGameKeyDraft, type IKeyFilter, type ISteamOwnedGame, type SteamAccountStatus, type TranslationArgs, type Translator } from '@/contracts';
+import { AppView, DEFAULT_VIEW, KEY_STATUS_VALUES, KeyPlatform, KeySort, KeyStatus, PAGE_SIZE, mergeTags, type AppLocale, type IAppSettings, type IGameKey, type IGameKeyDraft, type IKeyFilter, type ISteamOwnedGame, type ITag, type SteamAccountStatus, type TranslationArgs, type Translator } from '@/contracts';
 import { computeStats,
   emptyFilter, filterKeys, sortKeys } from '@/helpers/filter-keys.helper';
 import { summarizeKeys } from '@/helpers/keys-summary.helper';
@@ -783,26 +783,25 @@ export function App() {
   );
 
   /**
-   * El color elegido de cada etiqueta, para las filas.
+   * El catalogo de etiquetas indexado por su clave, para las filas.
    *
    * Se construye aqui y no dentro de `KeyRow` porque se lee una vez por fila y
    * por etiqueta: recorrer el catalogo dentro de cada fila seria recorrerlo
    * quince veces por cada repintado de la lista. Y es un `Map` porque lo que se
    * hace es una busqueda por etiqueta, que es lo que se busca.
    *
-   * Va **por la clave normalizada** y no por el nombre visible: las claves
-   * guardan el texto tal cual —«Cumplidos»— y el catalogo lo tiene normalizado,
-   * asi que con el nombre las dos mitades no se encuentra nada.
+   * Va **por la clave normalizada** y no por el nombre visible: las claves de
+   * cada fila guardan la clave —«cumplidos»— y el catalogo la tiene en `clave`,
+   * asi que con el nombre las dos mitades no se encuentran.
    *
-   * Y solo van las que tienen color. Las demas salen como texto, sin mas.
+   * Va la **etiqueta entera** y no solo su color, porque las filas necesitan
+   * las dos cosas. El color es como se ve; el nombre es **como se llama**, y
+   * no tiene por que ser la clave: renombrar «dlc» a «DLC» se guarda en el
+   * titulo del catalogo, y si la fila enseño la clave de cada clave el
+   * renombrado no se veria en ningun sitio y se perderia al siguiente arranque.
    */
-  const coloresEtiquetas = useMemo(
-    () =>
-      new Map(
-        tags
-          .filter((tag) => tag.color !== '')
-          .map((tag) => [tag.clave, tag.color] as [string, string]),
-      ),
+  const catalogoEtiquetas = useMemo(
+    () => new Map(tags.map((tag) => [tag.clave, tag] as [string, ITag])),
     [tags],
   );
 
@@ -1853,7 +1852,7 @@ export function App() {
                   siblings={groups.get(claveGrupo(entry.title))?.total ?? 1}
                   ownedOnSteam={cuenta.conectado && esPropio(entry.title)}
                   tags={entry.tags}
-                  colores={coloresEtiquetas}
+                  etiquetas={catalogoEtiquetas}
                 />
               ))}
             </div>
@@ -1904,6 +1903,7 @@ export function App() {
           settings={settings}
           cuenta={cuenta}
           catalogo={tags}
+          onManageTags={openGestor}
           onExport={handleExport}
           onImport={handleImport}
           onOpenStorage={openStorage}

@@ -3,6 +3,7 @@ import { describe, expect, test } from 'bun:test';
 import * as contratos from './index';
 import * as constantes from './constants/index';
 import * as enums from './enums/index';
+import * as errores from './errors/index';
 import * as interfaces from './interfaces/index';
 
 /**
@@ -10,7 +11,8 @@ import * as interfaces from './interfaces/index';
  *
  * Tres cosas que se rompen solas si nadie mira, y que aqui se comprueban:
  *
- * 1. Que el barril `@/contracts` exporta **lo mismo** que sus tres sub-barriles.
+ * 1. Que el barril `@/contracts` exporta **lo mismo** que sus cuatro
+ *    sub-barriles.
  *    Cuando le faltaba algo, lo unico que quedaba era importar por ruta
  *    profunda, y la regla de "los contratos se importan desde el barril" paso a
  *    ser una frase que el codigo incumplia en silencio.
@@ -22,7 +24,7 @@ import * as interfaces from './interfaces/index';
  */
 
 const SIN_CONTRACTS = /@\/contracts[^']*'/;
-const RUTA_PROFUNDA = /@\/contracts\/(constants|enums|interfaces)\//;
+const RUTA_PROFUNDA = /@\/contracts\/(constants|enums|errors|interfaces)\//;
 
 /** Importar del barril, y solo del barril: `'@/contracts'`. */
 const BARRIL_LIMPIO = /from '@\/contracts';/;
@@ -64,10 +66,11 @@ const FUENTES: readonly string[] = [...new Bun.Glob('**/*.ts').scanSync({ cwd: S
   .sort();
 
 describe('el barril de contratos', () => {
-  test('exporta todo lo que exportan sus tres sub-barriles', () => {
+  test('exporta todo lo que exportan sus cuatro sub-barriles', () => {
     const juntos = [
       ...Object.keys(constantes),
       ...Object.keys(enums),
+      ...Object.keys(errores),
       ...Object.keys(interfaces),
     ].sort();
 
@@ -82,6 +85,7 @@ describe('el barril de contratos', () => {
     const Together = new Set([
       ...Object.keys(constantes),
       ...Object.keys(enums),
+      ...Object.keys(errores),
       ...Object.keys(interfaces),
     ]);
 

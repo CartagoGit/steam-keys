@@ -114,6 +114,7 @@ export const DE: TranslationTable = Object.freeze({
   'tags.removeLabel': 'Markierung {0} entfernen',
   'tags.removedOne': 'Von {0} Schluessel entfernt.',
   'tags.removedMany': 'Von {0} Schluesseln entfernt.',
+  'tags.duplicate': 'Es gibt schon ein Schlagwort «{0}». Markiere es, statt es neu anzulegen.',
   'tags.title': 'Schlagworte',
   'tags.new': 'Neues Schlagwort',
   'tags.addHint': 'Schlagwort zur Auswahl hinzufuegen',
@@ -438,6 +439,7 @@ export const DE: TranslationTable = Object.freeze({
     'Die Sammlung in die gewohnte TXT exportieren, eine importieren, oder sehen, wo die Datei liegt und wie gross sie ist.',
   'settings.keys.tags.hint':
     'Wie die Markierungen der Sammlung benannt sind. Umbenennen aendert den Namen in allen Schluesseln, die sie verwenden.',
+  'settings.keys.tags.manage': 'Markierungen verwalten',
   'settings.keys.tags.total': 'im Katalog',
   'settings.keys.tags.inUseOne': '{0} in Benutzung',
   'settings.keys.tags.inUseMany': '{0} in Benutzung',

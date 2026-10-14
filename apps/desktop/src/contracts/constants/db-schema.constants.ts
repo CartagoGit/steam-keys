@@ -60,9 +60,22 @@ export const SCHEMA_STATEMENTS: readonly string[] = [
    *
    * `nombre` es la clave primaria ya normalizada, asi que «humble» y «Humble »
    * son la misma fila y no pueden coexistir.
+   *
+   * `titulo` guarda **como se ve** la etiqueta, y va aparte porque las dos
+   * cosas se contradicen: la clave tiene que ser una sola para que «humble» y
+   * «Humble» no sean dos etiquetas, pero el titulo es lo que se enseña, y si
+   * tambien se normalizara, renombrar «dlc» a «DLC» no tendria ningun efecto
+   * visible —la clave seguiria siendo «dlc» y no habria sitio donde guardar la
+   * caja que se ha escrito—.
+   *
+   * Vacio significa «enseñame `nombre`». Se deja vacio en lugar de copiarlo
+   * para que la etiqueta mas comun de la coleccion —la que nadie ha renombrado
+   * nunca— no guarde dos copias del mismo texto que hay que mantener
+   * sincronizadas.
    */
   `CREATE TABLE IF NOT EXISTS tags (
      nombre TEXT PRIMARY KEY,
+     titulo TEXT NOT NULL DEFAULT '',
      color  TEXT NOT NULL DEFAULT ''
    );`,
 
@@ -161,7 +174,7 @@ export const TABLE_TAGS = 'tags';
 export const CLAVE_VERSION_ESQUEMA = 'schemaVersion';
 
 /** Version del esquema tal y como esta este codigo. */
-export const VERSION_ESQUEMA = 2;
+export const VERSION_ESQUEMA = 3;
 
 export const COLUMNAS_ANADIDAS: readonly IColumnaAnadida[] = Object.freeze([
   Object.freeze({
@@ -169,6 +182,12 @@ export const COLUMNAS_ANADIDAS: readonly IColumnaAnadida[] = Object.freeze([
     columna: 'color',
     leer: `PRAGMA table_info(${TABLE_TAGS})`,
     agregar: `ALTER TABLE ${TABLE_TAGS} ADD COLUMN color TEXT NOT NULL DEFAULT ''`,
+  }),
+  Object.freeze({
+    tabla: TABLE_TAGS,
+    columna: 'titulo',
+    leer: `PRAGMA table_info(${TABLE_TAGS})`,
+    agregar: `ALTER TABLE ${TABLE_TAGS} ADD COLUMN titulo TEXT NOT NULL DEFAULT ''`,
   }),
 ]);
 

@@ -335,7 +335,7 @@ describe('el catalogo de etiquetas vive en la base de datos', () => {
       // guarda con la cadena vacia, no con `null`, y el tipo lo dice —si
       // faltara, el sitio que la lee tendria que inventarse el valor.
       expect(await repo.listTags()).toEqual([
-        { nombre: 'promo invierno', color: '' },
+        { nombre: 'promo invierno', titulo: '', color: '' },
       ]);
     } finally {
       limpiar();
@@ -349,7 +349,7 @@ describe('el catalogo de etiquetas vive en la base de datos', () => {
       await repo.createTag('dlc');
       await repo.createTag('dlc');
 
-      expect(await repo.listTags()).toEqual([{ nombre: 'dlc', color: '' }]);
+      expect(await repo.listTags()).toEqual([{ nombre: 'dlc', titulo: '', color: '' }]);
     } finally {
       limpiar();
     }
@@ -408,6 +408,124 @@ describe('el catalogo de etiquetas vive en la base de datos', () => {
   });
 });
 
+describe('el titulo guarda la ultima edicion', () => {
+  test('crear guarda la caja con la que se ha escrito', async () => {
+    const { repo, limpiar } = crearRepositorio();
+
+    try {
+      // La clave es por donde se busca y va en minusculas; el titulo es lo que
+      // se ha escrito y es lo que se enseña. Sin el titulo, crear «DLC» y
+      // buscar «dlc» serian la misma etiqueta y solo se guardaria una forma.
+      expect(await repo.createTag('dlc', '', 'DLC')).toBe(true);
+      expect(await repo.listTags()).toEqual([
+        { nombre: 'dlc', titulo: 'DLC', color: '' },
+      ]);
+    } finally {
+      limpiar();
+    }
+  });
+
+  test('sin titulo se deduce del nombre, y no se pierde la caja', async () => {
+    const { repo, limpiar } = crearRepositorio();
+
+    try {
+      await repo.createTag('DLC');
+
+      expect(await repo.listTags()).toEqual([
+        { nombre: 'dlc', titulo: 'DLC', color: '' },
+      ]);
+    } finally {
+      limpiar();
+    }
+  });
+
+  test('renombrar «dlc» a «DLC» cambia lo que se ve y no toca las claves', async () => {
+    const { repo, leer, limpiar } = crearRepositorio();
+
+    try {
+      await repo.insert({ ...fila('AAAA-1111-AAAA'), tags: ['dlc'] });
+      await repo.syncTagsFromKeys(await repo.listAll());
+
+      // Cero claves afectadas: la clave sigue siendo «dlc» y las claves siguen
+      // guardando «dlc». Lo unico que cambia es el titulo, que es donde vive la
+      // caja. Antes esto no se podia ni expresar: el servicio comparaba las dos
+      // mitades ya normalizadas y devolvia «no hay nada que renombrar».
+      expect(await repo.renameTag('dlc', 'dlc', 'DLC')).toBe(0);
+
+      expect(leer('SELECT tags FROM game_keys')).toEqual([{ tags: 'dlc' }]);
+      expect(leer('SELECT nombre, titulo FROM tags')).toEqual([
+        { nombre: 'dlc', titulo: 'DLC' },
+      ]);
+    } finally {
+      limpiar();
+    }
+  });
+
+  test('el titulo sobrevive a la sincronizacion', async () => {
+    const { repo, leer, limpiar } = crearRepositorio();
+
+    try {
+      await repo.insert({ ...fila('AAAA-1111-AAAA'), tags: ['dlc'] });
+      await repo.syncTagsFromKeys(await repo.listAll());
+      await repo.renameTag('dlc', 'dlc', 'DLC');
+
+      /*
+       * Este es el fallo que hace worthless el titulo si no se mira: la
+       * sincronizacion se ejecuta en cada carga de la app y antes terminaba con
+       * un `UPDATE` que ponia el nombre de la clave encima de todo. «DLC» se
+       * guardaba y, al siguiente arranque, volvia a salir «dlc».
+       */
+      await repo.syncTagsFromKeys(await repo.listAll());
+      await repo.syncTagsFromKeys(await repo.listAll());
+
+      expect(leer('SELECT nombre, titulo FROM tags')).toEqual([
+        { nombre: 'dlc', titulo: 'DLC' },
+      ]);
+    } finally {
+      limpiar();
+    }
+  });
+
+  test('crear una que ya existe no la duplica ni pisa su titulo', async () => {
+    const { repo, limpiar } = crearRepositorio();
+
+    try {
+      await repo.createTag('dlc', '', 'DLC');
+
+      // La misma palabra escrita de otra manera es la misma etiqueta. Y su
+      // nombre no se toca: «DLC» ya estaba puesto por alguien y repetirlo no es
+      // motivo para quitarselo.
+      expect(await repo.createTag('dlc', '', 'dlc')).toBe(false);
+      expect(await repo.createTag('dlc')).toBe(false);
+
+      expect(await repo.listTags()).toEqual([
+        { nombre: 'dlc', titulo: 'DLC', color: '' },
+      ]);
+    } finally {
+      limpiar();
+    }
+  });
+
+  test('renombrar a un nombre que ya existe deja el titulo del nuevo', async () => {
+    const { repo, leer, limpiar } = crearRepositorio();
+
+    try {
+      await repo.createTag('dlc', '', 'DLC');
+      await repo.createTag('extra', '', 'Extra');
+
+      // La fusion se queda con el titulo de lo que se ha escrito ahora: es la
+      // ultima edicion. Si se conservara el de «extra», «dlc» se llevaria por
+      // delante el nombre de la otra.
+      expect(await repo.renameTag('dlc', 'extra', 'Promo')).toBe(0);
+      expect(leer('SELECT nombre, titulo FROM tags')).toEqual([
+        { nombre: 'extra', titulo: 'Promo' },
+      ]);
+    } finally {
+      limpiar();
+    }
+  });
+});
+
 describe('renombrar una etiqueta propaga a toda la coleccion', () => {
   test('el nombre nuevo se escribe en las claves que la llevaban', async () => {
     const { repo, leer, limpiar } = crearRepositorio();
@@ -418,7 +536,7 @@ describe('renombrar una etiqueta propaga a toda la coleccion', () => {
 
       await repo.syncTagsFromKeys(await repo.listAll());
 
-      expect(await repo.renameTag('humble', 'humble bundle')).toBe(2);
+      expect(await repo.renameTag('humble', 'humble bundle', 'humble bundle')).toBe(2);
 
       const claves = leer('SELECT tags FROM game_keys ORDER BY key_value') as {
         tags: string;
@@ -447,7 +565,7 @@ describe('renombrar una etiqueta propaga a toda la coleccion', () => {
       await repo.insert({ ...fila('AAAA-1111-AAAA'), tags: ['dlc', 'dlc-extra'] });
       await repo.insert({ ...fila('BBBB-2222-BBBB'), tags: ['dlc'] });
 
-      expect(await repo.renameTag('dlc', 'descuento')).toBe(2);
+      expect(await repo.renameTag('dlc', 'descuento', 'descuento')).toBe(2);
       expect(leer('SELECT tags FROM game_keys ORDER BY key_value')).toEqual([
         { tags: 'dlc-extra,descuento' },
         { tags: 'descuento' },
@@ -464,7 +582,7 @@ describe('renombrar una etiqueta propaga a toda la coleccion', () => {
       await repo.insert({ ...fila('AAAA-1111-AAAA'), tags: ['contexto'] });
       await repo.syncTagsFromKeys(await repo.listAll());
 
-      await repo.renameTag('contexto', 'a contexto');
+      await repo.renameTag('contexto', 'a contexto', 'a contexto');
 
       expect(leer('SELECT nombre FROM tags')).toEqual([{ nombre: 'a contexto' }]);
     } finally {
@@ -482,7 +600,7 @@ describe('renombrar una etiqueta propaga a toda la coleccion', () => {
       // Es lo que pasa al escribir «Humble» un dia y «humble» otro: dos
       // nombres para lo mismo. Fusionados quedan una sola etiqueta y las dos
       // claves con ella.
-      expect(await repo.renameTag('extra', 'dlc')).toBe(1);
+      expect(await repo.renameTag('extra', 'dlc', 'dlc')).toBe(1);
       expect(leer('SELECT nombre FROM tags ORDER BY nombre')).toEqual([
         { nombre: 'dlc' },
       ]);
@@ -501,7 +619,7 @@ describe('renombrar una etiqueta propaga a toda la coleccion', () => {
     try {
       await repo.insert({ ...fila('AAAA-1111-AAAA'), tags: ['dlc', 'extra'] });
 
-      expect(await repo.renameTag('extra', 'dlc')).toBe(1);
+      expect(await repo.renameTag('extra', 'dlc', 'dlc')).toBe(1);
       expect(leer('SELECT tags FROM game_keys')).toEqual([{ tags: 'dlc' }]);
     } finally {
       limpiar();
@@ -514,7 +632,7 @@ describe('renombrar una etiqueta propaga a toda la coleccion', () => {
     try {
       await repo.insert({ ...fila('AAAA-1111-AAAA'), tags: ['contexto'] });
 
-      expect(await repo.renameTag('nada', 'otra cosa')).toBe(0);
+      expect(await repo.renameTag('nada', 'otra cosa', 'otra cosa')).toBe(0);
       expect(leer('SELECT tags FROM game_keys')).toEqual([{ tags: 'contexto' }]);
     } finally {
       limpiar();
@@ -602,8 +720,15 @@ describe('el nombre del catalogo es el normalizado', () => {
       await repo.createTag('Cumplidos');
       await repo.setTagColor('cumplidos', 'danger');
 
-      expect(leer('SELECT nombre, color FROM tags')).toEqual([
-        { nombre: 'Cumplidos', color: 'danger' },
+      /*
+       * La **clave** queda en minusculas —es por donde se busca— y la caja que
+       * se habia escrito se guarda aparte, en `titulo`, que es lo que se
+       * enseña. Perderla al entrar seria tirar la ultima edicion sin avisar, y
+       * con ella volverian las dos filas que esto evita: una con color y otra
+       * sin el.
+       */
+      expect(leer('SELECT nombre, titulo, color FROM tags')).toEqual([
+        { nombre: 'cumplidos', titulo: 'Cumplidos', color: 'danger' },
       ]);
     } finally {
       limpiar();
@@ -651,7 +776,7 @@ describe('el nombre del catalogo es el normalizado', () => {
     try {
       await repo.createTag('Cumplidos');
 
-      expect(await repo.renameTag('cumplidos', 'cumplido')).toBe(0);
+      expect(await repo.renameTag('cumplidos', 'cumplido', 'cumplido')).toBe(0);
       expect(leer('SELECT nombre FROM tags')).toEqual([{ nombre: 'cumplido' }]);
 
       expect(await repo.deleteTag('cumplido')).toBe(0);

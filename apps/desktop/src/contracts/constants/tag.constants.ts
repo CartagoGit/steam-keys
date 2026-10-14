@@ -63,6 +63,25 @@ export function cleanTag(tag: string): string {
   return normalizeTag(tag).replace(/\s+/g, ' ').trim();
 }
 
+/**
+ * Limpia un nombre **conservando como se escribe**.
+ *
+ * Es el paso previo a `normalizeTag` y existe porque no siempre se busca una
+ * etiqueta: a veces se guarda. Renombrar «dlc» a «DLC» tiene que poner «DLC»
+ * en pantalla, y `cleanTag` —que quita acentos y pasa a minusculas— deja «dlc»
+ * y el renombrado no tendria ningun efecto. Aqui solo se aprietan los espacios
+ * sobrantes; la caja y los acentos se quedan, porque son parte de lo que el
+ * usuario ha escrito.
+ *
+ * Se separa de `normalizeTag` y no se mete dentro porque son dos preguntas
+ * distintas y mezclarlas fue lo que hizo que el titulo no se guardara: la clave
+ * tiene que ser una sola —si no, «dlc» y «DLC» son dos etiquetas— y el titulo
+ * no, porque es lo que se enseña.
+ */
+export function presentaTag(tag: string): string {
+  return tag.replace(/\s+/g, ' ').trim();
+}
+
 /** Todas las etiquetas que tienen sentido para una plataforma dada. */
 export function platformTags(platform: KeyPlatform): readonly string[] {
   return PLATFORM_TAGS[platform];

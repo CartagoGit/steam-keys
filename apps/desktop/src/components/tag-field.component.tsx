@@ -83,19 +83,30 @@ export function TagField({
   const marcadas = useMemo(() => new Set(value.map(normalizeTag)), [value]);
 
   /**
-   * El color de cada etiqueta del catalogo, por su clave normalizada.
+   * El catalogo por clave normalizada, para pintar las etiquetas ya elegidas.
    *
-   * Se busca **una vez** y no dentro del `.find` de cada pastilla: el campo
-   * puede llevar diez etiquetas y el catalogo cuarenta, y con el `find` dentro
-   * eran cuatrocientas comparaciones en cada repintado.
+   * Se busca **una vez** y no dentro de un `.find` por pastilla: el campo puede
+   * llevar diez etiquetas y el catalogo cuarenta, y con el `find` dentro eran
+   * cuatrocientas comparaciones en cada repintado.
    *
-   * Las que no estan en el catalogo no tienen color, y por eso salen como texto
-   * —que es lo que hacen las etiquetas que todavia no se han guardado—.
+   * Van **entras** las dos y no solo el color, porque las dos mitades van
+   * juntas: la etiqueta de la clave es su clave —«cumplidos»— y el catalogo es
+   * el unico que sabe como se llama («Cumplidos» si alguien la renombro asi).
+   * Sin resolverlo aqui, las pastillas del editor saldrian en minusculas mientras
+   * el filtro y el gestor las mostrarian con la caja buena, y serian dos
+   * Aspectos de la misma palabra en la misma pantalla.
+   *
+   * Las que no estan en el catalogo —una etiqueta todavia no guardada— se
+   * quedan con su clave y su texto, que es lo unico que hay.
    */
-  const colores = useMemo(
-    () => new Map(catalogo.map((tag) => [normalizeTag(tag.nombre), tag.color])),
+  const porClave = useMemo(
+    () => new Map(catalogo.map((tag) => [tag.clave, tag])),
     [catalogo],
   );
+
+  /** Como se ve una etiqueta de la clave.
+   */
+  const presente = (clave: string): ITag | undefined => porClave.get(normalizeTag(clave));
 
   const alternar = (nombre: string): void => {
     const clave = normalizeTag(nombre);
@@ -147,25 +158,23 @@ export function TagField({
       {value.length > 0 ? (
         <div className="flex flex-wrap items-center gap-1.5">
           {value.map((tag) => {
-            const color = colores.get(normalizeTag(tag)) ?? '';
+            const entrada = presente(tag);
+            const nombre = entrada?.nombre ?? tag;
 
             return (
-              <span
-                key={tag}
-                className="group relative inline-flex items-center"
-              >
+              <span key={tag} className="group relative inline-flex items-center">
                 <TagChip
-                  tag={{ nombre: tag, color }}
+                  tag={{ nombre, color: entrada?.color ?? '' }}
                   marcada
-                  className={color === '' ? '' : 'pr-4'}
+                  className={entrada?.color === '' || entrada === undefined ? '' : 'pr-4'}
                 />
 
                 <button
                   type="button"
                   onClick={() => onChange(value.filter((otra) => otra !== tag))}
                   disabled={disabled}
-                  title={t('tags.removeOne', [tag])}
-                  aria-label={t('tags.removeOne', [tag])}
+                  title={t('tags.removeOne', [nombre])}
+                  aria-label={t('tags.removeOne', [nombre])}
                   className={[
                     'absolute top-1/2 right-1 -translate-y-1/2 rounded-full p-0.5',
                     'transition focus-visible:outline-2 focus-visible:outline-offset-1',

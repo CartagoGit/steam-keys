@@ -71,8 +71,20 @@ export interface IGameKeyRepository {
   // ------------------------------------------------------- catalogo de etiquetas ---
   /** Las etiquetas que existen en la app, tal cual estan guardadas. */
   listTags(): Promise<readonly ITagRow[]>;
-  /** Anade una etiqueta al catalogo. Si ya existe, no hace nada. */
-  createTag(nombre: string, color?: string): Promise<void>;
+  /**
+   * Anade una etiqueta al catalogo y dice si ha entrado de verdad.
+   *
+   * El booleano no es un adorno: quien llama necesita distinguir «no existia y
+   * se ha creado» de «ya existia», que es justo lo que hay que explicarle a
+   * quien intentaba crearla. Preguntar antes y luego insertar dejaria hueco
+   * para que entre las dos cosas otra peticion cree la misma etiqueta, y el
+   * aviso de «ya existe» saldria en el caso en que si se ha creado.
+   *
+   * Si ya existe, no se toca: tampoco su `titulo`, porque quien ha escrito el
+   * nombre con otra caja ha decidido como se ve, y que otra persona repita el
+   * mismo nombre no es motivo para cambiarselo.
+   */
+  createTag(nombre: string, color?: string, titulo?: string): Promise<boolean>;
   /**
    * Cambia el tono con el que se pinta una etiqueta.
    *
@@ -99,8 +111,17 @@ export interface IGameKeyRepository {
    * se quedaran en «humble», habria dos etiquetas con el mismo significado y
    * el filtro dejaria de encontrar ninguna. Si el nombre nuevo ya existe, se
    * fusiona en vez de duplicar.
+   *
+   * `actual` y `claveNueva` van ya normalizados —con eso se busca— y
+   * `tituloNuevo` es lo que se ha escrito, con su caja. Cuando las dos claves
+   * coinciden —renombrar «dlc» a «DLC»— no se toca ninguna clave: lo unico que
+   * cambia es como se ve, y eso vive solo en el catalogo.
    */
-  renameTag(actual: string, nuevo: string): Promise<number>;
+  renameTag(
+    actual: string,
+    claveNueva: string,
+    tituloNuevo: string,
+  ): Promise<number>;
   /**
    * Mete en el catalogo toda etiqueta que alguna clave lleve puesta.
    *

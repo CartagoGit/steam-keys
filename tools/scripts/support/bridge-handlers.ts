@@ -67,10 +67,10 @@ export const MANEJADORES: BridgeHandlers = {
 
   // ------------------------------------------------------- catalogo de etiquetas ---
   'tags/list': (ctx) => ctx.claves.listTags(),
-  'tags/create': (ctx, { nombre, color }) => ctx.claves.createTag(nombre, color),
+  'tags/create': (ctx, { nombre, color, titulo }) => ctx.claves.createTag(nombre, color, titulo),
   'tags/set-color': (ctx, { nombre, color }) => ctx.claves.setTagColor(nombre, color),
   'tags/delete': (ctx, { nombre }) => ctx.claves.deleteTag(nombre),
-  'tags/rename': (ctx, { actual, nuevo }) => ctx.claves.renameTag(actual, nuevo),
+  'tags/rename': (ctx, { actual, claveNueva, tituloNuevo }) => ctx.claves.renameTag(actual, claveNueva, tituloNuevo),
 
   /**
    * El servidor lee las claves, no las recibe.

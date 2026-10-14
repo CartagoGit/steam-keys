@@ -3,7 +3,7 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { contarUsos, nombresDe, sortTags } from './tags.helper';
+import { contarUsos, sortTags } from './tags.helper';
 import {
   TAG_FAMILIAS,
   TAG_PASOS,
@@ -107,78 +107,6 @@ describe('contar los usos de cada etiqueta', () => {
  * - **lo que llega de la base se comprueba.** El fichero se puede abrir y
  *   editar a mano, y un color raro en la columna no puede romper la pantalla.
  */
-/**
- * El nombre con el que se ve una etiqueta.
- *
- * El catalogo guarda la clave normalizada y las claves guardan el texto tal
- * cual. La etiqueta que se ve sale de las claves —«Cumplidos»— y no del
- * catalogo —«cumplidos»—, porque si saliera de ahi la palabra de la fila y la del
- * filtro serian distintas y no se reconoceria que son la misma.
- */
-describe('el nombre con el que se ve una etiqueta', () => {
-  test('sale de las claves, con la caja con la que estan escritas', () => {
-    const nombres = nombresDe([['Cumplidos'], ['Cumplidos', '2025']]);
-
-    expect(nombres.get('cumplidos')).toBe('Cumplidos');
-    expect(nombres.get('2025')).toBe('2025');
-  });
-
-  test('la clave es la normalizada, no el nombre', () => {
-    /*
-     * Es lo que hace que el filtro encuentre la etiqueta. Con la clave puesta al
-     * nombre —«Cumplidos»— el filtro buscaria eso contra las claves, que
-     * guardan otra cosa, y no saldria nada.
-     */
-    const nombres = nombresDe([['Para el hermano']]);
-
-    expect([...nombres.keys()]).toEqual(['para el hermano']);
-    expect(nombres.get('para el hermano')).toBe('Para el hermano');
-  });
-
-  test('si hay dos cajas, gana la que usan mas claves', () => {
-    const nombres = nombresDe([
-      ['Cumplidos'],
-      ['cumplidos'],
-      ['cumplidos'],
-    ]);
-
-    expect(nombres.get('cumplidos')).toBe('cumplidos');
-  });
-
-  test('a igualdad de usos, la eleccion es siempre la misma', () => {
-    /*
-     * Sin desempate, una etiqueta repartida a partes iguales podria salir con
-     * cualquiera de las dos cajas y cambiar al reabrir el filtro.
-     */
-    const uno = nombresDe([['Cumplidos'], ['cumplidos']]);
-    const otro = nombresDe([['cumplidos'], ['Cumplidos']]);
-
-    expect(uno.get('cumplidos')).toBe(otro.get('cumplidos'));
-  });
-
-  test('lo que se escribe con acentos o con mayusculas es la misma etiqueta', () => {
-    /*
-     * Las dos formas caen en la **misma** clave, que es lo que importa: es la
-     * clave por la que se busca el filtro y por la que se guarda el color. Con
-     * dos claves distintas habria dos entradas en el filtro para la misma
-     * palabra y el color de una no se veria en la otra.
-     *
-     * Cuál de las dos cajas gana el empate no se comprueba aqui —depende del
-     * alfabeto— y es lo de menos: lo que no puede pasar es que sean dos.
-     */
-    const nombres = nombresDe([['Promo Café'], ['promo cafe']]);
-
-    expect([...nombres.keys()]).toEqual(['promo cafe']);
-    expect(['Promo Café', 'promo cafe']).toContain(nombres.get('promo cafe') ?? '');
-
-    // La `ñ` tambien se va: se descompone en `n` mas la tilde, y la tilde es
-    // una marca de combinacion. Con ella, «Cumpleaños» y «Cumpleanos» serian
-    // dos etiquetas distintas en una coleccion de mil claves, y bastaba con
-    // que se escribieran con o sin tilde para no encontrar ninguna.
-    expect([...nombresDe([['Cumpleaños']]).keys()]).toEqual(['cumpleanos']);
-  });
-});
-
 describe('el color de una etiqueta', () => {
   test('sin color elegido no hay color, y no hay color deducido', () => {
     /*

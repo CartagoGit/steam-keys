@@ -150,6 +150,14 @@ export const ES: TranslationTable = Object.freeze({
   'tags.removeLabel': 'Quitar la etiqueta {0}',
   'tags.removedOne': 'Se quito de {0} clave.',
   'tags.removedMany': 'Se quito de {0} claves.',
+  /*
+   * Aviso de etiqueta repetida.
+   *
+   * El nombre es el que ya se conoce, no el que se ha escrito: si hay una
+   * «Zapatazo» y alguien intenta crear «zapatazo», decir «ya existe zapatazo»
+   * hace pensar que hay dos.
+   */
+  'tags.duplicate': 'Ya existe una etiqueta llamada «{0}». Marcarla en vez de volver a crearla.',
   'tags.title': 'Etiquetas',
   'tags.new': 'Etiqueta nueva',
   'tags.addHint': 'Anadir la etiqueta a la seleccion',
@@ -515,6 +523,7 @@ export const ES: TranslationTable = Object.freeze({
   'settings.keys.file': 'El fichero',
   'settings.keys.file.hint': 'Exportar la coleccion al TXT de siempre, importar uno, o ver donde esta el fichero y cuanto ocupa.',
   'settings.keys.tags.hint': 'Como se llaman las etiquetas de la coleccion. Renombrar una cambia el nombre en todas las claves que la llevan.',
+  'settings.keys.tags.manage': 'Gestionar etiquetas',
   'settings.keys.tags.total': 'en el catalogo',
   'settings.keys.tags.inUseOne': '{0} en uso',
   'settings.keys.tags.inUseMany': '{0} en uso',
