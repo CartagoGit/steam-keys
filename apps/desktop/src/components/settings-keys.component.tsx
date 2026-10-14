@@ -7,8 +7,6 @@ import { Button, Field } from './ui.component';
 export interface IKeysSettingsProps {
   /** El catalogo de etiquetas, con su recuento de usos. */
   catalogo: readonly ITag[];
-  /** Abre el gestor de etiquetas. */
-  onManageTags: () => void;
   /** Exporta la coleccion al TXT de siempre. */
   onExport: () => void;
   /** Abre el selector de ficheros para importar un TXT. */
@@ -33,7 +31,6 @@ export interface IKeysSettingsProps {
  */
 export function KeysSettings({
   catalogo,
-  onManageTags,
   onExport,
   onImport,
   onOpenStorage,
@@ -72,8 +69,19 @@ export function KeysSettings({
           {/*
             Las mas usadas salen como Pastillas y no como una lista: son las
             que alguien querria marcar ahora mismo, y verlas de un vistazo es
-            el resumen util. El resto no cabe, y no tiene por que caber: para
-            eso esta el gestor.
+            el resumen util. El resto no cabe, y no tiene por que caber.
+
+            Esto es un **resumen**, no el sitio para managearlas. Renombrar o
+            borrar una etiqueta se lleva por delante las claves que la llevan,
+            y eso necesita ver cuantas son —que es lo que hace el gestor—, no
+            un boton suelto debajo de una lista de seis nombres.
+
+            Tampoco hay un boton que abra el gestor desde aqui. Antes lo habia, y
+            salia **debajo** de estas pastillas: un boton de texto con la misma
+            anchura visual que ellas pero con otro aspecto, que se leia como
+            una etiqueta mas y no como una accion. Quien llegue por el editor de
+            una clave tiene el engranaje al lado de «Anadir etiqueta», que es
+            donde se managean de verdad.
           */}
           {enUso > 0 ? (
             <div className="flex flex-wrap gap-1.5">
@@ -97,12 +105,6 @@ export function KeysSettings({
               ) : null}
             </div>
           ) : null}
-
-          <div>
-            <Button icon="tag" onClick={onManageTags} title={t('settings.keys.tags.manage')}>
-              {t('settings.keys.tags.manage')}
-            </Button>
-          </div>
         </div>
       </Field>
 

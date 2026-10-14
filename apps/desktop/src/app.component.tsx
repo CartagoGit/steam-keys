@@ -1904,7 +1904,6 @@ export function App() {
           settings={settings}
           cuenta={cuenta}
           catalogo={tags}
-          onManageTags={openGestor}
           onExport={handleExport}
           onImport={handleImport}
           onOpenStorage={openStorage}

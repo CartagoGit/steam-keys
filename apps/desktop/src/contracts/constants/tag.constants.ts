@@ -175,28 +175,27 @@ export const TEXTO_OSCURO = '#10151f';
  * `style` de la pastilla. Ahi no hay ni error ni aviso: sale un color raro y ya
  * esta. Lo que no se reconoce se trata como **sin color**, que es justo lo que
  * se ve entonces.
+ *
+ * Sale en **mayusculas**, que es la forma en la que el panel escribe. Antes
+ * bajaba a minusculas y el color iba y venia entre las dos cajas —el panel
+ * escribia `#A1B2C3` y esto devolvia `#a1b2c3`—, de modo que comparar el color
+ * guardado con el recien elegido fallaba y el panel abria sobre otro color.
  */
 export function parseTagColor(valor: string): string {
-  const limpio = valor.trim().toLowerCase();
+  const limpio = valor.trim();
 
-  return esHex(limpio) ? limpio : '';
+  return esHex(limpio) ? limpio.toUpperCase() : '';
 }
 
 /**
  * Si un color es un hexadecimal de seis digitos.
  *
- * Vive aqui, y no en `parseTagColor`, porque las dos cosas que la necesitan la
- * consultan distinto: una devuelve el color y la otra un si o un no. Tenian el
- * mismo patron copiado, asi que cambiar uno no cambiaba el otro —que es justo
- * el fallo que ba��a: un color que se rechazaba al leer pero se aceptaba al
- * pintar—.
- *
- * Se admite cualquier hexadecimal, no solo los de la paleta: el panel podria
- * crecer y una base con un color de una version anterior tiene que seguir
- * pintandose. Lo que se rechaza es lo que no es un color.
+ * Acepta las dos cajas a proposito: una base editada a mano puede tener
+ * cualquiera, y rechazarla por el color de las letras seria tirar un color
+ * que se ve bien.
  */
 export function esHex(limpio: string): boolean {
-  return /^#[0-9a-f]{6}$/.test(limpio);
+  return /^#[0-9a-fA-F]{6}$/.test(limpio);
 }
 
 /** Une etiquetas sin repetir, ignorando mayusculas y acentos. */

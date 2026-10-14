@@ -30,10 +30,8 @@ export interface ISettingsDialogProps {
   initialTab?: SettingsTab;
   /** Estado actual de la conexion con Steam, para mostrarlo. */
   cuenta: SteamAccountStatus;
-  /** El catalogo de etiquetas, para el gestor de la pestana de claves. */
+  /** El catalogo de etiquetas, para el resumen de la pestana de claves. */
   catalogo: readonly ITag[];
-  /** Abre el gestor de etiquetas. Vive aqui para poder cerrarlo desde ajustes. */
-  onManageTags: () => void;
   /**
    * Las acciones sobre el fichero entero.
    *
@@ -80,7 +78,6 @@ export function SettingsDialog({
   initialTab = 'appearance',
   cuenta,
   catalogo,
-  onManageTags,
   onExport,
   onImport,
   onOpenStorage,
@@ -300,7 +297,6 @@ export function SettingsDialog({
         ) : tab === 'keys' ? (
           <KeysSettings
             catalogo={catalogo}
-            onManageTags={onManageTags}
             onExport={onExport}
             onImport={onImport}
             onOpenStorage={onOpenStorage}

@@ -147,8 +147,6 @@ FILAS = [
      'Etiquettes', 'Etiquetas da colecao', 'Markierungen'),
     ('settings.keys.tags.hint', 'Como se llaman las etiquetas de la coleccion. Renombrar una cambia el nombre en todas las claves que la llevan.', 'How the collection tags are named. Renaming one changes it in every key that uses it.',
      'Comment les etiquettes de la collection sont nommees. Renommer une change son nom dans toutes les cles qui l utilisent.', 'Como se chamam as etiquetas da colecao. Renomear uma muda o nome em todas as chaves que a usam.', 'Wie die Markierungen der Sammlung benannt sind. Umbenennen aendert den Namen in allen Schluesseln, die sie verwenden.'),
-    ('settings.keys.tags.manage', 'Gestionar etiquetas', 'Manage tags',
-     'Gerer les etiquettes', 'Gerir as etiquetas', 'Markierungen verwalten'),
     ('settings.keys.tags.total', 'en el catalogo', 'in the catalogue',
      'dans le catalogue', 'no catalogo', 'im Katalog'),
     ('settings.keys.tags.inUseOne', '{0} en uso', '{0} in use',

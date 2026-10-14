@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { cleanTag, normalizeTag, type ITag } from '@/contracts';
 import { useT } from '@/context/locale.context';
@@ -6,8 +6,6 @@ import { pluralKey } from '@/helpers/i18n.helper';
 
 import { Icon } from './icon.component';
 import { TagChip } from './tag-chip.component';
-import { Popover, PopoverOption } from './popover.component';
-import { Button } from './ui.component';
 
 export interface ITagFieldProps {
   /** Las etiquetas de la clave, ya elegidas. */
@@ -33,20 +31,39 @@ export interface ITagFieldProps {
  * acababa una etiqueta nueva que no era la de las otras trescientas claves,
  * y el filtro por etiqueta no encontraba nada.
  *
- * Ahora las etiquetas se **eligen de una lista**, que es la unica forma de no
- * inventarse el nombre: la lista es el catalogo de la base de datos y cada
- * una lleva delante cuantas claves la usan, que es justo lo que hace falta
- * para no crear «dlc 2» sin darse cuenta.
+ * ## El catalogo se ve, no se esconde
+ *
+ * Lo que hay **debajo** es la lista de etiquetas de la coleccion, cada una con
+ * su color y con las veces que se usa, y se marca las que lleva esta clave. Es
+ * la misma lista, con el mismo aspecto y en el mismo sitio, que la del filtro
+ * de la barra: son las mismas etiquetas y elegirlas es lo mismo, asi que tener
+ * dos versiones distintas obligaba a aprender el sitio dos veces.
+ *
+ * Estaba dentro de un desplegable, y salia mal por tres cosas a la vez. Una es
+ * que el desplegable tapaba el resto del formulario mientras se elegia. Otra
+ * que el boton de engranaje —abrir el gestor— estaba **dentro** del desplegable,
+ * en un pie aparte, y por eso aparecia en cuanto se abria el desplegable de
+ * «Anadir etiqueta» sin haber pedido el gestor. Y la peor: el area de pulsacion
+ * del desplegable se solapaba con las etiquetas ya elegidas de arriba, asi que
+ * pulsar en un hueco entre dos botones **desmarcaba** una etiqueta que no se
+ * habia tocado. Con la lista a la vista no hay solapamientos: cada elemento es
+ * un boton, ocupa su sitio, y lo que se pulsa es lo que se ve.
+ *
+ * ## Anadir esta en linea
+ *
+ * El campo de escribir aparece y desaparece al pulsar «Anadir etiqueta», sin
+ * desplegable. Crear «dlc extra» es la accion mas frecuente y con el campo
+ * debajo habia que abrir la lista, escribir, cerrar y volver a elegir.
  *
  * Es el mismo componente para el editor de una clave y para el de varias. La
- * diferencia entre editar una y editar treinta es que se tahce sobre una fila
- * o sobre un grupo, y eso lo decide quien abre, no el campo.
+ * diferencia entre editar una y editar treinta es que se hace sobre una fila o
+ * sobre un grupo, y eso lo decide quien abre, no el campo.
  *
- * Las etiquetas no se borran desde aqui. Quitar la etiqueta a **esta** clave
- * es quitar la pastilla; quitar la etiqueta a la **coleccion** es otra cosa,
- * porque se lleva por delante las trescientas claves que la tienen, y eso vive
- * en Ajustes > Claves. El boton de engrenaje esta ahi para que no haya que
- * recordar donde esta.
+ * ## Las etiquetas no se borran desde aqui
+ *
+ * Quitar la etiqueta a **esta** clave es quitar la pastilla; quitar la
+ * etiqueta a la **coleccion** es otra cosa, porque se lleva por delante las
+ * trescientas claves que la tienen, y eso vive en el gestor.
  */
 export function TagField({
   value,
@@ -58,11 +75,9 @@ export function TagField({
 }: ITagFieldProps) {
   const { t } = useT();
 
-  const botonRef = useRef<HTMLButtonElement>(null);
-  const [abierto, setAbierto] = useState(false);
+  const [anadiendo, setAnadiendo] = useState(false);
   const [nueva, setNueva] = useState('');
   const [ocupado, setOcupado] = useState(false);
-  const [resaltada, setResaltada] = useState(0);
 
   /** Las marcadas, para pintar la lista contra ellas. */
   const marcadas = useMemo(() => new Set(value.map(normalizeTag)), [value]);
@@ -84,20 +99,21 @@ export function TagField({
 
   const alternar = (nombre: string): void => {
     const clave = normalizeTag(nombre);
-    const siguiente = marcadas.has(clave)
-      ? value.filter((tag) => normalizeTag(tag) !== clave)
-      : [...value, cleanTag(nombre)];
 
-    onChange(siguiente);
+    onChange(
+      marcadas.has(clave)
+        ? value.filter((tag) => normalizeTag(tag) !== clave)
+        : [...value, cleanTag(nombre)],
+    );
   };
 
   /**
    * Anade la etiqueta escrita y la deja puesta.
    *
-   * Se escribe en el catalogo antes de ponerla, y no al guardar la clave: si
-   * se cerrara el editor sin guardar, la etiqueta habria existido igual. Un
-   * catalogo se parece mas a un conjunto de palabras que a un borrador, y
-   * lo que se ha decidido que existe no se deshace por cancelar.
+   * Se escribe en el catalogo antes de ponerla, y no al guardar la clave: si se
+   * cerrara el editor sin guardar, la etiqueta habria existido igual. Un
+   * catalogo se parece mas a un conjunto de palabras que a un borrador, y lo
+   * que se ha decidido que existe no se deshace por cancelar.
    */
   const anadirNueva = async (): Promise<void> => {
     if (ocupado || nueva.trim().length === 0) return;
@@ -109,243 +125,224 @@ export function TagField({
 
       if (creada !== null) {
         if (!marcadas.has(normalizeTag(creada))) onChange([...value, creada]);
+
         setNueva('');
-        setAbierto(false);
+        setAnadiendo(false);
       }
     } finally {
       setOcupado(false);
     }
   };
 
-  const alTeclado = (event: React.KeyboardEvent<HTMLDivElement>): void => {
-    if (event.key === 'Escape' && abierto) {
-      // El Popover ya lo captura en fase de captura y detiene la propagacion,
-      // asi que esto es solo para cuando se escribe con el foco dentro.
-      setAbierto(false);
-      return;
-    }
-
-    if (abierto && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
-      event.preventDefault();
-      setResaltada((actual) => {
-        const siguiente = actual + (event.key === 'ArrowDown' ? 1 : -1);
-        return (siguiente + catalogo.length) % Math.max(catalogo.length, 1);
-      });
-      return;
-    }
-
-    if (abierto && event.key === 'Enter' && document.activeElement?.tagName !== 'INPUT') {
-      event.preventDefault();
-      const elegida = catalogo[resaltada];
-      if (elegida) alternar(elegida.nombre);
-    }
-  };
-
   return (
-    <div className="flex flex-col gap-2" onKeyDown={alTeclado}>
-      <div className="flex flex-wrap items-center gap-1.5">
-        {/*
-          Las etiquetas de la clave van como Pastillas con aspa, no como texto.
-          Una pastilla se quita con un clic en la aspa y no hay forma de
-          borrarse «media etiqueta» por error, que es lo que pasaba escribiendo.
-        */}
-        {/*
-          La pastilla es la de toda la app —`TagChip`—, con el color que tenga,
-          y la aspa va **encima**, al borde derecho. Estaba al reves, con el
-          boton dentro y las clases de `info` escritas a mano, y por eso todas
-          las etiquetas salian del mismo azul. Encima y no dentro para dos
-          cosas: el borde de la pastilla queda entero y cerrado —si se parte en
-          dos mitades, con un `pr-0.5` a un lado y un `pl-0.5` al otro, sale una
-          costura—, y el hover puede teñir la pastilla entera en vez de solo la
-          aspa.
+    <div className="flex flex-col gap-2">
+      {/*
+        Las de la clave van como Pastillas con aspa, que es como se ve una
+        etiqueta en el resto de la app. El aspa va **encima** del borde derecho
+        de la pastilla y su envoltorio es `relative`: sin eso el boton se
+        posiciona respecto al **formulario entero** y todas las aspas se apilan
+        en la misma esquina. Se pulsaba una y se quitaba otra —o ninguna—, que
+        es lo que pasaba antes.
+      */}
+      {value.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {value.map((tag) => {
+            const color = colores.get(normalizeTag(tag)) ?? '';
 
-          Sin color, la pastilla sale como texto y la aspa se pone al lado, no
-          encima: una etiqueta sin color no es una caja y no hay nada que
-          tapar.
-        */}
-        {value.map((tag) => {
-          const color = colores.get(normalizeTag(tag)) ?? '';
-
-          return (
-          <span key={tag} className="group inline-flex items-center gap-0.5">
-            <TagChip
-              tag={{ nombre: tag, color }}
-              marcada
-              className={[
-                color === '' ? 'pr-1 group-hover:opacity-80' : 'gap-0 pr-5',
-                color === '' ? '' : 'group-hover:opacity-80',
-              ].join(' ')}
-            />
-
-            {color === '' ? null : (
-              <button
-                type="button"
-                onClick={() => onChange(value.filter((otra) => otra !== tag))}
-                disabled={disabled}
-                title={t('tags.removeOne', [tag])}
-                aria-label={t('tags.removeOne', [tag])}
-                className={[
-                  'absolute top-1/2 right-1 -translate-y-1/2 rounded-full p-0.5',
-                  'transition focus-visible:outline-2 focus-visible:outline-offset-1',
-                  'focus-visible:outline-on-accent',
-                ].join(' ')}
+            return (
+              <span
+                key={tag}
+                className="group relative inline-flex items-center"
               >
-                <Icon name="x" size={10} />
-              </button>
-            )}
+                <TagChip
+                  tag={{ nombre: tag, color }}
+                  marcada
+                  className={color === '' ? '' : 'pr-4'}
+                />
 
-            {color === '' ? (
-              <button
-                type="button"
-                onClick={() => onChange(value.filter((otra) => otra !== tag))}
-                disabled={disabled}
-                title={t('tags.removeOne', [tag])}
-                aria-label={t('tags.removeOne', [tag])}
-                className={[
-                  'rounded p-0.5 text-t4 transition hover:text-t1',
-                  'focus-visible:outline-2 focus-visible:outline-accent',
-                ].join(' ')}
-              >
-                <Icon name="x" size={10} />
-              </button>
-            ) : null}
-          </span>
-          );
-        })}
-
-        <button
-          ref={botonRef}
-          type="button"
-          onClick={() => {
-            setResaltada(0);
-            setAbierto((v) => !v);
-          }}
-          disabled={disabled}
-          aria-expanded={abierto}
-          aria-haspopup="listbox"
-          title={t('tags.addOne')}
-          aria-label={t('tags.addOne')}
-          className={[
-            'inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition ring-1',
-            'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-            abierto
-              ? 'bg-hover-2 text-t1 ring-line-strong'
-              : 'bg-hover text-t3 ring-line hover:text-t1',
-          ].join(' ')}
-        >
-          <Icon name="plus" size={11} />
-          {t('tags.addOne')}
-        </button>
-
-        {/*
-          El engranaje abre el gestor. Esta ahi porque quitar una etiqueta a
-          toda la coleccion —y renombrarla— es una accion distinta de quitar
-          la pastilla, y sin esto habria que acordarse de que vive en Ajustes.
-        */}
-        <button
-          type="button"
-          onClick={onManage}
-          disabled={disabled}
-          title={t('tags.manage.title')}
-          aria-label={t('tags.manage.title')}
-          className="ml-auto rounded-md p-1 text-t4 transition hover:bg-hover hover:text-t1 focus-visible:outline-2 focus-visible:outline-accent"
-        >
-          <Icon name="settings" size={13} />
-        </button>
-      </div>
-
-      {abierto ? (
-        <Popover abierto ancla={botonRef} onCerrar={() => setAbierto(false)}>
-          {/*
-            El campo para escribir esta **dentro** de la lista y no debajo: es
-            la accion mas frecuente —crear «dlc extra»— y con el campo debajo
-            habia que cerrar la lista, escribir, volver a abrir y elegir.
-          */}
-          <div className="border-b border-line p-2">
-            <input
-              autoFocus
-              value={nueva}
-              onChange={(event) => setNueva(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault();
-                  void anadirNueva();
-                }
-                // El Escape lo corta el Popover; sin esto se cerraria la lista
-                // pero el editor tambien, que es lo de siempre: un Escape
-                // cerrando dos capas.
-                if (event.key === 'Escape') event.stopPropagation();
-              }}
-              placeholder={t('tags.manage.newPlaceholder')}
-              aria-label={t('tags.manage.newPlaceholder')}
-              maxLength={40}
-              className="w-full rounded-md bg-hover px-2 py-1.5 text-xs text-t1 outline-none placeholder:text-t4"
-            />
-          </div>
-
-          <ul className="max-h-56 overflow-y-auto py-1" role="listbox">
-            {catalogo.length === 0 ? (
-              <li className="px-3 py-3 text-center text-[11px] text-t4">
-                {t('tags.empty')}
-              </li>
-            ) : (
-              catalogo.map((tag, indice) => {
-                const marcada = marcadas.has(normalizeTag(tag.nombre));
-
-                return (
-                  <PopoverOption
-                    key={tag.nombre}
-                    activa={marcada}
-                    resaltada={resaltada === indice}
-                    alPulsar={() => alternar(tag.nombre)}
-                  >
-                    {/*
-                      El disco va delante del nombre, como en el filtro de la
-                      barra. Es el mismo dato en el mismo sitio en los dos sitios
-                      donde se elige una etiqueta de una lista, y asi se reconoce
-                      que las dos listas hablan de lo mismo.
-
-                      Solo si la etiqueta tiene color. Sin color no hay punto: un
-                      punto de un color cualquiera seria inventarselo, y es justo
-                      lo que se ha quitado de las otras partes.
-                    */}
-                    {tag.color === '' ? null : (
-                      <span
-                        aria-hidden="true"
-                        className="h-2 w-2 shrink-0 rounded-full"
-                        style={{ backgroundColor: tag.color }}
-                      />
-                    )}
-
-                    <span className="min-w-0 flex-1 truncate">{tag.nombre}</span>
-
-                    <span className="shrink-0 text-[10px] tabular-nums text-t4">
-                      {t(pluralKey(tag.usos, 'tags.usesOne', 'tags.usesMany'), [tag.usos])}
-                    </span>
-                  </PopoverOption>
-                );
-              })
-            )}
-          </ul>
-
-          {/*
-            El boton va **abajo**, al lado de la lista, no dentro de cada
-            etiqueta: dentro habria un boton de borrar por fila, y en una
-            etiqueta de la clave es distinto —quitar la de esta clave— de
-            quitarla de la coleccion. Dos acciones parecidas en dos sitios es
-            la forma mas rapida de borrar la etiqueta equivocada.
-          */}
-          <div className="border-t border-line p-1.5">
-            <Button
-              variant="ghost"
-              icon="settings"
-              onClick={onManage}
-            >
-              {t('settings.keys.tags.manage')}
-            </Button>
-          </div>
-        </Popover>
+                <button
+                  type="button"
+                  onClick={() => onChange(value.filter((otra) => otra !== tag))}
+                  disabled={disabled}
+                  title={t('tags.removeOne', [tag])}
+                  aria-label={t('tags.removeOne', [tag])}
+                  className={[
+                    'absolute top-1/2 right-1 -translate-y-1/2 rounded-full p-0.5',
+                    'transition focus-visible:outline-2 focus-visible:outline-offset-1',
+                    'focus-visible:outline-on-accent',
+                  ].join(' ')}
+                >
+                  <Icon name="x" size={9} />
+                </button>
+              </span>
+            );
+          })}
+        </div>
       ) : null}
+
+      {/* ------------------------------------------------------ anadir --- */}
+      {anadiendo ? (
+        <div className="flex items-center gap-1.5">
+          <input
+            autoFocus
+            value={nueva}
+            disabled={ocupado}
+            onChange={(event) => setNueva(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                void anadirNueva();
+              }
+
+              // El Escape sale del campo de escribir, no del dialogo: con el
+              // editor encima, uno cerraba los dos y se perdia lo escrito.
+              if (event.key === 'Escape') {
+                event.stopPropagation();
+                setAnadiendo(false);
+                setNueva('');
+              }
+            }}
+            placeholder={t('tags.manage.newPlaceholder')}
+            aria-label={t('tags.manage.newPlaceholder')}
+            maxLength={40}
+            className={[
+              'min-w-0 flex-1 rounded-md bg-hover px-2 py-1.5 text-xs text-t1',
+              'outline-none placeholder:text-t4',
+            ].join(' ')}
+          />
+          <button
+            type="button"
+            onClick={() => void anadirNueva()}
+            disabled={ocupado || nueva.trim().length === 0}
+            title={t('tags.manage.add')}
+            aria-label={t('tags.manage.add')}
+            className={[
+              'shrink-0 rounded-md bg-accent px-2 py-1.5 text-[11px] font-medium text-on-accent',
+              'transition disabled:opacity-50',
+              'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+            ].join(' ')}
+          >
+            {t('tags.manage.add')}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setAnadiendo(false);
+              setNueva('');
+            }}
+            disabled={ocupado}
+            title={t('action.cancel')}
+            aria-label={t('action.cancel')}
+            className={[
+              'shrink-0 rounded-md px-1.5 py-1.5 text-t4 transition hover:text-t1',
+              'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+            ].join(' ')}
+          >
+            <Icon name="x" size={11} />
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-1.5">
+          {/*
+            Los dos botones van **siempre a la vista**, no el engranaje dentro de
+            un desplegable. Abrir el gestor es quitar o renombrar una etiqueta en
+            toda la coleccion, y esconderlo detras de «Anadir etiqueta» hacia
+            que el boton apareciera al Pulsar algo que no tiene nada que ver con
+            el gestor.
+          */}
+          <button
+            type="button"
+            onClick={() => setAnadiendo(true)}
+            disabled={disabled}
+            title={t('tags.addOne')}
+            aria-label={t('tags.addOne')}
+            className={[
+              'inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition ring-1',
+              'bg-hover text-t3 ring-line hover:text-t1',
+              'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+            ].join(' ')}
+          >
+            <Icon name="plus" size={11} />
+            {t('tags.addOne')}
+          </button>
+
+          <button
+            type="button"
+            onClick={onManage}
+            disabled={disabled}
+            title={t('tags.manage.title')}
+            aria-label={t('tags.manage.title')}
+            className={[
+              'shrink-0 rounded-md p-1 text-t4 transition hover:bg-hover hover:text-t1',
+              'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+            ].join(' ')}
+          >
+            <Icon name="settings" size={13} />
+          </button>
+        </div>
+      )}
+
+      {/* ------------------------------------------- catalogo visible --- */}
+      {/*
+        La lista de la coleccion, siempre a la vista. Cada boton ocupa su sitio
+        y no hay nada detras: antes el desplegable se solapaba con las
+        pastillas de arriba y al pulsar un hueco se desmarcaba una etiqueta.
+
+        Sin barra de desplazamiento a proposito —es un `flex-wrap`, y lo que no
+        cabe pasa a la linea de abajo—: el desplegable tapaba el formulario y
+        obligaba a cerrarlo para ver lo que habia debajo.
+      */}
+      {catalogo.length === 0 ? (
+        <p className="text-[11px] text-t4">{t('tags.empty')}</p>
+      ) : (
+        <ul
+          className="flex flex-wrap items-center gap-1"
+          aria-label={t('tags.manage.title')}
+        >
+          {catalogo.map((tag) => {
+            const marcada = marcadas.has(normalizeTag(tag.nombre));
+
+            return (
+              <li key={tag.nombre}>
+                <button
+                  type="button"
+                  onClick={() => alternar(tag.nombre)}
+                  disabled={disabled}
+                  aria-pressed={marcada}
+                  title={`${tag.nombre} · ${t(
+                    pluralKey(tag.usos, 'tags.usesOne', 'tags.usesMany'),
+                    [tag.usos],
+                  )}`}
+                  className={[
+                    'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] transition',
+                    'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent',
+                    marcada
+                      ? 'bg-hover-2 text-t1 ring-1 ring-line-strong'
+                      : 'text-t4 ring-1 ring-transparent hover:bg-hover hover:text-t3',
+                  ].join(' ')}
+                >
+                  {/* El disco va delante, como en el filtro de la barra. */}
+                  {tag.color === '' ? null : (
+                    <span
+                      aria-hidden="true"
+                      className="h-2 w-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: tag.color }}
+                    />
+                  )}
+
+                  <span className="truncate">{tag.nombre}</span>
+
+                  <span className="shrink-0 text-[10px] tabular-nums opacity-70">
+                    {tag.usos}
+                  </span>
+
+                  {marcada ? <Icon name="check" size={10} /> : null}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

@@ -84,20 +84,24 @@ export const tagService = {
      * El nombre con el que **se ve** cada etiqueta.
      *
      * Sale de las claves, y no del catalogo, porque es ahi donde esta escrito
-     * con la caja que le dio el usuario. El catalogo guarda la clave
-     * normalizada —«cumplidos»— y usarla para todo hacia que la etiqueta de la
-     * fila, que pone «Cumplidos», no se reconociera en el filtro ni en la ficha.
+     * con la caja que le dio el usuario. El catalogo guarda lo que se escribio
+     * la primera vez —«Cumplidos»— y usarlo para todo hacia que la etiqueta de
+     * la fila, que pone «zapatazo», no se reconociera en el filtro ni en la
+     * ficha.
      *
-     * Una etiqueta que todavia no la lleva ninguna clave cae al nombre del
-     * catalogo, que es lo unico que hay, y sale en minusculas. En cuanto se
-     * pone en una clave, aparece con la caja que tiene.
+     * El de reserva tambien sale normalizado, y por el mismo motivo: una
+     * etiqueta del catalogo que no lleva ninguna clave se veria con la caja
+     * con la que se creo —«Zapatazo» al lado de «zapatazo» en la misma lista—
+     * mientras que en cuanto se le pone a una clave ya sale de `parseTags`, en
+     * minusculas. Dos formas de la misma palabra en el mismo sitio, que es
+     * justo lo que hace ilegible el filtro.
      */
     const nombres = nombresDe(propias.map((clave) => clave.tags));
 
     return sortTags(
       delCatalogo.map((fila) => ({
         clave: fila.nombre,
-        nombre: nombres.get(fila.nombre.toLowerCase()) ?? fila.nombre,
+        nombre: nombres.get(fila.nombre.toLowerCase()) ?? cleanTag(fila.nombre),
         /*
          * El color se comprueba al leer y no al escribir, para que una base
          * editada a mano con cualquier cosa dentro de la columna se pinte sin

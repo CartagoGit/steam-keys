@@ -1,4 +1,4 @@
-import { ANNOTATION_SEPARATOR, PARENT_ANNOTATION_PREFIX, PLATFORM_ANNOTATION_PREFIX, STATUS_MARKER_CHARS, TITLE_NOISE_PATTERN } from '@/contracts';
+import { ANNOTATION_SEPARATOR, PARENT_ANNOTATION_PREFIX, PLATFORM_ANNOTATION_PREFIX, STATUS_MARKER_CHARS, TITLE_NOISE_PATTERN, cleanTag, normalizeTag } from '@/contracts';
 
 /**
  * Marcadores de estado al inicio de linea: `- ! ~ ?`, en racha o no.
@@ -118,23 +118,58 @@ export function keyFingerprint(value: string): string {
   return normalizeKey(value).replace(/[^A-Z0-9]/g, '');
 }
 
-/** Convierte una lista de tags en el texto plano que se guarda en la BD. */
+/**
+ * Convierte una lista de tags en el texto plano que se guarda en la BD.
+ *
+ * Normaliza a minusculas **y deduplica por la forma normalizada**, no por la
+ * cadena: sin eso, `['Humble', 'humble']` se guardaba como `Humble,humble` —dos
+ * etiquetas donde hay una— y el filtro por «humble» encontraba una de las dos.
+ */
 export function serializeTags(tags: readonly string[] | undefined | null): string {
   if (!tags || tags.length === 0) return '';
 
-  const clean = tags
-    .map((tag) => collapseWhitespace(tag).toLowerCase())
-    .filter((tag) => tag.length > 0);
+  const limpias = tags.map((tag) => cleanTag(tag)).filter((tag) => tag.length > 0);
 
-  return [...new Set(clean)].join(',');
+  // Se ve por la normalizada, que ya es minuscula: `Zapatazo` y `zapatazo` dan
+  // la misma clave y solo se guarda la primera.
+  const vistas = new Map<string, string>();
+
+  for (const tag of limpias) {
+    const clave = normalizeTag(tag);
+
+    if (!vistas.has(clave)) vistas.set(clave, tag);
+  }
+
+  return [...vistas.values()].join(',');
 }
 
-/** Deserializa el texto de tags guardado en la BD. */
+/**
+ * Deserializa el texto de tags guardado en la BD.
+ *
+ * **Normaliza al leer**, y no solo al escribir, y no es una redundancia. Las
+ * etiquetas que ya estaban en la base de datos se escribieron antes de que
+ * `serializeTags` normalizase, asi que ahi hay `Zapatazo` junto a `zapatazo`:
+ * el filtro —que compara con `normalizeTag`— las encontraba como la misma, pero
+ * cada fila pintaba la suya y se veia la misma palabra escrita de dos maneras
+ * en la misma lista.
+ *
+ * Corregirlo al escribir no arregla lo que ya esta escrito, y el unico sitio
+ * donde se puede arreglar sin reescribir la base es aqui. El coste es que
+ * guardar una clave sin tocarla ya sale normalizada, que es lo que se quiere.
+ *
+ * El `Set` esta por lo mismo que en `serializeTags`: dos que se normalicen al
+ * mismo se quedan en una.
+ */
 export function parseTags(value: string | null | undefined): readonly string[] {
   if (!value) return [];
 
-  return value
-    .split(',')
-    .map((tag) => tag.trim())
-    .filter((tag) => tag.length > 0);
+  const vistas = new Set<string>();
+
+  for (const parte of value.split(',')) {
+    const limpia = cleanTag(parte);
+
+    if (limpia.length > 0) vistas.add(limpia);
+  }
+
+  return [...vistas];
 }

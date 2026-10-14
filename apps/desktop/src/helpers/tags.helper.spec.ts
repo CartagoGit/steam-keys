@@ -225,9 +225,13 @@ describe('el color de una etiqueta', () => {
      * Se acepta cualquier `hex` de seis digitos y se rechaza todo lo demas. No
      * se comprueba que sea uno de los dieciocho: la paleta puede crecer, y una
      * base con un color de una version anterior tiene que seguir pintandose.
+     *
+     * Sale siempre en **mayusculas**, tanto si venia escrito en mayusculas como
+     * en minusculas. El panel escribe en mayusculas, y devolver otra cosa hacia
+     * que comparar el color guardado con el recien elegido fallara.
      */
-    expect(parseTagColor('#00A6F4')).toBe('#00a6f4');
-    expect(parseTagColor('  #00a6f4 ')).toBe('#00a6f4');
+    expect(parseTagColor('#00A6F4')).toBe('#00A6F4');
+    expect(parseTagColor('  #00a6f4 ')).toBe('#00A6F4');
 
     // Lo que no es un color, sale como sin color. Es lo que se ve entonces, y no
     // un error: el dato lo escribe la app, pero el fichero se puede editar.
